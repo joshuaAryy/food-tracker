@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Food Tracker",
+    "slug": "food-tracker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "foodtracker",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

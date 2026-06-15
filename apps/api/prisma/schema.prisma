@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GoalType {
+  lose
+  maintain
+  gain
+}
+
+enum TrackingMode {
+  simple
+  complex
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+  other
+}
+
+enum RecommendationSeverity {
+  low
+  medium
+  high
+}
+
+enum RecommendationStatus {
+  active
+  dismissed
+  archived
+}
+
+model User {
+  id                 String              @id @default(uuid()) @db.Uuid
+  email              String?
+  createdAt          DateTime            @default(now()) @db.Timestamptz
+  updatedAt          DateTime            @updatedAt @db.Timestamptz
+  profile            UserProfile?
+  goal               UserGoal?
+  trackingPreference TrackingPreference?
+  foodLogs           FoodLog[]
+  weightLogs         WeightLog[]
+  recommendations    Recommendation[]
+}
+
+model UserProfile {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @db.Uuid
+  age              Int?
+  sex              String?
+  heightInches     Int?
+  timezone         String   @default("America/Toronto")
+  startingWeightLb Decimal? @db.Decimal(5, 1)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserGoal {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @unique @db.Uuid
+  goalType           GoalType
+  targetWeightLb     Decimal? @db.Decimal(5, 1)
+  targetCalories     Int?
+  targetProteinGrams Decimal? @db.Decimal(5, 1)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TrackingPreference {
+  id                   String       @id @default(uuid()) @db.Uuid
+  userId               String       @unique @db.Uuid
+  mode                 TrackingMode
+  waterTrackingEnabled Boolean      @default(false)
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FoodLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid
+  foodName        String
+  mealType        MealType
+  calories        Int
+  protein         Decimal  @db.Decimal(6, 1)
+  carbs           Decimal? @db.Decimal(6, 1)
+  fat             Decimal? @db.Decimal(6, 1)
+  fiber           Decimal? @db.Decimal(6, 1)
+  sugar           Decimal? @db.Decimal(6, 1)
+  sodium          Int?
+  servingQuantity Decimal? @db.Decimal(8, 2)
+  servingUnit     String?
+  notes           String?
+  loggedAt        DateTime @db.Timestamptz
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loggedAt])
+  @@index([userId, loggedAt])
+  @@index([userId, mealType])
+}
+
+model WeightLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  weightLb  Decimal  @db.Decimal(5, 1)
+  loggedAt  DateTime @db.Timestamptz
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([loggedAt])
+  @@index([userId, loggedAt])
+}
+
+model Recommendation {
+  id          String                 @id @default(uuid()) @db.Uuid
+  userId      String                 @db.Uuid
+  type        String
+  severity    RecommendationSeverity
+  title       String
+  message     String
+  sourceFacts Json
+  status      RecommendationStatus
+  createdAt   DateTime               @default(now()) @db.Timestamptz
+  updatedAt   DateTime               @updatedAt @db.Timestamptz
+  user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
+}
