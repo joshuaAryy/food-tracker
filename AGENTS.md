@@ -96,6 +96,20 @@ MVP Prisma/PostgreSQL models, field types, constraints, indexes, relations, and 
 - Reusable components
 - Small focused modules
 
+### Frontend UI Rules
+- Mobile UI must follow `/docs/design-system.md`.
+- Create and reuse shared mobile components before adding screen-specific UI.
+- Avoid one-off inline styles when a shared token, component, or NativeWind
+  class can represent the design.
+- Do not ship generic placeholder layouts for implemented screens.
+- Do not introduce random colors; use the documented semantic palette.
+- Every backend-connected screen must include loading, error, and relevant
+  empty states.
+- Keep screens usable on small phones, including form controls, wrapping rows,
+  keyboard behavior, and bottom navigation clearance.
+- Frontend components display backend facts; they do not calculate nutrition
+  or recommendation decisions.
+
 ### Backend Rules
 Each module must own its responsibility.
 

@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 
 interface AppState {
-  mockMode: 'simple' | 'complex';
-  setMockMode: (mode: AppState['mockMode']) => void;
+  dataVersion: number;
+  markDataChanged: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  mockMode: 'simple',
-  setMockMode: (mockMode) => set({ mockMode }),
+  dataVersion: 0,
+  markDataChanged: () =>
+    set((state) => ({ dataVersion: state.dataVersion + 1 })),
 }));

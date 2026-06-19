@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { colors } from '@/theme/tokens';
 import '../global.css';
 
 export default function RootLayout() {
@@ -7,10 +8,20 @@ export default function RootLayout() {
     <>
       <Stack
         screenOptions={{
-          headerTitleStyle: { fontWeight: '600' },
-          headerBackTitle: 'Back',
+          contentStyle: { backgroundColor: colors.light.canvas },
+          headerShown: false,
         }}
-      />
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="food-log"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="weight-log"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+      </Stack>
       <StatusBar style="dark" />
     </>
   );
