@@ -136,6 +136,15 @@ Do not mix responsibilities.
 - Do not claim persistence works unless create-then-list behavior has been verified.
 - Report the exact commands used during validation.
 - Report exact validation errors rather than summarizing them vaguely.
+- Before completing a major phase, run lint, typecheck, format check, build,
+  and the automated test suite.
+- Backend business logic is incomplete until its success paths, validation
+  behavior, persistence effects, and relevant lifecycle transitions have
+  automated regression coverage.
+- Manual validation is useful for exploratory and end-to-end checks, but it
+  does not replace automated tests.
+- Backend integration tests must use a dedicated test database and must never
+  read from, write to, or clean the development database.
 
 ---
 

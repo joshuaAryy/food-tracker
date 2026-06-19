@@ -14,6 +14,9 @@
     "lint": "corepack pnpm -r lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "corepack pnpm --filter @food-tracker/api test",
+    "test:watch": "corepack pnpm --filter @food-tracker/api test:watch",
+    "test:coverage": "corepack pnpm --filter @food-tracker/api test:coverage",
     "prisma:generate": "corepack pnpm --filter @food-tracker/api prisma:generate",
     "prisma:validate": "corepack pnpm --filter @food-tracker/api prisma:validate"
   },
