@@ -1,10 +1,18 @@
 import type {
   FoodLog as PrismaFoodLog,
+  Recommendation as PrismaRecommendation,
   UserGoal,
   UserProfile,
   WeightLog as PrismaWeightLog,
 } from '@prisma/client';
-import type { FoodLog, Goals, Profile, WeightLog } from '@food-tracker/shared';
+import type {
+  FoodLog,
+  Goals,
+  Profile,
+  Recommendation,
+  RecommendationType,
+  WeightLog,
+} from '@food-tracker/shared';
 
 export const roundTo = (value: number, decimalPlaces: number): number => {
   const factor = 10 ** decimalPlaces;
@@ -61,5 +69,20 @@ export function serializeWeightLog(weightLog: PrismaWeightLog): WeightLog {
     loggedAt: weightLog.loggedAt.toISOString(),
     createdAt: weightLog.createdAt.toISOString(),
     updatedAt: weightLog.updatedAt.toISOString(),
+  };
+}
+
+export function serializeRecommendation(
+  recommendation: PrismaRecommendation,
+): Recommendation {
+  return {
+    id: recommendation.id,
+    type: recommendation.type as RecommendationType,
+    severity: recommendation.severity,
+    title: recommendation.title,
+    message: recommendation.message,
+    sourceFacts: recommendation.sourceFacts as Record<string, unknown>,
+    status: recommendation.status,
+    createdAt: recommendation.createdAt.toISOString(),
   };
 }

@@ -36,7 +36,7 @@ describe('standardized API errors', () => {
     consoleError.mockRestore();
   });
 
-  it.skip('returns NOT_FOUND when dismissing a recommendation not owned by the user', async () => {
+  it('returns NOT_FOUND when dismissing a recommendation not owned by the user', async () => {
     const response = await api
       .patch(
         '/api/v1/recommendations/00000000-0000-4000-8000-000000000099/dismiss',

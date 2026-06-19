@@ -5,6 +5,7 @@ import type {
   Goals,
   Profile,
   Recommendation,
+  RecommendationStatus,
   TrackingPreferences,
   WeightLog,
 } from '@food-tracker/shared';
@@ -45,7 +46,18 @@ async function request<T>(
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
-  const response = await fetch(`${API_URL}${path}`, requestInit);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, requestInit);
+  } catch {
+    throw new ApiClientError(
+      `Could not reach the API at ${API_URL}.`,
+      'NETWORK_ERROR',
+      0,
+    );
+  }
 
   let envelope: ApiResponse<T>;
 
@@ -95,6 +107,11 @@ export interface WeightLogInput {
   loggedAt: string;
 }
 
+const recommendationList = (status?: RecommendationStatus) =>
+  request<{ recommendations: Recommendation[] }>(
+    `/recommendations${status === undefined ? '' : `?status=${status}`}`,
+  ).then(({ recommendations }) => recommendations);
+
 export const api = {
   dashboard: {
     summary: () => request<DashboardSummary>('/dashboard/summary'),
@@ -116,10 +133,16 @@ export const api = {
       request<WeightLog>('/weight-logs', { method: 'POST', body: input }),
   },
   recommendations: {
-    list: () =>
-      request<{ recommendations: Recommendation[] }>('/recommendations').then(
-        ({ recommendations }) => recommendations,
-      ),
+    list: recommendationList,
+    generate: () =>
+      request<{ recommendations: Recommendation[] }>(
+        '/recommendations/generate',
+        { method: 'POST' },
+      ).then(({ recommendations }) => recommendations),
+    dismiss: (id: string) =>
+      request<Recommendation>(`/recommendations/${id}/dismiss`, {
+        method: 'PATCH',
+      }),
   },
   profile: {
     get: () => request<Profile>('/profile'),

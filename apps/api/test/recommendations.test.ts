@@ -61,7 +61,7 @@ async function seedCompleteTracking(input: {
   await seedRecentWeight();
 }
 
-describe.skip('recommendation generation (requires Phase 4 implementation)', () => {
+describe('recommendation generation', () => {
   it('generates protein_low with deterministic facts and wording', async () => {
     await seedCompleteTracking({
       goalType: 'gain',
@@ -249,7 +249,7 @@ describe.skip('recommendation generation (requires Phase 4 implementation)', () 
   });
 });
 
-describe.skip('recommendation lifecycle (requires Phase 4 implementation)', () => {
+describe('recommendation lifecycle', () => {
   it('updates an existing active recommendation without creating a duplicate', async () => {
     await seedCompleteTracking({
       goalType: 'gain',

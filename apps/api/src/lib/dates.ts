@@ -43,10 +43,25 @@ function dateParts(date: Date, timezone: string): DateParts {
   return values as unknown as DateParts;
 }
 
-function addLocalDays(localDate: string, days: number): string {
+export function addLocalDays(localDate: string, days: number): string {
   const [year, month, day] = parseLocalDate(localDate);
   const date = new Date(Date.UTC(year, month - 1, day + days));
   return date.toISOString().slice(0, 10);
+}
+
+export function localDateDifference(
+  laterLocalDate: string,
+  earlierLocalDate: string,
+): number {
+  const [laterYear, laterMonth, laterDay] = parseLocalDate(laterLocalDate);
+  const [earlierYear, earlierMonth, earlierDay] =
+    parseLocalDate(earlierLocalDate);
+
+  return Math.round(
+    (Date.UTC(laterYear, laterMonth - 1, laterDay) -
+      Date.UTC(earlierYear, earlierMonth - 1, earlierDay)) /
+      86_400_000,
+  );
 }
 
 function localMidnightToUtc(localDate: string, timezone: string): Date {

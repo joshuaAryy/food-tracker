@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import type { Recommendation } from '@food-tracker/shared';
+import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -14,17 +15,34 @@ import { api, errorMessage } from '@/lib/api-client';
 export default function InsightsScreen() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadInsights = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      await api.recommendations.generate();
       setRecommendations(await api.recommendations.list());
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const dismissRecommendation = useCallback(async (id: string) => {
+    setDismissingId(id);
+    setError(null);
+    try {
+      await api.recommendations.dismiss(id);
+      setRecommendations((current) =>
+        current.filter((recommendation) => recommendation.id !== id),
+      );
+    } catch (dismissError) {
+      setError(errorMessage(dismissError));
+    } finally {
+      setDismissingId(null);
     }
   }, []);
 
@@ -88,6 +106,17 @@ export default function InsightsScreen() {
               </AppText>
               <AppText variant="heading">{recommendation.title}</AppText>
               <AppText muted>{recommendation.message}</AppText>
+              <AppButton
+                variant="ghost"
+                loading={dismissingId === recommendation.id}
+                disabled={
+                  dismissingId !== null && dismissingId !== recommendation.id
+                }
+                className="self-start px-0"
+                onPress={() => void dismissRecommendation(recommendation.id)}
+              >
+                Dismiss
+              </AppButton>
             </AppCard>
           ))}
         </View>

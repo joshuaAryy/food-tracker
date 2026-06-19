@@ -46,6 +46,9 @@ export const trackingModeSchema = z.enum(TRACKING_MODES);
 export const mealTypeSchema = z.enum(MEAL_TYPES);
 export const recommendationSeveritySchema = z.enum(RECOMMENDATION_SEVERITIES);
 export const recommendationStatusSchema = z.enum(RECOMMENDATION_STATUSES);
+export const recommendationsQuerySchema = z.strictObject({
+  status: recommendationStatusSchema.optional().default('active'),
+});
 
 export const profileSchema = z.strictObject({
   age: z.number().int().nonnegative(),
