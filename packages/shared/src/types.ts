@@ -3,6 +3,7 @@ import type {
   MealType,
   RecommendationSeverity,
   RecommendationStatus,
+  RecommendationType,
   TrackingMode,
 } from './enums.js';
 
@@ -85,7 +86,7 @@ export interface DashboardSummary {
 
 export interface Recommendation {
   id: string;
-  type: string;
+  type: RecommendationType;
   severity: RecommendationSeverity;
   title: string;
   message: string;
