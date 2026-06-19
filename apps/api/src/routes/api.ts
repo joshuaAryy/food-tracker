@@ -1,5 +1,8 @@
 import { Router } from 'express';
-import { analyticsRouter } from '../modules/analytics/routes.js';
+import {
+  advancedAnalyticsRouter,
+  analyticsRouter,
+} from '../modules/analytics/routes.js';
 import { foodLogsRouter } from '../modules/foodLogs/routes.js';
 import { goalsRouter } from '../modules/goals/routes.js';
 import { recommendationsRouter } from '../modules/recommendations/routes.js';
@@ -15,4 +18,5 @@ apiRouter.use('/tracking-preferences', trackingPreferencesRouter);
 apiRouter.use('/food-logs', foodLogsRouter);
 apiRouter.use('/weight-logs', weightLogsRouter);
 apiRouter.use('/dashboard', analyticsRouter);
+apiRouter.use('/analytics', advancedAnalyticsRouter);
 apiRouter.use('/recommendations', recommendationsRouter);

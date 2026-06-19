@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  AdvancedAnalytics,
   DashboardSummary,
   FoodLog,
   Goals,
@@ -107,12 +108,33 @@ export interface WeightLogInput {
   loggedAt: string;
 }
 
+export interface AdvancedAnalyticsQuery {
+  date?: string;
+  timezone?: string;
+  rangeDays?: number;
+}
+
+function queryString(query: AdvancedAnalyticsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) params.set('date', query.date);
+  if (query.timezone !== undefined) params.set('timezone', query.timezone);
+  if (query.rangeDays !== undefined) {
+    params.set('rangeDays', String(query.rangeDays));
+  }
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
 const recommendationList = (status?: RecommendationStatus) =>
   request<{ recommendations: Recommendation[] }>(
     `/recommendations${status === undefined ? '' : `?status=${status}`}`,
   ).then(({ recommendations }) => recommendations);
 
 export const api = {
+  analytics: {
+    advanced: (query: AdvancedAnalyticsQuery = {}) =>
+      request<AdvancedAnalytics>(`/analytics/advanced${queryString(query)}`),
+  },
   dashboard: {
     summary: () => request<DashboardSummary>('/dashboard/summary'),
   },

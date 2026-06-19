@@ -366,6 +366,25 @@ Success `data`:
 
 `latestWeightLb` is `null` when no weight log exists. Targets and remaining values are `null` when the corresponding goal does not exist. Remaining values may be negative when consumption exceeds a target.
 
+### `GET /api/v1/analytics/advanced`
+
+Optional query parameters:
+- `date`: inclusive local end date in `YYYY-MM-DD`; defaults to the current local date
+- `timezone`: valid IANA timezone; defaults to the profile timezone
+- `rangeDays`: integer from `1` through `365`; defaults to `30`
+
+The response contains:
+- 7-day and 30-day calorie and protein averages, including zero-log days
+- nutrient totals and per-logged-day averages for the selected range
+- protein/carbohydrate/fat calorie percentages using `4/4/9` calorie math
+- distinct logged-day counts for the trailing 7 and 30 local days
+- latest and previous weights in the selected range
+- deterministic least-squares weekly weight slope when sufficient data exists
+
+The endpoint is available in both simple and complex tracking modes. Missing
+optional nutrient values contribute `0` to macro totals. Weight change and
+slope values are `null` when insufficient data exists.
+
 ## Recommendations
 
 Recommendation response object:

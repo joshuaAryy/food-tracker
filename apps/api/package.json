@@ -9,9 +9,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint src test vitest.config.ts",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test": "corepack pnpm --filter @food-tracker/shared build && vitest run",
+    "test:watch": "corepack pnpm --filter @food-tracker/shared build && vitest",
+    "test:coverage": "corepack pnpm --filter @food-tracker/shared build && vitest run --coverage",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

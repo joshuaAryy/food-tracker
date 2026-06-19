@@ -84,6 +84,68 @@ export interface DashboardSummary {
   trackingMode: TrackingMode;
 }
 
+export interface NutrientValues {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar: number;
+  sodium: number;
+}
+
+export interface AdvancedAnalytics {
+  date: string;
+  timezone: string;
+  rangeDays: number;
+  range: {
+    startDate: string;
+    endDate: string;
+  };
+  trackingMode: TrackingMode;
+  targets: {
+    calories: number | null;
+    proteinGrams: number | null;
+  };
+  calorieTrend: {
+    average7Day: number;
+    average30Day: number;
+    difference: number;
+  };
+  proteinTrend: {
+    average7Day: number;
+    average30Day: number;
+    difference: number;
+  };
+  macros: {
+    totals: NutrientValues;
+    averagesPerLoggedDay: NutrientValues;
+    calorieSplit: {
+      proteinPercent: number;
+      carbsPercent: number;
+      fatPercent: number;
+    };
+  };
+  loggingConsistency: {
+    past7Days: {
+      loggedDays: number;
+      expectedDays: 7;
+    };
+    past30Days: {
+      loggedDays: number;
+      expectedDays: 30;
+    };
+  };
+  weightTrend: {
+    latestWeightLb: number | null;
+    latestLoggedAt: string | null;
+    previousWeightLb: number | null;
+    previousLoggedAt: string | null;
+    changeLb: number | null;
+    weeklySlopeLb: number | null;
+  };
+}
+
 export interface Recommendation {
   id: string;
   type: RecommendationType;

@@ -29,7 +29,7 @@ const dateRangeSchema = z
     },
   );
 
-const timezoneSchema = z.string().refine(
+export const timezoneSchema = z.string().refine(
   (timezone) => {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: timezone });
@@ -113,4 +113,10 @@ export const weightLogsQuerySchema = dateRangeSchema;
 
 export const dashboardSummaryQuerySchema = z.strictObject({
   date: localDateSchema.optional(),
+});
+
+export const advancedAnalyticsQuerySchema = z.strictObject({
+  date: localDateSchema.optional(),
+  timezone: timezoneSchema.optional(),
+  rangeDays: z.coerce.number().int().min(1).max(365).default(30),
 });

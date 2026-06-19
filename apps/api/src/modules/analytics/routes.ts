@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  advancedAnalyticsQuerySchema,
   dashboardSummaryQuerySchema,
   DEFAULT_TIMEZONE,
   type DashboardSummary,
@@ -11,10 +12,26 @@ import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo } from '../../lib/serializers.js';
 import { validateQuery, validatedQuery } from '../../middleware/validate.js';
+import { computeAdvancedAnalytics } from './advanced.js';
 
 type DashboardQuery = z.infer<typeof dashboardSummaryQuerySchema>;
+type AdvancedAnalyticsQuery = z.infer<typeof advancedAnalyticsQuerySchema>;
 
 export const analyticsRouter = Router();
+export const advancedAnalyticsRouter = Router();
+
+advancedAnalyticsRouter.get(
+  '/advanced',
+  validateQuery(advancedAnalyticsQuerySchema),
+  async (_request, response) => {
+    const analytics = await computeAdvancedAnalytics(
+      currentUserId(response),
+      validatedQuery<AdvancedAnalyticsQuery>(response),
+    );
+
+    sendSuccess(response, analytics);
+  },
+);
 
 analyticsRouter.get(
   '/summary',
