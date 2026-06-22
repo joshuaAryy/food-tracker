@@ -102,6 +102,7 @@ export const foodLogsQuerySchema = dateRangeSchema
   .extend({
     date: localDateSchema.optional(),
     mealType: mealTypeSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(50).optional(),
   })
   .refine(
     ({ date, startDate, endDate }) =>

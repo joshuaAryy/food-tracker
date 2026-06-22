@@ -214,6 +214,7 @@ Optional query parameters:
 - `startDate`: inclusive local start date in `YYYY-MM-DD`
 - `endDate`: inclusive local end date in `YYYY-MM-DD`
 - `mealType`: one valid meal type
+- `limit`: integer from `1` through `50`
 
 `date` cannot be combined with `startDate` or `endDate`.
 

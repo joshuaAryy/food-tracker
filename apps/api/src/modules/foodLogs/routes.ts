@@ -78,6 +78,7 @@ foodLogsRouter.get(
           : { loggedAt: range }),
       },
       orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
+      ...(query.limit === undefined ? {} : { take: query.limit }),
     });
 
     sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });

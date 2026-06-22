@@ -7,6 +7,40 @@ function padded(value: number): string {
   return String(value).padStart(2, '0');
 }
 
+function datePartsInTimezone(
+  value: Date,
+  timezone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(value);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((item) => item.type === type)?.value);
+
+  return {
+    year: part('year'),
+    month: part('month'),
+    day: part('day'),
+    hour: part('hour'),
+    minute: part('minute'),
+    second: part('second'),
+  };
+}
+
 export function localDateTimeFields(value: string): LocalDateTimeFields {
   const date = new Date(value);
 
@@ -16,6 +50,31 @@ export function localDateTimeFields(value: string): LocalDateTimeFields {
     )}`,
     time: `${padded(date.getHours())}:${padded(date.getMinutes())}`,
   };
+}
+
+export function dateTimeFieldsInTimezone(
+  value: string | Date,
+  timezone: string,
+): LocalDateTimeFields {
+  const parts = datePartsInTimezone(new Date(value), timezone);
+
+  return {
+    date: `${parts.year}-${padded(parts.month)}-${padded(parts.day)}`,
+    time: `${padded(parts.hour)}:${padded(parts.minute)}`,
+  };
+}
+
+export function todayInTimezone(timezone: string): string {
+  return dateTimeFieldsInTimezone(new Date(), timezone).date;
+}
+
+export function addLocalDateDays(value: string, days: number): string {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, day! + days));
+
+  return `${date.getUTCFullYear()}-${padded(
+    date.getUTCMonth() + 1,
+  )}-${padded(date.getUTCDate())}`;
 }
 
 export function isValidLocalDate(value: string): boolean {
@@ -60,4 +119,39 @@ export function localDateTimeToIso(
   const date = new Date(year!, month! - 1, day, hour, minute, 0, 0);
 
   return date.toISOString();
+}
+
+export function zonedDateTimeToIso(
+  dateValue: string,
+  timeValue: string,
+  timezone: string,
+): string | null {
+  if (!isValidLocalDate(dateValue) || !isValidLocalTime(timeValue)) {
+    return null;
+  }
+
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const [hour, minute] = timeValue.split(':').map(Number);
+  const targetUtc = Date.UTC(year!, month! - 1, day!, hour!, minute!, 0, 0);
+  let candidate = targetUtc;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = datePartsInTimezone(new Date(candidate), timezone);
+    const representedUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const adjustment = targetUtc - representedUtc;
+
+    if (adjustment === 0) {
+      break;
+    }
+    candidate += adjustment;
+  }
+
+  return new Date(candidate).toISOString();
 }

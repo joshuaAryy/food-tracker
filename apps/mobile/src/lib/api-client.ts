@@ -100,12 +100,39 @@ export interface AdvancedAnalyticsQuery {
   rangeDays?: number;
 }
 
+interface FoodLogsQuery {
+  date?: string;
+  limit?: number;
+}
+
+interface WeightLogsQuery {
+  date?: string;
+}
+
 function queryString(query: AdvancedAnalyticsQuery): string {
   const params = new URLSearchParams();
   if (query.date !== undefined) params.set('date', query.date);
   if (query.timezone !== undefined) params.set('timezone', query.timezone);
   if (query.rangeDays !== undefined) {
     params.set('rangeDays', String(query.rangeDays));
+  }
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
+function foodLogsQueryString(query: FoodLogsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) params.set('date', query.date);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
+function weightLogsQueryString(query: WeightLogsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) {
+    params.set('startDate', query.date);
+    params.set('endDate', query.date);
   }
   const value = params.toString();
   return value === '' ? '' : `?${value}`;
@@ -125,10 +152,10 @@ export const api = {
     summary: () => request<DashboardSummary>('/dashboard/summary'),
   },
   foodLogs: {
-    list: () =>
-      request<{ foodLogs: FoodLog[] }>('/food-logs').then(
-        ({ foodLogs }) => foodLogs,
-      ),
+    list: (query: FoodLogsQuery = {}) =>
+      request<{ foodLogs: FoodLog[] }>(
+        `/food-logs${foodLogsQueryString(query)}`,
+      ).then(({ foodLogs }) => foodLogs),
     getById: (id: string) => request<FoodLog>(`/food-logs/${id}`),
     create: (input: FoodLogInput) =>
       request<FoodLog>('/food-logs', { method: 'POST', body: input }),
@@ -140,10 +167,10 @@ export const api = {
       }),
   },
   weightLogs: {
-    list: () =>
-      request<{ weightLogs: WeightLog[] }>('/weight-logs').then(
-        ({ weightLogs }) => weightLogs,
-      ),
+    list: (query: WeightLogsQuery = {}) =>
+      request<{ weightLogs: WeightLog[] }>(
+        `/weight-logs${weightLogsQueryString(query)}`,
+      ).then(({ weightLogs }) => weightLogs),
     getById: (id: string) => request<WeightLog>(`/weight-logs/${id}`),
     create: (input: WeightLogInput) =>
       request<WeightLog>('/weight-logs', { method: 'POST', body: input }),

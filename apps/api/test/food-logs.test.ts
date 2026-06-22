@@ -187,6 +187,42 @@ describe('food logs API', () => {
     expect(response.body.data.foodLogs[0].foodName).toBe('Dinner');
   });
 
+  it('limits recent food logs in newest-first order', async () => {
+    await seedFoodLog({
+      foodName: 'Oldest',
+      loggedAt: new Date('2026-06-13T12:00:00.000Z'),
+    });
+    await seedFoodLog({
+      foodName: 'Middle',
+      loggedAt: new Date('2026-06-14T12:00:00.000Z'),
+    });
+    await seedFoodLog({
+      foodName: 'Newest',
+      loggedAt: new Date('2026-06-15T12:00:00.000Z'),
+    });
+
+    const response = await api
+      .get('/api/v1/food-logs')
+      .query({ limit: 2 })
+      .expect(200);
+
+    expect(response.body.data.foodLogs).toHaveLength(2);
+    expect(
+      response.body.data.foodLogs.map(
+        (foodLog: { foodName: string }) => foodLog.foodName,
+      ),
+    ).toEqual(['Newest', 'Middle']);
+  });
+
+  it.each([0, 51])('rejects food log limit %s', async (limit) => {
+    const response = await api
+      .get('/api/v1/food-logs')
+      .query({ limit })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+  });
+
   it('rejects conflicting date filters', async () => {
     const response = await api
       .get('/api/v1/food-logs')
