@@ -84,6 +84,22 @@ foodLogsRouter.get(
   },
 );
 
+foodLogsRouter.get(
+  '/:id',
+  validateParams(idParamsSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const foodLog = await prisma.foodLog.findFirst({ where: { id, userId } });
+
+    if (foodLog === null) {
+      throw notFoundError('Food log');
+    }
+
+    sendSuccess(response, serializeFoodLog(foodLog));
+  },
+);
+
 foodLogsRouter.post(
   '/',
   validateBody(foodLogInputSchema),

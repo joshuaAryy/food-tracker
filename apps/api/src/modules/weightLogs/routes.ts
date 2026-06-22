@@ -62,6 +62,24 @@ weightLogsRouter.get(
   },
 );
 
+weightLogsRouter.get(
+  '/:id',
+  validateParams(idParamsSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const weightLog = await prisma.weightLog.findFirst({
+      where: { id, userId },
+    });
+
+    if (weightLog === null) {
+      throw notFoundError('Weight log');
+    }
+
+    sendSuccess(response, serializeWeightLog(weightLog));
+  },
+);
+
 weightLogsRouter.post(
   '/',
   validateBody(weightLogInputSchema),

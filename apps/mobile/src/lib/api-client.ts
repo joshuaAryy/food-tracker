@@ -3,12 +3,14 @@ import type {
   AdvancedAnalytics,
   DashboardSummary,
   FoodLog,
+  FoodLogInput,
   Goals,
   Profile,
   Recommendation,
   RecommendationStatus,
   TrackingPreferences,
   WeightLog,
+  WeightLogInput,
 } from '@food-tracker/shared';
 import { API_BASE_PATH } from '@food-tracker/shared';
 
@@ -92,22 +94,6 @@ async function request<T>(
   return envelope.data;
 }
 
-export interface FoodLogInput {
-  foodName: string;
-  mealType: FoodLog['mealType'];
-  calories: number;
-  protein: number;
-  loggedAt: string;
-  carbs?: number | null;
-  fat?: number | null;
-  notes?: string | null;
-}
-
-export interface WeightLogInput {
-  weightLb: number;
-  loggedAt: string;
-}
-
 export interface AdvancedAnalyticsQuery {
   date?: string;
   timezone?: string;
@@ -143,16 +129,33 @@ export const api = {
       request<{ foodLogs: FoodLog[] }>('/food-logs').then(
         ({ foodLogs }) => foodLogs,
       ),
+    getById: (id: string) => request<FoodLog>(`/food-logs/${id}`),
     create: (input: FoodLogInput) =>
       request<FoodLog>('/food-logs', { method: 'POST', body: input }),
+    update: (id: string, input: FoodLogInput) =>
+      request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
+    delete: (id: string) =>
+      request<{ id: string; deleted: true }>(`/food-logs/${id}`, {
+        method: 'DELETE',
+      }),
   },
   weightLogs: {
     list: () =>
       request<{ weightLogs: WeightLog[] }>('/weight-logs').then(
         ({ weightLogs }) => weightLogs,
       ),
+    getById: (id: string) => request<WeightLog>(`/weight-logs/${id}`),
     create: (input: WeightLogInput) =>
       request<WeightLog>('/weight-logs', { method: 'POST', body: input }),
+    update: (id: string, input: WeightLogInput) =>
+      request<WeightLog>(`/weight-logs/${id}`, {
+        method: 'PUT',
+        body: input,
+      }),
+    delete: (id: string) =>
+      request<{ id: string; deleted: true }>(`/weight-logs/${id}`, {
+        method: 'DELETE',
+      }),
   },
   recommendations: {
     list: recommendationList,

@@ -5,6 +5,9 @@ import { api, expectErrorEnvelope } from './helpers/api.js';
 import { localDateTime } from './helpers/dates.js';
 import { seedProfile } from './helpers/seeds.js';
 
+const OTHER_USER_ID = '00000000-0000-4000-8000-000000000002';
+const MISSING_WEIGHT_LOG_ID = '00000000-0000-4000-8000-000000000099';
+
 const validWeightLog = {
   weightLb: 181.24,
   loggedAt: '2026-06-15T13:00:00.000Z',
@@ -24,6 +27,50 @@ describe('weight logs API', () => {
     expect(created.body.data.weightLb).toBe(181.2);
     expect(listed.body.data.weightLogs).toHaveLength(1);
     expect(persisted?.userId).toBe(MOCK_USER_ID);
+  });
+
+  it('returns a current-user weight log by id', async () => {
+    const created = await api
+      .post('/api/v1/weight-logs')
+      .send(validWeightLog)
+      .expect(200);
+
+    const response = await api
+      .get(`/api/v1/weight-logs/${created.body.data.id as string}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      data: {
+        id: created.body.data.id,
+        weightLb: 181.2,
+      },
+    });
+  });
+
+  it('returns not found for a missing weight log', async () => {
+    const response = await api
+      .get(`/api/v1/weight-logs/${MISSING_WEIGHT_LOG_ID}`)
+      .expect(404);
+
+    expectErrorEnvelope(response.body, 'NOT_FOUND');
+  });
+
+  it('does not return another user’s weight log by id', async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const weightLog = await prisma.weightLog.create({
+      data: {
+        userId: OTHER_USER_ID,
+        weightLb: 176.5,
+        loggedAt: new Date(validWeightLog.loggedAt),
+      },
+    });
+
+    const response = await api
+      .get(`/api/v1/weight-logs/${weightLog.id}`)
+      .expect(404);
+
+    expectErrorEnvelope(response.body, 'NOT_FOUND');
   });
 
   it('updates a weight log', async () => {

@@ -1,64 +1,222 @@
-import { Pressable, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Platform, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { FormSection } from '@/components/form-section';
+import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  isValidLocalDate,
+  isValidLocalTime,
+  localDateTimeFields,
+  localDateTimeToIso,
+} from '@/lib/date-time';
 import { useAppStore } from '@/store/app-store';
-import { useState } from 'react';
 
 interface WeightForm {
   weightLb: string;
-  loggedAt: string;
+  loggedDate: string;
+  loggedTime: string;
 }
 
 export default function WeightLogScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const editId = typeof params.id === 'string' ? params.id : null;
+  const isEditing = editId !== null;
   const markDataChanged = useAppStore((state) => state.markDataChanged);
+  const [initialTimestamp] = useState(() =>
+    localDateTimeFields(new Date().toISOString()),
+  );
+  const [loadingRecord, setLoadingRecord] = useState(isEditing);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [defaultLoggedAt] = useState(() => new Date().toISOString());
+  const [deleting, setDeleting] = useState(false);
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<WeightForm>({
     defaultValues: {
       weightLb: '',
-      loggedAt: defaultLoggedAt,
+      loggedDate: initialTimestamp.date,
+      loggedTime: initialTimestamp.time,
     },
   });
 
+  const loadRecord = useCallback(async () => {
+    if (editId === null) {
+      return;
+    }
+
+    setLoadingRecord(true);
+    setLoadError(null);
+    try {
+      const weightLog = await api.weightLogs.getById(editId);
+      const timestamp = localDateTimeFields(weightLog.loggedAt);
+      reset({
+        weightLb: String(weightLog.weightLb),
+        loggedDate: timestamp.date,
+        loggedTime: timestamp.time,
+      });
+    } catch (error) {
+      setLoadError(errorMessage(error));
+    } finally {
+      setLoadingRecord(false);
+    }
+  }, [editId, reset]);
+
+  useEffect(() => {
+    void loadRecord();
+  }, [loadRecord]);
+
+  const returnToHistory = () => {
+    markDataChanged();
+    router.replace('/(tabs)/history');
+  };
+
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
+    const loggedAt = localDateTimeToIso(values.loggedDate, values.loggedTime);
+
+    if (loggedAt === null) {
+      setSubmitError('Choose a valid date and time.');
+      return;
+    }
+
+    const input = {
+      weightLb: Number(values.weightLb),
+      loggedAt,
+    };
+
     try {
-      await api.weightLogs.create({
-        weightLb: Number(values.weightLb),
-        loggedAt: values.loggedAt,
-      });
-      markDataChanged();
-      router.replace('/(tabs)/progress');
+      if (editId === null) {
+        await api.weightLogs.create(input);
+      } else {
+        await api.weightLogs.update(editId, input);
+      }
+      returnToHistory();
     } catch (error) {
       setSubmitError(errorMessage(error));
     }
   });
 
+  const deleteRecord = async () => {
+    if (editId === null) {
+      return;
+    }
+
+    setDeleting(true);
+    setSubmitError(null);
+    try {
+      await api.weightLogs.delete(editId);
+      returnToHistory();
+    } catch (error) {
+      setSubmitError(errorMessage(error));
+      setDeleting(false);
+    }
+  };
+
+  const confirmDelete = () => {
+    if (Platform.OS === 'web') {
+      if (
+        globalThis.confirm(
+          'Delete weight entry?\n\nThis removes the entry from history and future analytics.',
+        )
+      ) {
+        void deleteRecord();
+      }
+      return;
+    }
+
+    Alert.alert(
+      'Delete weight entry?',
+      'This removes the entry from history and future analytics.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => void deleteRecord(),
+        },
+      ],
+    );
+  };
+
+  if (loadingRecord) {
+    return (
+      <AppScreen>
+        <LoadingState message="Loading weight entry…" />
+      </AppScreen>
+    );
+  }
+
+  if (loadError !== null) {
+    return (
+      <AppScreen>
+        <ScreenHeader
+          title="Edit weight"
+          subtitle="Review and correct this measurement."
+          action={
+            <Pressable
+              accessibilityRole="button"
+              className="rounded-full bg-surface px-3.5 py-2"
+              onPress={() => router.back()}
+            >
+              <AppText variant="label" className="text-sage-dark">
+                Close
+              </AppText>
+            </Pressable>
+          }
+        />
+        <ErrorState
+          title="Weight entry is unavailable"
+          message={loadError}
+          onRetry={() => void loadRecord()}
+        />
+      </AppScreen>
+    );
+  }
+
   return (
     <AppScreen
       contentClassName="gap-4 pb-8"
       footer={
-        <AppButton loading={isSubmitting} onPress={() => void submit()}>
-          Save weight
-        </AppButton>
+        <View className="gap-2">
+          <AppButton
+            loading={isSubmitting}
+            disabled={deleting}
+            onPress={() => void submit()}
+          >
+            {isEditing ? 'Save changes' : 'Save weight'}
+          </AppButton>
+          {isEditing ? (
+            <AppButton
+              variant="danger"
+              loading={deleting}
+              disabled={isSubmitting}
+              onPress={confirmDelete}
+            >
+              Delete weight entry
+            </AppButton>
+          ) : null}
+        </View>
       }
     >
       <ScreenHeader
-        title="Log weight"
-        subtitle="Record a manual measurement."
+        title={isEditing ? 'Edit weight' : 'Log weight'}
+        subtitle={
+          isEditing
+            ? 'Review and correct this measurement.'
+            : 'Record a manual measurement.'
+        }
         action={
           <Pressable
             accessibilityRole="button"
@@ -94,7 +252,7 @@ export default function WeightLogScreen() {
           render={({ field }) => (
             <AppInput
               label="Weight (lb)"
-              autoFocus
+              autoFocus={!isEditing}
               keyboardType="decimal-pad"
               placeholder="181.4"
               value={field.value}
@@ -104,20 +262,57 @@ export default function WeightLogScreen() {
             />
           )}
         />
-        <View className="flex-row items-center justify-between rounded-control bg-surface px-3.5 py-3">
-          <View className="gap-0.5">
-            <AppText variant="label">Logged now</AppText>
-            <AppText variant="caption" muted>
-              {new Intl.DateTimeFormat('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-              }).format(new Date(defaultLoggedAt))}
-            </AppText>
-          </View>
-          <View className="h-2.5 w-2.5 rounded-full bg-sage" />
-        </View>
+      </FormSection>
+
+      <FormSection
+        title="Date and time"
+        description="Enter local time. It will be stored as a UTC timestamp."
+      >
+        <Controller
+          control={control}
+          name="loggedDate"
+          rules={{
+            required: 'Date is required.',
+            validate: (value) =>
+              isValidLocalDate(value) ? true : 'Use YYYY-MM-DD.',
+          }}
+          render={({ field }) => (
+            <AppInput
+              label="Date"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              placeholder="2026-06-22"
+              value={field.value}
+              onBlur={field.onBlur}
+              onChangeText={field.onChange}
+              error={errors.loggedDate?.message}
+            />
+          )}
+        />
+        <Controller
+          control={control}
+          name="loggedTime"
+          rules={{
+            required: 'Time is required.',
+            validate: (value) =>
+              isValidLocalTime(value) ? true : 'Use 24-hour HH:mm.',
+          }}
+          render={({ field }) => (
+            <AppInput
+              label="Time"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="numbers-and-punctuation"
+              placeholder="08:15"
+              value={field.value}
+              onBlur={field.onBlur}
+              onChangeText={field.onChange}
+              error={errors.loggedTime?.message}
+              hint="24-hour format"
+            />
+          )}
+        />
       </FormSection>
     </AppScreen>
   );

@@ -91,6 +91,9 @@ export const weightLogInputSchema = z.strictObject({
   loggedAt: z.iso.datetime(),
 });
 
+export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+export type WeightLogInput = z.infer<typeof weightLogInputSchema>;
+
 export const idParamsSchema = z.strictObject({
   id: z.uuid(),
 });

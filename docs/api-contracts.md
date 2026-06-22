@@ -225,6 +225,13 @@ Success `data`:
 }
 ```
 
+### `GET /api/v1/food-logs/:id`
+
+Returns one current-user food log. A missing record or a record owned by
+another user returns `NOT_FOUND`.
+
+Success `data` is the food-log response object.
+
 ### `POST /api/v1/food-logs`
 
 Request:
@@ -312,6 +319,13 @@ Success `data`:
   "weightLogs": []
 }
 ```
+
+### `GET /api/v1/weight-logs/:id`
+
+Returns one current-user weight log. A missing record or a record owned by
+another user returns `NOT_FOUND`.
+
+Success `data` is the weight-log response object.
 
 ### `POST /api/v1/weight-logs`
 

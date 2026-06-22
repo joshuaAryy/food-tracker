@@ -5,6 +5,9 @@ import { api, expectErrorEnvelope } from './helpers/api.js';
 import { localDateTime } from './helpers/dates.js';
 import { seedFoodLog, seedProfile } from './helpers/seeds.js';
 
+const OTHER_USER_ID = '00000000-0000-4000-8000-000000000002';
+const MISSING_FOOD_LOG_ID = '00000000-0000-4000-8000-000000000099';
+
 const validFoodLog = {
   foodName: 'Chicken wrap',
   mealType: 'lunch',
@@ -48,6 +51,50 @@ describe('food logs API', () => {
 
     expect(response.body.data.foodLogs).toHaveLength(1);
     expect(response.body.data.foodLogs[0].id).toBe(created.body.data.id);
+  });
+
+  it('returns a current-user food log by id', async () => {
+    const foodLog = await seedFoodLog({ foodName: 'Fetched meal' });
+
+    const response = await api
+      .get(`/api/v1/food-logs/${foodLog.id}`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      success: true,
+      data: {
+        id: foodLog.id,
+        foodName: 'Fetched meal',
+      },
+    });
+  });
+
+  it('returns not found for a missing food log', async () => {
+    const response = await api
+      .get(`/api/v1/food-logs/${MISSING_FOOD_LOG_ID}`)
+      .expect(404);
+
+    expectErrorEnvelope(response.body, 'NOT_FOUND');
+  });
+
+  it('does not return another user’s food log by id', async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const foodLog = await prisma.foodLog.create({
+      data: {
+        userId: OTHER_USER_ID,
+        foodName: 'Private meal',
+        mealType: 'dinner',
+        calories: 500,
+        protein: 35,
+        loggedAt: new Date(validFoodLog.loggedAt),
+      },
+    });
+
+    const response = await api
+      .get(`/api/v1/food-logs/${foodLog.id}`)
+      .expect(404);
+
+    expectErrorEnvelope(response.body, 'NOT_FOUND');
   });
 
   it('updates a food log', async () => {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { Pressable, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { FoodLog, WeightLog } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
@@ -22,6 +22,7 @@ function dateTime(value: string): string {
 }
 
 export default function HistoryScreen() {
+  const router = useRouter();
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [foods, setFoods] = useState<FoodLog[]>([]);
   const [weights, setWeights] = useState<WeightLog[]>([]);
@@ -108,11 +109,19 @@ export default function HistoryScreen() {
         ) : (
           <AppCard className="p-0">
             {foods.slice(0, 12).map((food, index) => (
-              <View
+              <Pressable
                 key={food.id}
+                accessibilityLabel={`Edit ${food.foodName}`}
+                accessibilityRole="button"
                 className={`flex-row items-center gap-3 px-4 py-3.5 ${
                   index === 0 ? '' : 'border-t border-border'
-                }`}
+                } active:bg-sage-soft/50`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/food-log',
+                    params: { id: food.id },
+                  })
+                }
               >
                 <View className="h-10 w-10 items-center justify-center rounded-full bg-sage-soft">
                   <AppText variant="label" className="text-sage-dark">
@@ -133,7 +142,7 @@ export default function HistoryScreen() {
                     kcal
                   </AppText>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </AppCard>
         )}
@@ -150,11 +159,21 @@ export default function HistoryScreen() {
         ) : (
           <AppCard className="p-0">
             {weights.slice(0, 8).map((weight, index) => (
-              <View
+              <Pressable
                 key={weight.id}
+                accessibilityLabel={`Edit weight logged ${dateTime(
+                  weight.loggedAt,
+                )}`}
+                accessibilityRole="button"
                 className={`flex-row items-center justify-between px-4 py-3.5 ${
                   index === 0 ? '' : 'border-t border-border'
-                }`}
+                } active:bg-sage-soft/50`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/weight-log',
+                    params: { id: weight.id },
+                  })
+                }
               >
                 <View className="gap-1">
                   <AppText variant="caption" muted>
@@ -171,7 +190,7 @@ export default function HistoryScreen() {
                     </AppText>
                   </View>
                 ) : null}
-              </View>
+              </Pressable>
             ))}
           </AppCard>
         )}
