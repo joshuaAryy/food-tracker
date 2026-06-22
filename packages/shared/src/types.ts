@@ -74,6 +74,7 @@ export interface WeightLog {
 
 export interface DashboardSummary {
   date: string;
+  foodLogCount: number;
   caloriesConsumed: number;
   calorieTarget: number | null;
   caloriesRemaining: number | null;
@@ -94,6 +95,24 @@ export interface NutrientValues {
   sodium: number;
 }
 
+export type NutrientKey = keyof NutrientValues;
+
+export interface NutrientCompleteness {
+  loggedCount: number;
+  possibleCount: number;
+  percent: number;
+  isCompleteEnough: boolean;
+}
+
+export interface TrendWindowInterpretation {
+  loggedDayAverage: number;
+  loggedDays: number;
+  totalDays: number;
+  completenessPercent: number;
+  isLowConfidence: boolean;
+  warning: string | null;
+}
+
 export interface AdvancedAnalytics {
   date: string;
   timezone: string;
@@ -111,11 +130,17 @@ export interface AdvancedAnalytics {
     average7Day: number;
     average30Day: number;
     difference: number;
+    averageType: 'calendarDayAverage';
+    past7Days: TrendWindowInterpretation;
+    past30Days: TrendWindowInterpretation;
   };
   proteinTrend: {
     average7Day: number;
     average30Day: number;
     difference: number;
+    averageType: 'calendarDayAverage';
+    past7Days: TrendWindowInterpretation;
+    past30Days: TrendWindowInterpretation;
   };
   macros: {
     totals: NutrientValues;
@@ -125,6 +150,15 @@ export interface AdvancedAnalytics {
       carbsPercent: number;
       fatPercent: number;
     };
+  };
+  dataCompleteness: {
+    foodLogCount: number;
+    daysWithFoodLogs: number;
+    totalDaysInRange: number;
+    loggingCompletenessPercent: number;
+    isLowConfidence: boolean;
+    nutrients: Record<NutrientKey, NutrientCompleteness>;
+    warnings: string[];
   };
   loggingConsistency: {
     past7Days: {

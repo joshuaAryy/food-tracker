@@ -8,6 +8,7 @@ import {
   type FoodLog,
   type FoodLogInput,
   type MealType,
+  type TrackingMode,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
@@ -133,6 +134,7 @@ export default function FoodLogScreen() {
   const isDuplicating = !isEditing && duplicateId !== null;
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>('simple');
   const [showMore, setShowMore] = useState(false);
   const [recentFoods, setRecentFoods] = useState<FoodLog[]>([]);
   const [recentError, setRecentError] = useState<string | null>(null);
@@ -171,15 +173,22 @@ export default function FoodLogScreen() {
     setRecentError(null);
     setDeleting(false);
 
-    const [profileResult, recentResult] = await Promise.allSettled([
-      api.profile.get(),
-      isEditing ? Promise.resolve([]) : api.foodLogs.list({ limit: 30 }),
-    ]);
+    const [profileResult, preferencesResult, recentResult] =
+      await Promise.allSettled([
+        api.profile.get(),
+        api.trackingPreferences.get(),
+        isEditing ? Promise.resolve([]) : api.foodLogs.list({ limit: 30 }),
+      ]);
     const nextTimezone =
       profileResult.status === 'fulfilled'
         ? profileResult.value.timezone
         : DEFAULT_TIMEZONE;
+    const nextTrackingMode =
+      preferencesResult.status === 'fulfilled'
+        ? preferencesResult.value.mode
+        : 'simple';
     setTimezone(nextTimezone);
+    setTrackingMode(nextTrackingMode);
 
     if (recentResult.status === 'fulfilled') {
       setRecentFoods(dedupeRecentFoods(recentResult.value));
@@ -211,7 +220,7 @@ export default function FoodLogScreen() {
             : now.date,
         loggedTime: now.time,
       });
-      setShowMore(false);
+      setShowMore(nextTrackingMode === 'complex');
       setLoadingRecord(false);
       return;
     }
@@ -228,7 +237,9 @@ export default function FoodLogScreen() {
             time: now.time,
           };
       reset(formValuesFromFood(foodLog, timestamp));
-      setShowMore(hasOptionalDetails(foodLog));
+      setShowMore(
+        nextTrackingMode === 'complex' || hasOptionalDetails(foodLog),
+      );
     } catch (error) {
       setLoadError(errorMessage(error));
     } finally {
@@ -342,7 +353,7 @@ export default function FoodLogScreen() {
         time: current.loggedTime,
       }),
     );
-    setShowMore(hasOptionalDetails(foodLog));
+    setShowMore(trackingMode === 'complex' || hasOptionalDetails(foodLog));
     setSubmitError(null);
   };
 
@@ -611,10 +622,16 @@ export default function FoodLogScreen() {
         >
           <View className="gap-0.5">
             <AppText variant="label">
-              {showMore ? 'Hide optional details' : 'More details'}
+              {showMore
+                ? 'Hide optional details'
+                : trackingMode === 'complex'
+                  ? 'Show detailed nutrition'
+                  : 'More details'}
             </AppText>
             <AppText variant="caption" muted>
-              Nutrition, serving, and notes
+              {trackingMode === 'complex'
+                ? 'Complex mode: macros, nutrients, serving, and notes'
+                : 'Optional nutrition, serving, and notes'}
             </AppText>
           </View>
           <AppText className="text-sage-dark">{showMore ? '−' : '+'}</AppText>

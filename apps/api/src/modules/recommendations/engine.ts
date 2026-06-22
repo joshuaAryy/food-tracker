@@ -3,6 +3,7 @@ import type {
   RecommendationType,
 } from '@food-tracker/shared';
 import type { RecommendationAnalyticsFacts } from '../analytics/recommendation-facts.js';
+import { MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS } from '../analytics/recommendation-facts.js';
 import { roundTo } from '../../lib/serializers.js';
 
 export interface RecommendationCandidate {
@@ -51,7 +52,7 @@ export function generateRecommendationCandidates(
 ): RecommendationCandidate[] {
   const candidates: RecommendationCandidate[] = [];
 
-  if (facts.targetProteinGrams !== null) {
+  if (facts.intakeRecommendationsAllowed && facts.targetProteinGrams !== null) {
     const differenceGrams = roundTo(
       facts.targetProteinGrams - facts.averageProteinGrams,
       1,
@@ -69,12 +70,17 @@ export function generateRecommendationCandidates(
           averageProteinGrams: facts.averageProteinGrams,
           differenceGrams,
           daysAnalyzed: facts.daysAnalyzed,
+          loggedDays: facts.loggedDays,
         },
       });
     }
   }
 
-  if (facts.targetCalories !== null && facts.goalType !== null) {
+  if (
+    facts.intakeRecommendationsAllowed &&
+    facts.targetCalories !== null &&
+    facts.goalType !== null
+  ) {
     const calorieDifference = roundTo(
       facts.targetCalories - facts.averageCalories,
       0,
@@ -95,6 +101,7 @@ export function generateRecommendationCandidates(
             differenceCalories: calorieDifference,
             goalType: facts.goalType,
             daysAnalyzed: facts.daysAnalyzed,
+            loggedDays: facts.loggedDays,
           },
         });
       }
@@ -116,6 +123,7 @@ export function generateRecommendationCandidates(
             differenceCalories,
             goalType: facts.goalType,
             daysAnalyzed: facts.daysAnalyzed,
+            loggedDays: facts.loggedDays,
           },
         });
       }
@@ -150,6 +158,8 @@ export function generateRecommendationCandidates(
         loggedDays: facts.loggedDays,
         expectedDays: facts.expectedDays,
         missingDays: facts.missingDays,
+        minimumLoggedDaysForIntakeRecommendations:
+          MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS,
       },
     });
   }

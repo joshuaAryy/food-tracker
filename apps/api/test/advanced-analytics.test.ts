@@ -46,11 +46,49 @@ describe('advanced analytics API', () => {
           average7Day: 0,
           average30Day: 0,
           difference: 0,
+          averageType: 'calendarDayAverage',
+          past7Days: {
+            loggedDayAverage: 0,
+            loggedDays: 0,
+            totalDays: 7,
+            completenessPercent: 0,
+            isLowConfidence: true,
+            warning:
+              'Only 0 of 7 days include food logs. The calendar-day calorie average may reflect missing logs rather than intake.',
+          },
+          past30Days: {
+            loggedDayAverage: 0,
+            loggedDays: 0,
+            totalDays: 30,
+            completenessPercent: 0,
+            isLowConfidence: true,
+            warning:
+              'Only 0 of 30 days include food logs. The calendar-day calorie average may reflect missing logs rather than intake.',
+          },
         },
         proteinTrend: {
           average7Day: 0,
           average30Day: 0,
           difference: 0,
+          averageType: 'calendarDayAverage',
+          past7Days: {
+            loggedDayAverage: 0,
+            loggedDays: 0,
+            totalDays: 7,
+            completenessPercent: 0,
+            isLowConfidence: true,
+            warning:
+              'Only 0 of 7 days include food logs. The calendar-day protein average may reflect missing logs rather than intake.',
+          },
+          past30Days: {
+            loggedDayAverage: 0,
+            loggedDays: 0,
+            totalDays: 30,
+            completenessPercent: 0,
+            isLowConfidence: true,
+            warning:
+              'Only 0 of 30 days include food logs. The calendar-day protein average may reflect missing logs rather than intake.',
+          },
         },
         macros: {
           totals: {
@@ -76,6 +114,60 @@ describe('advanced analytics API', () => {
             carbsPercent: 0,
             fatPercent: 0,
           },
+        },
+        dataCompleteness: {
+          foodLogCount: 0,
+          daysWithFoodLogs: 0,
+          totalDaysInRange: 30,
+          loggingCompletenessPercent: 0,
+          isLowConfidence: true,
+          nutrients: {
+            calories: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            protein: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            carbs: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            fat: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            fiber: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            sugar: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+            sodium: {
+              loggedCount: 0,
+              possibleCount: 0,
+              percent: 0,
+              isCompleteEnough: false,
+            },
+          },
+          warnings: [
+            'Low logging consistency can make calorie and protein averages misleading.',
+          ],
         },
         loggingConsistency: {
           past7Days: { loggedDays: 0, expectedDays: 7 },
@@ -126,11 +218,45 @@ describe('advanced analytics API', () => {
       average7Day: 2000,
       average30Day: 1233.3,
       difference: 766.7,
+      averageType: 'calendarDayAverage',
+      past7Days: {
+        loggedDayAverage: 2000,
+        loggedDays: 7,
+        totalDays: 7,
+        completenessPercent: 100,
+        isLowConfidence: false,
+        warning: null,
+      },
+      past30Days: {
+        loggedDayAverage: 1233.3,
+        loggedDays: 30,
+        totalDays: 30,
+        completenessPercent: 100,
+        isLowConfidence: false,
+        warning: null,
+      },
     });
     expect(response.body.data.proteinTrend).toEqual({
       average7Day: 100,
       average30Day: 61.7,
       difference: 38.3,
+      averageType: 'calendarDayAverage',
+      past7Days: {
+        loggedDayAverage: 100,
+        loggedDays: 7,
+        totalDays: 7,
+        completenessPercent: 100,
+        isLowConfidence: false,
+        warning: null,
+      },
+      past30Days: {
+        loggedDayAverage: 61.7,
+        loggedDays: 30,
+        totalDays: 30,
+        completenessPercent: 100,
+        isLowConfidence: false,
+        warning: null,
+      },
     });
   });
 
@@ -190,6 +316,139 @@ describe('advanced analytics API', () => {
       sugar: 15,
       sodium: 600,
     });
+    expect(response.body.data.dataCompleteness.nutrients).toEqual({
+      calories: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      protein: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      carbs: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      fat: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      fiber: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      sugar: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+      sodium: {
+        loggedCount: 2,
+        possibleCount: 2,
+        percent: 100,
+        isCompleteEnough: true,
+      },
+    });
+  });
+
+  it('reports missing optional nutrients as incomplete instead of implying measured zero', async () => {
+    await seedProfile();
+    await prisma.foodLog.createMany({
+      data: [
+        {
+          userId: MOCK_USER_ID,
+          foodName: 'Partial macros',
+          mealType: 'lunch',
+          calories: 500,
+          protein: 40,
+          carbs: 50,
+          loggedAt: new Date(recentLocalDateTime()),
+        },
+        {
+          userId: MOCK_USER_ID,
+          foodName: 'Core fields only',
+          mealType: 'dinner',
+          calories: 600,
+          protein: 50,
+          loggedAt: new Date(recentLocalDateTime()),
+        },
+      ],
+    });
+
+    const response = await api
+      .get('/api/v1/analytics/advanced')
+      .query({ date: recentLocalDate(), rangeDays: 7 })
+      .expect(200);
+
+    expect(response.body.data.macros.totals).toMatchObject({
+      calories: 1100,
+      protein: 90,
+      carbs: 50,
+      fat: 0,
+      fiber: 0,
+      sugar: 0,
+      sodium: 0,
+    });
+    expect(response.body.data.calorieTrend).toMatchObject({
+      average7Day: 157.1,
+      averageType: 'calendarDayAverage',
+      past7Days: {
+        loggedDayAverage: 1100,
+        loggedDays: 1,
+        totalDays: 7,
+        completenessPercent: 14.3,
+        isLowConfidence: true,
+      },
+    });
+    expect(response.body.data.proteinTrend).toMatchObject({
+      average7Day: 12.9,
+      averageType: 'calendarDayAverage',
+      past7Days: {
+        loggedDayAverage: 90,
+        loggedDays: 1,
+        totalDays: 7,
+        completenessPercent: 14.3,
+        isLowConfidence: true,
+      },
+    });
+    expect(response.body.data.dataCompleteness).toMatchObject({
+      foodLogCount: 2,
+      daysWithFoodLogs: 1,
+      totalDaysInRange: 7,
+      loggingCompletenessPercent: 14.3,
+      isLowConfidence: true,
+      nutrients: {
+        carbs: {
+          loggedCount: 1,
+          possibleCount: 2,
+          percent: 50,
+          isCompleteEnough: false,
+        },
+        fat: {
+          loggedCount: 0,
+          possibleCount: 2,
+          percent: 0,
+          isCompleteEnough: false,
+        },
+      },
+    });
+    expect(response.body.data.dataCompleteness.warnings).toContain(
+      'Carbs data is based on partial entries.',
+    );
+    expect(response.body.data.dataCompleteness.warnings).toContain(
+      'Macro calorie split may be incomplete.',
+    );
   });
 
   it('calculates macro calorie percentages using 4/4/9 math', async () => {

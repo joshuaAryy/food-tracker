@@ -57,6 +57,7 @@ describe('dashboard summary API', () => {
       success: true,
       data: {
         date: '2026-06-15',
+        foodLogCount: 2,
         caloriesConsumed: 1391,
         calorieTarget: 3000,
         caloriesRemaining: 1609,

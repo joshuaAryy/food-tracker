@@ -21,54 +21,24 @@ Implemented:
 - backend regression test infrastructure
 - advanced deterministic analytics
 - mobile Insights integration
+- complete mobile food and weight create/edit/delete lifecycle
+- timezone-aware timestamp correction
+- History date navigation and meal grouping
+- Log Again and Recent Foods fast logging
 
-## Current Phase — Documentation And Workflow Hardening
+## Current Phase — Mode And Analytics Correctness
 
 Goal:
-
-- enforce Node 22 validation
-- document PostgreSQL and test-database setup
-- establish one authoritative branch and validation workflow
-- remove stale implementation claims
-- reduce onboarding and merge-state confusion
-
-This phase changes documentation and workflow rules only.
-
-## Next 1 — Mobile Log Lifecycle
-
-Complete mobile food and weight record management:
-
-- view record details
-- edit existing entries
-- delete with confirmation
-- correct logged timestamps
-- add mobile regression tests
-
-Avoid schema redesign, AI, external food databases, and visual redesign.
-
-## Next 2 — Complex Mode Correctness
-
-Make tracking modes behaviorally meaningful:
 
 - expose existing optional nutrient fields in Complex mode
 - keep Simple mode focused
 - distinguish missing nutrient data from measured zero
 - prevent misleading analytics presentation
+- gate intake recommendations when food logging is insufficient
 
 Avoid micronutrient schema expansion, supplements, and chart-library adoption.
 
-## Next 3 — Faster Manual Logging
-
-Reduce repeated entry friction:
-
-- date navigation and meal grouping
-- timestamp selection
-- recent-food reuse or “log again”
-- clearer history filtering
-
-Keep the workflow deterministic and manual-first.
-
-## Next 4 — Authentication And Beta Reliability
+## Next 1 — Authentication And Beta Reliability
 
 Prepare for limited multi-user use:
 
@@ -80,7 +50,7 @@ Prepare for limited multi-user use:
 
 Do not build custom password authentication or production-scale infrastructure.
 
-## Next 5 — Insights Presentation Refinement
+## Next 2 — Insights Presentation Refinement
 
 Improve interpretation after data semantics are trustworthy:
 

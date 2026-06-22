@@ -374,6 +374,7 @@ Success `data`:
 ```json
 {
   "date": "2026-06-14",
+  "foodLogCount": 3,
   "caloriesConsumed": 1750,
   "calorieTarget": 2200,
   "caloriesRemaining": 450,
@@ -385,7 +386,10 @@ Success `data`:
 }
 ```
 
-`latestWeightLb` is `null` when no weight log exists. Targets and remaining values are `null` when the corresponding goal does not exist. Remaining values may be negative when consumption exceeds a target.
+`foodLogCount` is the number of current-user food entries on the selected local
+date. `latestWeightLb` is `null` when no weight log exists. Targets and
+remaining values are `null` when the corresponding goal does not exist.
+Remaining values may be negative when consumption exceeds a target.
 
 ### `GET /api/v1/analytics/advanced`
 
@@ -395,16 +399,37 @@ Optional query parameters:
 - `rangeDays`: integer from `1` through `365`; defaults to `30`
 
 The response contains:
-- 7-day and 30-day calorie and protein averages, including zero-log days
+- 7-day and 30-day calorie and protein calendar-day averages, including zero-log days
+- per-logged-day averages and interpretation metadata for both trend windows
 - nutrient totals and per-logged-day averages for the selected range
 - protein/carbohydrate/fat calorie percentages using `4/4/9` calorie math
 - distinct logged-day counts for the trailing 7 and 30 local days
+- selected-range food-log counts and logging completeness
+- per-nutrient completeness counts, percentages, and deterministic warnings
 - latest and previous weights in the selected range
 - deterministic least-squares weekly weight slope when sufficient data exists
 
-The endpoint is available in both simple and complex tracking modes. Missing
-optional nutrient values contribute `0` to macro totals. Weight change and
-slope values are `null` when insufficient data exists.
+The endpoint is available in both simple and complex tracking modes. Existing
+trend fields remain calendar-day averages for compatibility. Their
+`averageType` is `calendarDayAverage`, and each trend includes:
+
+- `loggedDayAverage`
+- `loggedDays`
+- `totalDays`
+- `completenessPercent`
+- `isLowConfidence`
+- a nullable deterministic `warning`
+
+`dataCompleteness.nutrients` reports `loggedCount`, `possibleCount`, `percent`,
+and `isCompleteEnough` for calories, protein, carbs, fat, fiber, sugar, and
+sodium. Nutrient completeness is considered sufficient at `80%` of food
+entries. Missing optional values are not inferred. Numeric totals remain
+backward-compatible sums of reported values, while completeness metadata tells
+clients when `0` means no value was reported rather than measured zero.
+
+Trend confidence requires food logs on at least half of the calendar days in a
+window. Weight change and slope values are `null` when insufficient data
+exists.
 
 ## Recommendations
 
@@ -445,6 +470,12 @@ Success `data`:
 Generates recommendation objects from deterministic analytics facts for the current user. AI is not required and does not calculate facts or decide recommendations.
 
 The request has no body.
+
+Calorie and protein intake recommendations require food logs on at least `4`
+of the trailing `7` local days. Below that threshold, the engine suppresses
+`protein_low`, `calories_under_target`, and `calories_over_target`, and prefers
+`inconsistent_food_logging`. Recommendation lifecycle behavior remains
+unchanged.
 
 Success `data`:
 

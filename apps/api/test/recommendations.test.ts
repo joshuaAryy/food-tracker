@@ -244,8 +244,68 @@ describe('recommendation generation', () => {
         loggedDays: 3,
         expectedDays: 7,
         missingDays: 4,
+        minimumLoggedDaysForIntakeRecommendations: 4,
       },
     });
+  });
+
+  it('gates intake recommendations when fewer than four days are logged', async () => {
+    await seedProfile();
+    await seedGoals({
+      goalType: 'gain',
+      targetCalories: 3000,
+      targetProteinGrams: 150,
+    });
+    await seedRecentWeight();
+    await prisma.foodLog.createMany({
+      data: Array.from({ length: 3 }, (_, dayOffset) => ({
+        userId: MOCK_USER_ID,
+        foodName: `Incomplete day ${dayOffset + 1}`,
+        mealType: 'dinner' as const,
+        calories: 500,
+        protein: 20,
+        loggedAt: new Date(recentLocalDateTime(dayOffset)),
+      })),
+    });
+
+    const response = await api
+      .post('/api/v1/recommendations/generate')
+      .expect(200);
+    const types = recommendations(response.body).map((item) => item.type);
+
+    expect(types).toContain('inconsistent_food_logging');
+    expect(types).not.toContain('protein_low');
+    expect(types).not.toContain('calories_under_target');
+    expect(types).not.toContain('calories_over_target');
+  });
+
+  it('allows deterministic intake recommendations at four logged days', async () => {
+    await seedProfile();
+    await seedGoals({
+      goalType: 'gain',
+      targetCalories: 3000,
+      targetProteinGrams: 150,
+    });
+    await seedRecentWeight();
+    await prisma.foodLog.createMany({
+      data: Array.from({ length: 4 }, (_, dayOffset) => ({
+        userId: MOCK_USER_ID,
+        foodName: `Threshold day ${dayOffset + 1}`,
+        mealType: 'dinner' as const,
+        calories: 500,
+        protein: 20,
+        loggedAt: new Date(recentLocalDateTime(dayOffset)),
+      })),
+    });
+
+    const response = await api
+      .post('/api/v1/recommendations/generate')
+      .expect(200);
+    const types = recommendations(response.body).map((item) => item.type);
+
+    expect(types).toContain('protein_low');
+    expect(types).toContain('calories_under_target');
+    expect(types).not.toContain('inconsistent_food_logging');
   });
 });
 

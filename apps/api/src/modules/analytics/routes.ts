@@ -56,6 +56,7 @@ analyticsRouter.get(
     const range = localDateRange(timezone, { date });
     const totals = await prisma.foodLog.aggregate({
       where: { userId, loggedAt: range },
+      _count: { _all: true },
       _sum: { calories: true, protein: true },
     });
     const caloriesConsumed = totals._sum.calories ?? 0;
@@ -64,6 +65,7 @@ analyticsRouter.get(
     const proteinTarget = goals?.targetProteinGrams?.toNumber() ?? null;
     const summary: DashboardSummary = {
       date,
+      foodLogCount: totals._count._all,
       caloriesConsumed,
       calorieTarget,
       caloriesRemaining:

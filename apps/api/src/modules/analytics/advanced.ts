@@ -1,7 +1,10 @@
 import {
   DEFAULT_TIMEZONE,
   type AdvancedAnalytics,
+  type NutrientCompleteness,
+  type NutrientKey,
   type NutrientValues,
+  type TrendWindowInterpretation,
 } from '@food-tracker/shared';
 import { addLocalDays, localDate, localDateRange } from '../../lib/dates.js';
 import { prisma } from '../../lib/prisma.js';
@@ -15,6 +18,20 @@ const EMPTY_NUTRIENTS: NutrientValues = {
   fiber: 0,
   sugar: 0,
   sodium: 0,
+};
+
+export const NUTRIENT_COMPLETENESS_THRESHOLD_PERCENT = 80;
+export const TREND_CONFIDENCE_MINIMUM_FRACTION = 0.5;
+
+type AnalyticsFoodLog = {
+  calories: number;
+  protein: { toNumber(): number };
+  carbs: { toNumber(): number } | null;
+  fat: { toNumber(): number } | null;
+  fiber: { toNumber(): number } | null;
+  sugar: { toNumber(): number } | null;
+  sodium: number | null;
+  loggedAt: Date;
 };
 
 interface AdvancedAnalyticsInput {
@@ -46,17 +63,7 @@ function inRange(date: Date, range: TimeRange): boolean {
   return date >= range.gte && date < range.lt;
 }
 
-function nutrientTotals(
-  logs: Array<{
-    calories: number;
-    protein: { toNumber(): number };
-    carbs: { toNumber(): number } | null;
-    fat: { toNumber(): number } | null;
-    fiber: { toNumber(): number } | null;
-    sugar: { toNumber(): number } | null;
-    sodium: number | null;
-  }>,
-): NutrientValues {
+function nutrientTotals(logs: AnalyticsFoodLog[]): NutrientValues {
   const totals = logs.reduce<NutrientValues>(
     (sum, log) => ({
       calories: sum.calories + log.calories,
@@ -79,6 +86,117 @@ function nutrientTotals(
     sugar: roundTo(totals.sugar, 1),
     sodium: Math.round(totals.sodium),
   };
+}
+
+function percent(count: number, possibleCount: number): number {
+  if (possibleCount === 0) return 0;
+  return roundTo((count / possibleCount) * 100, 1);
+}
+
+function completenessMetric(
+  loggedCount: number,
+  possibleCount: number,
+): NutrientCompleteness {
+  const completenessPercent = percent(loggedCount, possibleCount);
+
+  return {
+    loggedCount,
+    possibleCount,
+    percent: completenessPercent,
+    isCompleteEnough:
+      possibleCount > 0 &&
+      completenessPercent >= NUTRIENT_COMPLETENESS_THRESHOLD_PERCENT,
+  };
+}
+
+function nutrientCompleteness(
+  logs: AnalyticsFoodLog[],
+): Record<NutrientKey, NutrientCompleteness> {
+  const possibleCount = logs.length;
+
+  return {
+    calories: completenessMetric(possibleCount, possibleCount),
+    protein: completenessMetric(possibleCount, possibleCount),
+    carbs: completenessMetric(
+      logs.filter((log) => log.carbs !== null).length,
+      possibleCount,
+    ),
+    fat: completenessMetric(
+      logs.filter((log) => log.fat !== null).length,
+      possibleCount,
+    ),
+    fiber: completenessMetric(
+      logs.filter((log) => log.fiber !== null).length,
+      possibleCount,
+    ),
+    sugar: completenessMetric(
+      logs.filter((log) => log.sugar !== null).length,
+      possibleCount,
+    ),
+    sodium: completenessMetric(
+      logs.filter((log) => log.sodium !== null).length,
+      possibleCount,
+    ),
+  };
+}
+
+function trendInterpretation(
+  total: number,
+  loggedDays: number,
+  totalDays: number,
+  unitLabel: string,
+): TrendWindowInterpretation {
+  const completenessPercent = percent(loggedDays, totalDays);
+  const isLowConfidence =
+    loggedDays < Math.ceil(totalDays * TREND_CONFIDENCE_MINIMUM_FRACTION);
+
+  return {
+    loggedDayAverage: loggedDays === 0 ? 0 : roundTo(total / loggedDays, 1),
+    loggedDays,
+    totalDays,
+    completenessPercent,
+    isLowConfidence,
+    warning: isLowConfidence
+      ? `Only ${loggedDays} of ${totalDays} days include food logs. The calendar-day ${unitLabel} average may reflect missing logs rather than intake.`
+      : null,
+  };
+}
+
+function completenessWarnings(
+  nutrients: Record<NutrientKey, NutrientCompleteness>,
+  isLowConfidence: boolean,
+): string[] {
+  const warnings: string[] = [];
+
+  if (isLowConfidence) {
+    warnings.push(
+      'Low logging consistency can make calorie and protein averages misleading.',
+    );
+  }
+
+  for (const nutrient of [
+    'carbs',
+    'fat',
+    'fiber',
+    'sugar',
+    'sodium',
+  ] as const) {
+    const metric = nutrients[nutrient];
+    if (metric.possibleCount > 0 && !metric.isCompleteEnough) {
+      warnings.push(
+        `${nutrient[0]?.toUpperCase()}${nutrient.slice(1)} data is based on partial entries.`,
+      );
+    }
+  }
+
+  if (
+    nutrients.carbs.possibleCount > 0 &&
+    (!nutrients.carbs.isCompleteEnough || !nutrients.fat.isCompleteEnough)
+  ) {
+    warnings.push('Macro calorie split may be incomplete.');
+  }
+
+  return warnings;
 }
 
 function nutrientAverages(
@@ -215,6 +333,14 @@ export async function computeAdvancedAnalytics(
   const averageCalories30 = roundTo(thirtyTotals.calories / 30, 1);
   const averageProtein7 = roundTo(sevenTotals.protein / 7, 1);
   const averageProtein30 = roundTo(thirtyTotals.protein / 30, 1);
+  const selectedNutrientCompleteness = nutrientCompleteness(selectedLogs);
+  const selectedLoggingCompletenessPercent = percent(
+    selectedLoggedDays,
+    input.rangeDays,
+  );
+  const selectedIsLowConfidence =
+    selectedLoggedDays <
+    Math.ceil(input.rangeDays * TREND_CONFIDENCE_MINIMUM_FRACTION);
   const latestWeight = weightLogs.at(-1) ?? null;
   const previousWeight = weightLogs.at(-2) ?? null;
 
@@ -232,11 +358,37 @@ export async function computeAdvancedAnalytics(
       average7Day: averageCalories7,
       average30Day: averageCalories30,
       difference: roundTo(averageCalories7 - averageCalories30, 1),
+      averageType: 'calendarDayAverage',
+      past7Days: trendInterpretation(
+        sevenTotals.calories,
+        sevenLoggedDays,
+        7,
+        'calorie',
+      ),
+      past30Days: trendInterpretation(
+        thirtyTotals.calories,
+        thirtyLoggedDays,
+        30,
+        'calorie',
+      ),
     },
     proteinTrend: {
       average7Day: averageProtein7,
       average30Day: averageProtein30,
       difference: roundTo(averageProtein7 - averageProtein30, 1),
+      averageType: 'calendarDayAverage',
+      past7Days: trendInterpretation(
+        sevenTotals.protein,
+        sevenLoggedDays,
+        7,
+        'protein',
+      ),
+      past30Days: trendInterpretation(
+        thirtyTotals.protein,
+        thirtyLoggedDays,
+        30,
+        'protein',
+      ),
     },
     macros: {
       totals: selectedTotals,
@@ -245,6 +397,18 @@ export async function computeAdvancedAnalytics(
         selectedLoggedDays,
       ),
       calorieSplit: macroCalorieSplit(selectedTotals),
+    },
+    dataCompleteness: {
+      foodLogCount: selectedLogs.length,
+      daysWithFoodLogs: selectedLoggedDays,
+      totalDaysInRange: input.rangeDays,
+      loggingCompletenessPercent: selectedLoggingCompletenessPercent,
+      isLowConfidence: selectedIsLowConfidence,
+      nutrients: selectedNutrientCompleteness,
+      warnings: completenessWarnings(
+        selectedNutrientCompleteness,
+        selectedIsLowConfidence,
+      ),
     },
     loggingConsistency: {
       past7Days: { loggedDays: sevenLoggedDays, expectedDays: 7 },

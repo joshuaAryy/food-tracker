@@ -9,6 +9,7 @@ import { prisma } from '../../lib/prisma.js';
 import { roundTo } from '../../lib/serializers.js';
 
 const DAYS_ANALYZED = 7;
+export const MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS = 4;
 
 export interface RecommendationAnalyticsFacts {
   timezone: string;
@@ -22,6 +23,7 @@ export interface RecommendationAnalyticsFacts {
   loggedDays: number;
   expectedDays: number;
   missingDays: number;
+  intakeRecommendationsAllowed: boolean;
   lastWeightLoggedAt: string | null;
   daysSinceLastWeightLog: number | null;
   hasRecentWeightLog: boolean;
@@ -95,6 +97,8 @@ export async function computeRecommendationFacts(
     loggedDays,
     expectedDays: DAYS_ANALYZED,
     missingDays: DAYS_ANALYZED - loggedDays,
+    intakeRecommendationsAllowed:
+      loggedDays >= MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS,
     lastWeightLoggedAt: latestWeightLog?.loggedAt.toISOString() ?? null,
     daysSinceLastWeightLog,
     hasRecentWeightLog:

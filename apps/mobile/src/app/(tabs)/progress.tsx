@@ -134,6 +134,13 @@ export default function ProgressScreen() {
             </AppText>
           </View>
         </View>
+        <AppText variant="caption" muted>
+          {summary.foodLogCount === 0
+            ? 'No food has been logged for today yet.'
+            : `Based on ${summary.foodLogCount} food ${
+                summary.foodLogCount === 1 ? 'entry' : 'entries'
+              } logged today. Targets use logged entries only.`}
+        </AppText>
       </AppCard>
 
       <View className="gap-2.5">

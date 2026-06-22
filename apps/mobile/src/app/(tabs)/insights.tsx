@@ -52,6 +52,11 @@ function formatWeight(value: number | null): string {
   return value === null ? '—' : `${value.toFixed(1)} lb`;
 }
 
+function completenessValue(loggedCount: number, possibleCount: number): string {
+  if (possibleCount === 0) return 'No entries';
+  return `${loggedCount} / ${possibleCount} entries`;
+}
+
 function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
   const hasAnalyticsData =
     analytics.loggingConsistency.past30Days.loggedDays > 0 ||
@@ -67,39 +72,62 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
     );
   }
 
-  const macroTotals = [
+  const isComplex = analytics.trackingMode === 'complex';
+  const macroMetrics = [
     {
+      key: 'calories' as const,
       label: 'Calories',
-      value: `${formatNumber(analytics.macros.totals.calories)} kcal`,
+      unit: 'kcal',
     },
     {
+      key: 'protein' as const,
       label: 'Protein',
-      value: `${formatNumber(analytics.macros.totals.protein)} g`,
+      unit: 'g',
     },
     {
+      key: 'carbs' as const,
       label: 'Carbs',
-      value: `${formatNumber(analytics.macros.totals.carbs)} g`,
+      unit: 'g',
     },
     {
+      key: 'fat' as const,
       label: 'Fat',
-      value: `${formatNumber(analytics.macros.totals.fat)} g`,
+      unit: 'g',
     },
     {
+      key: 'fiber' as const,
       label: 'Fiber',
-      value: `${formatNumber(analytics.macros.totals.fiber)} g`,
+      unit: 'g',
     },
     {
+      key: 'sugar' as const,
       label: 'Sugar',
-      value: `${formatNumber(analytics.macros.totals.sugar)} g`,
+      unit: 'g',
     },
     {
+      key: 'sodium' as const,
       label: 'Sodium',
-      value: `${formatNumber(analytics.macros.totals.sodium)} mg`,
+      unit: 'mg',
     },
   ];
 
+  const macroSplitIncomplete =
+    !analytics.dataCompleteness.nutrients.carbs.isCompleteEnough ||
+    !analytics.dataCompleteness.nutrients.fat.isCompleteEnough;
+
   return (
     <View className="gap-5">
+      {analytics.dataCompleteness.isLowConfidence ? (
+        <AppCard compact className="gap-1.5 bg-gold-soft">
+          <AppText variant="label">Logging is incomplete</AppText>
+          <AppText muted>
+            Food was logged on {analytics.dataCompleteness.daysWithFoodLogs} of{' '}
+            {analytics.dataCompleteness.totalDaysInRange} days. Calendar-day
+            averages may reflect missing logs rather than actual intake.
+          </AppText>
+        </AppCard>
+      ) : null}
+
       <View className="gap-2.5">
         <AppText variant="heading">Trends</AppText>
 
@@ -114,7 +142,13 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
                 {formatNumber(analytics.calorieTrend.average7Day)}
               </AppText>
               <AppText variant="caption" muted>
-                kcal / day
+                kcal / calendar day
+              </AppText>
+              <AppText variant="caption" muted>
+                {formatNumber(
+                  analytics.calorieTrend.past7Days.loggedDayAverage,
+                )}{' '}
+                per logged day
               </AppText>
             </View>
             <View className="min-w-0 flex-1 gap-1">
@@ -125,7 +159,13 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
                 {formatNumber(analytics.calorieTrend.average30Day)}
               </AppText>
               <AppText variant="caption" muted>
-                kcal / day
+                kcal / calendar day
+              </AppText>
+              <AppText variant="caption" muted>
+                {formatNumber(
+                  analytics.calorieTrend.past30Days.loggedDayAverage,
+                )}{' '}
+                per logged day
               </AppText>
             </View>
           </View>
@@ -134,6 +174,11 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
             label="7-day difference"
             value={formatDifference(analytics.calorieTrend.difference, 'kcal')}
           />
+          {analytics.calorieTrend.past7Days.warning === null ? null : (
+            <AppText variant="caption" muted>
+              {analytics.calorieTrend.past7Days.warning}
+            </AppText>
+          )}
         </AppCard>
 
         <AppCard compact className="gap-3">
@@ -147,7 +192,13 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
                 {formatNumber(analytics.proteinTrend.average7Day)}
               </AppText>
               <AppText variant="caption" muted>
-                grams / day
+                grams / calendar day
+              </AppText>
+              <AppText variant="caption" muted>
+                {formatNumber(
+                  analytics.proteinTrend.past7Days.loggedDayAverage,
+                )}{' '}
+                g per logged day
               </AppText>
             </View>
             <View className="min-w-0 flex-1 gap-1">
@@ -158,7 +209,13 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
                 {formatNumber(analytics.proteinTrend.average30Day)}
               </AppText>
               <AppText variant="caption" muted>
-                grams / day
+                grams / calendar day
+              </AppText>
+              <AppText variant="caption" muted>
+                {formatNumber(
+                  analytics.proteinTrend.past30Days.loggedDayAverage,
+                )}{' '}
+                g per logged day
               </AppText>
             </View>
           </View>
@@ -170,49 +227,113 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
         </AppCard>
       </View>
 
-      <View className="gap-2.5">
-        <View className="gap-0.5">
-          <AppText variant="heading">Macro totals</AppText>
-          <AppText variant="caption" muted>
-            {analytics.range.startDate} to {analytics.range.endDate}
-          </AppText>
-        </View>
-        <AppCard compact>
-          {macroTotals.map((metric, index) => (
-            <View key={metric.label}>
-              {index === 0 ? null : <Divider />}
-              <MetricRow label={metric.label} value={metric.value} />
+      {isComplex ? (
+        <>
+          <View className="gap-2.5">
+            <View className="gap-0.5">
+              <AppText variant="heading">Nutrition totals and averages</AppText>
+              <AppText variant="caption" muted>
+                {analytics.range.startDate} to {analytics.range.endDate}
+              </AppText>
             </View>
-          ))}
-        </AppCard>
-      </View>
+            <AppCard compact>
+              {macroMetrics.map((metric, index) => {
+                const completeness =
+                  analytics.dataCompleteness.nutrients[metric.key];
+                const hasReportedValue = completeness.loggedCount > 0;
+                const partial =
+                  hasReportedValue && !completeness.isCompleteEnough;
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Macro calorie split</AppText>
-        <AppCard compact>
-          <MetricRow
-            label="Protein"
-            value={`${formatNumber(
-              analytics.macros.calorieSplit.proteinPercent,
-            )}%`}
-            accentClassName="bg-sage"
-          />
-          <Divider />
-          <MetricRow
-            label="Carbs"
-            value={`${formatNumber(
-              analytics.macros.calorieSplit.carbsPercent,
-            )}%`}
-            accentClassName="bg-gold"
-          />
-          <Divider />
-          <MetricRow
-            label="Fat"
-            value={`${formatNumber(analytics.macros.calorieSplit.fatPercent)}%`}
-            accentClassName="bg-clay"
-          />
-        </AppCard>
-      </View>
+                return (
+                  <View key={metric.key}>
+                    {index === 0 ? null : <Divider />}
+                    <View className="gap-1 py-2.5">
+                      <View className="flex-row items-center justify-between gap-3">
+                        <AppText>{metric.label}</AppText>
+                        <AppText variant="label" className="tabular-nums">
+                          {hasReportedValue
+                            ? `${formatNumber(
+                                analytics.macros.totals[metric.key],
+                              )} ${metric.unit}`
+                            : 'Not logged'}
+                        </AppText>
+                      </View>
+                      {hasReportedValue ? (
+                        <AppText variant="caption" muted>
+                          Average per logged day:{' '}
+                          {formatNumber(
+                            analytics.macros.averagesPerLoggedDay[metric.key],
+                          )}{' '}
+                          {metric.unit}
+                          {partial ? ' · partial entries' : ''}
+                        </AppText>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+            </AppCard>
+          </View>
+
+          <View className="gap-2.5">
+            <AppText variant="heading">Macro calorie split</AppText>
+            <AppCard compact className="gap-1">
+              <MetricRow
+                label="Protein"
+                value={`${formatNumber(
+                  analytics.macros.calorieSplit.proteinPercent,
+                )}%`}
+                accentClassName="bg-sage"
+              />
+              <Divider />
+              <MetricRow
+                label="Carbs"
+                value={`${formatNumber(
+                  analytics.macros.calorieSplit.carbsPercent,
+                )}%`}
+                accentClassName="bg-gold"
+              />
+              <Divider />
+              <MetricRow
+                label="Fat"
+                value={`${formatNumber(
+                  analytics.macros.calorieSplit.fatPercent,
+                )}%`}
+                accentClassName="bg-clay"
+              />
+              {macroSplitIncomplete ? (
+                <AppText variant="caption" muted>
+                  Macro split is based only on entries with reported macro
+                  values and may be incomplete.
+                </AppText>
+              ) : null}
+            </AppCard>
+          </View>
+
+          <View className="gap-2.5">
+            <AppText variant="heading">Nutrient completeness</AppText>
+            <AppCard compact>
+              {macroMetrics.slice(2).map((metric, index) => {
+                const completeness =
+                  analytics.dataCompleteness.nutrients[metric.key];
+
+                return (
+                  <View key={metric.key}>
+                    {index === 0 ? null : <Divider />}
+                    <MetricRow
+                      label={metric.label}
+                      value={`${completenessValue(
+                        completeness.loggedCount,
+                        completeness.possibleCount,
+                      )} · ${formatNumber(completeness.percent)}%`}
+                    />
+                  </View>
+                );
+              })}
+            </AppCard>
+          </View>
+        </>
+      ) : null}
 
       <View className="gap-2.5">
         <AppText variant="heading">Logging consistency</AppText>
@@ -225,6 +346,11 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
           <MetricRow
             label="Past 30 days"
             value={`${analytics.loggingConsistency.past30Days.loggedDays} / ${analytics.loggingConsistency.past30Days.expectedDays} days`}
+          />
+          <Divider />
+          <MetricRow
+            label="Food entries in range"
+            value={String(analytics.dataCompleteness.foodLogCount)}
           />
         </AppCard>
       </View>
