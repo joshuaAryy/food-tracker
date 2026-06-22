@@ -1,6 +1,9 @@
 # Prisma Schema Decisions
 
-This file records the locked Prisma/PostgreSQL schema decisions for the MVP. It is the canonical database-specific planning document for Phase 1 scaffolding. Do not add other models to the Phase 1 schema without explicit approval.
+This file records the locked Prisma/PostgreSQL schema decisions established
+during foundation planning. It remains the canonical database-specific decision
+document. Do not add models or change locked schema behavior without explicit
+approval.
 
 ## Common Field Strategy
 
@@ -17,7 +20,7 @@ This file records the locked Prisma/PostgreSQL schema decisions for the MVP. It 
 
 Use a local `User` model in the application database.
 
-Phase 1:
+Foundation decision, still active until real authentication is implemented:
 - Authentication is mocked.
 - `User.id` may be generated with `uuid()` for the fixed mock user.
 - Do not implement Supabase Auth.
@@ -29,7 +32,7 @@ Long-term:
 
 ## MVP Models
 
-The Phase 1 Prisma schema includes only:
+The locked MVP Prisma schema includes only:
 
 - `User`
 - `UserProfile`
@@ -73,14 +76,17 @@ RecommendationStatus:
 
 ## Model Fields
 
-The declarations below are conceptual Prisma field definitions. The actual Phase 1 Prisma schema must preserve these types, nullability rules, defaults, relations, and database-native types.
+The declarations below are conceptual Prisma field definitions. The
+implemented Prisma schema must preserve these types, nullability rules,
+defaults, relations, and database-native types unless an approved migration
+changes the decision.
 
 ### User
 
 | Field | Prisma/PostgreSQL Decision |
 | --- | --- |
 | `id` | `String`, UUID primary key, `@default(uuid())`, `@db.Uuid` |
-| `email` | nullable `String` for the Phase 1 mock user |
+| `email` | nullable `String` for the current mock user boundary |
 | `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
 | `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
 
@@ -232,7 +238,8 @@ Indexes:
 
 ## Future Models
 
-The following models are future-only and must not be included in the Phase 1 schema unless explicitly requested later:
+The following models are future-only and must not be added unless explicitly
+approved:
 
 - `RawFoodLog`
 - `ParsedFoodLog`

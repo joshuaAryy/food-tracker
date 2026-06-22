@@ -22,7 +22,7 @@ Dashboard
 
 The backend owns validation, business logic, analytics, and recommendation decisions. The frontend owns UI and local state.
 
-## Phase 2 Manual Food Logging
+## Implemented Manual Food Logging
 
 Each `FoodLog` is one manually entered food item. A meal is represented by food entries sharing a `mealType` and similar `loggedAt` timestamps. An optional `mealGroupId` may be introduced later, but meal grouping is not required for the MVP.
 
@@ -39,7 +39,9 @@ Frontend
 → Dashboard/history
 ```
 
-Phase 2 does not use AI parsing, nutrition matching, food database lookup, Open Food Facts, barcode scanning, or photo recognition.
+The implemented manual logging flow does not use AI parsing, nutrition
+matching, food database lookup, Open Food Facts, barcode scanning, or photo
+recognition.
 
 ## Future Intelligent Food Logging
 
@@ -74,7 +76,10 @@ Responsibilities:
 
 The API uses REST-style endpoints under `/api/v1` and the standard success/error envelopes defined in [api-contracts.md](api-contracts.md).
 
-Phase 1 uses a fixed mock user through mock auth context. Authenticated endpoints operate on the current user, and clients never send `userId`. Supabase Auth is the intended later authentication provider. Do not implement Supabase Auth in Phase 1, custom password authentication, or a custom auth system.
+The current development implementation uses a fixed mock user through mock auth
+context. Authenticated endpoints operate on the current user, and clients never
+send `userId`. Supabase Auth is the intended later authentication provider. Do
+not implement custom password authentication or a custom auth system.
 
 ---
 
@@ -143,7 +148,10 @@ Example:
 
 ## Daily Summaries
 
-For the MVP, analytics calculates daily summaries on demand from `FoodLog` records. The frontend requests summaries from analytics endpoints. A stored `DailySummary` is a possible future cache only and must not be part of the Phase 2 source of truth.
+Analytics calculates daily summaries on demand from `FoodLog` records. The
+frontend requests summaries from analytics endpoints. A stored `DailySummary`
+is a possible future cache only and must not become the source of truth without
+an explicitly approved architecture change.
 
 See [data-model-decisions.md](data-model-decisions.md) for locked units, precision, rounding, and food-log representations.
 

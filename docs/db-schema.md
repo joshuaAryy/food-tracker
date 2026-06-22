@@ -9,12 +9,14 @@ Normalized values are rounded before storage. Analytics sums stored values.
 ## MVP Tables
 
 ### User
-- id (UUID; mock-generated in Phase 1 and aligned with Supabase Auth user ID later)
+- id (UUID; currently mock-generated and aligned with Supabase Auth user ID later)
 - email (optional)
 - createdAt
 - updatedAt
 
-Phase 1 uses mocked auth and a local `User` record. Supabase Auth is the intended later identity provider. Do not store custom password credentials.
+The current development implementation uses mocked auth and a local `User`
+record. Supabase Auth is the intended later identity provider. Do not store
+custom password credentials.
 
 ---
 
@@ -110,10 +112,12 @@ Each record is an individual food entry, not a full meal. Multiple entries may s
 ## Future Tables And Fields
 
 ### RawFoodLog
-Future record for original AI-assisted or external input. Not part of Phase 2.
+Future record for original AI-assisted or external input. Not currently
+implemented.
 
 ### ParsedFoodLog
-Future record for parser and nutrition matcher output after user confirmation. Not part of Phase 2.
+Future record for parser and nutrition matcher output after user confirmation.
+Not currently implemented.
 
 ### DailySummary
 Future cached summary only. It is not an MVP table or source of truth. MVP analytics calculates daily totals on demand from `FoodLog` records to avoid stale summaries after edits or deletions.

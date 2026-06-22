@@ -7,7 +7,8 @@ Handles:
 - user timezone preference
 - references to Supabase Auth user IDs
 
-During Phase 1, authenticated requests use mock user context. Clients do not send `userId`. This module does not handle custom password authentication.
+The current development implementation uses mock user context. Clients do not
+send `userId`. This module does not handle custom password authentication.
 
 ---
 
@@ -28,14 +29,15 @@ Handles:
 
 ## foodLogs
 Handles:
-- Phase 2 manual structured food log CRUD
+- implemented manual structured food log CRUD
 - individual food entries
 - the `breakfast`, `lunch`, `dinner`, `snack`, and `other` meal types
 - UTC logged timestamps
 - normalization and rounding before persistence
 - food history
 
-Phase 2 does not handle AI parsing, automated matching, barcode input, or photo input.
+This module does not handle AI parsing, automated matching, barcode input, or
+photo input.
 
 The API accepts optional serving quantity and serving unit metadata. `userId` comes from auth context, not request bodies.
 
@@ -88,7 +90,7 @@ Handles:
 - nutrition lookup
 - deterministic nutrient resolution for confirmed foods
 
-Not required in Phase 2.
+Not currently implemented.
 
 ---
 

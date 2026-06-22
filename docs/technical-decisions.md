@@ -1,6 +1,7 @@
 # Technical Decisions
 
-This file records locked Phase 0 technical decisions. Changes to these decisions require explicit architecture review.
+This file records locked technical decisions established during initial
+planning. Changes to these decisions require explicit architecture review.
 
 See [data-model-decisions.md](data-model-decisions.md) for locked MVP units, precision, rounding, food-log fields, meal types, and tracking-day representation. See [api-contracts.md](api-contracts.md) for locked MVP API conventions and contracts. See [prisma-schema-decisions.md](prisma-schema-decisions.md) for locked Prisma/PostgreSQL schema decisions.
 
@@ -36,7 +37,7 @@ Reason: `pnpm` workspaces are sufficient for the current phase. Additional monor
 Status: Locked
 
 - Supabase Auth is the intended authentication provider.
-- Phase 1 uses a fixed mock user through mock auth context.
+- The current development implementation uses a fixed mock user through mock auth context.
 - Authenticated endpoints operate on the current user.
 - Clients do not send `userId` in requests.
 - User identity should eventually come from Supabase Auth.
@@ -47,7 +48,7 @@ Status: Locked
 
 Status: Locked
 
-Phase 2 supports manual structured nutrition entry only.
+The implemented MVP supports manual structured nutrition entry only.
 
 Required fields:
 - `userId`
@@ -73,7 +74,7 @@ Each food log is one food item, not a full meal. Multiple logs may share a `meal
 
 The MVP `mealType` enum is `breakfast`, `lunch`, `dinner`, `snack`, or `other`.
 
-Phase 2 flow:
+Implemented manual logging flow:
 
 ```text
 Manual entry
@@ -83,7 +84,9 @@ Manual entry
 → dashboard/history
 ```
 
-Phase 2 excludes AI parsing, nutrition matching, automated food lookup, Open Food Facts integration, barcode scanning, and photo recognition.
+The current manual logging flow excludes AI parsing, nutrition matching,
+automated food lookup, Open Food Facts integration, barcode scanning, and photo
+recognition.
 
 ## TD-004: Future Intelligent Food Logging
 
@@ -122,7 +125,8 @@ Status: Locked
 
 - Calculate MVP daily summaries on demand from `FoodLog` records.
 - The frontend requests dashboard summaries from analytics endpoints.
-- Do not store `DailySummary` in Phase 2 without a demonstrated performance reason.
+- Do not store `DailySummary` without a demonstrated performance reason and an
+  approved architecture change.
 - A future `DailySummary` table may be introduced as a cache, not as the source of truth.
 
 Reason: stored summaries can become stale when food logs are edited or deleted.
@@ -155,7 +159,7 @@ Status: Locked
 
 - Use REST-style endpoints under `/api/v1`.
 - Use only the standard success and error envelopes defined in [api-contracts.md](api-contracts.md).
-- Phase 1 uses mock user context.
+- The current development implementation uses mock user context.
 - Client requests never include `userId`.
 - Date filters are local dates in `YYYY-MM-DD` interpreted in the current user's timezone.
 - MVP endpoints and request/response contracts are defined in [api-contracts.md](api-contracts.md).
@@ -165,7 +169,10 @@ Status: Locked
 Status: Locked
 
 - Use UUID primary keys for all models.
-- Use a local `User` model; Phase 1 may mock-generate its ID, and long-term it aligns with Supabase Auth.
-- Include only the seven locked MVP models in the Phase 1 schema.
+- Use a local `User` model; the current mock boundary may generate its ID, and
+  long-term it aligns with Supabase Auth.
+- Include only the seven locked MVP models unless a schema change is explicitly
+  approved.
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
-- Do not include `DailySummary`, raw/parsed food logs, or other future models in Phase 1.
+- Do not include `DailySummary`, raw/parsed food logs, or other future models
+  without explicit approval.

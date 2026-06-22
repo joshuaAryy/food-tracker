@@ -1,6 +1,8 @@
 # MVP API Contracts
 
-This document locks the REST API conventions and MVP request/response contracts used by the mobile app and API. It is the canonical API contract for Phase 1 scaffolding and Phase 2 MVP implementation.
+This document locks the REST API conventions and MVP request/response contracts
+used by the implemented mobile app and API. It remains the canonical API
+contract as later phases extend the product.
 
 Persisted model types, relations, indexes, and constraints are locked in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 
@@ -44,14 +46,16 @@ Do not introduce other response envelope formats. Error codes are stable upperca
 
 ## Authentication Boundary
 
-Phase 1 uses mocked auth only.
+The current development implementation uses mocked auth only. This boundary was
+introduced during the foundation phase and remains in place until Supabase Auth
+is implemented.
 
 - The backend may assume a fixed mock user ID through mock user context.
 - Authenticated endpoints operate on the current user.
 - The client never sends `userId`.
 - The backend applies the current user ID when reading or writing user-owned records.
 - Real authentication will later replace mock context with Supabase Auth identity.
-- Do not implement Supabase Auth during Phase 1.
+- Do not replace this boundary with custom password authentication.
 - Do not implement custom password authentication or a custom auth system.
 
 ## Shared Validation Rules
@@ -175,7 +179,9 @@ Request:
 
 ## Food Logs
 
-Phase 2 supports manual structured nutrition entry only. There are no MVP AI parser, nutrition matcher, automated food lookup, barcode, or photo endpoints.
+The implemented food-log API supports manual structured nutrition entry only.
+There are no AI parser, nutrition matcher, automated food lookup, barcode, or
+photo endpoints.
 
 Food-log response object:
 

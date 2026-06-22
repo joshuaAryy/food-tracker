@@ -1,134 +1,65 @@
 # Food Tracker
 
-AI-assisted nutrition tracking application designed to make food logging fast, intuitive, and highly customizable.
+Food Tracker is a mobile-first nutrition tracking application designed around
+fast manual logging, deterministic backend analytics, and optional future AI
+convenience.
 
-## Vision
+The product combines a focused Simple mode with a more detailed Complex mode.
+Both modes use the same mobile app, API, database, and business logic.
 
-Most food tracking apps fail because they create too much friction.
+## Current Capabilities
 
-This app aims to solve that by combining:
-- fast logging
-- optional deep tracking
-- AI-assisted parsing
-- personalized recommendations
+The implemented baseline includes:
 
----
+- React Native and Expo Router mobile application
+- Express, Prisma, and PostgreSQL API
+- Persisted profile, goals, and tracking preferences
+- Persisted food and weight log CRUD in the backend
+- Mobile food and weight creation flows
+- Daily calorie and protein dashboard
+- Timezone-aware food and weight history
+- Deterministic recommendation generation and dismissal
+- Advanced calorie, protein, macro, consistency, and weight analytics
+- Mobile Insights presentation
+- Shared TypeScript and Zod contracts
+- PostgreSQL-backed backend integration tests
 
-## Core Features
-
-### Food Logging
-Phase 2 proves the core loop with manual structured food entry:
-
-```text
-Manual entry
-→ validation
-→ database
-→ analytics
-→ dashboard/history
-```
-
-Each food log is one food item with a meal type and timestamp. AI-assisted text input, nutrition matching, food database lookup, barcode scanning, and photo recognition are later features.
-
----
-
-### Weight Tracking
-Track:
-- body weight
-- trends
-- goal progress
-
----
-
-### Recommendations
-Provide deterministic coaching based on facts computed by the backend:
-- calorie adherence
-- protein intake
-- weight trends
-- goal progress
-
-AI is optional and may later improve recommendation wording. It does not calculate facts or decide recommendations.
-
----
-
-## Tracking Modes
-
-### Simple Mode
-Tracks:
-- Calories
-- Protein
-- Weight
-- Water (optional)
-
-Best for casual users.
-
----
-
-### Complex Mode
-Tracks everything in Simple Mode plus:
-- Carbs
-- Fat
-- Fiber
-- Sugar
-- Sodium
-- Vitamins
-- Minerals
-- Meal timing
-- Supplements
-- Custom nutrients
-
-Best for advanced users.
-
----
-
-## Tech Stack
-
-### Frontend
-- React Native
-- Expo
-- TypeScript
-- Expo Router
-- NativeWind
-- Zustand
-- React Hook Form
-
-### Backend
-- Node.js
-- Express
-- TypeScript
-- Zod
-- Prisma
-
-### Database
-- PostgreSQL
-- Supabase Auth as the intended authentication provider
-- Supabase-hosted PostgreSQL (planned)
-
-### Monorepo
-- pnpm
-- pnpm workspaces
-- Turborepo only if needed later
-- No Nx
-
-### AI
-- Local LLM / Ollama (planned)
-- Future AI food parser with user confirmation
-- Optional recommendation wording layer
-
----
-
+Nutrition calculations, trends, and recommendation decisions are deterministic
+backend code. AI does not perform analytics or decide recommendations.
 
 ## Development Status
-Phase 1 — Foundation scaffold
 
-See [docs/technical-decisions.md](docs/technical-decisions.md) for locked technical decisions.
+The implemented baseline is complete through advanced analytics and mobile
+Insights integration. The current maintenance phase hardens documentation,
+environment setup, branch workflow, and merge validation before the next
+feature phase.
 
-## Local Development Setup
+## Current Limitations
 
-### Node.js
+- Development still uses a fixed mock-user authentication boundary.
+- Food entry is manual and structured; there is no food database lookup.
+- Mobile edit and delete flows for food and weight logs are not implemented.
+- Complex mode does not yet provide a complete differentiated experience.
+- Water and Note actions are visible but not implemented.
+- Mobile automated tests are not yet configured.
+- Local PostgreSQL is required for API persistence and backend tests.
+- Physical devices require an explicit LAN API URL.
+- AI parsing, barcode scanning, photo recognition, and supplements are future
+  work.
 
-The project expects Node.js `22.x`.
+## Technology
 
-Using `nvm`:
+- Mobile: React Native, Expo, Expo Router, NativeWind, Zustand, React Hook Form
+- API: Node.js, Express, TypeScript, Zod, Prisma
+- Database: PostgreSQL
+- Tests: Vitest, Supertest, dedicated Prisma test database
+- Monorepo: pnpm workspaces
+- Required runtime: Node.js 22.x
+- Package manager: pnpm 10.34.3
+
+## Quick Start
+
+### 1. Select Node 22
 
 ```bash
 nvm install 22
@@ -136,72 +67,113 @@ nvm use 22
 node -v
 ```
 
-If validation is run with another Node version, package commands may emit an unsupported-engine warning. Switch to Node 22 before treating that warning as a project issue.
+`node -v` must report `v22.x`. Validation under Node 24 or another unsupported
+runtime is invalid.
 
-### pnpm
-
-Do not require or assume a global pnpm installation.
-
-Preferred command form when Corepack is available:
+### 2. Install dependencies
 
 ```bash
-corepack pnpm <command>
+corepack pnpm -v
+corepack pnpm install
 ```
 
-Fallback command form:
+The expected pnpm version is `10.34.3`. If Corepack is unavailable, use
+`npx pnpm@10.34.3`.
 
-```bash
-npx pnpm@10.34.3 <command>
+### 3. Start PostgreSQL
+
+Follow [docs/dev-setup.md](docs/dev-setup.md) to start the local PostgreSQL
+container and create both:
+
+```text
+food_tracker
+food_tracker_test
 ```
 
-The first `npx` invocation may require access to the npm registry to download the pinned pnpm version.
-
-`corepack enable` is not required. On restricted systems it may fail while attempting to create a pnpm symlink in `/usr/local/bin`.
-
-### API Environment
-
-Create the local API environment file:
+### 4. Configure and migrate the API
 
 ```bash
 cp apps/api/.env.example apps/api/.env
+corepack pnpm prisma:generate
+corepack pnpm prisma:validate
+corepack pnpm --filter @food-tracker/api exec prisma migrate deploy
 ```
 
-Set `DATABASE_URL` in `apps/api/.env`. The example connection string is acceptable for Prisma schema validation. A real running PostgreSQL database is required before migrations or persistence can work.
-
-### Install And Validate
-
-From the repository root:
+### 5. Run the API
 
 ```bash
-npx pnpm@10.34.3 install
-npx pnpm@10.34.3 lint
-npx pnpm@10.34.3 typecheck
-npx pnpm@10.34.3 format:check
-npx pnpm@10.34.3 build
+corepack pnpm dev:api
 ```
 
-Validate and run the API:
+The default API base URL is `http://localhost:3000/api/v1`.
+
+### 6. Run the mobile app
 
 ```bash
-cd apps/api
-npx pnpm@10.34.3 prisma validate
-npx pnpm@10.34.3 dev
+corepack pnpm dev:mobile
 ```
 
-Run the mobile app:
+The mobile client reads `EXPO_PUBLIC_API_URL`. Examples:
+
+```text
+iOS simulator:    http://localhost:3000/api/v1
+Android emulator: http://10.0.2.2:3000/api/v1
+Physical phone:   http://<computer-LAN-IP>:3000/api/v1
+```
+
+For a physical phone, the computer and phone must be mutually reachable on the
+same network. Local firewall settings may also need to permit port `3000`.
+
+## Common Commands
+
+Run from the repository root:
 
 ```bash
-cd apps/mobile
-npx pnpm@10.34.3 start
+corepack pnpm dev:api
+corepack pnpm dev:mobile
+corepack pnpm prisma:generate
+corepack pnpm prisma:validate
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm build
+corepack pnpm test
+corepack pnpm test:coverage
 ```
 
-### Phase 1 Mock Behavior
+`build` currently compiles the shared package and API. It does not produce a
+complete native mobile bundle.
 
-The Phase 1 API returns static mock responses only:
+## Required Validation
 
-- POST, PUT, PATCH, and DELETE routes do not persist changes.
-- A successful POST response will not appear in a later GET response.
-- Dashboard summaries are static and are not calculated from submitted logs.
-- The Prisma schema exists, but runtime routes do not use Prisma or PostgreSQL.
+Before merge, run the complete sequence under Node 22.x:
 
-This behavior is expected during Phase 1 and must not be mistaken for working persistence. The mobile app also uses mock data and does not make network requests.
+```bash
+node -v
+corepack pnpm -v
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm build
+corepack pnpm test
+git diff --check
+git status --short --branch
+```
+
+Backend tests require a running PostgreSQL instance and use a dedicated database
+whose name must end in `_test`.
+
+## Documentation
+
+- [Engineering operating manual](AGENTS.md)
+- [Detailed development setup](docs/dev-setup.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Roadmap](docs/roadmap.md)
+- [Architecture](docs/architecture.md)
+- [API contracts](docs/api-contracts.md)
+- [Data-model decisions](docs/data-model-decisions.md)
+- [Prisma schema decisions](docs/prisma-schema-decisions.md)
+- [Mobile design system](docs/design-system.md)
+
+Mandatory workflow belongs in `AGENTS.md`; README remains the high-level entry
+point.

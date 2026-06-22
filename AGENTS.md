@@ -1,332 +1,294 @@
-# AGENTS.md
+# Food Tracker Engineering Operating Manual
+
+## 1. Authority And Document Ownership
+
+This file is the mandatory source of truth for engineering workflow and
+architecture guardrails.
+
+- `AGENTS.md`: required development, validation, Git, database, and Codex rules
+- `README.md`: project overview, current capabilities, limitations, and quick start
+- `docs/dev-setup.md`: detailed local environment and runtime setup
+- `docs/troubleshooting.md`: recovery procedures for known development failures
+- `docs/roadmap.md`: completed state and planned sequencing
+- `docs/architecture.md`, `docs/api-contracts.md`,
+  `docs/data-model-decisions.md`, and `docs/prisma-schema-decisions.md`: locked
+  architecture, API, data, and schema decisions
+
+If duplicated guidance conflicts, follow this file. Update documentation in the
+same branch when behavior, setup, commands, or workflow requirements change.
+
+## 2. Product And Architecture Invariants
+
+Food Tracker is a mobile-first nutrition application focused on low-friction
+manual tracking. Simple and Complex modes are views of the same application,
+backend, database, and business logic.
+
+The following rules are mandatory:
+
+- The backend owns validation, persistence, nutrition calculations, analytics,
+  and recommendation decisions.
+- The mobile app renders backend facts and owns UI and local state. It MUST NOT
+  calculate nutrition analytics or recommendation facts.
+- Analytics and recommendation decisions MUST be deterministic and fully
+  testable without AI.
+- AI MAY later propose structured entries from user text or rewrite wording for
+  already-computed recommendations.
+- AI MUST NOT calculate calories or nutrients, analyze trends, detect deficits,
+  decide recommendation facts, or query the database.
+- Shared API and domain contracts belong in `packages/shared`.
+- Preserve the pnpm workspace monorepo. Do not add Nx. Add Turborepo only after
+  a demonstrated need.
+- Preserve module ownership: food logs own food-log CRUD, analytics owns facts,
+  and recommendations convert facts into recommendation objects.
+- Do not introduce microservices, event buses, custom authentication, stored
+  daily-summary sources of truth, or unnecessary abstractions.
+- Supabase Auth is the intended authentication provider. Until it is
+  implemented, development uses the fixed mock-user boundary and clients MUST
+  NOT send `userId`.
+- Prisma schema or migration changes require explicit approval before editing.
+- Existing regression coverage MUST NOT be removed, weakened, or bypassed to
+  obtain a green validation result.
+
+Mobile UI MUST follow `docs/design-system.md`, reuse shared components and
+semantic tokens, support small phones, and include loading, error, and relevant
+empty states for backend-connected screens.
+
+## 3. Required Environment
+
+Required versions and services:
+
+```text
+Node.js: 22.x only
+pnpm: 10.34.3
+PostgreSQL: required for API persistence and backend tests
+```
+
+Before package installation, generation, build, tests, or implementation, run:
+
+```bash
+node -v
+corepack pnpm -v
+git status --short --branch
+```
+
+Rules:
+
+- If `node -v` does not report `v22.x`, STOP and switch runtimes.
+- Validation under Node 24 or any unsupported runtime is invalid.
+- Any pnpm `Unsupported engine` warning invalidates the entire validation run.
+- After switching to Node 22, rerun the complete validation sequence from the
+  beginning.
+- Do not report a task complete when Node 22 is unavailable.
+- Prefer `corepack pnpm <command>`.
+- If Corepack cannot provide pnpm, use `npx pnpm@10.34.3 <command>`.
+- Do not require `corepack enable`; it may attempt a restricted global symlink.
+
+Detailed environment setup is in `docs/dev-setup.md`.
+
+## 4. Task-Start Procedure
+
+Before editing files for a non-trivial task:
+
+1. Inspect the current branch, working tree, relevant implementation, scripts,
+   and locked decision documents.
+2. Summarize the requested outcome, affected modules, constraints, and expected
+   output.
+3. State the files expected to change before implementation.
+4. State whether API, database, shared contracts, mobile behavior, tests, or
+   documentation will change.
+5. Separate confirmed facts from assumptions.
+6. Ask before making architecture changes, schema changes, dependency changes,
+   folder restructuring, or broad cross-module rewrites.
+7. Preserve unrelated user changes in a dirty worktree.
 
-## Project Overview
-This project is an AI-assisted food tracking application built for low-friction nutrition tracking.
+Prefer small, reversible, PR-sized changes using existing patterns. Do not
+silently redesign architecture during feature work.
 
-The application supports two tracking modes:
+## 5. Branch Workflow
 
-1. Simple Mode
-2. Complex Mode
+One branch represents one scoped task or phase.
 
-These are NOT separate applications.
+### Start
 
-Both modes share:
-- Backend
-- Database
-- Core UI
-- Business logic
+1. Begin from a clean, current `main`.
+2. Synchronize with `git pull --ff-only`.
+3. Create a clearly named branch, for example:
 
-The difference is only:
-- What nutrients are tracked
-- What analytics/charts are displayed
+```text
+phase-5-2-core-log-management
+chore/docs-workflow-hardening
+fix/test-database-setup
+```
 
----
+4. Do not implement directly on `main`.
+5. Do not mix unrelated fixes into the branch.
 
-## Product Goals
+### Git State Vocabulary
 
-Primary goal:
-Make food tracking significantly easier than existing apps like Cronometer or MyFitnessPal.
+- **Committed**: changes exist in the local branch history.
+- **Pushed**: local commits were uploaded to a remote branch.
+- **Merged**: branch commits are incorporated into `main`.
 
-Key problem:
-Existing food trackers are powerful but tedious to use.
-
-Core value proposition:
-- Fast logging
-- Minimal friction
-- Deep analytics when desired
-- AI-assisted convenience
-
----
-
-## AI Rules
-
-AI is optional and is only allowed for:
-
-1. Future food parsing
-Example:
-"I ate 2 wraps and half a pizza"
-
-AI may convert this into proposed structured food entries for user confirmation.
-
-2. Future recommendation wording
-AI may rewrite or explain recommendations that were already produced from deterministic facts.
-
-AI MUST NOT be used for:
-- calorie calculations
-- macro calculations
-- trend calculations
-- analytics math
-- detecting deficits or deficiencies
-- deciding recommendation facts
-- database querying
-
-All calculations and recommendation decisions must be deterministic backend code. The recommendation system must work without AI.
-
-Phase 2 food logging is manual structured nutrition entry only. It must not require AI parsing, nutrition matching, food database lookup, barcode scanning, or photo recognition.
-
-MVP data units, precision, rounding, meal types, and tracking-day behavior are locked in `/docs/data-model-decisions.md`.
-
-MVP REST conventions, response envelopes, auth boundary, validation, and endpoint contracts are locked in `/docs/api-contracts.md`.
-
-MVP Prisma/PostgreSQL models, field types, constraints, indexes, relations, and cascade behavior are locked in `/docs/prisma-schema-decisions.md`. Do not create additional planning docs unless explicitly requested.
-
----
-
-## Engineering Rules
-
-### Architecture Rules
-- Use monorepo structure
-- Use `pnpm` and `pnpm` workspaces
-- Do not add Nx
-- Add Turborepo only later if there is a demonstrated need
-- Shared types must live in `/packages/shared`
-- Backend business logic must stay in API
-- Frontend should focus on UI/state only
-- No microservices
-- No unnecessary abstraction
-- Use Supabase Auth as the intended authentication provider
-- Use fixed mock user context during Phase 1; clients must not send `userId`
-- Do not build custom password authentication or a custom auth system
-
-### Code Quality
-- TypeScript strict mode
-- Avoid `any`
-- Strong typing everywhere
-- Prefer composition over inheritance
-- Reusable components
-- Small focused modules
-
-### Frontend UI Rules
-- Mobile UI must follow `/docs/design-system.md`.
-- Create and reuse shared mobile components before adding screen-specific UI.
-- Avoid one-off inline styles when a shared token, component, or NativeWind
-  class can represent the design.
-- Do not ship generic placeholder layouts for implemented screens.
-- Do not introduce random colors; use the documented semantic palette.
-- Every backend-connected screen must include loading, error, and relevant
-  empty states.
-- Keep screens usable on small phones, including form controls, wrapping rows,
-  keyboard behavior, and bottom navigation clearance.
-- Frontend components display backend facts; they do not calculate nutrition
-  or recommendation decisions.
-
-### Backend Rules
-Each module must own its responsibility.
-
-Example:
-- foodLogs handles food log CRUD
-- analytics computes deterministic facts
-- recommendations converts facts into recommendation objects
-- AI may only rewrite already-computed recommendation wording
-
-Do not mix responsibilities.
-
----
-
-## Environment and Validation Rules
-
-- Respect the Node.js version pinned by the project.
-- If validation runs on a different Node version, explicitly report the expected and actual versions.
-- Do not assume `pnpm` is globally installed.
-- Use the package-manager commands documented in `README.md`.
-- Prefer `corepack pnpm <command>` when available; use `npx pnpm@10.34.3 <command>` as the documented fallback.
-- Do not require `corepack enable`; it may fail on restricted systems because it attempts to create a global symlink.
-- During Phase 1, do not treat a missing `DATABASE_URL` as an application bug. Report it as an environment prerequisite for Prisma validation.
-- Distinguish scaffold placeholder behavior from implementation bugs.
-- Do not claim persistence works unless create-then-list behavior has been verified.
-- Report the exact commands used during validation.
-- Report exact validation errors rather than summarizing them vaguely.
-- Before completing a major phase, run lint, typecheck, format check, build,
-  and the automated test suite.
-- Backend business logic is incomplete until its success paths, validation
-  behavior, persistence effects, and relevant lifecycle transitions have
-  automated regression coverage.
-- Manual validation is useful for exploratory and end-to-end checks, but it
-  does not replace automated tests.
-- Backend integration tests must use a dedicated test database and must never
-  read from, write to, or clean the development database.
-
----
-
-## Performance Rules
-Optimize for:
-1. Simplicity
-2. Maintainability
-3. Speed of development
-
-Avoid premature optimization.
-
----
-
-## Forbidden Decisions
-Do NOT:
-- add payment systems
-- add social features
-- add microservices
-- add Kubernetes
-- add event buses
-- add complex auth systems
-- add AI everywhere
-- add Nx
-
-Keep MVP focused.
-
----
----
-
-## Workflow Rules
-
-Codex must follow this workflow for all non-trivial tasks.
-
-### 1. Summarize Understanding First
-Before making meaningful changes, summarize your understanding of the task.
-
-Example:
-- what feature is being built
-- what modules are affected
-- expected output
-- constraints
-
-This ensures alignment before implementation.
-
----
-
-### 2. Propose a Plan Before Coding
-For features larger than a small bug fix, propose an implementation plan.
-
-The plan should include:
-- files to create or modify
-- modules impacted
-- database changes (if any)
-- API changes (if any)
-- frontend changes (if any)
-
-Plan should be concise but explicit.
-
----
-
-### 3. Wait for Approval Before Major Changes
-Codex must NOT proceed immediately if the task involves:
-
-- architecture refactors
-- database schema changes
-- new dependencies/frameworks
-- folder restructuring
-- major cross-module rewrites
-
-In these cases:
-1. Explain proposed change
-2. Explain why it is needed
-3. Wait for approval
-
-Do not assume permission.
-
----
-
-### 4. Preserve Existing Architecture
-When implementing new features:
-
-- prefer existing patterns
-- reuse existing modules
-- avoid introducing parallel systems
-
-If current architecture seems insufficient, explain why before changing it.
-
----
-
-### 5. Make Small, Reversible Changes
-Prefer incremental implementation over massive rewrites.
-
-Good:
-- small PR-sized changes
-- isolated refactors
-- modular additions
-
-Bad:
-- rewriting multiple modules at once
-- changing architecture during feature work
-
----
-
-### 6. Explicitly Call Out Tradeoffs
-When multiple implementation paths exist, present tradeoffs.
-
-Example:
-Option A:
-- simpler
-- faster
-- less scalable
-
-Option B:
-- more scalable
-- more complex
-
-Do not silently choose major tradeoffs.
-
----
-
-### 7. Flag Overengineering
-Codex should actively avoid unnecessary complexity.
-
-Flag proposals involving:
-- microservices
-- event buses
-- excessive abstraction
-- premature optimization
-
-Default to the simplest solution that satisfies requirements.
-
----
-
-### 8. Separate Assumptions From Facts
-Clearly distinguish between:
-
-Facts:
-- confirmed project requirements
-- existing architecture
-- user decisions
-
-Assumptions:
-- inferred requirements
-- guessed constraints
-- speculative future needs
-
-Never treat assumptions as confirmed facts.
-
----
-
-### 9. Ask Instead of Guessing
-If ambiguity affects implementation, ask clarifying questions instead of making silent assumptions.
-
-Especially for:
-- business logic
-- UX behavior
-- schema design
-- API contracts
-
----
-
-### 10. Finish With Validation
-After completing work, provide a short validation summary:
-
-- what changed
-- why it changed
-- risks introduced
-- suggested next step
-
-## Build Philosophy
-Build in phases.
-
-Phase 1:
-Foundation
-
-Phase 2:
-Core tracker with manual food logging and deterministic analytics/recommendations
-
-Phase 3:
-Intelligence and AI convenience layer
-
-Phase 4:
-Advanced analytics
-
-Do not skip phases.
+Pushed work is not merged work. Never report a branch as merged based only on a
+successful push.
+
+### Handoff And Merge Readiness
+
+After final changes and validation, report:
+
+```bash
+git status --short --branch
+git branch -vv
+git log --oneline main..HEAD
+git diff --check
+```
+
+The working tree must contain only intentional changes. Validation must be
+complete before the branch is declared ready.
+
+### Cleanup
+
+- Verify the feature branch tip is reachable from updated `main` before deleting
+  any branch.
+- Delete local and remote branches only after merge is verified.
+- If histories diverge, stop and inspect the commit graph.
+- Do not force-push, rewrite shared history, delete unmerged work, or perform a
+  manual repair merge without explicit approval.
+
+## 6. Database Operating Rules
+
+Standard local database names:
+
+```text
+Development: food_tracker
+Tests:       food_tracker_test
+```
+
+Safety rules:
+
+- Backend integration tests MUST use a dedicated database whose name ends in
+  `_test`.
+- Development and test URLs MUST NOT reference the same database.
+- The test suite migrates and clears the selected test database.
+- Tests MUST never read from, write to, migrate, or clean the development
+  database.
+- PostgreSQL being unavailable is an environment blocker, not permission to
+  skip tests.
+- Prisma `P1001` usually means PostgreSQL is stopped, unreachable, or configured
+  with the wrong host/port.
+
+Test database URL precedence:
+
+1. `TEST_DATABASE_URL`
+2. `DATABASE_URL_TEST`
+3. `postgresql://postgres:postgres@localhost:5432/food_tracker_test`
+
+Common commands:
+
+```bash
+corepack pnpm prisma:generate
+corepack pnpm prisma:validate
+corepack pnpm --filter @food-tracker/api exec prisma migrate deploy
+corepack pnpm test
+```
+
+The test command automatically applies committed migrations to the test
+database. Docker/PostgreSQL setup and recovery procedures are documented in
+`docs/dev-setup.md` and `docs/troubleshooting.md`.
+
+## 7. Required Validation Before Merge
+
+Run the following sequence after all final edits:
+
+```bash
+node -v
+corepack pnpm -v
+corepack pnpm format:check
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm build
+corepack pnpm test
+git diff --check
+git status --short --branch
+```
+
+Requirements:
+
+- `node -v` MUST report `v22.x`.
+- Every command must pass under the same Node 22 environment.
+- An unsupported-engine warning makes the run invalid.
+- Do not skip tests because PostgreSQL is unavailable.
+- Report exact errors instead of vague summaries.
+- Documentation-only branches still require the complete baseline sequence.
+- Root `build` currently verifies the shared package and API TypeScript build;
+  it is not a complete native mobile bundle validation.
+- Manual checks supplement automated tests; they do not replace them.
+
+Additional validation by change type:
+
+- Backend behavior: automated success, validation, persistence, ownership, and
+  relevant lifecycle regression tests
+- Database/schema: Prisma validation, committed migration review, migration
+  deployment against a dedicated test database, and full tests
+- Mobile behavior: lint/typecheck plus reported simulator or physical-device
+  smoke testing until automated mobile tests exist
+- API contract: shared types/schemas, API tests, and documentation updated
+- Documentation: internal links, command accuracy, formatting, and changed-file
+  scope verified
+
+## 8. Code Quality And Architecture Rules
+
+- TypeScript strict mode remains enabled.
+- Avoid `any`; use strong domain and API types.
+- Prefer composition, focused modules, and existing reusable components.
+- Do not add abstractions without a current use case.
+- Do not move backend business logic into the frontend.
+- Do not place recommendation fact calculations inside the recommendation
+  wording layer.
+- Do not add random colors or one-off mobile styles when documented tokens or
+  shared components apply.
+- Do not introduce payments, social features, Kubernetes, event buses,
+  microservices, complex custom auth, or broad AI integration.
+- Optimize for simplicity, maintainability, and development speed before
+  speculative scale.
+
+## 9. Codex Operating Rules
+
+Codex MUST:
+
+- Summarize understanding before meaningful changes.
+- State planned files and affected systems before editing.
+- Inspect actual repository state rather than relying on roadmap claims.
+- Preserve existing architecture and unrelated user work.
+- Ask for approval before schema, architecture, dependency, or folder-structure
+  changes.
+- Explain meaningful implementation tradeoffs.
+- Never silently redesign architecture.
+- Never skip, shorten, or misrepresent required validation.
+- Never treat Node 24 validation as acceptable.
+- Report exact commands, Node and pnpm versions, test counts, validation
+  failures, manual checks, and unvalidated areas.
+- Distinguish committed, pushed, merged, and deleted-branch states.
+- Never force-push, delete branches, or perform destructive Git operations
+  without the required verification and authorization.
+- Finish with what changed, why, risks, and the next practical step.
+
+## 10. Completion Report
+
+Every implementation handoff must include:
+
+```text
+Changed:
+Why:
+Validation environment:
+Commands run:
+Automated results:
+Manual validation:
+Git state:
+Known limitations or risks:
+Suggested next step:
+```
+
+Do not claim persistence works unless create-then-read behavior has been
+verified. Do not claim a mobile flow works unless its relevant automated or
+manual validation is reported.
