@@ -16,21 +16,29 @@ describe('profile API', () => {
 
     expectSuccessEnvelope(response.body);
     expect(response.body.data).toEqual({
+      name: 'Test User',
       age: 30,
+      birthDate: '1995-01-01',
       sex: 'male',
       heightInches: 70,
       timezone: 'America/Toronto',
       startingWeightLb: 185.5,
+      activityLevel: 'moderately_active',
+      trainingStyle: 'mixed',
     });
   });
 
   it('updates and persists the current user profile', async () => {
     const input = {
+      name: 'Updated User',
       age: 31,
+      birthDate: '1993-02-03',
       sex: 'female',
       heightInches: 66,
       timezone: 'America/Vancouver',
       startingWeightLb: 142.34,
+      activityLevel: 'lightly_active',
+      trainingStyle: 'cardio',
     };
 
     const response = await api.put('/api/v1/profile').send(input).expect(200);
@@ -45,17 +53,22 @@ describe('profile API', () => {
     });
     expect(persisted?.timezone).toBe('America/Vancouver');
     expect(persisted?.startingWeightLb?.toNumber()).toBe(142.3);
+    expect(persisted?.birthDate?.toISOString().slice(0, 10)).toBe('1993-02-03');
   });
 
   it('rejects an invalid profile body', async () => {
     const response = await api
       .put('/api/v1/profile')
       .send({
+        name: '',
         age: -1,
+        birthDate: 'not-a-date',
         sex: '',
         heightInches: 0,
         timezone: 'Not/A_Timezone',
         startingWeightLb: -10,
+        activityLevel: 'invalid',
+        trainingStyle: 'invalid',
       })
       .expect(400);
 
@@ -70,13 +83,18 @@ describe('profile API', () => {
 
 describe('goals API', () => {
   it('returns the current user goals', async () => {
-    await seedGoals({ goalType: 'maintain', targetCalories: 2400 });
+    await seedGoals({
+      goalType: 'maintain',
+      goalPace: null,
+      targetCalories: 2400,
+    });
 
     const response = await api.get('/api/v1/goals').expect(200);
 
     expectSuccessEnvelope(response.body);
     expect(response.body.data).toEqual({
       goalType: 'maintain',
+      goalPace: null,
       targetWeightLb: 190,
       targetCalories: 2400,
       targetProteinGrams: 150,
@@ -86,6 +104,7 @@ describe('goals API', () => {
   it('updates and persists goals', async () => {
     const input = {
       goalType: 'lose',
+      goalPace: 'moderate' as const,
       targetWeightLb: 170.04,
       targetCalories: 2100,
       targetProteinGrams: 160.06,
@@ -110,6 +129,7 @@ describe('goals API', () => {
       .put('/api/v1/goals')
       .send({
         goalType: 'bulk',
+        goalPace: null,
         targetWeightLb: 190,
         targetCalories: 3000,
         targetProteinGrams: 150,
@@ -124,6 +144,7 @@ describe('goals API', () => {
       .put('/api/v1/goals')
       .send({
         goalType: 'gain',
+        goalPace: 'moderate_bulk',
         targetWeightLb: -1,
         targetCalories: -1,
         targetProteinGrams: -1,

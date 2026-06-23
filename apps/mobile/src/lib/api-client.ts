@@ -8,15 +8,33 @@ import type {
   Profile,
   Recommendation,
   RecommendationStatus,
+  SetupInput,
+  SetupPreviewResult,
+  SetupResult,
+  SetupStatus,
   TrackingPreferences,
   WeightLog,
   WeightLogInput,
 } from '@food-tracker/shared';
-import { API_BASE_PATH } from '@food-tracker/shared';
+import {
+  API_BASE_PATH,
+  goalsSchema,
+  profileSchema,
+  setupPreviewResultSchema,
+  setupResultSchema,
+  setupStatusSchema,
+  trackingPreferencesSchema,
+} from '@food-tracker/shared';
+import { Platform } from 'react-native';
 
-const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(
+  /\/+$/,
+  '',
+);
 export const API_URL =
-  configuredApiUrl ?? `http://localhost:3000${API_BASE_PATH}`;
+  configuredApiUrl === undefined || configuredApiUrl === ''
+    ? `http://localhost:3000${API_BASE_PATH}`
+    : configuredApiUrl;
 
 export class ApiClientError extends Error {
   constructor(
@@ -33,9 +51,38 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
+interface ResponseSchema<T> {
+  safeParse: (
+    value: unknown,
+  ) => { success: true; data: T } | { success: false };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function invalidResponse(status: number): ApiClientError {
+  return new ApiClientError(
+    'The API returned an unreadable or unexpected response.',
+    'INVALID_RESPONSE',
+    status,
+  );
+}
+
+function apiConnectionMessage(): string {
+  const base = `Could not reach the API at ${API_URL}. Confirm the API is running`;
+
+  if (Platform.OS === 'web') {
+    return `${base}.`;
+  }
+
+  return `${base}. On a physical device, set EXPO_PUBLIC_API_URL to http://<computer-LAN-IP>:3000/api/v1 before starting Expo; localhost refers to the device itself.`;
+}
+
 async function request<T>(
   path: string,
   options: RequestOptions = {},
+  schema?: ResponseSchema<T>,
 ): Promise<T> {
   const { body, headers: providedHeaders, ...requestOptions } = options;
   const headers = new Headers(providedHeaders);
@@ -55,43 +102,63 @@ async function request<T>(
   try {
     response = await fetch(`${API_URL}${path}`, requestInit);
   } catch {
+    throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
+  }
+
+  let payload: unknown;
+
+  try {
+    payload = await response.json();
+  } catch {
+    throw invalidResponse(response.status);
+  }
+
+  if (!isRecord(payload) || typeof payload.success !== 'boolean') {
+    throw invalidResponse(response.status);
+  }
+
+  const envelope = payload as unknown as ApiResponse<unknown>;
+
+  if (!envelope.success) {
+    if (
+      !isRecord(envelope.error) ||
+      typeof envelope.error.code !== 'string' ||
+      typeof envelope.error.message !== 'string' ||
+      !isRecord(envelope.error.details)
+    ) {
+      throw invalidResponse(response.status);
+    }
+
     throw new ApiClientError(
-      `Could not reach the API at ${API_URL}.`,
-      'NETWORK_ERROR',
-      0,
+      envelope.error.message,
+      envelope.error.code,
+      response.status,
+      envelope.error.details,
     );
   }
 
-  let envelope: ApiResponse<T>;
-
-  try {
-    envelope = (await response.json()) as ApiResponse<T>;
-  } catch {
+  if (!response.ok) {
     throw new ApiClientError(
-      'The API returned an unreadable response.',
+      `Request failed with status ${response.status}.`,
+      'HTTP_ERROR',
+      response.status,
+    );
+  }
+
+  if (schema === undefined) {
+    return envelope.data as T;
+  }
+
+  const parsed = schema.safeParse(envelope.data);
+  if (!parsed.success) {
+    throw new ApiClientError(
+      'The API returned data that does not match the expected contract.',
       'INVALID_RESPONSE',
       response.status,
     );
   }
 
-  if (!response.ok || !envelope.success) {
-    const error = envelope.success
-      ? {
-          code: 'HTTP_ERROR',
-          message: `Request failed with status ${response.status}.`,
-          details: {},
-        }
-      : envelope.error;
-
-    throw new ApiClientError(
-      error.message,
-      error.code,
-      response.status,
-      error.details,
-    );
-  }
-
-  return envelope.data;
+  return parsed.data;
 }
 
 export interface AdvancedAnalyticsQuery {
@@ -197,22 +264,50 @@ export const api = {
       }),
   },
   profile: {
-    get: () => request<Profile>('/profile'),
+    get: () => request<Profile>('/profile', {}, profileSchema),
     update: (profile: Profile) =>
-      request<Profile>('/profile', { method: 'PUT', body: profile }),
+      request<Profile>(
+        '/profile',
+        { method: 'PUT', body: profile },
+        profileSchema,
+      ),
   },
   goals: {
-    get: () => request<Goals>('/goals'),
+    get: () => request<Goals>('/goals', {}, goalsSchema),
     update: (goals: Goals) =>
-      request<Goals>('/goals', { method: 'PUT', body: goals }),
+      request<Goals>('/goals', { method: 'PUT', body: goals }, goalsSchema),
   },
   trackingPreferences: {
-    get: () => request<TrackingPreferences>('/tracking-preferences'),
+    get: () =>
+      request<TrackingPreferences>(
+        '/tracking-preferences',
+        {},
+        trackingPreferencesSchema,
+      ),
     update: (preferences: TrackingPreferences) =>
-      request<TrackingPreferences>('/tracking-preferences', {
-        method: 'PUT',
-        body: preferences,
-      }),
+      request<TrackingPreferences>(
+        '/tracking-preferences',
+        {
+          method: 'PUT',
+          body: preferences,
+        },
+        trackingPreferencesSchema,
+      ),
+  },
+  setup: {
+    status: () => request<SetupStatus>('/setup/status', {}, setupStatusSchema),
+    preview: (input: SetupInput) =>
+      request<SetupPreviewResult>(
+        '/setup/preview',
+        { method: 'POST', body: input },
+        setupPreviewResultSchema,
+      ),
+    update: (input: SetupInput) =>
+      request<SetupResult>(
+        '/setup',
+        { method: 'PUT', body: input },
+        setupResultSchema,
+      ),
   },
 };
 
@@ -222,6 +317,14 @@ interface ValidationIssue {
 }
 
 const validationMessages: Record<string, string> = {
+  name: 'Name is required.',
+  age: 'Age must be a whole number of 0 or higher.',
+  birthDate: 'Birthday must use YYYY-MM-DD.',
+  sex: 'Choose male or female so calorie targets can be calculated.',
+  heightInches: 'Height must be a whole number greater than 0.',
+  startingWeightLb: 'Starting weight must be greater than 0.',
+  activityLevel: 'Choose a valid activity level.',
+  trainingStyle: 'Choose a valid training style.',
   foodName: 'Enter a food name.',
   mealType: 'Choose a valid meal type.',
   calories: 'Calories must be a whole number of 0 or higher.',
@@ -231,6 +334,8 @@ const validationMessages: Record<string, string> = {
   weightLb: 'Weight must be greater than 0.',
   loggedAt: 'Choose a valid date and time.',
   timezone: 'Enter a valid timezone, such as America/Toronto.',
+  goalPace: 'Choose a goal pace that matches your goal direction.',
+  targetWeightLb: 'Target weight must be greater than 0.',
   targetCalories: 'Calorie target must be a whole number of 0 or higher.',
   targetProteinGrams: 'Protein target must be 0 or higher.',
 };
@@ -267,7 +372,7 @@ export function errorMessage(
       );
     }
     if (error.code === 'INVALID_RESPONSE') {
-      return `The server response could not be read. Confirm the API is running at ${API_URL}.`;
+      return `${error.message} Confirm the API URL is ${API_URL}.`;
     }
     if (error.code === 'INTERNAL_SERVER_ERROR') {
       return 'The server could not complete this request. Please try again.';
@@ -276,7 +381,7 @@ export function errorMessage(
   }
 
   if (error instanceof TypeError) {
-    return `Could not reach the API at ${API_URL}.`;
+    return apiConnectionMessage();
   }
 
   return fallback;

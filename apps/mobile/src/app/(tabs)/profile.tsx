@@ -3,13 +3,23 @@ import { Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useFocusEffect } from 'expo-router';
 import type {
+  ActivityLevel,
+  GoalPace,
   GoalType,
   Goals,
   Profile,
+  Sex,
+  TrainingStyle,
   TrackingMode,
   TrackingPreferences,
 } from '@food-tracker/shared';
-import { GOAL_TYPES, TRACKING_MODES } from '@food-tracker/shared';
+import {
+  ACTIVITY_LEVELS,
+  GOAL_TYPES,
+  GOAL_PACES,
+  TRACKING_MODES,
+  TRAINING_STYLES,
+} from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppInput } from '@/components/app-input';
@@ -23,12 +33,17 @@ import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 
 interface ProfileForm {
+  name: string;
   age: string;
-  sex: string;
+  birthDate: string;
+  sex: Sex;
   heightInches: string;
   timezone: string;
   startingWeightLb: string;
+  activityLevel: ActivityLevel;
+  trainingStyle: TrainingStyle;
   goalType: GoalType;
+  goalPace: GoalPace | 'none';
   targetWeightLb: string;
   targetCalories: string;
   targetProteinGrams: string;
@@ -36,15 +51,20 @@ interface ProfileForm {
 }
 
 const defaultProfile: Profile = {
+  name: 'New user',
   age: 30,
-  sex: 'prefer not to say',
+  birthDate: '1996-01-01',
+  sex: 'male',
   heightInches: 68,
   timezone: 'America/Toronto',
   startingWeightLb: 170,
+  activityLevel: 'lightly_active',
+  trainingStyle: 'none',
 };
 
 const defaultGoals: Goals = {
   goalType: 'maintain',
+  goalPace: null,
   targetWeightLb: 170,
   targetCalories: 2000,
   targetProteinGrams: 120,
@@ -61,12 +81,17 @@ function formValues(
   preferences: TrackingPreferences,
 ): ProfileForm {
   return {
+    name: profile.name,
     age: String(profile.age),
+    birthDate: profile.birthDate,
     sex: profile.sex,
     heightInches: String(profile.heightInches),
     timezone: profile.timezone,
     startingWeightLb: String(profile.startingWeightLb),
+    activityLevel: profile.activityLevel,
+    trainingStyle: profile.trainingStyle,
     goalType: goals.goalType,
+    goalPace: goals.goalPace ?? 'none',
     targetWeightLb: String(goals.targetWeightLb),
     targetCalories: String(goals.targetCalories),
     targetProteinGrams: String(goals.targetProteinGrams),
@@ -86,6 +111,13 @@ async function optionalResource<T>(
     }
     throw error;
   }
+}
+
+function label(value: string): string {
+  return value
+    .split('_')
+    .map((part) => part[0]?.toUpperCase().concat(part.slice(1)) ?? part)
+    .join(' ');
 }
 
 function ChoiceRow<T extends string>({
@@ -115,7 +147,7 @@ function ChoiceRow<T extends string>({
               variant="label"
               className={selected ? 'text-sage-dark' : 'text-muted'}
             >
-              {option[0]?.toUpperCase().concat(option.slice(1))}
+              {label(option)}
             </AppText>
           </Pressable>
         );
@@ -132,6 +164,8 @@ export default function ProfileScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [hasMissingData, setHasMissingData] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [savedPreferences, setSavedPreferences] =
+    useState<TrackingPreferences>(defaultPreferences);
 
   const {
     control,
@@ -159,6 +193,7 @@ export default function ProfileScreen() {
           optionalResource(api.trackingPreferences.get, defaultPreferences),
         ]);
         reset(formValues(profile.data, goals.data, preferences.data));
+        setSavedPreferences(preferences.data);
         setHasMissingData(
           profile.missing || goals.missing || preferences.missing,
         );
@@ -184,27 +219,35 @@ export default function ProfileScreen() {
     setNotice(null);
 
     try {
-      await Promise.all([
+      const goalPace = values.goalPace === 'none' ? null : values.goalPace;
+      const [profile, goals, preferences] = await Promise.all([
         api.profile.update({
+          name: values.name.trim(),
           age: Number(values.age),
-          sex: values.sex.trim(),
+          birthDate: values.birthDate.trim(),
+          sex: values.sex,
           heightInches: Number(values.heightInches),
           timezone: values.timezone.trim(),
           startingWeightLb: Number(values.startingWeightLb),
+          activityLevel: values.activityLevel,
+          trainingStyle: values.trainingStyle,
         }),
         api.goals.update({
           goalType: values.goalType,
+          goalPace,
           targetWeightLb: Number(values.targetWeightLb),
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
         }),
         api.trackingPreferences.update({
           mode: values.mode,
-          waterTrackingEnabled: false,
+          waterTrackingEnabled: savedPreferences.waterTrackingEnabled,
         }),
       ]);
+      reset(formValues(profile, goals, preferences));
+      setSavedPreferences(preferences);
       setHasMissingData(false);
-      setNotice('Profile and goals saved.');
+      setNotice('Profile, goals, and tracking mode saved.');
       markDataChanged();
     } catch (saveError) {
       setError(errorMessage(saveError));
@@ -253,8 +296,8 @@ export default function ProfileScreen() {
         <AppCard compact className="border-gold bg-surface">
           <AppText variant="label">Finish your setup</AppText>
           <AppText muted className="mt-1">
-            One or more profile sections have not been saved yet. Review the
-            defaults below, then save.
+            The values below are suggestions only. Review every section before
+            saving so your dashboard and recommendations use your information.
           </AppText>
         </AppCard>
       ) : null}
@@ -268,8 +311,23 @@ export default function ProfileScreen() {
 
       <FormSection
         title="Profile basics"
-        description="Used for display preferences and future deterministic calculations."
+        description="Used for deterministic target calculations and dashboard context."
       >
+        <Controller
+          control={control}
+          name="name"
+          rules={{ required: 'Name is required.' }}
+          render={({ field }) => (
+            <AppInput
+              label="Name"
+              autoCapitalize="words"
+              value={field.value}
+              onBlur={field.onBlur}
+              onChangeText={field.onChange}
+              error={errors.name?.message}
+            />
+          )}
+        />
         <Controller
           control={control}
           name="age"
@@ -293,17 +351,38 @@ export default function ProfileScreen() {
         />
         <Controller
           control={control}
-          name="sex"
-          rules={{ required: 'Sex is required by the current API contract.' }}
+          name="birthDate"
+          rules={{
+            required: 'Birthday is required.',
+            pattern: {
+              value: /^\d{4}-\d{2}-\d{2}$/,
+              message: 'Use YYYY-MM-DD.',
+            },
+          }}
           render={({ field }) => (
             <AppInput
-              label="Sex"
-              autoCapitalize="none"
+              label="Birthday"
+              placeholder="YYYY-MM-DD"
+              keyboardType="numbers-and-punctuation"
               value={field.value}
               onBlur={field.onBlur}
               onChangeText={field.onChange}
-              error={errors.sex?.message}
+              error={errors.birthDate?.message}
             />
+          )}
+        />
+        <Controller
+          control={control}
+          name="sex"
+          render={({ field }) => (
+            <View className="gap-2">
+              <AppText variant="label">Sex</AppText>
+              <ChoiceRow
+                values={['male', 'female'] as const}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </View>
           )}
         />
         <Controller
@@ -361,6 +440,34 @@ export default function ProfileScreen() {
             />
           )}
         />
+        <Controller
+          control={control}
+          name="activityLevel"
+          render={({ field }) => (
+            <View className="gap-2">
+              <AppText variant="label">Activity level</AppText>
+              <ChoiceRow
+                values={ACTIVITY_LEVELS}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </View>
+          )}
+        />
+        <Controller
+          control={control}
+          name="trainingStyle"
+          render={({ field }) => (
+            <View className="gap-2">
+              <AppText variant="label">Training style</AppText>
+              <ChoiceRow
+                values={TRAINING_STYLES}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </View>
+          )}
+        />
       </FormSection>
 
       <FormSection title="Goals">
@@ -372,6 +479,20 @@ export default function ProfileScreen() {
               <AppText variant="label">Goal direction</AppText>
               <ChoiceRow
                 values={GOAL_TYPES}
+                value={field.value}
+                onChange={field.onChange}
+              />
+            </View>
+          )}
+        />
+        <Controller
+          control={control}
+          name="goalPace"
+          render={({ field }) => (
+            <View className="gap-2">
+              <AppText variant="label">Goal pace</AppText>
+              <ChoiceRow
+                values={['none', ...GOAL_PACES] as const}
                 value={field.value}
                 onChange={field.onChange}
               />

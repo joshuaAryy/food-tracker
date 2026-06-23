@@ -1,10 +1,14 @@
 import { z } from 'zod';
 import {
+  ACTIVITY_LEVELS,
+  GOAL_PACES,
   GOAL_TYPES,
   MEAL_TYPES,
   RECOMMENDATION_SEVERITIES,
   RECOMMENDATION_STATUSES,
+  SEXES,
   TRACKING_MODES,
+  TRAINING_STYLES,
 } from './enums.js';
 
 const optionalNonNegativeDecimal = z
@@ -42,6 +46,10 @@ export const timezoneSchema = z.string().refine(
 );
 
 export const goalTypeSchema = z.enum(GOAL_TYPES);
+export const sexSchema = z.enum(SEXES);
+export const activityLevelSchema = z.enum(ACTIVITY_LEVELS);
+export const trainingStyleSchema = z.enum(TRAINING_STYLES);
+export const goalPaceSchema = z.enum(GOAL_PACES);
 export const trackingModeSchema = z.enum(TRACKING_MODES);
 export const mealTypeSchema = z.enum(MEAL_TYPES);
 export const recommendationSeveritySchema = z.enum(RECOMMENDATION_SEVERITIES);
@@ -51,23 +59,108 @@ export const recommendationsQuerySchema = z.strictObject({
 });
 
 export const profileSchema = z.strictObject({
+  name: z.string().trim().min(1),
   age: z.number().int().nonnegative(),
-  sex: z.string().min(1),
+  birthDate: localDateSchema,
+  sex: sexSchema,
   heightInches: z.number().int().positive(),
   timezone: timezoneSchema,
   startingWeightLb: z.number().positive(),
+  activityLevel: activityLevelSchema,
+  trainingStyle: trainingStyleSchema,
 });
 
-export const goalsSchema = z.strictObject({
+const goalsBaseSchema = z.strictObject({
   goalType: goalTypeSchema,
+  goalPace: goalPaceSchema.nullable(),
   targetWeightLb: z.number().positive(),
   targetCalories: z.number().int().nonnegative(),
   targetProteinGrams: z.number().nonnegative(),
 });
 
+export const goalsSchema = goalsBaseSchema.refine(
+  ({ goalType, goalPace }) =>
+    (goalType === 'maintain' && goalPace === null) ||
+    (goalType === 'lose' &&
+      (goalPace === 'slow' ||
+        goalPace === 'moderate' ||
+        goalPace === 'aggressive')) ||
+    (goalType === 'gain' &&
+      (goalPace === 'lean_bulk' ||
+        goalPace === 'moderate_bulk' ||
+        goalPace === 'aggressive_bulk')),
+  {
+    message: 'goalPace must match goalType',
+    path: ['goalPace'],
+  },
+);
+
 export const trackingPreferencesSchema = z.strictObject({
   mode: trackingModeSchema,
   waterTrackingEnabled: z.boolean(),
+});
+
+export const setupStatusSchema = z
+  .strictObject({
+    profileComplete: z.boolean(),
+    goalsComplete: z.boolean(),
+    preferencesComplete: z.boolean(),
+    isComplete: z.boolean(),
+  })
+  .refine(
+    ({ profileComplete, goalsComplete, preferencesComplete, isComplete }) =>
+      isComplete === (profileComplete && goalsComplete && preferencesComplete),
+    {
+      message: 'isComplete must match the section completion state',
+      path: ['isComplete'],
+    },
+  );
+
+export const setupInputSchema = z
+  .strictObject({
+    profile: profileSchema.omit({ age: true }),
+    goals: goalsBaseSchema.omit({
+      targetCalories: true,
+      targetProteinGrams: true,
+    }),
+    preferences: trackingPreferencesSchema,
+  })
+  .refine(
+    ({ goals }) =>
+      (goals.goalType === 'maintain' && goals.goalPace === null) ||
+      (goals.goalType === 'lose' &&
+        (goals.goalPace === 'slow' ||
+          goals.goalPace === 'moderate' ||
+          goals.goalPace === 'aggressive')) ||
+      (goals.goalType === 'gain' &&
+        (goals.goalPace === 'lean_bulk' ||
+          goals.goalPace === 'moderate_bulk' ||
+          goals.goalPace === 'aggressive_bulk')),
+    {
+      message: 'goalPace must match goalType',
+      path: ['goals', 'goalPace'],
+    },
+  );
+
+export const setupResultSchema = z.strictObject({
+  profile: profileSchema,
+  goals: goalsSchema,
+  preferences: trackingPreferencesSchema,
+  calculatedTargets: z.strictObject({
+    targetCalories: z.number().int().nonnegative(),
+    targetProteinGrams: z.number().nonnegative(),
+  }),
+  status: setupStatusSchema,
+});
+
+export type SetupInput = z.infer<typeof setupInputSchema>;
+
+export const setupPreviewResultSchema = z.strictObject({
+  age: z.number().int().nonnegative(),
+  calculatedTargets: z.strictObject({
+    targetCalories: z.number().int().nonnegative(),
+    targetProteinGrams: z.number().nonnegative(),
+  }),
 });
 
 export const foodLogInputSchema = z.strictObject({

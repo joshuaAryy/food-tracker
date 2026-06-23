@@ -5,6 +5,7 @@ import { notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeGoals } from '../../lib/serializers.js';
+import { isCompleteGoals } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
 
 export const goalsRouter = Router();
@@ -14,7 +15,7 @@ goalsRouter.get('/', async (_request, response) => {
     where: { userId: currentUserId(response) },
   });
 
-  if (goals === null) {
+  if (!isCompleteGoals(goals)) {
     throw notFoundError('Goals');
   }
 

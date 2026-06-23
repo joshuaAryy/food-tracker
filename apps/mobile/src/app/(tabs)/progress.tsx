@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import type { DashboardSummary } from '@food-tracker/shared';
+import type { DashboardSummary, Profile } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
@@ -26,6 +26,7 @@ function formattedDate(value: string): string {
 export default function ProgressScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +40,12 @@ export default function ProgressScreen() {
     setError(null);
 
     try {
-      setSummary(await api.dashboard.summary());
+      const [nextSummary, nextProfile] = await Promise.all([
+        api.dashboard.summary(),
+        api.profile.get(),
+      ]);
+      setSummary(nextSummary);
+      setProfile(nextProfile);
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
@@ -82,12 +88,17 @@ export default function ProgressScreen() {
     summary.calorieTarget === null || summary.calorieTarget <= 0
       ? 0
       : summary.caloriesConsumed / summary.calorieTarget;
+  const greetingName = profile?.name.trim();
+  const greeting =
+    greetingName === undefined || greetingName === ''
+      ? 'Good morning'
+      : `Good morning, ${greetingName}`;
 
   return (
     <AppScreen refreshing={refreshing} onRefresh={() => void loadSummary(true)}>
       <ScreenHeader
         eyebrow={formattedDate(summary.date)}
-        title="Good morning, Alex"
+        title={greeting}
         action={<AppLogo size={40} />}
       />
 

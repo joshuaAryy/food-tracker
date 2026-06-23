@@ -25,24 +25,32 @@ Implemented:
 - timezone-aware timestamp correction
 - History date navigation and meal grouping
 - Log Again and Recent Foods fast logging
+- mode-aware food forms and Insights
+- analytics completeness and recommendation confidence gating
+- first-run setup detection and atomic setup saves
+- dedicated onboarding with deterministic calorie/protein target personalization
+- clearer physical-device API diagnostics
 
-## Current Phase — Mode And Analytics Correctness
+## Current Phase — Beta Readiness
 
 Goal:
 
-- expose existing optional nutrient fields in Complex mode
-- keep Simple mode focused
-- distinguish missing nutrient data from measured zero
-- prevent misleading analytics presentation
-- gate intake recommendations when food logging is insufficient
+- provide a dedicated first-run onboarding path
+- collect enough personalization inputs for deterministic target calculation
+- preserve unrelated preference values during profile edits
+- improve API connection diagnostics for devices
+- keep local development and limited-beta setup repeatable
 
-Avoid micronutrient schema expansion, supplements, and chart-library adoption.
+Deferred within this phase: onboarding visual design polish should be handled in
+a later dedicated UI pass after the data model and first-run flow are stable.
 
-## Next 1 — Authentication And Beta Reliability
+Authentication remains the next major boundary; development still uses the
+fixed mock user.
+
+## Next 1 — Authentication
 
 Prepare for limited multi-user use:
 
-- explicit onboarding/setup flow
 - Supabase Auth integration at the existing current-user boundary
 - user-isolation regression coverage
 - CI pinned to Node 22

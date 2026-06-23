@@ -21,6 +21,9 @@ The implemented baseline includes:
 - Deterministic recommendation generation and dismissal
 - Advanced calorie, protein, macro, consistency, and weight analytics
 - Mobile Insights presentation
+- Dedicated sequential first-run onboarding with deterministic target personalization
+- Mode-aware food forms and Insights presentation
+- Analytics completeness and confidence messaging
 - Shared TypeScript and Zod contracts
 - PostgreSQL-backed backend integration tests
 
@@ -29,17 +32,14 @@ backend code. AI does not perform analytics or decide recommendations.
 
 ## Development Status
 
-The implemented baseline is complete through advanced analytics and mobile
-Insights integration. The current maintenance phase hardens documentation,
-environment setup, branch workflow, and merge validation before the next
-feature phase.
+The implemented baseline includes the full manual logging lifecycle, fast-log
+reuse, mode-aware analytics, and real onboarding with deterministic calorie and
+protein target calculation.
 
 ## Current Limitations
 
 - Development still uses a fixed mock-user authentication boundary.
 - Food entry is manual and structured; there is no food database lookup.
-- Mobile edit and delete flows for food and weight logs are not implemented.
-- Complex mode does not yet provide a complete differentiated experience.
 - Water and Note actions are visible but not implemented.
 - Mobile automated tests are not yet configured.
 - Local PostgreSQL is required for API persistence and backend tests.
@@ -123,6 +123,7 @@ Physical phone:   http://<computer-LAN-IP>:3000/api/v1
 
 For a physical phone, the computer and phone must be mutually reachable on the
 same network. Local firewall settings may also need to permit port `3000`.
+Include `/api/v1` in the configured URL and restart Expo after changing it.
 
 ## Common Commands
 

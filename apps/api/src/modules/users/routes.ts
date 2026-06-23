@@ -5,6 +5,7 @@ import { notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeProfile } from '../../lib/serializers.js';
+import { isCompleteProfile } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
 
 export const usersRouter = Router();
@@ -14,7 +15,7 @@ usersRouter.get('/', async (_request, response) => {
     where: { userId: currentUserId(response) },
   });
 
-  if (profile === null) {
+  if (!isCompleteProfile(profile)) {
     throw notFoundError('Profile');
   }
 
@@ -29,6 +30,7 @@ usersRouter.put(
     const input = validatedBody<Profile>(response);
     const data = {
       ...input,
+      birthDate: new Date(`${input.birthDate}T00:00:00.000Z`),
       startingWeightLb: roundTo(input.startingWeightLb, 1),
     };
     const profile = await prisma.userProfile.upsert({

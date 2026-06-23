@@ -17,6 +17,7 @@ Handles:
 - calorie targets
 - protein targets
 - weight targets
+- goal direction and pace
 
 ---
 
@@ -24,6 +25,17 @@ Handles:
 Handles:
 - simple mode
 - complex mode
+
+---
+
+## setup
+Handles:
+- first-run completeness checks
+- deterministic onboarding target calculation
+- atomic onboarding saves across profile, goals, and tracking preferences
+
+This module uses the existing tables and validation contracts. It does not own
+a separate setup model.
 
 ---
 

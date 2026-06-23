@@ -1,9 +1,13 @@
 import type {
   GoalType,
+  ActivityLevel,
+  GoalPace,
   MealType,
   RecommendationSeverity,
   RecommendationStatus,
   RecommendationType,
+  Sex,
+  TrainingStyle,
   TrackingMode,
 } from './enums.js';
 
@@ -26,15 +30,20 @@ export interface ErrorResponse {
 export type ApiResponse<T> = SuccessResponse<T> | ErrorResponse;
 
 export interface Profile {
+  name: string;
   age: number;
-  sex: string;
+  birthDate: string;
+  sex: Sex;
   heightInches: number;
   timezone: string;
   startingWeightLb: number;
+  activityLevel: ActivityLevel;
+  trainingStyle: TrainingStyle;
 }
 
 export interface Goals {
   goalType: GoalType;
+  goalPace: GoalPace | null;
   targetWeightLb: number;
   targetCalories: number;
   targetProteinGrams: number;
@@ -43,6 +52,32 @@ export interface Goals {
 export interface TrackingPreferences {
   mode: TrackingMode;
   waterTrackingEnabled: boolean;
+}
+
+export interface SetupStatus {
+  profileComplete: boolean;
+  goalsComplete: boolean;
+  preferencesComplete: boolean;
+  isComplete: boolean;
+}
+
+export interface SetupResult {
+  profile: Profile;
+  goals: Goals;
+  preferences: TrackingPreferences;
+  calculatedTargets: {
+    targetCalories: number;
+    targetProteinGrams: number;
+  };
+  status: SetupStatus;
+}
+
+export interface SetupPreviewResult {
+  age: number;
+  calculatedTargets: {
+    targetCalories: number;
+    targetProteinGrams: number;
+  };
 }
 
 export interface FoodLog {

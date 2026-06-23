@@ -65,7 +65,12 @@ is implemented.
 - `sodium` must be an integer mg greater than or equal to `0`.
 - `weightLb` must be decimal pounds greater than `0`.
 - `heightInches` must be an integer greater than `0`.
+- `birthDate` must be a local date in `YYYY-MM-DD` format.
+- `sex` must be `male` or `female`; it is a controlled target-calculation input, not free text.
 - `timezone` must be a valid IANA timezone string.
+- `activityLevel` must be `sedentary`, `lightly_active`, `moderately_active`, `very_active`, or `athlete`.
+- `trainingStyle` must be `none`, `cardio`, `weight_training`, `mixed`, or `athlete`.
+- `goalPace` must match `goalType`: `lose` uses `slow`, `moderate`, or `aggressive`; `gain` uses `lean_bulk`, `moderate_bulk`, or `aggressive_bulk`; `maintain` uses `null`.
 - `mealType` must be `breakfast`, `lunch`, `dinner`, `snack`, or `other`.
 - `loggedAt` must be a valid ISO 8601 timestamp.
 - `foodName` must be a non-empty string.
@@ -77,21 +82,105 @@ is implemented.
 - Unknown request fields must be rejected.
 - Inputs are normalized and rounded before storage according to [data-model-decisions.md](data-model-decisions.md).
 
-## Profile
+## Setup
 
-### `GET /api/v1/profile`
+### `GET /api/v1/setup/status`
 
-Returns the current user's profile.
+Returns whether each required first-run resource exists for the current user.
+Missing resources are reported as incomplete rather than treated as saved
+defaults.
+
+Success `data`:
+
+```json
+{
+  "profileComplete": true,
+  "goalsComplete": true,
+  "preferencesComplete": true,
+  "isComplete": true
+}
+```
+
+### `PUT /api/v1/setup`
+
+Validates onboarding inputs, deterministically calculates calorie/protein
+targets, and saves profile, goals, and tracking preferences in one database
+transaction. If any section is invalid, none of the sections are written.
+
+Request:
+
+```json
+{
+  "profile": {
+    "name": "Taylor",
+    "birthDate": "1994-06-15",
+    "sex": "female",
+    "heightInches": 68,
+    "timezone": "America/Toronto",
+    "startingWeightLb": 170,
+    "activityLevel": "moderately_active",
+    "trainingStyle": "weight_training"
+  },
+  "goals": {
+    "goalType": "lose",
+    "goalPace": "moderate",
+    "targetWeightLb": 160
+  },
+  "preferences": {
+    "mode": "simple",
+    "waterTrackingEnabled": false
+  }
+}
+```
+
+Success `data` returns normalized `profile`, calculated `goals`,
+`preferences`, `calculatedTargets`, and a complete setup-status object.
+Targets are deterministic backend facts derived from birth date, sex, height,
+current weight, activity level, training style, goal type, and goal pace.
+Clients that edit only the visible tracking mode must preserve existing
+unrelated preference values, including `waterTrackingEnabled`.
+
+### `POST /api/v1/setup/preview`
+
+Validates the same onboarding request shape as `PUT /api/v1/setup` and returns
+derived age plus calculated targets without writing any data. Mobile uses this
+for the final onboarding Review step.
+
+Request uses the same body as `PUT /api/v1/setup`.
 
 Success `data`:
 
 ```json
 {
   "age": 30,
+  "calculatedTargets": {
+    "targetCalories": 2200,
+    "targetProteinGrams": 150.0
+  }
+}
+```
+
+## Profile
+
+### `GET /api/v1/profile`
+
+Returns the current user's profile.
+Missing or legacy-incomplete profile rows return `NOT_FOUND`; clients must not
+treat serialized zero values as completed setup.
+
+Success `data`:
+
+```json
+{
+  "name": "Taylor",
+  "age": 30,
+  "birthDate": "1994-06-15",
   "sex": "male",
   "heightInches": 70,
   "timezone": "America/Toronto",
-  "startingWeightLb": 185.5
+  "startingWeightLb": 185.5,
+  "activityLevel": "moderately_active",
+  "trainingStyle": "mixed"
 }
 ```
 
@@ -103,11 +192,15 @@ Request:
 
 ```json
 {
+  "name": "Taylor",
   "age": 30,
+  "birthDate": "1994-06-15",
   "sex": "male",
   "heightInches": 70,
   "timezone": "America/Toronto",
-  "startingWeightLb": 185.5
+  "startingWeightLb": 185.5,
+  "activityLevel": "moderately_active",
+  "trainingStyle": "mixed"
 }
 ```
 
@@ -118,12 +211,14 @@ Success `data` uses the profile shape above.
 ### `GET /api/v1/goals`
 
 Returns the current user's goals.
+Missing or legacy-incomplete goal rows return `NOT_FOUND`.
 
 Success `data`:
 
 ```json
 {
   "goalType": "lose",
+  "goalPace": "moderate",
   "targetWeightLb": 170.0,
   "targetCalories": 2200,
   "targetProteinGrams": 150.0
@@ -139,13 +234,17 @@ Request:
 ```json
 {
   "goalType": "lose",
+  "goalPace": "moderate",
   "targetWeightLb": 170.0,
   "targetCalories": 2200,
   "targetProteinGrams": 150.0
 }
 ```
 
-`goalType` must be `lose`, `maintain`, or `gain`. Success `data` uses the goals shape above.
+`goalType` must be `lose`, `maintain`, or `gain`; `goalPace` must match the
+goal type as described in Shared Validation Rules. Success `data` uses the
+goals shape above. Profile editing can preserve or manually override
+calculated targets after onboarding.
 
 ## Tracking Preferences
 

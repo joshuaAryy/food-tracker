@@ -13,6 +13,31 @@ enum GoalType {
   gain
 }
 
+enum ActivityLevel {
+  sedentary
+  lightly_active
+  moderately_active
+  very_active
+  athlete
+}
+
+enum TrainingStyle {
+  none
+  cardio
+  weight_training
+  mixed
+  athlete
+}
+
+enum GoalPace {
+  slow
+  moderate
+  aggressive
+  lean_bulk
+  moderate_bulk
+  aggressive_bulk
+}
+
 enum TrackingMode {
   simple
   complex
@@ -54,11 +79,15 @@ model User {
 model UserProfile {
   id               String   @id @default(uuid()) @db.Uuid
   userId           String   @unique @db.Uuid
+  name             String?
   age              Int?
+  birthDate        DateTime? @db.Date
   sex              String?
   heightInches     Int?
   timezone         String   @default("America/Toronto")
   startingWeightLb Decimal? @db.Decimal(5, 1)
+  activityLevel    ActivityLevel?
+  trainingStyle    TrainingStyle?
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -66,6 +95,7 @@ model UserGoal {
   id                 String   @id @default(uuid()) @db.Uuid
   userId             String   @unique @db.Uuid
   goalType           GoalType
+  goalPace           GoalPace?
   targetWeightLb     Decimal? @db.Decimal(5, 1)
   targetCalories     Int?
   targetProteinGrams Decimal? @db.Decimal(5, 1)

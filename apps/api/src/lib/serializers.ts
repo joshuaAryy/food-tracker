@@ -24,17 +24,22 @@ const decimalToNumber = (value: { toNumber(): number } | null): number | null =>
 
 export function serializeProfile(profile: UserProfile): Profile {
   return {
+    name: profile.name ?? '',
     age: profile.age ?? 0,
-    sex: profile.sex ?? '',
+    birthDate: profile.birthDate?.toISOString().slice(0, 10) ?? '',
+    sex: (profile.sex ?? '') as Profile['sex'],
     heightInches: profile.heightInches ?? 0,
     timezone: profile.timezone,
     startingWeightLb: decimalToNumber(profile.startingWeightLb) ?? 0,
+    activityLevel: profile.activityLevel ?? 'sedentary',
+    trainingStyle: profile.trainingStyle ?? 'none',
   };
 }
 
 export function serializeGoals(goals: UserGoal): Goals {
   return {
     goalType: goals.goalType,
+    goalPace: goals.goalPace,
     targetWeightLb: decimalToNumber(goals.targetWeightLb) ?? 0,
     targetCalories: goals.targetCalories ?? 0,
     targetProteinGrams: decimalToNumber(goals.targetProteinGrams) ?? 0,

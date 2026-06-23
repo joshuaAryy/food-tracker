@@ -203,10 +203,10 @@ Do not edit generated Prisma files manually.
 Open this URL from the phone browser:
 
 ```text
-http://<computer-LAN-IP>:3000/api/v1/does-not-exist
+http://<computer-LAN-IP>:3000/api/v1/setup/status
 ```
 
-A JSON `NOT_FOUND` response proves network reachability.
+A JSON success response proves network reachability.
 
 **Fix**
 
@@ -216,6 +216,10 @@ Start Expo with:
 EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api/v1 \
   corepack pnpm dev:mobile
 ```
+
+The app's connection error displays the API URL it attempted and reminds native
+device users that `localhost` refers to the device. If it shows an old URL,
+stop Expo and restart it after setting `EXPO_PUBLIC_API_URL`.
 
 ## Android Emulator Cannot Reach localhost
 

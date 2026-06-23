@@ -23,11 +23,15 @@ custom password credentials.
 ### UserProfile
 - id
 - userId
+- name
 - age
-- sex
+- birthDate
+- sex (`male` or `female`)
 - heightInches (optional total integer inches; entered as feet/inches)
 - startingWeightLb (optional decimal pounds, one decimal place)
 - timezone (IANA timezone; defaults to `America/Toronto` for now)
+- activityLevel (`sedentary`, `lightly_active`, `moderately_active`, `very_active`, or `athlete`)
+- trainingStyle (`none`, `cardio`, `weight_training`, `mixed`, or `athlete`)
 
 ---
 
@@ -35,6 +39,7 @@ custom password credentials.
 - id
 - userId
 - goalType (`lose`, `maintain`, or `gain`)
+- goalPace (nullable; must match the goal type)
 - targetWeightLb (optional decimal pounds, one decimal place)
 - targetCalories (integer kcal)
 - targetProteinGrams (optional decimal grams, one decimal place)

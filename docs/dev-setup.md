@@ -163,6 +163,10 @@ EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1 \
   corepack pnpm dev:mobile
 ```
 
+The value must be the complete API base URL, including `/api/v1`. Expo embeds
+public environment variables when the development server starts, so stop and
+restart Expo after changing the value.
+
 Runtime examples:
 
 ```text
@@ -182,6 +186,14 @@ For physical devices:
 - The API must remain running on the computer.
 - The local firewall must permit inbound connections to port `3000`.
 - Do not use `localhost`; on the phone it refers to the phone itself.
+
+Verify reachability from the phone browser before opening the app:
+
+```text
+http://<computer-LAN-IP>:3000/api/v1/setup/status
+```
+
+A JSON success response confirms that the phone can reach the API.
 
 ## 8. Run Backend Tests
 

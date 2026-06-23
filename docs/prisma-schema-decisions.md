@@ -52,6 +52,28 @@ GoalType:
   maintain
   gain
 
+ActivityLevel:
+  sedentary
+  lightly_active
+  moderately_active
+  very_active
+  athlete
+
+TrainingStyle:
+  none
+  cardio
+  weight_training
+  mixed
+  athlete
+
+GoalPace:
+  slow
+  moderate
+  aggressive
+  lean_bulk
+  moderate_bulk
+  aggressive_bulk
+
 TrackingMode:
   simple
   complex
@@ -104,11 +126,15 @@ Relations:
 | --- | --- |
 | `id` | `String`, UUID primary key |
 | `userId` | `String`, UUID foreign key, unique |
+| `name` | nullable `String` |
 | `age` | nullable `Int` |
-| `sex` | nullable `String` |
+| `birthDate` | nullable `DateTime`, date column |
+| `sex` | nullable `String`; API validation accepts only `male` or `female` |
 | `heightInches` | nullable `Int` |
 | `timezone` | `String`, default `"America/Toronto"` |
 | `startingWeightLb` | nullable `Decimal`, precision `5`, scale `1` |
+| `activityLevel` | nullable `ActivityLevel` enum |
+| `trainingStyle` | nullable `TrainingStyle` enum |
 
 Relation:
 - belongs to `User`; delete cascades from `User`
@@ -120,6 +146,7 @@ Relation:
 | `id` | `String`, UUID primary key |
 | `userId` | `String`, UUID foreign key, unique |
 | `goalType` | `GoalType` enum |
+| `goalPace` | nullable `GoalPace` enum |
 | `targetWeightLb` | nullable `Decimal`, precision `5`, scale `1` |
 | `targetCalories` | nullable `Int` |
 | `targetProteinGrams` | nullable `Decimal`, precision `5`, scale `1` |

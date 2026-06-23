@@ -5,20 +5,33 @@ import { recentLocalDateTime, TEST_TIMEZONE } from './dates.js';
 export async function seedProfile(
   overrides: Partial<{
     age: number;
+    birthDate: Date;
     sex: string;
     heightInches: number;
     timezone: string;
     startingWeightLb: number;
+    name: string;
+    activityLevel:
+      | 'sedentary'
+      | 'lightly_active'
+      | 'moderately_active'
+      | 'very_active'
+      | 'athlete';
+    trainingStyle: 'none' | 'cardio' | 'weight_training' | 'mixed' | 'athlete';
   }> = {},
 ) {
   return prisma.userProfile.create({
     data: {
       userId: MOCK_USER_ID,
+      name: 'Test User',
       age: 30,
+      birthDate: new Date('1995-01-01T00:00:00.000Z'),
       sex: 'male',
       heightInches: 70,
       timezone: TEST_TIMEZONE,
       startingWeightLb: 180,
+      activityLevel: 'moderately_active',
+      trainingStyle: 'mixed',
       ...overrides,
     },
   });
@@ -27,15 +40,28 @@ export async function seedProfile(
 export async function seedGoals(
   overrides: Partial<{
     goalType: GoalType;
+    goalPace:
+      | 'slow'
+      | 'moderate'
+      | 'aggressive'
+      | 'lean_bulk'
+      | 'moderate_bulk'
+      | 'aggressive_bulk'
+      | null;
     targetWeightLb: number;
     targetCalories: number;
     targetProteinGrams: number;
   }> = {},
 ) {
+  const goalType = overrides.goalType ?? 'gain';
+  const goalPace =
+    overrides.goalPace ?? (goalType === 'maintain' ? null : 'moderate_bulk');
+
   return prisma.userGoal.create({
     data: {
       userId: MOCK_USER_ID,
-      goalType: 'gain',
+      goalType,
+      goalPace,
       targetWeightLb: 190,
       targetCalories: 3000,
       targetProteinGrams: 150,
