@@ -10,6 +10,7 @@ import {
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
+import { AppSection } from '@/components/app-section';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { EmptyState } from '@/components/empty-state';
@@ -210,8 +211,7 @@ export default function HistoryScreen() {
         />
       )}
 
-      <View className="gap-3">
-        <AppText variant="heading">Food</AppText>
+      <AppSection title="Food">
         {groupedFoods.length === 0 ? (
           <EmptyState
             title="No food entries this day"
@@ -275,10 +275,9 @@ export default function HistoryScreen() {
             );
           })
         )}
-      </View>
+      </AppSection>
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Weight</AppText>
+      <AppSection title="Weight">
         {weights.length === 0 ? (
           <EmptyState
             title="No weight entry this day"
@@ -317,7 +316,7 @@ export default function HistoryScreen() {
             ))}
           </AppCard>
         )}
-      </View>
+      </AppSection>
     </AppScreen>
   );
 }

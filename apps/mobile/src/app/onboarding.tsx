@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useRouter } from 'expo-router';
 import type {
@@ -26,6 +26,8 @@ import { ErrorState } from '@/components/error-state';
 import { FormSection } from '@/components/form-section';
 import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
+import { SelectableOption } from '@/components/selectable-option';
+import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 
@@ -172,49 +174,16 @@ function ChoiceGrid<T extends string>({
 }) {
   return (
     <View className="gap-2">
-      {values.map((option) => {
-        const selected = value === option;
-        return (
-          <Pressable
-            key={option}
-            className={`rounded-control border px-4 py-3 ${
-              selected
-                ? 'border-sage bg-sage-soft'
-                : 'border-border bg-surface-raised'
-            }`}
-            onPress={() => onChange(option)}
-          >
-            <AppText
-              variant="label"
-              className={selected ? 'text-sage-dark' : 'text-ink'}
-            >
-              {label(option)}
-            </AppText>
-            {descriptions?.[option] === undefined ? null : (
-              <AppText variant="caption" muted className="mt-1">
-                {descriptions[option]}
-              </AppText>
-            )}
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-function SummaryRow({
-  label: rowLabel,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <View className="flex-row justify-between gap-4 border-b border-border pb-2">
-      <AppText muted>{rowLabel}</AppText>
-      <AppText variant="label" className="flex-1 text-right">
-        {value}
-      </AppText>
+      {values.map((option) => (
+        <SelectableOption
+          key={option}
+          value={option}
+          selected={value === option}
+          label={label(option)}
+          description={descriptions?.[option]}
+          onSelect={onChange}
+        />
+      ))}
     </View>
   );
 }

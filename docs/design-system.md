@@ -35,8 +35,11 @@ use, but theme switching is not part of this phase.
 | Primary dark | `primaryDark` | `#506D4F` |
 | Primary soft | `primarySoft` | `#DDE7D8` |
 | Water | `water` | `#7895A6` |
+| Water soft | `waterSoft` | `#DCE8ED` |
 | Carbs | `carbs` | `#B59A5B` |
+| Carbs soft | `carbsSoft` | `#EFE4C8` |
 | Fat | `fat` | `#A87962` |
+| Fat soft | `fatSoft` | `#E9D8CF` |
 | Error | `error` | `#A45E54` |
 | Error surface | `errorSoft` | `#F1DDD7` |
 
@@ -54,6 +57,10 @@ use, but theme switching is not part of this phase.
 
 Colors are centralized in `apps/mobile/src/theme/tokens.ts` and mirrored in
 the NativeWind theme.
+
+NativeWind uses semantic class aliases for the same roles. Notable aliases:
+`bg-sage-soft`, `bg-water-soft`, `bg-gold-soft`, `bg-clay-soft`, and
+`bg-error-soft`.
 
 ## Typography
 
@@ -122,6 +129,23 @@ compact cards and form sections use 16px.
 - Use color as a small accent, not a full saturated background.
 
 `StatCard` is for one numeric fact with a label and optional context.
+
+## Shared Layout And Data Primitives
+
+Use shared primitives before creating new screen-local row, section, or notice
+layouts.
+
+- `AppSection`: standard section heading, optional description/action, and
+  consistent section spacing.
+- `SelectableOption`: accessible card or pill option for onboarding and
+  settings-style choices.
+- `SummaryRow`: label/value row for review and confirmation screens.
+- `MetricRow`: compact label/value row for analytics and nutrient summaries.
+- `DataNotice`: quiet informational, warning, success, and danger notices for
+  data-quality, connectivity, and validation context.
+
+These components are intentionally small. They standardize recurring structure
+without turning screens into a rigid component framework.
 
 ## Buttons
 

@@ -6,34 +6,14 @@ import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
+import { DataNotice } from '@/components/data-notice';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
+import { MetricRow } from '@/components/metric-row';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
-
-interface MetricRowProps {
-  label: string;
-  value: string;
-  accentClassName?: string | undefined;
-}
-
-function MetricRow({ label, value, accentClassName }: MetricRowProps) {
-  return (
-    <View className="flex-row items-center justify-between gap-4 py-2.5">
-      <View className="min-w-0 flex-1 flex-row items-center gap-2">
-        {accentClassName === undefined ? null : (
-          <View className={`h-2.5 w-2.5 rounded-full ${accentClassName}`} />
-        )}
-        <AppText>{label}</AppText>
-      </View>
-      <AppText variant="label" className="tabular-nums">
-        {value}
-      </AppText>
-    </View>
-  );
-}
 
 function Divider() {
   return <View className="h-px bg-border" />;
@@ -118,14 +98,11 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
   return (
     <View className="gap-5">
       {analytics.dataCompleteness.isLowConfidence ? (
-        <AppCard compact className="gap-1.5 bg-gold-soft">
-          <AppText variant="label">Logging is incomplete</AppText>
-          <AppText muted>
-            Food was logged on {analytics.dataCompleteness.daysWithFoodLogs} of{' '}
-            {analytics.dataCompleteness.totalDaysInRange} days. Calendar-day
-            averages may reflect missing logs rather than actual intake.
-          </AppText>
-        </AppCard>
+        <DataNotice title="Logging is incomplete" tone="warning">
+          Food was logged on {analytics.dataCompleteness.daysWithFoodLogs} of{' '}
+          {analytics.dataCompleteness.totalDaysInRange} days. Calendar-day
+          averages may reflect missing logs rather than actual intake.
+        </DataNotice>
       ) : null}
 
       <View className="gap-2.5">

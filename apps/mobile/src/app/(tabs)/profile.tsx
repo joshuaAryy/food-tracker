@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useFocusEffect } from 'expo-router';
 import type {
@@ -29,6 +29,7 @@ import { ErrorState } from '@/components/error-state';
 import { FormSection } from '@/components/form-section';
 import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
+import { SelectableOption } from '@/components/selectable-option';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 
@@ -134,22 +135,14 @@ function ChoiceRow<T extends string>({
       {values.map((option) => {
         const selected = value === option;
         return (
-          <Pressable
+          <SelectableOption
             key={option}
-            className={`min-h-10 items-center justify-center rounded-full border px-3.5 py-2 ${
-              selected
-                ? 'border-sage bg-sage-soft'
-                : 'border-border bg-surface-raised'
-            }`}
-            onPress={() => onChange(option)}
-          >
-            <AppText
-              variant="label"
-              className={selected ? 'text-sage-dark' : 'text-muted'}
-            >
-              {label(option)}
-            </AppText>
-          </Pressable>
+            value={option}
+            selected={selected}
+            label={label(option)}
+            shape="pill"
+            onSelect={onChange}
+          />
         );
       })}
     </View>

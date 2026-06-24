@@ -5,6 +5,7 @@ import type { DashboardSummary, Profile } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
+import { AppSection } from '@/components/app-section';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
@@ -154,8 +155,7 @@ export default function ProgressScreen() {
         </AppText>
       </AppCard>
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Nutrition</AppText>
+      <AppSection title="Nutrition">
         <AppCard compact>
           <MacroProgressBar
             label="Protein"
@@ -171,10 +171,9 @@ export default function ProgressScreen() {
             </AppText>
           </View>
         </AppCard>
-      </View>
+      </AppSection>
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Today at a glance</AppText>
+      <AppSection title="Today at a glance">
         <View className="flex-row flex-wrap gap-3">
           <StatCard
             label="LATEST WEIGHT"
@@ -192,7 +191,7 @@ export default function ProgressScreen() {
             detail="Nutrition detail level"
           />
         </View>
-      </View>
+      </AppSection>
     </AppScreen>
   );
 }
