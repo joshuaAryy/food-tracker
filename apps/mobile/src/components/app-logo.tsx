@@ -2,13 +2,18 @@ import { View } from 'react-native';
 
 interface AppLogoProps {
   size?: number;
+  mode?: 'simple' | 'complex';
 }
 
-export function AppLogo({ size = 42 }: AppLogoProps) {
+export function AppLogo({ size = 42, mode = 'simple' }: AppLogoProps) {
+  const isComplex = mode === 'complex';
+
   return (
     <View
       accessibilityLabel="Food Tracker"
-      className="items-center justify-center rounded-full border-[3px] border-sage"
+      className={`items-center justify-center rounded-full border-[3px] ${
+        isComplex ? 'border-ink' : 'border-primary'
+      }`}
       style={{ width: size, height: size }}
     >
       <View
@@ -21,7 +26,7 @@ export function AppLogo({ size = 42 }: AppLogoProps) {
         }}
       />
       <View
-        className="rounded-full bg-sage-dark"
+        className={`rounded-full ${isComplex ? 'bg-ink' : 'bg-primary-dark'}`}
         style={{ width: size * 0.16, height: size * 0.16 }}
       />
     </View>

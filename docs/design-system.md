@@ -2,19 +2,27 @@
 
 ## Direction
 
-The mobile product combines Apple Health's calm spacing, native-feeling
-typography, and data clarity with Cronometer's serious nutrition information
-architecture.
+The mobile product is moving toward a visual identity summarized as "Simple
+tracking, serious insight." The current system is a working implementation
+baseline, not a final brand lock. Future visual work may revise or replace the
+current Phase 6.1 primitives when explicit design references or user feedback
+show that the existing style is too generic, too form-like, or visually weak.
 
 The interface must feel:
 
-- calm, premium, and health-oriented
+- calm, premium, and serious
 - information-dense only where the data requires it
-- natural rather than highly saturated
+- light/off-white, neutral, and professional rather than highly saturated
 - native to a small phone rather than adapted from a desktop dashboard
 
-Avoid generic SaaS layouts, purple or blue gradients, random screen-specific
-colors, playful food illustrations, and excessive card nesting.
+Avoid generic SaaS layouts, Apple Health-style stacked cards as a default
+answer, purple or blue gradients, beige/yellow dominance, green-heavy action
+systems, random screen-specific colors, playful food illustrations, childish
+illustration styles, random blobs, and excessive card nesting.
+
+Design references and explicit user feedback override old visual assumptions.
+Current tokens and shared components are implementation tools, not final visual
+direction.
 
 ## Theme Tokens
 
@@ -31,9 +39,12 @@ use, but theme switching is not part of this phase.
 | Primary text | `ink` | `#252821` |
 | Secondary text | `muted` | `#74776E` |
 | Border | `border` | `#D8CEBB` |
-| Primary accent | `primary` | `#7A9B76` |
-| Primary dark | `primaryDark` | `#506D4F` |
-| Primary soft | `primarySoft` | `#DDE7D8` |
+| Primary action | `primary` | `#171A16` |
+| Primary action dark | `primaryDark` | `#0F110E` |
+| Primary action soft | `primarySoft` | `#E8E9E5` |
+| Legacy sage | `sage` | `#7A9B76` |
+| Legacy sage dark | `sageDark` | `#506D4F` |
+| Legacy sage soft | `sageSoft` | `#DDE7D8` |
 | Water | `water` | `#7895A6` |
 | Water soft | `waterSoft` | `#DCE8ED` |
 | Carbs | `carbs` | `#B59A5B` |
@@ -59,8 +70,22 @@ Colors are centralized in `apps/mobile/src/theme/tokens.ts` and mirrored in
 the NativeWind theme.
 
 NativeWind uses semantic class aliases for the same roles. Notable aliases:
-`bg-sage-soft`, `bg-water-soft`, `bg-gold-soft`, `bg-clay-soft`, and
-`bg-error-soft`.
+`bg-primary`, `bg-primary-soft`, `bg-sage-soft`, `bg-water-soft`,
+`bg-gold-soft`, `bg-clay-soft`, and `bg-error-soft`.
+
+Onboarding has its own stricter neutral presentation tokens so the first-run
+flow can feel more serious than the rest of the early app UI:
+
+| Role | Token | Value |
+| --- | --- | --- |
+| Onboarding canvas | `onboardingCanvas` | `#F7F7F4` |
+| Onboarding surface | `onboardingSurface` | `#FFFFFF` |
+| Onboarding muted surface | `onboardingSurfaceMuted` | `#F0F1EE` |
+| Onboarding text | `onboardingText` | `#151713` |
+| Onboarding muted text | `onboardingMuted` | `#62665F` |
+| Onboarding line | `onboardingLine` | `#DADDD6` |
+| Onboarding accent | `onboardingAccent` | `#151713` |
+| Onboarding accent soft | `onboardingAccentSoft` | `#ECEDEA` |
 
 ## Typography
 
@@ -119,10 +144,10 @@ button. Borders and surface contrast should do most of the separation work.
 
 ## Cards
 
-`AppCard` is the standard surface primitive. Standard card padding is 18px;
-compact cards and form sections use 16px.
+`AppCard` is a reusable surface primitive, not a visual mandate. Standard card
+padding is 18px; compact cards and form sections use 16px.
 
-- Use a raised off-white surface on the cream canvas.
+- Use a raised surface only when the card has a clear job.
 - Prefer one clear purpose per card.
 - Avoid wrapping every text block in a card.
 - Use dividers for repeated rows inside a shared card.
@@ -132,8 +157,8 @@ compact cards and form sections use 16px.
 
 ## Shared Layout And Data Primitives
 
-Use shared primitives before creating new screen-local row, section, or notice
-layouts.
+Use shared primitives when they fit the desired experience. Do not preserve a
+weak screen just because a shared primitive already exists.
 
 - `AppSection`: standard section heading, optional description/action, and
   consistent section spacing.
@@ -147,11 +172,70 @@ layouts.
 These components are intentionally small. They standardize recurring structure
 without turning screens into a rigid component framework.
 
+## Onboarding Composition
+
+The first-run onboarding flow is allowed to rewrite or replace existing Phase
+6.1 onboarding primitives. It should feel like a premium guided setup
+experience, not a profile form. The birthday/date-of-birth picker is the
+highest-priority visual reset and must clearly replace typed Month/Day/Year
+boxes.
+
+- `OnboardingShell`: wraps onboarding content with the standard app surface,
+  compact progress, a top back affordance, a dedicated near-white canvas, and
+  a stable bottom CTA area.
+- `OnboardingProgress`: shows a slim progress bar plus a soft label such as
+  `Setup · Profile`, `Birthday`, or `Setup · Review`. Do not expose large
+  `Step X of Y` language in the UI.
+- `OnboardingQuestion`: presents direct question copy and optional helper copy
+  inside the top/question zone so each step feels like one decision instead of
+  a settings page.
+- `OnboardingPanel`: the primary onboarding surface. It should feel quieter
+  and more refined than generic form cards. Use it only when it gives the
+  screen real structure.
+- `OnboardingChoiceDeck`: focused selectable modules for categorical choices.
+  They should feel like one guided decision, not stacked settings rows.
+- `OnboardingScale`: strong centered scale selectors for naturally ordered
+  choices such as pace or activity intensity.
+- `OnboardingPlanPreview`: renders the review payoff module as a small preview
+  of the future app, with calorie target as the primary result, protein as the
+  secondary result, and tracking mode as a quiet badge.
+- `OnboardingSummaryGroup`: groups supporting review details so the final step
+  does not become a wall of rows.
+
+Onboarding copy should remain calm, factual, and non-judgmental. Avoid medical
+claims, motivational fluff, body-shaming language, generic SaaS hero copy, and
+large decorative assets. Decorative motifs must be extremely restrained: use
+only subtle thin neutral line/path elements when they improve composition. If a
+motif looks forced or cheap, skip it. Avoid overusing bordered boxes; the flow
+should feel like one cohesive product surface, not a stack of unrelated cards.
+The review step should emphasize calculated targets first, then show supporting
+inputs in grouped summaries.
+
+Onboarding should avoid the warmer beige/sage-heavy treatment used elsewhere in
+the current app. Use the onboarding neutral palette, charcoal text, thin
+borders, a black/charcoal primary CTA, and restrained rounded modules. No
+green primary CTA should remain in onboarding. Do not use pastel blocks,
+playful decorative marks, large empty hero gaps, random blobs, or stacked
+bubbly cards in this flow.
+
+Each onboarding step should read as four zones:
+
+1. compact top progress
+2. focused question/header
+3. a distinct interaction module
+4. stable bottom actions
+
+The app startup splash is separate from onboarding and only exists while setup
+status is loading or retrying after an API error. Onboarding starts at the first
+real question. The review screen should feel like "Here is your starting plan":
+mini dashboard preview first, receipt-style summary below, and "Calculated from
+your setup" as secondary supporting copy.
+
 ## Buttons
 
 `AppButton` variants:
 
-- Primary: sage fill for the main action
+- Primary: charcoal fill for the main action
 - Secondary: raised surface with border
 - Ghost: text action without a competing surface
 - Danger: muted clay-red fill for destructive actions

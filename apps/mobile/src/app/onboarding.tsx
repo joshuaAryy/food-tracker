@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useRouter } from 'expo-router';
 import type {
@@ -18,18 +18,41 @@ import {
   TRAINING_STYLES,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
 import { AppInput } from '@/components/app-input';
-import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { FormSection } from '@/components/form-section';
 import { LoadingState } from '@/components/loading-state';
-import { ScreenHeader } from '@/components/screen-header';
-import { SelectableOption } from '@/components/selectable-option';
+import { OnboardingChoiceDeck } from '@/components/onboarding-choice-deck';
+import {
+  OnboardingDateWheel,
+  type DateWheelValue,
+} from '@/components/onboarding-date-wheel';
+import { OnboardingPanel } from '@/components/onboarding-panel';
+import { OnboardingPlanPreview } from '@/components/onboarding-plan-preview';
+import { OnboardingQuestion } from '@/components/onboarding-question';
+import { OnboardingScale } from '@/components/onboarding-scale';
+import { OnboardingShell } from '@/components/onboarding-shell';
+import { OnboardingStepTransition } from '@/components/onboarding-step-transition';
+import { OnboardingSummaryGroup } from '@/components/onboarding-summary-group';
+import { OnboardingSupport } from '@/components/onboarding-support';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
+
+type StepKey =
+  | 'mode'
+  | 'name'
+  | 'birthday'
+  | 'sex'
+  | 'height'
+  | 'currentWeight'
+  | 'goalType'
+  | 'targetWeight'
+  | 'goalPace'
+  | 'activity'
+  | 'training'
+  | 'timezone'
+  | 'review';
 
 interface OnboardingForm {
   name: string;
@@ -37,6 +60,7 @@ interface OnboardingForm {
   birthMonth: string;
   birthDay: string;
   sex: 'male' | 'female';
+  heightFeet: string;
   heightInches: string;
   startingWeightLb: string;
   targetWeightLb: string;
@@ -48,27 +72,67 @@ interface OnboardingForm {
   mode: TrackingMode;
 }
 
-const stepCount = 8;
+interface StepDefinition {
+  key: StepKey;
+  progressLabel: string;
+}
+
+const steps: readonly StepDefinition[] = [
+  { key: 'mode', progressLabel: 'Tracking style' },
+  { key: 'name', progressLabel: 'Setup · Profile' },
+  { key: 'birthday', progressLabel: 'Birthday' },
+  { key: 'sex', progressLabel: 'Profile details' },
+  { key: 'height', progressLabel: 'Height' },
+  { key: 'currentWeight', progressLabel: 'Current weight' },
+  { key: 'goalType', progressLabel: 'Setup · Goal' },
+  { key: 'targetWeight', progressLabel: 'Target weight' },
+  { key: 'goalPace', progressLabel: 'Goal pace' },
+  { key: 'activity', progressLabel: 'Setup · Activity' },
+  { key: 'training', progressLabel: 'Training style' },
+  { key: 'timezone', progressLabel: 'Daily timeline' },
+  { key: 'review', progressLabel: 'Setup · Review' },
+] as const;
+
+const firstStep: StepDefinition = {
+  key: 'mode',
+  progressLabel: 'Tracking style',
+};
 
 const activityDescriptions: Record<ActivityLevel, string> = {
-  sedentary: 'Mostly sitting, little exercise',
-  lightly_active: 'Walks / occasional exercise',
-  moderately_active: 'Training 3–5x per week',
-  very_active: 'Intense training / physical job',
-  athlete: 'Athlete / very high activity',
+  sedentary: 'Mostly sitting, little formal exercise',
+  lightly_active: 'Daily movement or occasional training',
+  moderately_active: 'Training or sport a few days each week',
+  very_active: 'Hard training or an active physical job',
+  athlete: 'High-volume sport or performance training',
 };
 
 const trainingDescriptions: Record<TrainingStyle, string> = {
-  none: 'No structured training',
-  cardio: 'Mostly cardio',
-  weight_training: 'Mostly weight training',
-  mixed: 'Cardio and weight training',
-  athlete: 'Sport-focused training',
+  none: 'No structured training right now',
+  cardio: 'Mostly endurance or conditioning',
+  weight_training: 'Mostly lifting or strength work',
+  mixed: 'A mix of strength and cardio',
+  athlete: 'Sport-specific training',
 };
 
 const trackingDescriptions: Record<TrackingMode, string> = {
-  simple: 'Calories, protein, and weight',
-  complex: 'Macros, fiber, sugar, sodium, and deeper insights',
+  simple: 'Calories, protein, and weight without extra daily friction.',
+  complex: 'Macros and nutrients when you want a more detailed food log.',
+};
+
+const goalDescriptions: Record<GoalType, string> = {
+  lose: 'A measured deficit toward a lower target weight.',
+  maintain: 'Keep weight steady while building tracking consistency.',
+  gain: 'A controlled surplus toward a higher target weight.',
+};
+
+const paceDescriptions: Record<GoalPace | 'none', string> = {
+  slow: 'Gentler deficit',
+  moderate: 'Balanced deficit',
+  aggressive: 'Faster deficit',
+  lean_bulk: 'Small surplus',
+  moderate_bulk: 'Balanced surplus',
+  aggressive_bulk: 'Faster surplus',
+  none: 'Steady maintenance',
 };
 
 const goalPaceOptions: Record<GoalType, ReadonlyArray<GoalPace | 'none'>> = {
@@ -77,8 +141,48 @@ const goalPaceOptions: Record<GoalType, ReadonlyArray<GoalPace | 'none'>> = {
   gain: ['lean_bulk', 'moderate_bulk', 'aggressive_bulk'],
 };
 
+const trackingOptions = TRACKING_MODES.map((value) => ({
+  value,
+  label: value === 'simple' ? 'Simple tracking' : 'Detailed tracking',
+  description: trackingDescriptions[value],
+  meta: value === 'simple' ? 'Core' : 'Full',
+}));
+
+const goalOptions = GOAL_TYPES.map((value) => ({
+  value,
+  label: label(value),
+  description: goalDescriptions[value],
+  meta: value === 'maintain' ? 'Steady' : 'Targeted',
+}));
+
+const trainingOptions = TRAINING_STYLES.map((value) => ({
+  value,
+  label: label(value),
+  description: trainingDescriptions[value],
+}));
+
+const activityOptions = ACTIVITY_LEVELS.map((value) => ({
+  value,
+  label:
+    value === 'sedentary'
+      ? 'Low'
+      : value === 'lightly_active'
+        ? 'Light'
+        : value === 'moderately_active'
+          ? 'Moderate'
+          : value === 'very_active'
+            ? 'High'
+            : 'Athlete',
+  description: activityDescriptions[value],
+}));
+
 const timezone =
   Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Toronto';
+const defaultBirthDate: DateWheelValue = {
+  month: 6,
+  day: 15,
+  year: 1994,
+};
 
 function padded(value: number): string {
   return String(value).padStart(2, '0');
@@ -161,31 +265,44 @@ function calculateAgeLabel(values: {
   return Number.isFinite(age) && age >= 0 ? String(age) : '—';
 }
 
-function ChoiceGrid<T extends string>({
-  values,
-  value,
-  descriptions,
-  onChange,
-}: {
-  values: readonly T[];
-  value: T;
-  descriptions?: Partial<Record<T, string>>;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <View className="gap-2">
-      {values.map((option) => (
-        <SelectableOption
-          key={option}
-          value={option}
-          selected={value === option}
-          label={label(option)}
-          description={descriptions?.[option]}
-          onSelect={onChange}
-        />
-      ))}
-    </View>
-  );
+function heightFromParts(values: {
+  heightFeet: string;
+  heightInches: string;
+}): number | null {
+  const feet = Number(values.heightFeet);
+  const inches = Number(values.heightInches);
+
+  if (
+    !Number.isInteger(feet) ||
+    !Number.isInteger(inches) ||
+    feet < 0 ||
+    inches < 0 ||
+    inches > 11
+  ) {
+    return null;
+  }
+
+  const total = feet * 12 + inches;
+  return total > 0 ? total : null;
+}
+
+function formatHeight(values: Partial<OnboardingForm>): string {
+  const height = heightFromParts({
+    heightFeet: values.heightFeet ?? '',
+    heightInches: values.heightInches ?? '',
+  });
+
+  if (height === null) return '—';
+  return `${Math.floor(height / 12)} ft ${height % 12} in`;
+}
+
+function isValidTimezone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function setupInput(values: OnboardingForm): SetupInput {
@@ -194,12 +311,17 @@ function setupInput(values: OnboardingForm): SetupInput {
     throw new Error('Enter a valid birthday using year, month, and day.');
   }
 
+  const heightInches = heightFromParts(values);
+  if (heightInches === null) {
+    throw new Error('Enter a valid height.');
+  }
+
   return {
     profile: {
       name: values.name.trim(),
       birthDate,
       sex: values.sex,
-      heightInches: Number(values.heightInches),
+      heightInches,
       timezone: values.timezone.trim(),
       startingWeightLb: Number(values.startingWeightLb),
       activityLevel: values.activityLevel,
@@ -217,10 +339,80 @@ function setupInput(values: OnboardingForm): SetupInput {
   };
 }
 
+function ContinueButton({
+  children,
+  disabled = false,
+  loading = false,
+  onPress,
+}: {
+  children: string;
+  disabled?: boolean;
+  loading?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <AppButton
+      className={`min-h-[58px] rounded-[24px] ${
+        disabled
+          ? 'border-onboarding-line bg-onboarding-surface-muted'
+          : 'border-onboarding-text bg-onboarding-text'
+      }`}
+      disabled={disabled}
+      loading={loading}
+      onPress={onPress}
+    >
+      {children}
+    </AppButton>
+  );
+}
+
+function SegmentedChoice<T extends string>({
+  values,
+  value,
+  labels,
+  onChange,
+}: {
+  values: readonly T[];
+  value: T;
+  labels: Record<T, string>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <View className="flex-row rounded-[22px] border border-onboarding-line bg-onboarding-surface p-1">
+      {values.map((option) => {
+        const selected = value === option;
+
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            className={`min-h-[54px] flex-1 items-center justify-center rounded-[18px] px-3 ${
+              selected ? 'bg-onboarding-text' : 'bg-transparent'
+            }`}
+            onPress={() => onChange(option)}
+          >
+            <AppText
+              variant="label"
+              className={selected ? 'text-white' : 'text-onboarding-text'}
+            >
+              {labels[option]}
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
-  const [step, setStep] = useState(0);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [navigationDirection, setNavigationDirection] = useState<
+    'forward' | 'back'
+  >('forward');
+  const [transitioning, setTransitioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<SetupPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -235,10 +427,11 @@ export default function OnboardingScreen() {
   } = useForm<OnboardingForm>({
     defaultValues: {
       name: '',
-      birthYear: '',
-      birthMonth: '',
-      birthDay: '',
+      birthYear: String(defaultBirthDate.year),
+      birthMonth: String(defaultBirthDate.month),
+      birthDay: String(defaultBirthDate.day),
       sex: 'male',
+      heightFeet: '',
       heightInches: '',
       startingWeightLb: '',
       targetWeightLb: '',
@@ -252,8 +445,36 @@ export default function OnboardingScreen() {
   });
 
   const values = useWatch({ control });
+  const mode = useWatch({ control, name: 'mode' });
   const goalType = useWatch({ control, name: 'goalType' });
   const paceOptions = useMemo(() => goalPaceOptions[goalType], [goalType]);
+  const currentStep = steps[stepIndex] ?? firstStep;
+  const stepKey = currentStep.key;
+  const birthdayValue = useMemo<DateWheelValue>(
+    () => ({
+      month: Number(values.birthMonth) || defaultBirthDate.month,
+      day: Number(values.birthDay) || defaultBirthDate.day,
+      year: Number(values.birthYear) || defaultBirthDate.year,
+    }),
+    [values.birthDay, values.birthMonth, values.birthYear],
+  );
+  const handleBirthdayChange = useCallback(
+    (nextBirthday: DateWheelValue) => {
+      setValue('birthMonth', String(nextBirthday.month), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue('birthDay', String(nextBirthday.day), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue('birthYear', String(nextBirthday.year), {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    },
+    [setValue],
+  );
 
   const refreshPreview = useCallback(async () => {
     setPreviewLoading(true);
@@ -270,30 +491,55 @@ export default function OnboardingScreen() {
   }, [getValues]);
 
   useEffect(() => {
-    if (step === 7) {
+    if (stepKey === 'review') {
       void refreshPreview();
     }
-  }, [refreshPreview, step]);
+  }, [refreshPreview, stepKey]);
+
+  const validateStep = async () => {
+    if (stepKey === 'name') return trigger('name');
+    if (stepKey === 'birthday') {
+      if (birthDateFromParts(getValues()) !== null) {
+        return true;
+      }
+      setError('Choose a valid birthday.');
+      return false;
+    }
+    if (stepKey === 'height') return trigger(['heightFeet', 'heightInches']);
+    if (stepKey === 'currentWeight') return trigger('startingWeightLb');
+    if (stepKey === 'targetWeight') return trigger('targetWeightLb');
+    if (stepKey === 'timezone') return trigger('timezone');
+    return true;
+  };
 
   const next = async () => {
+    if (transitioning) return;
     setError(null);
-
-    const valid = await trigger(
-      step === 1
-        ? ['name', 'birthYear', 'birthMonth', 'birthDay', 'sex']
-        : step === 2
-          ? ['heightInches', 'startingWeightLb', 'targetWeightLb', 'timezone']
-          : [],
-    );
-
+    const valid = await validateStep();
     if (!valid) return;
 
-    setStep((current) => Math.min(stepCount - 1, current + 1));
+    if (stepKey === 'goalType') {
+      const nextGoalType = getValues('goalType');
+      if (
+        nextGoalType === 'maintain' &&
+        getValues('targetWeightLb').trim() === ''
+      ) {
+        setValue('targetWeightLb', getValues('startingWeightLb'), {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
+
+    setNavigationDirection('forward');
+    setStepIndex((current) => Math.min(steps.length - 1, current + 1));
   };
 
   const back = () => {
+    if (transitioning) return;
     setError(null);
-    setStep((current) => Math.max(0, current - 1));
+    setNavigationDirection('back');
+    setStepIndex((current) => Math.max(0, current - 1));
   };
 
   const save = handleSubmit(async (submittedValues) => {
@@ -308,423 +554,506 @@ export default function OnboardingScreen() {
     }
   });
 
-  const progressLabel = `Step ${Math.min(step + 1, stepCount)} of ${stepCount}`;
+  const footer =
+    stepKey === 'review' ? (
+      <ContinueButton
+        disabled={preview === null || previewLoading || transitioning}
+        loading={isSubmitting}
+        onPress={() => void save()}
+      >
+        Start tracking
+      </ContinueButton>
+    ) : (
+      <ContinueButton disabled={transitioning} onPress={() => void next()}>
+        {stepKey === 'mode'
+          ? mode === 'simple'
+            ? 'Start simple'
+            : 'Start detailed'
+          : 'Continue'}
+      </ContinueButton>
+    );
 
   return (
-    <AppScreen contentClassName="gap-4">
-      <ScreenHeader
-        eyebrow={step === 0 ? undefined : progressLabel}
-        title={step === 0 ? 'Welcome to Food Tracker' : 'Set up your plan'}
-        subtitle={
-          step === 0
-            ? 'We’ll personalize your nutrition targets and tracking.'
-            : 'Answer each question to build your starting targets.'
-        }
-      />
-
-      {error === null ? null : (
-        <ErrorState title="Onboarding needs attention" message={error} />
-      )}
-
-      {step === 0 ? (
-        <AppCard elevated className="gap-4">
-          <AppText variant="display">
-            Nutrition targets that start with you.
-          </AppText>
-          <AppText muted>
-            Food Tracker will ask a few setup questions, calculate calorie and
-            protein targets with deterministic formulas, then take you into your
-            daily Progress screen.
-          </AppText>
-          <AppText variant="caption" muted>
-            No AI is used for target calculation. You can edit your information
-            later in Profile.
-          </AppText>
-        </AppCard>
-      ) : null}
-
-      {step === 1 ? (
-        <FormSection title="Basic info">
-          <Controller
-            control={control}
-            name="name"
-            rules={{ required: 'Name is required.' }}
-            render={({ field }) => (
-              <AppInput
-                label="Name"
-                autoCapitalize="words"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.name?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="birthYear"
-            rules={{
-              required: 'Birth year is required.',
-              validate: () =>
-                birthDateFromParts(getValues()) === null
-                  ? 'Enter a valid birthday.'
-                  : true,
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Year"
-                placeholder="1990"
-                keyboardType="number-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.birthYear?.message}
-              />
-            )}
-          />
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Controller
-                control={control}
-                name="birthMonth"
-                rules={{
-                  required: 'Birth month is required.',
-                  validate: () =>
-                    birthDateFromParts(getValues()) === null
-                      ? 'Enter a valid month.'
-                      : true,
-                }}
-                render={({ field }) => (
-                  <AppInput
-                    label="Month"
-                    placeholder="5"
-                    keyboardType="number-pad"
-                    value={field.value}
-                    onBlur={field.onBlur}
-                    onChangeText={field.onChange}
-                    error={errors.birthMonth?.message}
-                  />
-                )}
-              />
-            </View>
-            <View className="flex-1">
-              <Controller
-                control={control}
-                name="birthDay"
-                rules={{
-                  required: 'Birth day is required.',
-                  validate: () =>
-                    birthDateFromParts(getValues()) === null
-                      ? 'Enter a valid day.'
-                      : true,
-                }}
-                render={({ field }) => (
-                  <AppInput
-                    label="Day"
-                    placeholder="10"
-                    keyboardType="number-pad"
-                    value={field.value}
-                    onBlur={field.onBlur}
-                    onChangeText={field.onChange}
-                    error={errors.birthDay?.message}
-                  />
-                )}
-              />
-            </View>
-          </View>
-          <Controller
-            control={control}
-            name="sex"
-            render={({ field }) => (
-              <View className="gap-2">
-                <AppText variant="label">Sex</AppText>
-                <ChoiceGrid
-                  values={['male', 'female'] as const}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              </View>
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 2 ? (
-        <FormSection title="Body">
-          <Controller
-            control={control}
-            name="heightInches"
-            rules={{
-              required: 'Height is required.',
-              validate: (value) =>
-                Number.isInteger(Number(value)) && Number(value) > 0
-                  ? true
-                  : 'Enter total height in whole inches.',
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Height (total inches)"
-                keyboardType="number-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.heightInches?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="startingWeightLb"
-            rules={{
-              required: 'Current weight is required.',
-              validate: (value) =>
-                Number(value) > 0 ? true : 'Enter a weight above zero.',
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Current weight (lb)"
-                keyboardType="decimal-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.startingWeightLb?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="targetWeightLb"
-            rules={{
-              required: 'Goal weight is required.',
-              validate: (value) =>
-                Number(value) > 0 ? true : 'Enter a weight above zero.',
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Goal body weight (lb)"
-                keyboardType="decimal-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.targetWeightLb?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="timezone"
-            rules={{ required: 'Timezone is required.' }}
-            render={({ field }) => (
-              <AppInput
-                label="Timezone"
-                autoCapitalize="none"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.timezone?.message}
-              />
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 3 ? (
-        <FormSection title="Activity" description="How active are you?">
-          <Controller
-            control={control}
-            name="activityLevel"
-            render={({ field }) => (
-              <ChoiceGrid
-                values={ACTIVITY_LEVELS}
-                value={field.value}
-                descriptions={activityDescriptions}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 4 ? (
-        <FormSection title="Goal">
-          <Controller
-            control={control}
-            name="goalType"
-            render={({ field }) => (
-              <View className="gap-2">
-                <AppText variant="label">Goal direction</AppText>
-                <ChoiceGrid
-                  values={GOAL_TYPES}
-                  value={field.value}
-                  onChange={(nextGoalType) => {
-                    field.onChange(nextGoalType);
-                    const nextPace = goalPaceOptions[nextGoalType][0];
-                    if (nextPace !== undefined) {
-                      setValue('goalPace', nextPace, {
-                        shouldDirty: true,
-                        shouldValidate: true,
-                      });
-                    }
-                  }}
-                />
-              </View>
-            )}
-          />
-          <Controller
-            control={control}
-            name="goalPace"
-            render={({ field }) => (
-              <View className="gap-2">
-                <AppText variant="label">Goal pace</AppText>
-                <ChoiceGrid
-                  values={paceOptions}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              </View>
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 5 ? (
-        <FormSection title="Training style">
-          <Controller
-            control={control}
-            name="trainingStyle"
-            render={({ field }) => (
-              <ChoiceGrid
-                values={TRAINING_STYLES}
-                value={field.value}
-                descriptions={trainingDescriptions}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 6 ? (
-        <FormSection
-          title="Tracking style"
-          description="You can change this later."
-        >
-          <Controller
-            control={control}
-            name="mode"
-            render={({ field }) => (
-              <ChoiceGrid
-                values={TRACKING_MODES}
-                value={field.value}
-                descriptions={trackingDescriptions}
-                onChange={field.onChange}
-              />
-            )}
-          />
-        </FormSection>
-      ) : null}
-
-      {step === 7 ? (
-        <FormSection title="Review your starting plan">
-          {previewLoading ? (
-            <LoadingState message="Calculating targets…" />
-          ) : (
-            <View className="gap-2">
-              <SummaryRow label="Name" value={values.name ?? '—'} />
-              <SummaryRow
-                label="Age"
-                value={
-                  preview?.age?.toString() ??
-                  calculateAgeLabel({
-                    birthYear: values.birthYear ?? '',
-                    birthMonth: values.birthMonth ?? '',
-                    birthDay: values.birthDay ?? '',
-                  })
-                }
-              />
-              <SummaryRow label="Sex" value={label(values.sex ?? '—')} />
-              <SummaryRow
-                label="Height"
-                value={
-                  values.heightInches === undefined ||
-                  values.heightInches === ''
-                    ? '—'
-                    : `${values.heightInches} in`
-                }
-              />
-              <SummaryRow
-                label="Current weight"
-                value={
-                  values.startingWeightLb === undefined ||
-                  values.startingWeightLb === ''
-                    ? '—'
-                    : `${values.startingWeightLb} lb`
-                }
-              />
-              <SummaryRow
-                label="Target weight"
-                value={
-                  values.targetWeightLb === undefined ||
-                  values.targetWeightLb === ''
-                    ? '—'
-                    : `${values.targetWeightLb} lb`
-                }
-              />
-              <SummaryRow
-                label="Activity"
-                value={label(values.activityLevel ?? '—')}
-              />
-              <SummaryRow
-                label="Goal"
-                value={`${label(values.goalType ?? '—')} / ${label(values.goalPace ?? 'none')}`}
-              />
-              <SummaryRow
-                label="Training"
-                value={label(values.trainingStyle ?? '—')}
-              />
-              <SummaryRow label="Tracking" value={label(values.mode ?? '—')} />
-              <SummaryRow
-                label="Calories"
-                value={
-                  preview === null
-                    ? '—'
-                    : `${preview.calculatedTargets.targetCalories.toLocaleString()} kcal/day`
-                }
-              />
-              <SummaryRow
-                label="Protein"
-                value={
-                  preview === null
-                    ? '—'
-                    : `${preview.calculatedTargets.targetProteinGrams.toFixed(1)} g/day`
-                }
-              />
-            </View>
+    <OnboardingShell
+      currentStep={stepIndex + 1}
+      totalSteps={steps.length}
+      progressLabel={currentStep.progressLabel}
+      footer={footer}
+      onBack={stepIndex === 0 ? undefined : back}
+    >
+      <OnboardingStepTransition
+        stepKey={stepKey}
+        direction={navigationDirection}
+        onTransitioningChange={setTransitioning}
+      >
+        <View className="gap-5 pb-4">
+          {error === null ? null : (
+            <ErrorState title="Onboarding needs attention" message={error} />
           )}
-        </FormSection>
-      ) : null}
 
-      <View className="flex-row gap-3">
-        {step === 0 ? null : (
-          <AppButton variant="secondary" className="flex-1" onPress={back}>
-            Back
-          </AppButton>
-        )}
-        {step < stepCount - 1 ? (
-          <AppButton className="flex-1" onPress={() => void next()}>
-            {step === 0 ? 'Start setup' : 'Continue'}
-          </AppButton>
-        ) : (
-          <AppButton
-            className="flex-1"
-            loading={isSubmitting}
-            disabled={preview === null || previewLoading}
-            onPress={() => void save()}
-          >
-            Complete setup
-          </AppButton>
-        )}
-      </View>
-    </AppScreen>
+          {stepKey === 'mode' ? (
+            <>
+              <OnboardingQuestion
+                title="How simple should tracking feel?"
+                subtitle="Choose the level of detail you want in your daily food log."
+              />
+              <Controller
+                control={control}
+                name="mode"
+                render={({ field }) => (
+                  <OnboardingChoiceDeck
+                    options={trackingOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <OnboardingSupport
+                label="What this changes"
+                value="Your setup targets stay the same. This only changes how much detail the daily log asks from you."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'name' ? (
+            <>
+              <OnboardingQuestion
+                title="What should we call you?"
+                subtitle="This keeps your progress and plan personal."
+              />
+              <OnboardingPanel>
+                <Controller
+                  control={control}
+                  name="name"
+                  rules={{ required: 'Enter your name.' }}
+                  render={({ field }) => (
+                    <AppInput
+                      label="Name"
+                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      autoCapitalize="words"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                      error={errors.name?.message}
+                    />
+                  )}
+                />
+              </OnboardingPanel>
+              <OnboardingSupport
+                label="Used for"
+                value="Your name appears in profile and progress context only."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'birthday' ? (
+            <>
+              <OnboardingQuestion
+                title="When were you born?"
+                subtitle="Your age helps estimate a useful starting target."
+              />
+              <OnboardingDateWheel
+                value={birthdayValue}
+                onChange={handleBirthdayChange}
+              />
+              <OnboardingSupport
+                label="Why we ask"
+                value="Food Tracker uses age in deterministic target estimates. It does not change your tracking mode."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'sex' ? (
+            <>
+              <OnboardingQuestion
+                title="Which sex should we use for your target estimate?"
+                subtitle="This is only used for deterministic calorie calculation."
+              />
+              <Controller
+                control={control}
+                name="sex"
+                render={({ field }) => (
+                  <SegmentedChoice
+                    values={['male', 'female'] as const}
+                    value={field.value}
+                    labels={{ male: 'Male', female: 'Female' }}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <OnboardingSupport
+                label="Calculation input"
+                value="This is used only for deterministic calorie target estimates."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'height' ? (
+            <>
+              <OnboardingQuestion
+                title="What is your height?"
+                subtitle="Use feet and inches. We save it as one total height."
+              />
+              <OnboardingPanel>
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <Controller
+                      control={control}
+                      name="heightFeet"
+                      rules={{
+                        required: 'Feet are required.',
+                        validate: () =>
+                          heightFromParts(getValues()) === null
+                            ? 'Enter a valid height.'
+                            : true,
+                      }}
+                      render={({ field }) => (
+                        <AppInput
+                          label="Feet"
+                          className="bg-onboarding-surface-muted text-onboarding-text"
+                          placeholder="5"
+                          keyboardType="number-pad"
+                          value={field.value}
+                          onBlur={field.onBlur}
+                          onChangeText={field.onChange}
+                          error={errors.heightFeet?.message}
+                        />
+                      )}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Controller
+                      control={control}
+                      name="heightInches"
+                      rules={{
+                        required: 'Inches are required.',
+                        validate: () =>
+                          heightFromParts(getValues()) === null
+                            ? 'Use 0 through 11 inches.'
+                            : true,
+                      }}
+                      render={({ field }) => (
+                        <AppInput
+                          label="Inches"
+                          className="bg-onboarding-surface-muted text-onboarding-text"
+                          placeholder="10"
+                          keyboardType="number-pad"
+                          value={field.value}
+                          onBlur={field.onBlur}
+                          onChangeText={field.onChange}
+                          error={errors.heightInches?.message}
+                        />
+                      )}
+                    />
+                  </View>
+                </View>
+                <View className="border-t border-onboarding-line pt-4">
+                  <SummaryRow
+                    label="Height"
+                    value={formatHeight(values)}
+                    divided={false}
+                  />
+                </View>
+              </OnboardingPanel>
+              <OnboardingSupport
+                label="Saved as"
+                value="Feet and inches are stored as one total height for the setup calculation."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'currentWeight' ? (
+            <>
+              <OnboardingQuestion
+                title="What is your current weight?"
+                subtitle="This anchors your starting estimate and progress history."
+              />
+              <OnboardingPanel>
+                <Controller
+                  control={control}
+                  name="startingWeightLb"
+                  rules={{
+                    required: 'Current weight is required.',
+                    validate: (value) =>
+                      Number(value) > 0 ? true : 'Enter a weight above zero.',
+                  }}
+                  render={({ field }) => (
+                    <AppInput
+                      label="Current weight (lb)"
+                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      keyboardType="decimal-pad"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                      error={errors.startingWeightLb?.message}
+                    />
+                  )}
+                />
+              </OnboardingPanel>
+              <OnboardingSupport
+                label="Starting point"
+                value="This anchors your first target estimate and your initial progress history."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'goalType' ? (
+            <>
+              <OnboardingQuestion
+                title="What are you aiming for?"
+                subtitle="Choose the direction you want your starting plan to support."
+              />
+              <Controller
+                control={control}
+                name="goalType"
+                render={({ field }) => (
+                  <OnboardingChoiceDeck
+                    options={goalOptions}
+                    value={field.value}
+                    onChange={(nextGoalType) => {
+                      field.onChange(nextGoalType);
+                      const nextPace = goalPaceOptions[nextGoalType][0];
+                      if (nextPace !== undefined) {
+                        setValue('goalPace', nextPace, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'targetWeight' ? (
+            <>
+              <OnboardingQuestion
+                title="What weight are you working toward?"
+                subtitle="Use the target that feels practical right now. You can edit it later."
+              />
+              <OnboardingPanel>
+                <Controller
+                  control={control}
+                  name="targetWeightLb"
+                  rules={{
+                    required: 'Target weight is required.',
+                    validate: (value) =>
+                      Number(value) > 0 ? true : 'Enter a weight above zero.',
+                  }}
+                  render={({ field }) => (
+                    <AppInput
+                      label="Target weight (lb)"
+                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      keyboardType="decimal-pad"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                      error={errors.targetWeightLb?.message}
+                    />
+                  )}
+                />
+              </OnboardingPanel>
+              <OnboardingSupport
+                label="Editable later"
+                value="Use a practical target for now. You can change it from Profile after setup."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'goalPace' ? (
+            <>
+              <OnboardingQuestion
+                title="What pace feels right?"
+                subtitle="This sets the size of the calorie adjustment."
+              />
+              <Controller
+                control={control}
+                name="goalPace"
+                render={({ field }) => (
+                  <OnboardingScale
+                    options={paceOptions.map((option) => ({
+                      value: option,
+                      label: label(option),
+                      description: paceDescriptions[option],
+                    }))}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <OnboardingSupport
+                label="How it is used"
+                value="Pace changes the calorie adjustment. It is a starting point, not a permanent commitment."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'activity' ? (
+            <>
+              <OnboardingQuestion
+                title="How active are most weeks?"
+                subtitle="Pick the closest intensity. It helps estimate daily energy."
+              />
+              <Controller
+                control={control}
+                name="activityLevel"
+                render={({ field }) => (
+                  <OnboardingScale
+                    options={activityOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+              <OnboardingSupport
+                label="Best estimate is enough"
+                value="Choose the closest normal week. The app can be adjusted later as your tracking history grows."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'training' ? (
+            <>
+              <OnboardingQuestion
+                title="How do you usually train?"
+                subtitle="Training style helps shape a useful protein target."
+              />
+              <Controller
+                control={control}
+                name="trainingStyle"
+                render={({ field }) => (
+                  <OnboardingChoiceDeck
+                    options={trainingOptions}
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'timezone' ? (
+            <>
+              <OnboardingQuestion
+                title="What daily timeline should we use?"
+                subtitle="This keeps history and progress aligned to your day."
+              />
+              <OnboardingPanel>
+                <Controller
+                  control={control}
+                  name="timezone"
+                  rules={{
+                    required: 'Timezone is required.',
+                    validate: (value) =>
+                      isValidTimezone(value)
+                        ? true
+                        : 'Enter a valid IANA timezone.',
+                  }}
+                  render={({ field }) => (
+                    <AppInput
+                      label="Timezone"
+                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      hint="Detected from this device."
+                      autoCapitalize="none"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                      error={errors.timezone?.message}
+                    />
+                  )}
+                />
+              </OnboardingPanel>
+              <OnboardingSupport
+                label="Detected from device"
+                value="This keeps daily history and progress aligned to your local day."
+              />
+            </>
+          ) : null}
+
+          {stepKey === 'review' ? (
+            <>
+              <OnboardingQuestion
+                title="Here is your starting plan."
+                subtitle="Calculated from your setup. You can adjust these targets later."
+              />
+              {previewLoading ? (
+                <LoadingState message="Calculating your starting targets…" />
+              ) : (
+                <View className="gap-4">
+                  <OnboardingPlanPreview
+                    mode={mode}
+                    calories={
+                      preview === null
+                        ? '—'
+                        : preview.calculatedTargets.targetCalories.toLocaleString()
+                    }
+                    protein={
+                      preview === null
+                        ? '—'
+                        : preview.calculatedTargets.targetProteinGrams.toFixed(
+                            0,
+                          )
+                    }
+                  />
+                  <OnboardingSummaryGroup title="Setup receipt">
+                    <SummaryRow label="Name" value={values.name ?? '—'} />
+                    <SummaryRow
+                      label="Age"
+                      value={
+                        preview?.age?.toString() ??
+                        calculateAgeLabel({
+                          birthYear: values.birthYear ?? '',
+                          birthMonth: values.birthMonth ?? '',
+                          birthDay: values.birthDay ?? '',
+                        })
+                      }
+                    />
+                    <SummaryRow label="Height" value={formatHeight(values)} />
+                    <SummaryRow
+                      label="Current"
+                      value={
+                        values.startingWeightLb === undefined ||
+                        values.startingWeightLb === ''
+                          ? '—'
+                          : `${values.startingWeightLb} lb`
+                      }
+                    />
+                    <SummaryRow
+                      label="Target"
+                      value={
+                        values.targetWeightLb === undefined ||
+                        values.targetWeightLb === ''
+                          ? '—'
+                          : `${values.targetWeightLb} lb`
+                      }
+                    />
+                    <SummaryRow
+                      label="Goal"
+                      value={`${label(values.goalType ?? '—')} · ${label(
+                        values.goalPace ?? 'none',
+                      )}`}
+                    />
+                    <SummaryRow
+                      label="Activity"
+                      value={label(values.activityLevel ?? '—')}
+                    />
+                    <SummaryRow
+                      label="Training"
+                      value={label(values.trainingStyle ?? '—')}
+                    />
+                    <SummaryRow
+                      label="Tracking"
+                      value={mode === 'simple' ? 'Simple' : 'Detailed'}
+                      divided={false}
+                    />
+                  </OnboardingSummaryGroup>
+                </View>
+              )}
+            </>
+          ) : null}
+        </View>
+      </OnboardingStepTransition>
+    </OnboardingShell>
   );
 }

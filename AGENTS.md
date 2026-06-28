@@ -49,9 +49,13 @@ The following rules are mandatory:
 - Existing regression coverage MUST NOT be removed, weakened, or bypassed to
   obtain a green validation result.
 
-Mobile UI MUST follow `docs/design-system.md`, reuse shared components and
-semantic tokens, support small phones, and include loading, error, and relevant
-empty states for backend-connected screens.
+Mobile UI MUST use `docs/design-system.md` as the current implementation
+baseline, support small phones, and include loading, error, and relevant empty
+states for backend-connected screens. The mobile visual identity is still
+exploratory: existing Phase 6.1 primitives, colors, cards, and tokens are
+implementation tools, not the final visual direction. For onboarding, explicit
+design references and user feedback override old visual assumptions, and the
+existing onboarding look must not be preserved just because it exists.
 
 ## 3. Required Environment
 

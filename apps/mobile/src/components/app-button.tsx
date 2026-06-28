@@ -13,7 +13,7 @@ interface AppButtonProps
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-sage border-sage',
+  primary: 'bg-primary border-primary',
   secondary: 'bg-surface-raised border-border',
   ghost: 'bg-transparent border-transparent',
   danger: 'bg-error border-error',
@@ -29,23 +29,32 @@ export function AppButton({
 }: AppButtonProps) {
   const isDisabled = disabled === true || loading;
   const lightText = variant === 'primary' || variant === 'danger';
+  const disabledClasses =
+    isDisabled && variant === 'primary'
+      ? 'bg-primary-soft border-primary-soft'
+      : isDisabled
+        ? 'opacity-45'
+        : 'active:opacity-75';
+  const textClass =
+    isDisabled && variant === 'primary'
+      ? 'text-muted'
+      : lightText
+        ? 'text-surface-raised'
+        : 'text-primary-dark';
 
   return (
     <Pressable
       accessibilityRole="button"
       className={`min-h-[46px] items-center justify-center rounded-control border px-5 py-2.5 ${
         variantClasses[variant]
-      } ${isDisabled ? 'opacity-45' : 'active:opacity-75'} ${className}`}
+      } ${disabledClasses} ${className}`}
       disabled={isDisabled}
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={lightText ? '#FFFCF5' : '#506D4F'} />
+        <ActivityIndicator color={lightText ? '#FFFCF5' : '#0F110E'} />
       ) : (
-        <AppText
-          variant="label"
-          className={lightText ? 'text-surface-raised' : 'text-sage-dark'}
-        >
+        <AppText variant="label" className={textClass}>
           {children}
         </AppText>
       )}
