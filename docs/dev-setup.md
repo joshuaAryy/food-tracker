@@ -186,6 +186,10 @@ For physical devices:
 - The API must remain running on the computer.
 - The local firewall must permit inbound connections to port `3000`.
 - Do not use `localhost`; on the phone it refers to the phone itself.
+- Find the Mac LAN IP with `ipconfig getifaddr en0`; if that returns nothing,
+  try `ipconfig getifaddr en1`.
+- Do not commit machine-specific IP addresses. Use a shell environment variable
+  or an ignored local environment file when supported.
 
 Verify reachability from the phone browser before opening the app:
 
@@ -195,7 +199,35 @@ http://<computer-LAN-IP>:3000/api/v1/setup/status
 
 A JSON success response confirms that the phone can reach the API.
 
-## 8. Run Backend Tests
+## 8. Native iPhone Development Build Preparation
+
+Web preview is not final mobile UI validation. Use it for fast iteration, but
+judge safe areas, touch behavior, keyboard behavior, transitions, spacing, and
+fixed bottom CTAs on an iOS simulator or physical iPhone.
+
+Do not rely on Expo Go for the next native testing phase. Prefer an Expo
+development build/local Xcode workflow if practical. Expo itself remains the
+intended stack; do not migrate to bare React Native merely to make the app feel
+more production-ready.
+
+Before installing native dependencies or generating native files, inspect:
+
+```bash
+xcodebuild -version
+xcode-select -p
+xcrun simctl list devices
+```
+
+Also inspect whether full Xcode is selected instead of Command Line Tools only,
+whether `expo-dev-client` is installed, whether an `ios/` folder already
+exists, the Expo config, and how `EXPO_PUBLIC_API_URL` is provided.
+
+Current Expo development-build guidance uses `expo-dev-client` and
+`expo run:ios` for local native builds. In this workspace, inspect package
+scripts and use pnpm/Corepack commands. Ask before dependency changes or
+generated native-file changes.
+
+## 9. Run Backend Tests
 
 Ensure PostgreSQL is running and `food_tracker_test` exists:
 
@@ -212,7 +244,7 @@ The test configuration:
 
 PostgreSQL being unavailable is a setup failure, not a reason to omit tests.
 
-## 9. Full Validation
+## 10. Full Validation
 
 Run after final changes and before merge:
 

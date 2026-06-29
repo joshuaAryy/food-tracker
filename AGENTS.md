@@ -8,6 +8,9 @@ architecture guardrails.
 - `AGENTS.md`: required development, validation, Git, database, and Codex rules
 - `README.md`: project overview, current capabilities, limitations, and quick start
 - `docs/dev-setup.md`: detailed local environment and runtime setup
+- `docs/mobile-ui-and-device-testing-context.md`: current mobile visual
+  direction, onboarding decisions, known UI pitfalls, and native iPhone testing
+  context
 - `docs/troubleshooting.md`: recovery procedures for known development failures
 - `docs/roadmap.md`: completed state and planned sequencing
 - `docs/architecture.md`, `docs/api-contracts.md`,
@@ -55,7 +58,9 @@ states for backend-connected screens. The mobile visual identity is still
 exploratory: existing Phase 6.1 primitives, colors, cards, and tokens are
 implementation tools, not the final visual direction. For onboarding, explicit
 design references and user feedback override old visual assumptions, and the
-existing onboarding look must not be preserved just because it exists.
+existing onboarding look must not be preserved just because it exists. Preserve
+the current mobile/onboarding/native testing context in
+`docs/mobile-ui-and-device-testing-context.md`.
 
 ## 3. Required Environment
 

@@ -197,8 +197,16 @@ Do not edit generated Prisma files manually.
 - phone and computer cannot reach each other
 - API is not running
 - firewall blocks port `3000`
+- wrong Mac network interface was used
 
 **Verify**
+
+Find the Mac LAN IP:
+
+```bash
+ipconfig getifaddr en0
+ipconfig getifaddr en1
+```
 
 Open this URL from the phone browser:
 
@@ -220,6 +228,36 @@ EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api/v1 \
 The app's connection error displays the API URL it attempted and reminds native
 device users that `localhost` refers to the device. If it shows an old URL,
 stop Expo and restart it after setting `EXPO_PUBLIC_API_URL`.
+
+Do not commit a machine-specific IP address. Use a shell variable or an ignored
+local environment file where supported.
+
+## Expo Go Or Web Preview Does Not Match iPhone UI
+
+**Likely cause**
+
+The next mobile UI phase needs native validation. Web preview cannot reliably
+judge safe areas, touch behavior, keyboard behavior, transitions, or fixed
+bottom CTA placement. Expo Go is also not the target for development-build
+validation.
+
+**Verify**
+
+```bash
+xcodebuild -version
+xcode-select -p
+xcrun simctl list devices
+```
+
+Confirm full Xcode is selected, then inspect whether `expo-dev-client`, an
+`ios/` folder, and Expo config are already present before changing dependencies
+or generating native files.
+
+**Fix**
+
+Use the native testing plan in
+`docs/mobile-ui-and-device-testing-context.md` and `docs/dev-setup.md`. Ask
+before installing `expo-dev-client` or generating native iOS files.
 
 ## Android Emulator Cannot Reach localhost
 

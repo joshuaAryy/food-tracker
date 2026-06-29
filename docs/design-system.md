@@ -22,7 +22,9 @@ illustration styles, random blobs, and excessive card nesting.
 
 Design references and explicit user feedback override old visual assumptions.
 Current tokens and shared components are implementation tools, not final visual
-direction.
+direction. For the current onboarding checkpoint, known visual pitfalls, and
+native device-testing priorities, see
+`docs/mobile-ui-and-device-testing-context.md`.
 
 ## Theme Tokens
 
