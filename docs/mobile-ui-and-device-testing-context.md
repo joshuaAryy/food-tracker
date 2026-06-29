@@ -137,15 +137,22 @@ xcrun simctl list devices
 Also inspect:
 
 - whether full Xcode is selected instead of Command Line Tools only
-- whether `expo-dev-client` is installed
 - whether a native `ios/` folder already exists
 - Expo app config
 - how `EXPO_PUBLIC_API_URL` is supplied
 
-Current Expo guidance supports installing `expo-dev-client` and using
-`expo run:ios` for local development builds. In this pnpm workspace, prefer
-workspace-aware commands and inspect package scripts before running native
-generation commands.
+`expo-dev-client` is installed for local development builds. Use the mobile
+workspace scripts for native iOS builds after confirming native generation is
+acceptable:
+
+```bash
+corepack pnpm --filter @food-tracker/mobile ios:dev-build
+corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
+```
+
+These commands use `expo run:ios` and will generate `apps/mobile/ios/` if it is
+missing. Generated native folders are ignored in this phase and should not be
+committed without an explicit workflow decision.
 
 ## Physical iPhone API Access
 
@@ -175,8 +182,8 @@ repository ignores `.env.*` except example files.
 2. Confirm Node 22 and pnpm 10.34.3.
 3. Inspect Xcode, selected developer directory, simulator availability, Expo
    config, `expo-dev-client`, native folder state, and API URL handling.
-4. Decide whether to install `expo-dev-client` or generate native iOS files,
-   asking before dependency or generated native-file changes.
+4. Decide whether to generate native iOS files, asking before committing any
+   generated native-file changes.
 5. Run the API with a phone-reachable URL.
 6. Validate onboarding on simulator or physical iPhone, focusing on safe areas,
    transitions, fixed bottom CTA, Birthday wheel state, selected-card contrast,

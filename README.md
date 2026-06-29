@@ -109,9 +109,22 @@ The default API base URL is `http://localhost:3000/api/v1`.
 
 ### 6. Run the mobile app
 
+Web preview:
+
 ```bash
 corepack pnpm dev:mobile
 ```
+
+Native iOS development build commands live in the mobile workspace:
+
+```bash
+corepack pnpm --filter @food-tracker/mobile ios:dev-build
+corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
+```
+
+The native commands generate local Expo native project files when no `ios/`
+folder exists. Those generated files are ignored in this phase and should not
+be committed without an explicit workflow decision.
 
 The mobile client reads `EXPO_PUBLIC_API_URL`. Examples:
 
@@ -124,6 +137,7 @@ Physical phone:   http://<computer-LAN-IP>:3000/api/v1
 For a physical phone, the computer and phone must be mutually reachable on the
 same network. Local firewall settings may also need to permit port `3000`.
 Include `/api/v1` in the configured URL and restart Expo after changing it.
+Use the Mac LAN IP, not `localhost`, for physical iPhone testing.
 
 ## Common Commands
 

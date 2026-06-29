@@ -5,6 +5,11 @@ coverage/
 .expo/
 web-build/
 
+# Generated Expo native projects. Do not commit without an explicit workflow
+# decision to adopt checked-in native folders.
+apps/mobile/ios/
+apps/mobile/android/
+
 .env
 .env.*
 !.env.example

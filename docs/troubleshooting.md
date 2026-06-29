@@ -249,15 +249,40 @@ xcode-select -p
 xcrun simctl list devices
 ```
 
-Confirm full Xcode is selected, then inspect whether `expo-dev-client`, an
-`ios/` folder, and Expo config are already present before changing dependencies
-or generating native files.
+Confirm full Xcode is selected, then inspect whether an `ios/` folder and Expo
+config are already present before generating native files.
 
 **Fix**
 
 Use the native testing plan in
-`docs/mobile-ui-and-device-testing-context.md` and `docs/dev-setup.md`. Ask
-before installing `expo-dev-client` or generating native iOS files.
+`docs/mobile-ui-and-device-testing-context.md` and `docs/dev-setup.md`.
+`expo-dev-client` is installed, but running the native iOS build command will
+generate local native files when `apps/mobile/ios/` is absent.
+
+## Xcode Shows No Simulator Devices
+
+**Likely cause**
+
+Full Xcode is selected, but no iOS simulator runtime or simulator device is
+installed.
+
+**Verify**
+
+```bash
+xcrun simctl list runtimes
+xcrun simctl list devices
+xcodebuild -showsdks
+```
+
+If runtimes and devices are empty but `xcodebuild -showsdks` lists iOS SDKs,
+the local Xcode install can build for devices but still lacks simulator
+runtimes/devices.
+
+**Fix**
+
+Use physical iPhone testing first. To repair simulator testing later, open
+Xcode Settings > Platforms, install an iOS Simulator runtime, then rerun the
+verification commands.
 
 ## Android Emulator Cannot Reach localhost
 

@@ -151,6 +151,8 @@ http://localhost:3000/api/v1
 
 ## 7. Run The Mobile App
 
+Web preview:
+
 ```bash
 corepack pnpm dev:mobile
 ```
@@ -205,12 +207,12 @@ Web preview is not final mobile UI validation. Use it for fast iteration, but
 judge safe areas, touch behavior, keyboard behavior, transitions, spacing, and
 fixed bottom CTAs on an iOS simulator or physical iPhone.
 
-Do not rely on Expo Go for the next native testing phase. Prefer an Expo
-development build/local Xcode workflow if practical. Expo itself remains the
-intended stack; do not migrate to bare React Native merely to make the app feel
-more production-ready.
+Do not rely on Expo Go for the next native testing phase. Use an Expo
+development build/local Xcode workflow. Expo itself remains the intended stack;
+do not migrate to bare React Native merely to make the app feel more
+production-ready.
 
-Before installing native dependencies or generating native files, inspect:
+Before generating native files, inspect:
 
 ```bash
 xcodebuild -version
@@ -219,13 +221,30 @@ xcrun simctl list devices
 ```
 
 Also inspect whether full Xcode is selected instead of Command Line Tools only,
-whether `expo-dev-client` is installed, whether an `ios/` folder already
-exists, the Expo config, and how `EXPO_PUBLIC_API_URL` is provided.
+whether an `ios/` folder already exists, the Expo config, and how
+`EXPO_PUBLIC_API_URL` is provided.
 
-Current Expo development-build guidance uses `expo-dev-client` and
-`expo run:ios` for local native builds. In this workspace, inspect package
-scripts and use pnpm/Corepack commands. Ask before dependency changes or
-generated native-file changes.
+`expo-dev-client` is installed for development builds. The mobile workspace
+exposes local iOS build commands:
+
+```bash
+corepack pnpm --filter @food-tracker/mobile ios:dev-build
+corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
+```
+
+These commands run `expo run:ios` and will generate local `apps/mobile/ios/`
+files if the folder does not exist. Generated native folders are ignored in
+this phase and should not be committed without an explicit workflow decision.
+
+If `xcrun simctl list devices` shows no simulator devices, check runtimes:
+
+```bash
+xcrun simctl list runtimes
+```
+
+When no iOS simulator runtimes or devices are installed, prioritize physical
+iPhone testing and install a simulator runtime later from Xcode Settings >
+Platforms.
 
 ## 9. Run Backend Tests
 
