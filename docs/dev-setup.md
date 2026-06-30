@@ -207,10 +207,11 @@ Web preview is not final mobile UI validation. Use it for fast iteration, but
 judge safe areas, touch behavior, keyboard behavior, transitions, spacing, and
 fixed bottom CTAs on an iOS simulator or physical iPhone.
 
-Do not rely on Expo Go for the next native testing phase. Use an Expo
-development build/local Xcode workflow. Expo itself remains the intended stack;
-do not migrate to bare React Native merely to make the app feel more
-production-ready.
+Expo Go is not required for the current native testing path. The confirmed
+Phase 6.3 workflow is an Expo development build through local Xcode tooling:
+full Xcode selected, iOS platform support installed, `expo-dev-client`
+installed, CocoaPods installed successfully, native build succeeded, and the
+app installed/runs on Josh's iPhone.
 
 Before generating native files, inspect:
 
@@ -235,6 +236,23 @@ corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
 These commands run `expo run:ios` and will generate local `apps/mobile/ios/`
 files if the folder does not exist. Generated native folders are ignored in
 this phase and should not be committed without an explicit workflow decision.
+`apps/mobile/ios/` may exist locally after a native build; keep it uncommitted
+for now. `apps/mobile/android/` is also ignored unless the project explicitly
+adopts checked-in native folders later.
+
+For physical iPhone testing, prefer an ignored local environment file:
+
+```dotenv
+# apps/mobile/.env.local
+EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api/v1
+```
+
+The iPhone must use the Mac LAN IP. `localhost` points to the phone, not the
+Mac. Verify the API from the iPhone browser before testing the app:
+
+```text
+http://<computer-LAN-IP>:3000/api/v1/setup/status
+```
 
 If `xcrun simctl list devices` shows no simulator devices, check runtimes:
 

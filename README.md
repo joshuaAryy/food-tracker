@@ -124,7 +124,9 @@ corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
 
 The native commands generate local Expo native project files when no `ios/`
 folder exists. Those generated files are ignored in this phase and should not
-be committed without an explicit workflow decision.
+be committed without an explicit workflow decision. The Phase 6.3 native iPhone
+path uses an Expo development build through local Xcode tooling; Expo Go is not
+required.
 
 The mobile client reads `EXPO_PUBLIC_API_URL`. Examples:
 

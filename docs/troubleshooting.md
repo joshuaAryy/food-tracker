@@ -259,6 +259,43 @@ Use the native testing plan in
 `expo-dev-client` is installed, but running the native iOS build command will
 generate local native files when `apps/mobile/ios/` is absent.
 
+The confirmed Phase 6.3 path is local Xcode plus Expo development build. Expo
+Go is not required. If `apps/mobile/ios/` exists after a successful native
+build, keep it ignored and uncommitted unless the project explicitly decides to
+adopt checked-in native folders.
+
+## Physical iPhone Shows API Connection Errors After Native Install
+
+**Likely cause**
+
+The app was built or bundled with a `localhost` API URL, or the iPhone cannot
+reach the Mac on the local network.
+
+**Verify**
+
+Check the ignored local mobile environment file:
+
+```bash
+cat apps/mobile/.env.local
+```
+
+It should use the Mac LAN IP:
+
+```dotenv
+EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api/v1
+```
+
+Then open this URL from the iPhone browser:
+
+```text
+http://<computer-LAN-IP>:3000/api/v1/setup/status
+```
+
+**Fix**
+
+Restart Expo or rebuild the development client after correcting
+`EXPO_PUBLIC_API_URL`. Do not commit the LAN IP.
+
 ## Xcode Shows No Simulator Devices
 
 **Likely cause**

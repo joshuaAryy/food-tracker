@@ -120,11 +120,26 @@ native testing rather than continuing desktop web polish.
 
 ## Native iPhone Testing Direction
 
-Do not rely on Expo Go for the next phase. Prefer an Expo development build and
-local Xcode workflow if practical. Expo itself is not the problem; Expo Go and
-web preview are the limitations. Expo development builds are production-capable
-for this stage, and the project should not migrate to bare React Native just to
-look more "professional."
+Do not rely on Expo Go for this phase. The confirmed Phase 6.3 path is a local
+Expo development build through Xcode. Expo itself is not the problem; Expo Go
+and web preview are the limitations. Expo development builds are
+production-capable for this stage, and the project should not migrate to bare
+React Native just to look more "professional."
+
+Confirmed native testing state:
+
+- Xcode was switched from Command Line Tools to full Xcode.
+- iOS platform support was installed.
+- `expo-dev-client` was added.
+- CocoaPods installed successfully.
+- The native build succeeded.
+- The app installs and runs on Josh's iPhone through the Expo development build
+  path.
+- The iPhone can reach the Mac API through the Mac LAN IP.
+- `EXPO_PUBLIC_API_URL` is set locally through `apps/mobile/.env.local`.
+- Expo Go is not required for this testing path.
+- `apps/mobile/ios/` may exist locally but should remain ignored/uncommitted
+  for now.
 
 Before changing native files or generating an iOS project, inspect and report:
 
@@ -153,6 +168,8 @@ corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
 These commands use `expo run:ios` and will generate `apps/mobile/ios/` if it is
 missing. Generated native folders are ignored in this phase and should not be
 committed without an explicit workflow decision.
+Keep both `apps/mobile/ios/` and `apps/mobile/android/` ignored unless the
+project explicitly adopts checked-in native folders later.
 
 ## Physical iPhone API Access
 
@@ -176,16 +193,27 @@ Do not commit machine-specific IP addresses. Prefer `.env.local` or a shell
 environment variable if supported, and verify the file is ignored by Git. This
 repository ignores `.env.*` except example files.
 
+## Native Onboarding Findings
+
+Native iPhone testing confirmed that another onboarding UI polish pass is
+needed before treating the visual system as settled.
+
+- Mobile spacing and centering differ from web preview.
+- Bottom helper/support text should sit closer to the bottom and move up only
+  when the keyboard appears.
+- The Birthday picker should return to true scroll/wheel behavior instead of
+  tap-only rows.
+- Onboarding still needs a native-device UI polish pass.
+- Future onboarding visual decisions should later inform the main app pages so
+  the whole app feels cohesive.
+
 ## Next-Phase Priorities
 
 1. Create or use a branch around `phase-6-3-ios-device-testing`.
 2. Confirm Node 22 and pnpm 10.34.3.
-3. Inspect Xcode, selected developer directory, simulator availability, Expo
-   config, `expo-dev-client`, native folder state, and API URL handling.
-4. Decide whether to generate native iOS files, asking before committing any
-   generated native-file changes.
-5. Run the API with a phone-reachable URL.
-6. Validate onboarding on simulator or physical iPhone, focusing on safe areas,
-   transitions, fixed bottom CTA, Birthday wheel state, selected-card contrast,
-   and keyboard/touch behavior.
-7. Document any device-only findings before another visual polish pass.
+3. Keep generated native folders ignored unless explicitly approved later.
+4. Use `apps/mobile/.env.local` with the Mac LAN IP for physical iPhone API
+   access.
+5. Use native iPhone findings to plan the next onboarding polish pass.
+6. Let the next onboarding visual pass inform the main app's future visual
+   identity work.
