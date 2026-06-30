@@ -11,7 +11,7 @@ export function OnboardingPanel({
 }: OnboardingPanelProps) {
   return (
     <View
-      className={`rounded-[24px] border border-onboarding-line bg-onboarding-surface ${
+      className={`rounded-[26px] bg-onboarding-surface shadow-sm ${
         compact ? 'gap-4 p-4' : 'gap-5 p-5'
       }`}
     >

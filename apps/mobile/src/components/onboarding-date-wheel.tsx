@@ -1,5 +1,6 @@
-import { useEffect, useMemo } from 'react';
-import { Pressable, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { AppText } from './app-text';
 
 const monthLabels = [
@@ -19,6 +20,10 @@ const monthLabels = [
 const mutedWheelText = '#7A7F75';
 const darkPrimaryText = '#F7F7F4';
 const darkSecondaryText = '#C9CCC4';
+const wheelItemHeight = 46;
+const wheelVisibleRows = 5;
+const wheelVerticalPadding = (wheelItemHeight * (wheelVisibleRows - 1)) / 2;
+const wheelHeight = wheelItemHeight * wheelVisibleRows;
 
 export interface DateWheelValue {
   month: number;
@@ -108,37 +113,81 @@ function WheelColumn({
   labelForValue,
   onSelect,
 }: WheelColumnProps) {
+  const scrollRef = useRef<ScrollView>(null);
   const selectedIndex = Math.max(values.indexOf(selectedValue), 0);
-  const visibleValues = [
-    values[selectedIndex - 1],
-    values[selectedIndex],
-    values[selectedIndex + 1],
-  ];
+  const scrollToIndex = (index: number, animated: boolean) => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(index, 0) * wheelItemHeight,
+      animated,
+    });
+  };
+
+  useEffect(() => {
+    scrollToIndex(selectedIndex, false);
+  }, [selectedIndex, values.length]);
+
+  const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.min(
+      Math.max(
+        Math.round(event.nativeEvent.contentOffset.y / wheelItemHeight),
+        0,
+      ),
+      values.length - 1,
+    );
+    const nextValue = values[nextIndex];
+
+    if (nextValue !== undefined && nextValue !== selectedValue) {
+      onSelect(nextValue);
+    } else {
+      scrollToIndex(selectedIndex, true);
+    }
+  };
+  const handleDragEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const velocityY = event.nativeEvent.velocity?.y ?? 0;
+
+    if (Math.abs(velocityY) < 0.1) {
+      handleScrollEnd(event);
+    }
+  };
 
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      className="h-[132px] flex-1 overflow-hidden"
+      className="flex-1 overflow-hidden"
+      style={{ height: wheelHeight }}
     >
-      {visibleValues.map((item, visibleIndex) => {
-        const selected = visibleIndex === 1;
-        const key =
-          item === undefined ? `${accessibilityLabel}-${visibleIndex}` : item;
+      <ScrollView
+        ref={scrollRef}
+        bounces={false}
+        decelerationRate="fast"
+        disableIntervalMomentum
+        keyboardShouldPersistTaps="handled"
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={handleDragEnd}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        snapToAlignment="start"
+        snapToInterval={wheelItemHeight}
+        contentContainerStyle={{
+          paddingBottom: wheelVerticalPadding,
+          paddingTop: wheelVerticalPadding,
+        }}
+      >
+        {values.map((item, index) => {
+          const selected = item === selectedValue;
 
-        return (
-          <Pressable
-            key={key}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            className="h-11 items-center justify-center px-1 active:opacity-70"
-            disabled={item === undefined}
-            onPress={() => {
-              if (item !== undefined) {
+          return (
+            <Pressable
+              key={item}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              className="items-center justify-center px-1 active:opacity-70"
+              style={{ height: wheelItemHeight }}
+              onPress={() => {
+                scrollToIndex(index, true);
                 onSelect(item);
-              }
-            }}
-          >
-            {item === undefined ? null : (
+              }}
+            >
               <AppText
                 variant={selected ? 'heading' : 'body'}
                 className={`text-center tabular-nums ${
@@ -148,10 +197,10 @@ function WheelColumn({
               >
                 {labelForValue(item)}
               </AppText>
-            )}
-          </Pressable>
-        );
-      })}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -200,11 +249,23 @@ export function OnboardingDateWheel({
   };
 
   return (
-    <View className="overflow-hidden rounded-[30px] border border-onboarding-line bg-onboarding-surface px-4 py-5">
+    <View className="overflow-hidden rounded-[26px] bg-onboarding-surface px-4 py-5 shadow-sm">
       <View className="relative">
-        <View className="absolute left-0 right-0 top-11 h-11 rounded-[18px] bg-onboarding-accent-soft" />
-        <View className="absolute left-0 right-0 top-[43px] h-px bg-onboarding-line" />
-        <View className="absolute left-0 right-0 top-[88px] h-px bg-onboarding-line" />
+        <View
+          className="absolute left-0 right-0 rounded-[18px] bg-onboarding-accent-soft"
+          style={{
+            height: wheelItemHeight,
+            top: wheelVerticalPadding,
+          }}
+        />
+        <View
+          className="absolute left-0 right-0 h-px bg-onboarding-line"
+          style={{ top: wheelVerticalPadding }}
+        />
+        <View
+          className="absolute left-0 right-0 h-px bg-onboarding-line"
+          style={{ top: wheelVerticalPadding + wheelItemHeight }}
+        />
         <View className="flex-row gap-2">
           <WheelColumn
             accessibilityLabel="Birth month"

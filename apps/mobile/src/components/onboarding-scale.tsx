@@ -33,8 +33,8 @@ export function OnboardingScale<T extends string>({
   }
 
   return (
-    <View className="rounded-[30px] border border-onboarding-line bg-onboarding-surface p-5">
-      <View className="min-h-[112px] justify-center rounded-[24px] bg-onboarding-text px-5 py-4">
+    <View className="rounded-[28px] bg-onboarding-surface p-5 shadow-sm">
+      <View className="min-h-[108px] justify-center rounded-[22px] bg-onboarding-text px-5 py-4">
         <AppText
           variant="caption"
           className="text-white"
@@ -56,8 +56,17 @@ export function OnboardingScale<T extends string>({
           {selected.description}
         </AppText>
       </View>
-      <View className="relative mt-6 px-1 pb-2">
+      <View className="relative mt-7 px-1 pb-2">
         <View className="absolute left-6 right-6 top-[23px] h-1 rounded-full bg-onboarding-line" />
+        <View
+          className="absolute left-6 top-[23px] h-1 rounded-full bg-onboarding-text"
+          style={{
+            width:
+              options.length <= 1
+                ? 0
+                : `${(selectedIndex / (options.length - 1)) * 100}%`,
+          }}
+        />
         <View className="flex-row justify-between">
           {options.map((option, index) => {
             const optionSelected = option.value === value;

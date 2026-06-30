@@ -378,7 +378,7 @@ function SegmentedChoice<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <View className="flex-row rounded-[22px] border border-onboarding-line bg-onboarding-surface p-1">
+    <View className="flex-row rounded-[24px] bg-onboarding-surface p-1 shadow-sm">
       {values.map((option) => {
         const selected = value === option;
 
@@ -554,6 +554,59 @@ export default function OnboardingScreen() {
     }
   });
 
+  const support =
+    stepKey === 'mode' ? (
+      <OnboardingSupport
+        label="What this changes"
+        value="Your targets stay the same. This only changes how much detail the daily log asks from you."
+      />
+    ) : stepKey === 'name' ? (
+      <OnboardingSupport
+        label="Used for"
+        value="Your name appears in profile and progress context only."
+      />
+    ) : stepKey === 'birthday' ? (
+      <OnboardingSupport
+        label="Why we ask"
+        value="Food Tracker uses age in deterministic target estimates. It does not change your tracking mode."
+      />
+    ) : stepKey === 'sex' ? (
+      <OnboardingSupport
+        label="Calculation input"
+        value="This is used only for deterministic calorie target estimates."
+      />
+    ) : stepKey === 'height' ? (
+      <OnboardingSupport
+        label="Saved as"
+        value="Feet and inches are stored as one total height for the setup calculation."
+      />
+    ) : stepKey === 'currentWeight' ? (
+      <OnboardingSupport
+        label="Starting point"
+        value="This anchors your first target estimate and your initial progress history."
+      />
+    ) : stepKey === 'targetWeight' ? (
+      <OnboardingSupport
+        label="Editable later"
+        value="Use a practical target for now. You can change it from Profile after setup."
+      />
+    ) : stepKey === 'goalPace' ? (
+      <OnboardingSupport
+        label="How it is used"
+        value="Pace changes the calorie adjustment. It is a starting point, not a permanent commitment."
+      />
+    ) : stepKey === 'activity' ? (
+      <OnboardingSupport
+        label="Best estimate is enough"
+        value="Choose the closest normal week. The app can be adjusted later as your tracking history grows."
+      />
+    ) : stepKey === 'timezone' ? (
+      <OnboardingSupport
+        label="Detected from device"
+        value="This keeps daily history and progress aligned to your local day."
+      />
+    ) : undefined;
+
   const footer =
     stepKey === 'review' ? (
       <ContinueButton
@@ -579,6 +632,7 @@ export default function OnboardingScreen() {
       totalSteps={steps.length}
       progressLabel={currentStep.progressLabel}
       footer={footer}
+      support={support}
       onBack={stepIndex === 0 ? undefined : back}
     >
       <OnboardingStepTransition
@@ -586,7 +640,7 @@ export default function OnboardingScreen() {
         direction={navigationDirection}
         onTransitioningChange={setTransitioning}
       >
-        <View className="gap-5 pb-4">
+        <View className="flex-1 gap-5 pb-4">
           {error === null ? null : (
             <ErrorState title="Onboarding needs attention" message={error} />
           )}
@@ -607,10 +661,6 @@ export default function OnboardingScreen() {
                     onChange={field.onChange}
                   />
                 )}
-              />
-              <OnboardingSupport
-                label="What this changes"
-                value="Your setup targets stay the same. This only changes how much detail the daily log asks from you."
               />
             </>
           ) : null}
@@ -639,10 +689,6 @@ export default function OnboardingScreen() {
                   )}
                 />
               </OnboardingPanel>
-              <OnboardingSupport
-                label="Used for"
-                value="Your name appears in profile and progress context only."
-              />
             </>
           ) : null}
 
@@ -655,10 +701,6 @@ export default function OnboardingScreen() {
               <OnboardingDateWheel
                 value={birthdayValue}
                 onChange={handleBirthdayChange}
-              />
-              <OnboardingSupport
-                label="Why we ask"
-                value="Food Tracker uses age in deterministic target estimates. It does not change your tracking mode."
               />
             </>
           ) : null}
@@ -680,10 +722,6 @@ export default function OnboardingScreen() {
                     onChange={field.onChange}
                   />
                 )}
-              />
-              <OnboardingSupport
-                label="Calculation input"
-                value="This is used only for deterministic calorie target estimates."
               />
             </>
           ) : null}
@@ -755,10 +793,6 @@ export default function OnboardingScreen() {
                   />
                 </View>
               </OnboardingPanel>
-              <OnboardingSupport
-                label="Saved as"
-                value="Feet and inches are stored as one total height for the setup calculation."
-              />
             </>
           ) : null}
 
@@ -790,10 +824,6 @@ export default function OnboardingScreen() {
                   )}
                 />
               </OnboardingPanel>
-              <OnboardingSupport
-                label="Starting point"
-                value="This anchors your first target estimate and your initial progress history."
-              />
             </>
           ) : null}
 
@@ -854,10 +884,6 @@ export default function OnboardingScreen() {
                   )}
                 />
               </OnboardingPanel>
-              <OnboardingSupport
-                label="Editable later"
-                value="Use a practical target for now. You can change it from Profile after setup."
-              />
             </>
           ) : null}
 
@@ -882,10 +908,6 @@ export default function OnboardingScreen() {
                   />
                 )}
               />
-              <OnboardingSupport
-                label="How it is used"
-                value="Pace changes the calorie adjustment. It is a starting point, not a permanent commitment."
-              />
             </>
           ) : null}
 
@@ -905,10 +927,6 @@ export default function OnboardingScreen() {
                     onChange={field.onChange}
                   />
                 )}
-              />
-              <OnboardingSupport
-                label="Best estimate is enough"
-                value="Choose the closest normal week. The app can be adjusted later as your tracking history grows."
               />
             </>
           ) : null}
@@ -964,10 +982,6 @@ export default function OnboardingScreen() {
                   )}
                 />
               </OnboardingPanel>
-              <OnboardingSupport
-                label="Detected from device"
-                value="This keeps daily history and progress aligned to your local day."
-              />
             </>
           ) : null}
 

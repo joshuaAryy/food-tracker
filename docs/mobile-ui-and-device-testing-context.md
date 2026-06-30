@@ -101,22 +101,42 @@ Do not reintroduce stale age bugs or fake visual selection state. Clamp invalid
 day values when month/year changes, handle leap years, prevent future DOB, and
 keep the submitted `birthDate` valid as `YYYY-MM-DD`.
 
+This is the highest-priority functional onboarding UI requirement. A visually
+nicer wheel is not acceptable if native iPhone scroll momentum, snapping, or
+the selected date state can desynchronize from age or submitted `birthDate`.
+
+## Branding And Icon Guardrails
+
+New-user onboarding and setup-loading branding should default to the simple
+mode mark. The mark should be subtle inside onboarding, usually 24-32px, and may
+be omitted if it crowds the header. Use it to improve identity, not as repeated
+decoration.
+
+Do not add static Expo launcher icon or native splash configuration unless the
+actual icon assets are placed in a tracked assets folder and the diff is
+reviewed. In-app brand mark usage is allowed. Generated native folders must
+remain ignored and uncommitted.
+
 ## Recent UI Issues Not To Repeat
 
 - Dark selected cards with black or low-contrast text.
 - Green primary CTA returning in onboarding.
 - Helper/support text styled as another bordered card near the bottom.
+- Helper/support text sitting immediately under the main module on short
+  screens instead of occupying the lower support zone.
 - Goal/activity cards pushed too far down with large empty gaps above.
 - Static or uncontrolled birthday wheels where the visible date and age do not
   match.
 - Generic rounded cards with no hierarchy, dividers, selected states, or clear
   purpose.
+- Preserving old onboarding card styling by default when the component is the
+  reason a screen feels generic.
 - Treating `docs/design-system.md` or Phase 6.1 primitives as final visual
   authority.
 
-Known current limitation: some bottom text/support content may sit too close
-under the main interaction instead of lower on the screen. Revisit this after
-native testing rather than continuing desktop web polish.
+Known current limitation to keep watching in native testing: lower support
+placement and keyboard movement need real-device judgment, not desktop web
+approval.
 
 ## Native iPhone Testing Direction
 
@@ -203,7 +223,8 @@ needed before treating the visual system as settled.
   when the keyboard appears.
 - The Birthday picker should return to true scroll/wheel behavior instead of
   tap-only rows.
-- Onboarding still needs a native-device UI polish pass.
+- Onboarding should move away from old card-heavy styling instead of preserving
+  previous visual primitives by default.
 - Future onboarding visual decisions should later inform the main app pages so
   the whole app feels cohesive.
 

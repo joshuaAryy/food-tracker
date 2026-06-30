@@ -182,8 +182,9 @@ experience, not a profile form. The birthday/date-of-birth picker is the
 highest-priority visual reset and must clearly replace typed Month/Day/Year
 boxes.
 
-- `OnboardingShell`: wraps onboarding content with the standard app surface,
-  compact progress, a top back affordance, a dedicated near-white canvas, and
+- `OnboardingShell`: wraps onboarding content with a native-first full-screen
+  distribution: compact progress and back affordance near the top, a dedicated
+  interaction zone in the middle, quiet support copy near the lower screen, and
   a stable bottom CTA area.
 - `OnboardingProgress`: shows a slim progress bar plus a soft label such as
   `Setup · Profile`, `Birthday`, or `Setup · Review`. Do not expose large
@@ -191,9 +192,9 @@ boxes.
 - `OnboardingQuestion`: presents direct question copy and optional helper copy
   inside the top/question zone so each step feels like one decision instead of
   a settings page.
-- `OnboardingPanel`: the primary onboarding surface. It should feel quieter
-  and more refined than generic form cards. Use it only when it gives the
-  screen real structure.
+- `OnboardingPanel`: a focused input or summary surface, not the default visual
+  answer for every step. If a panel makes the flow feel like generic card
+  stacking, replace its styling or avoid it.
 - `OnboardingChoiceDeck`: focused selectable modules for categorical choices.
   They should feel like one guided decision, not stacked settings rows.
 - `OnboardingScale`: strong centered scale selectors for naturally ordered
@@ -210,8 +211,10 @@ large decorative assets. Decorative motifs must be extremely restrained: use
 only subtle thin neutral line/path elements when they improve composition. If a
 motif looks forced or cheap, skip it. Avoid overusing bordered boxes; the flow
 should feel like one cohesive product surface, not a stack of unrelated cards.
-The review step should emphasize calculated targets first, then show supporting
-inputs in grouped summaries.
+Helper/support text should live in the lower screen as quiet text, not directly
+under the main module and not as another bordered card. The review step should
+emphasize calculated targets first, then show supporting inputs in grouped
+summaries.
 
 Onboarding should avoid the warmer beige/sage-heavy treatment used elsewhere in
 the current app. Use the onboarding neutral palette, charcoal text, thin
@@ -225,13 +228,19 @@ Each onboarding step should read as four zones:
 1. compact top progress
 2. focused question/header
 3. a distinct interaction module
-4. stable bottom actions
+4. quiet lower support copy plus stable bottom actions
 
 The app startup splash is separate from onboarding and only exists while setup
 status is loading or retrying after an API error. Onboarding starts at the first
 real question. The review screen should feel like "Here is your starting plan":
 mini dashboard preview first, receipt-style summary below, and "Calculated from
 your setup" as secondary supporting copy.
+
+For new users, the simple mode mark is the default brand mark. On splash/loading
+it may be centered and slightly larger. Inside onboarding it should stay subtle
+at roughly 24-32px, or be omitted when it makes the header feel crowded. Do not
+turn the mark into repeated decoration. Launcher icon and native splash config
+should only change when real tracked assets exist and the diff is reviewed.
 
 ## Buttons
 

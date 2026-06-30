@@ -37,7 +37,7 @@ export default function IndexScreen() {
       <SafeAreaView className="flex-1 bg-onboarding-canvas px-6">
         <View className="w-full max-w-[420px] flex-1 justify-center self-center">
           <View className="items-center gap-4 pb-8">
-            <AppLogo size={56} />
+            <AppLogo size={56} tone="onboarding" />
             <View className="items-center gap-1">
               <AppText variant="heading" className="text-onboarding-text">
                 Food Tracker
@@ -65,7 +65,7 @@ export default function IndexScreen() {
   return (
     <SafeAreaView className="flex-1 bg-onboarding-canvas px-6">
       <View className="w-full max-w-[420px] flex-1 items-center justify-center gap-5 self-center">
-        <AppLogo size={62} />
+        <AppLogo size={62} tone="onboarding" />
         <View className="items-center gap-1">
           <AppText variant="heading" className="text-onboarding-text">
             Food Tracker
