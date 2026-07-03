@@ -25,7 +25,9 @@ flow structure, not as the primary visual style.
 Design references and explicit user feedback override old visual assumptions.
 Current Phase 6.5 references live in
 `docs/design-references/phase-6-5/`. For native device-testing priorities, see
-`docs/mobile-ui-and-device-testing-context.md`.
+`docs/mobile-ui-and-device-testing-context.md`. For the product and visual
+lessons learned during Phase 6 iteration, read
+`docs/mobile-visual-lessons.md` before starting a new mobile UI phase.
 
 ## Theme Tokens
 

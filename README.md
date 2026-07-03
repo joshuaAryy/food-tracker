@@ -191,6 +191,7 @@ whose name must end in `_test`.
 - [Data-model decisions](docs/data-model-decisions.md)
 - [Prisma schema decisions](docs/prisma-schema-decisions.md)
 - [Mobile design system](docs/design-system.md)
+- [Mobile visual lessons](docs/mobile-visual-lessons.md)
 - [Mobile UI and device testing context](docs/mobile-ui-and-device-testing-context.md)
 
 Mandatory workflow belongs in `AGENTS.md`; README remains the high-level entry

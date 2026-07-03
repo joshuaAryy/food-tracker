@@ -7,6 +7,9 @@ future sessions do not need long conversation history.
 
 The Phase 6.5 visual system reset begins aligning onboarding and Progress/Home
 around the imported reference set in `docs/design-references/phase-6-5/`.
+The durable lessons from the Phase 6 visual iterations are captured in
+`docs/mobile-visual-lessons.md`; read it before starting future mobile visual
+work.
 
 Do not keep spending time on desktop web onboarding polish before native
 testing. Web preview remains useful for fast layout iteration, but it is not
