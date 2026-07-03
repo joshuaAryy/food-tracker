@@ -215,6 +215,12 @@ Confirmed native testing state:
 - `apps/mobile/ios/` may exist locally but should remain ignored/uncommitted
   for now.
 
+Native-backed visual dependencies follow the same rebuild rule. Phase 6.6 uses
+`react-native-svg` for reliable History calorie rings and `lucide-react-native`
+for crisp mobile icons. After adding or changing native dependencies, rebuild
+and reinstall the Expo development build before judging the result on iPhone;
+Metro alone only validates JS/UI updates.
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash

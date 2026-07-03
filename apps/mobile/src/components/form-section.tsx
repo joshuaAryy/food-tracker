@@ -6,15 +6,17 @@ import { AppText } from './app-text';
 interface FormSectionProps extends PropsWithChildren {
   title: string;
   description?: string | undefined;
+  variant?: 'card' | 'open';
 }
 
 export function FormSection({
   title,
   description,
   children,
+  variant = 'card',
 }: FormSectionProps) {
-  return (
-    <AppCard compact className="gap-4">
+  const content = (
+    <>
       <View className="gap-0.5">
         <AppText variant="heading">{title}</AppText>
         {description === undefined ? null : (
@@ -24,6 +26,16 @@ export function FormSection({
         )}
       </View>
       {children}
+    </>
+  );
+
+  if (variant === 'open') {
+    return <View className="gap-4">{content}</View>;
+  }
+
+  return (
+    <AppCard compact className="gap-4">
+      {content}
     </AppCard>
   );
 }

@@ -18,6 +18,7 @@ interface AppScreenProps extends PropsWithChildren {
   footer?: ReactNode;
   contentClassName?: string;
   contentStyle?: StyleProp<ViewStyle>;
+  backgroundColor?: string;
 }
 
 export function AppScreen({
@@ -28,6 +29,7 @@ export function AppScreen({
   footer,
   contentClassName = '',
   contentStyle,
+  backgroundColor = colors.light.canvas,
 }: AppScreenProps) {
   const content = (
     <View
@@ -39,7 +41,11 @@ export function AppScreen({
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-canvas" edges={['top']}>
+    <SafeAreaView
+      className="flex-1 bg-canvas"
+      edges={['top']}
+      style={{ backgroundColor }}
+    >
       <KeyboardAvoidingView
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -47,6 +53,7 @@ export function AppScreen({
         {scroll ? (
           <ScrollView
             className="flex-1"
+            style={{ backgroundColor }}
             contentInsetAdjustmentBehavior="automatic"
             keyboardShouldPersistTaps="handled"
             refreshControl={
@@ -66,7 +73,7 @@ export function AppScreen({
           content
         )}
         {footer === undefined ? null : (
-          <View className="bg-canvas/95 px-5 py-3">
+          <View className="bg-canvas/95 px-5 py-3" style={{ backgroundColor }}>
             <View className="w-full max-w-[480px] self-center">{footer}</View>
           </View>
         )}

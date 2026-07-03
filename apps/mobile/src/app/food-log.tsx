@@ -11,7 +11,6 @@ import {
   type TrackingMode,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
 import { AppInput } from '@/components/app-input';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -415,7 +414,7 @@ export default function FoodLogScreen() {
 
   return (
     <AppScreen
-      contentClassName="gap-4 pb-8"
+      contentClassName="gap-6 pb-8"
       footer={
         <View className="gap-2">
           <AppButton
@@ -454,7 +453,7 @@ export default function FoodLogScreen() {
             ? 'Review and correct this entry.'
             : isDuplicating
               ? 'Review the copied values before saving.'
-              : 'Add the nutrition values from your meal.'
+              : 'Add what you ate and the details you want to track.'
         }
         action={
           <Pressable
@@ -477,36 +476,38 @@ export default function FoodLogScreen() {
       )}
 
       {!isEditing && recentFoods.length > 0 ? (
-        <View className="gap-2.5">
+        <View className="gap-3">
           <View className="gap-0.5">
             <AppText variant="heading">Recent foods</AppText>
             <AppText variant="caption" muted>
               Tap one to prefill the form.
             </AppText>
           </View>
-          <AppCard className="p-0">
+          <View className="overflow-hidden rounded-[28px] bg-module">
             {recentFoods.map((foodLog, index) => (
               <Pressable
                 key={foodLog.id}
                 accessibilityLabel={`Use recent food ${foodLog.foodName}`}
                 accessibilityRole="button"
-                className={`flex-row items-center justify-between gap-3 px-4 py-3 ${
-                  index === 0 ? '' : 'border-t border-border'
-                } active:bg-sage-soft/50`}
+                className={`flex-row items-center justify-between gap-3 px-4 py-3.5 ${
+                  index === 0 ? '' : 'border-t border-line'
+                } active:bg-module-muted`}
                 onPress={() => applyRecentFood(foodLog)}
               >
                 <View className="min-w-0 flex-1 gap-0.5">
-                  <AppText variant="label">{foodLog.foodName}</AppText>
+                  <AppText variant="label" numberOfLines={1}>
+                    {foodLog.foodName}
+                  </AppText>
                   <AppText variant="caption" muted>
                     {foodLog.mealType} · {foodLog.protein.toFixed(1)} g protein
                   </AppText>
                 </View>
-                <AppText variant="label" className="tabular-nums">
+                <AppText variant="label" className="text-ink tabular-nums">
                   {foodLog.calories} kcal
                 </AppText>
               </Pressable>
             ))}
-          </AppCard>
+          </View>
         </View>
       ) : null}
 
@@ -518,7 +519,7 @@ export default function FoodLogScreen() {
         />
       ) : null}
 
-      <FormSection title="Food details">
+      <FormSection title="Food details" variant="open">
         <Controller
           control={control}
           name="foodName"
@@ -550,16 +551,14 @@ export default function FoodLogScreen() {
                       key={meal}
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
-                      className={`min-h-10 items-center justify-center rounded-full border px-3.5 py-2 ${
-                        selected
-                          ? 'border-sage bg-sage-soft'
-                          : 'border-border bg-surface'
+                      className={`min-h-10 items-center justify-center rounded-full px-3.5 py-2 ${
+                        selected ? 'bg-primary' : 'bg-module'
                       }`}
                       onPress={() => field.onChange(meal)}
                     >
                       <AppText
                         variant="label"
-                        className={selected ? 'text-sage-dark' : 'text-muted'}
+                        className={selected ? 'text-white' : 'text-muted'}
                       >
                         {meal[0]?.toUpperCase().concat(meal.slice(1))}
                       </AppText>
@@ -617,7 +616,7 @@ export default function FoodLogScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: showMore }}
-          className="flex-row items-center justify-between rounded-control bg-surface px-3.5 py-3"
+          className="flex-row items-center justify-between rounded-[24px] bg-module px-4 py-3.5 active:bg-module-muted"
           onPress={() => setShowMore((current) => !current)}
         >
           <View className="gap-0.5">
@@ -630,15 +629,17 @@ export default function FoodLogScreen() {
             </AppText>
             <AppText variant="caption" muted>
               {trackingMode === 'complex'
-                ? 'Complex mode: macros, nutrients, serving, and notes'
+                ? 'Macros, nutrients, serving, and notes'
                 : 'Optional nutrition, serving, and notes'}
             </AppText>
           </View>
-          <AppText className="text-sage-dark">{showMore ? '−' : '+'}</AppText>
+          <AppText className="text-primary-dark">
+            {showMore ? '−' : '+'}
+          </AppText>
         </Pressable>
 
         {showMore ? (
-          <View className="gap-4 border-t border-border pt-4">
+          <View className="gap-4 rounded-[28px] bg-module px-4 py-4">
             {(
               [
                 ['carbs', 'Carbs (g)', 'Carbs must be 0 or higher.'],
@@ -743,7 +744,8 @@ export default function FoodLogScreen() {
 
       <FormSection
         title="Date and time"
-        description={`Enter local time in ${timezone}. It will be stored as UTC.`}
+        description={`Use the time you ate in ${timezone}.`}
+        variant="open"
       >
         <Controller
           control={control}

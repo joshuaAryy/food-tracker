@@ -361,6 +361,34 @@ The menu must not become a generic square popup or alert. The current
 implementation intentionally keeps the positioning and action model isolated
 inside `FloatingActionWheel` so animation and geometry can be refined later.
 
+## History And Logging
+
+History should feel like a calm daily record, not a database list. Use an open
+daily header, a horizontal pill day rail, a visual nutrition snapshot, grouped
+ledger rows, quiet separators, and soft pressed states. Avoid wrapping every
+meal or log item in a bordered card, and avoid turning the daily summary into
+another generic module. Food rows should make the food name, calories, protein,
+meal, and time easy to scan, with extra macro detail shown only when it helps.
+
+For History and logging, the preferred base is pure white with charcoal/black
+typography and crisp primary icons. Avoid drifting back into beige/off-white
+card stacks or washed-out grey UI. Small, restrained accent colors are allowed
+only for meaningful scan aids such as calorie day rings, macro rails, and tiny
+icon moments. The screen should feel Stoic-led first, with only small Cal
+AI-like energy accents. Day rails should behave like native daily-tracker
+controls: seven visible days, obvious selected state, subtle today marker with
+enough spacing, and tasteful rotated ring colors. Day rails may use circular
+donut rings for calorie progress when they are rendered with reliable vector
+primitives, not fragile View-built arc hacks. Empty days should read as empty
+or dotted rings rather than fake progress. Icons are encouraged when they make
+food, calories, protein, macros, or weight easier to scan, but they must remain
+intentional and not become random decoration.
+
+Food and weight logging forms should feel fast and native. Keep the primary
+fields visible, keep optional nutrition details calm and collapsible, and place
+primary actions in the stable bottom footer. Copy should explain what the user
+should enter, not how timestamps or records are stored internally.
+
 ## Progress Visuals
 
 `ProgressRing` presents one dominant completion ratio and a centered value.

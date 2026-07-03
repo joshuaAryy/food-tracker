@@ -171,6 +171,53 @@ slide over a bad pseudo-graph.
 Future real illustrations should be custom assets or properly designed
 SVG/image assets, not rushed View-block graphics.
 
+## History And Logging Lessons
+
+Phase 6.6 History improved most when it stopped trying to solve the screen with
+more cards and started behaving like a daily ledger.
+
+What worked:
+
+- pure white canvas with strong charcoal/black typography
+- a 7-day visual rail instead of a plain centered date selector
+- calorie donut rings around each day, with dotted rings for empty days
+- selected day and today states that remain obvious but calm
+- open meal groups with ledger rows, separators, and no large card wrappers
+- calorie, protein, macro, and weight markers that improve scanning
+- small controlled color accents inside a Stoic-led base
+- crisp icons from `lucide-react-native`, used for meaning rather than
+  decoration
+- reliable `react-native-svg` rings instead of fragile View-built arc geometry
+- user-facing copy in logging screens instead of storage or timezone mechanics
+
+What did not work:
+
+- solving History with stacked cards, generic modules, or rounded white boxes
+- wrapping every meal group in a bordered container
+- making the screen look like a database list or admin form
+- off-white/beige surfaces when the desired direction is pure white and
+  charcoal
+- washing out the interface with too much grey or muted text
+- removing too much icon color until the screen feels flat and text-only
+- using color everywhere without hierarchy or restraint
+- fake charts, pseudo-graphs, or fragile View-built graphics
+
+The correct balance is Stoic-led first: pure white, charcoal/black, calm,
+premium, crisp typography, and open layout. Add small Cal AI-like energy only
+where it helps the user scan: calorie rings, macro rails, colored icons, and
+tiny progress markers. The app should not become a colorful dashboard, but it
+also should not become grey, lifeless, or text-only.
+
+History should use a 7-day rail when browsing daily logs. Each day can show
+calorie progress against the existing target. Empty days should use dotted
+rings, not fake progress. Ring colors are accents only and should rotate
+tastefully so adjacent days do not feel repetitive. Today can use a subtle
+marker, but it needs enough spacing to feel intentional.
+
+Food and weight entries should read as an open daily ledger. Meal groups should
+usually be headings plus rows and separators, not cards inside cards. Cards or
+modules are allowed only when they have a specific job.
+
 ## Branding And Icon Rules
 
 Use actual provided PNG brand assets. Do not redraw or recreate the logo with
@@ -191,6 +238,9 @@ React Native View shapes.
   for this workflow.
 - Metro is enough for JS/UI-only changes, but not for app icon or native config
   changes.
+- Native-backed visual dependencies such as `react-native-svg` require a new
+  Expo development build before judging the result on iPhone. Metro alone is
+  not enough after adding native dependencies.
 - If generated iOS assets are stale, a clean prebuild can regenerate ignored
   native output.
 - `apps/mobile/ios/` and `apps/mobile/android/` are generated local folders and
@@ -207,4 +257,3 @@ React Native View shapes.
 - Before each new mobile visual phase, read this document, `docs/design-system.md`,
   `docs/mobile-ui-and-device-testing-context.md`, and the relevant reference
   folder.
-

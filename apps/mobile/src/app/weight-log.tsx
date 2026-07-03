@@ -187,7 +187,7 @@ export default function WeightLogScreen() {
 
   return (
     <AppScreen
-      contentClassName="gap-4 pb-8"
+      contentClassName="gap-6 pb-8"
       footer={
         <View className="gap-2">
           <AppButton
@@ -215,7 +215,7 @@ export default function WeightLogScreen() {
         subtitle={
           isEditing
             ? 'Review and correct this measurement.'
-            : 'Record a manual measurement.'
+            : 'Add a weight entry for your record.'
         }
         action={
           <Pressable
@@ -239,7 +239,8 @@ export default function WeightLogScreen() {
 
       <FormSection
         title="Measurement"
-        description="Weight is stored in pounds to one decimal place."
+        description="Use pounds for now. You can update this entry anytime."
+        variant="open"
       >
         <Controller
           control={control}
@@ -266,7 +267,8 @@ export default function WeightLogScreen() {
 
       <FormSection
         title="Date and time"
-        description="Enter local time. It will be stored as a UTC timestamp."
+        description="Use the time you weighed in."
+        variant="open"
       >
         <Controller
           control={control}
