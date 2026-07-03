@@ -399,6 +399,27 @@ should enter, not how timestamps or records are stored internally.
 - Never calculate nutrition facts in the component.
 - Components receive deterministic values from the backend response.
 
+## Insights And Recommendations
+
+Insights should feel like a calm personal report, not a dashboard. Use a pure
+white base, charcoal typography, open sections, quiet dividers, icon-supported
+rows, and small rings or rails only where they improve scanning. Do not solve
+Insights with repeated bordered `AppCard` stacks.
+
+Simple mode should emphasize calories, protein, logging consistency, weight,
+and direct recommendations. Complex/Detailed mode may show macro split,
+nutrition detail, and completeness signals, but it should still read as a
+quiet report rather than a dense analytics panel.
+
+Recommendations should read as actionable guidance rows. Prefer an icon dot,
+priority pill, clear title, short message, and quiet dismiss action separated by
+thin dividers. Avoid alert-card stacks, loud severity colors, and
+implementation-facing copy.
+
+Stable `react-native-svg` rings and simple rails are allowed for compact
+indicators. Do not add a charting dependency or build fragile pseudo-charts
+from arbitrary View geometry.
+
 ## Loading States
 
 Backend-connected screens show `LoadingState` during the initial request.

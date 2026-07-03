@@ -218,6 +218,25 @@ Food and weight entries should read as an open daily ledger. Meal groups should
 usually be headings plus rows and separators, not cards inside cards. Cards or
 modules are allowed only when they have a specific job.
 
+## Insights And Recommendations Lessons
+
+Insights should extend the Phase 6.6 open-layout direction. The screen should
+feel like a calm personal insight report: pure white, charcoal typography,
+strong section rhythm, quiet dividers, icon-supported rows, and small stable
+rings or rails where they help the user scan.
+
+Avoid turning analytics into a generic dashboard. Repeated bordered cards,
+technical chart styling, dense metric panels, and internal wording make the
+screen feel less premium. User-facing copy should describe patterns and next
+steps, not calculation mechanics.
+
+Recommendations should feel like useful guidance, not alert cards. Rows with an
+icon dot, priority pill, clear title, short body, and quiet dismiss action fit
+the current product direction better than stacked cards with severity labels.
+Simple mode should stay focused on calories, protein, consistency, weight, and
+direct guidance. Complex/Detailed mode can show macro and nutrient detail, but
+it still needs to remain calm and easy to scan.
+
 ## Branding And Icon Rules
 
 Use actual provided PNG brand assets. Do not redraw or recreate the logo with

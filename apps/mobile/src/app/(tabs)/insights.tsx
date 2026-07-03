@@ -1,23 +1,53 @@
+import type { ComponentType } from 'react';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import type { AdvancedAnalytics, Recommendation } from '@food-tracker/shared';
+import {
+  Beef,
+  CalendarCheck,
+  CheckCircle2,
+  CircleAlert,
+  Droplet,
+  Flame,
+  Lightbulb,
+  RefreshCw,
+  Scale,
+  TrendingUp,
+  Wheat,
+  X,
+} from 'lucide-react-native';
+import Svg, { Circle } from 'react-native-svg';
+import type {
+  AdvancedAnalytics,
+  Recommendation,
+  RecommendationSeverity,
+  RecommendationType,
+} from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
-import { DataNotice } from '@/components/data-notice';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
-import { MetricRow } from '@/components/metric-row';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
+import { colors } from '@/theme/tokens';
 
-function Divider() {
-  return <View className="h-px bg-border" />;
-}
+type InsightIcon = ComponentType<{
+  color?: string;
+  size?: number;
+  strokeWidth?: number;
+}>;
+
+const accent = {
+  calories: '#D98275',
+  protein: '#679C8C',
+  carbs: '#C99A58',
+  fat: '#6F88B4',
+  alert: '#A87962',
+  calm: colors.light.ink,
+} as const;
 
 function formatNumber(value: number, maximumFractionDigits = 1): string {
   return value.toLocaleString('en-US', { maximumFractionDigits });
@@ -32,9 +62,525 @@ function formatWeight(value: number | null): string {
   return value === null ? '—' : `${value.toFixed(1)} lb`;
 }
 
-function completenessValue(loggedCount: number, possibleCount: number): string {
-  if (possibleCount === 0) return 'No entries';
-  return `${loggedCount} / ${possibleCount} entries`;
+function percentage(value: number, maximumFractionDigits = 0): string {
+  return `${formatNumber(value, maximumFractionDigits)}%`;
+}
+
+function progressFrom(value: number, target: number | null): number {
+  if (target === null || target <= 0) return 0;
+  return Math.max(0, Math.min(value / target, 1));
+}
+
+function IconDot({
+  Icon,
+  color = colors.light.ink,
+  filled = false,
+}: {
+  Icon: InsightIcon;
+  color?: string;
+  filled?: boolean;
+}) {
+  return (
+    <View
+      className={`h-9 w-9 items-center justify-center rounded-full ${
+        filled ? 'bg-primary' : 'bg-[#F4F4F4]'
+      }`}
+    >
+      <Icon color={filled ? '#FFFFFF' : color} size={16} strokeWidth={2.2} />
+    </View>
+  );
+}
+
+function SmallRing({
+  progress,
+  color,
+  size = 58,
+  label,
+}: {
+  progress: number;
+  color: string;
+  size?: number;
+  label?: string;
+}) {
+  const strokeWidth = 4;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clampedProgress = Math.max(0, Math.min(progress, 1));
+
+  return (
+    <View
+      className="items-center justify-center"
+      style={{ height: size, width: size }}
+    >
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        pointerEvents="none"
+        className="absolute"
+      >
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke="#ECECEA"
+          strokeWidth={strokeWidth}
+        />
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={circumference * (1 - clampedProgress)}
+          strokeLinecap="round"
+          strokeWidth={strokeWidth}
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+      </Svg>
+      {label === undefined ? null : (
+        <AppText variant="caption" className="text-ink tabular-nums">
+          {label}
+        </AppText>
+      )}
+    </View>
+  );
+}
+
+function MiniRail({
+  value,
+  color = colors.light.primary,
+}: {
+  value: number;
+  color?: string;
+}) {
+  const clampedValue = Math.max(0, Math.min(value, 1));
+
+  return (
+    <View className="h-2 overflow-hidden rounded-full bg-[#ECECEA]">
+      <View
+        className="h-full rounded-full"
+        style={{ width: `${clampedValue * 100}%`, backgroundColor: color }}
+      />
+    </View>
+  );
+}
+
+function SectionHeader({ title, detail }: { title: string; detail?: string }) {
+  return (
+    <View className="flex-row items-end justify-between gap-3">
+      <AppText variant="heading" className="text-ink">
+        {title}
+      </AppText>
+      {detail === undefined ? null : (
+        <AppText variant="caption" className="text-muted">
+          {detail}
+        </AppText>
+      )}
+    </View>
+  );
+}
+
+function InsightNotice({ title, message }: { title: string; message: string }) {
+  return (
+    <View className="flex-row items-start gap-3 border-t border-line py-4">
+      <IconDot Icon={CircleAlert} color={accent.alert} />
+      <View className="min-w-0 flex-1 gap-1">
+        <AppText variant="label" className="text-ink">
+          {title}
+        </AppText>
+        <AppText muted>{message}</AppText>
+      </View>
+    </View>
+  );
+}
+
+function Overview({ analytics }: { analytics: AdvancedAnalytics }) {
+  const calorieAverage = analytics.calorieTrend.average7Day;
+  const proteinAverage = analytics.proteinTrend.average7Day;
+  const consistency = analytics.loggingConsistency.past7Days;
+  const consistencyProgress = consistency.loggedDays / consistency.expectedDays;
+
+  return (
+    <View className="gap-5">
+      <View className="flex-row items-start justify-between gap-5">
+        <View className="min-w-0 flex-1 gap-1.5">
+          <AppText
+            variant="caption"
+            className="text-ink uppercase tracking-[1.4px]"
+          >
+            Recent pattern
+          </AppText>
+          <View className="flex-row items-end gap-2">
+            <AppText variant="display" className="text-ink tabular-nums">
+              {formatNumber(calorieAverage, 0)}
+            </AppText>
+            <AppText variant="label" className="pb-1.5 text-ink">
+              kcal
+            </AppText>
+          </View>
+          <AppText className="text-muted">
+            Your 7-day calorie average from recent logs.
+          </AppText>
+        </View>
+        <SmallRing
+          progress={progressFrom(calorieAverage, analytics.targets.calories)}
+          color={accent.calories}
+          size={76}
+          label={
+            analytics.targets.calories === null
+              ? '—'
+              : percentage(
+                  progressFrom(calorieAverage, analytics.targets.calories) *
+                    100,
+                )
+          }
+        />
+      </View>
+
+      <View className="gap-4">
+        <SignalRow
+          Icon={Beef}
+          color={accent.protein}
+          label="Protein"
+          value={`${formatNumber(proteinAverage, 0)} g`}
+          detail={
+            analytics.targets.proteinGrams === null
+              ? 'Recent 7-day average'
+              : `${formatNumber(analytics.targets.proteinGrams, 0)} g target`
+          }
+          progress={progressFrom(
+            proteinAverage,
+            analytics.targets.proteinGrams,
+          )}
+        />
+        <SignalRow
+          Icon={CalendarCheck}
+          color={colors.light.ink}
+          label="Consistency"
+          value={`${consistency.loggedDays} / ${consistency.expectedDays} days`}
+          detail="Food logged this week"
+          progress={consistencyProgress}
+        />
+      </View>
+    </View>
+  );
+}
+
+function SignalRow({
+  Icon,
+  color,
+  label,
+  value,
+  detail,
+  progress,
+}: {
+  Icon: InsightIcon;
+  color: string;
+  label: string;
+  value: string;
+  detail: string;
+  progress: number;
+}) {
+  return (
+    <View className="gap-2">
+      <View className="flex-row items-end justify-between gap-3">
+        <View className="min-w-0 flex-1 flex-row items-center gap-2">
+          <Icon color={color} size={14} strokeWidth={2.35} />
+          <AppText variant="caption" className="text-ink">
+            {label}
+          </AppText>
+        </View>
+        <AppText variant="caption" className="text-ink tabular-nums">
+          {value}
+        </AppText>
+      </View>
+      <MiniRail value={progress} color={color} />
+      <AppText variant="caption" className="text-muted">
+        {detail}
+      </AppText>
+    </View>
+  );
+}
+
+function TrendPair({
+  title,
+  unit,
+  Icon,
+  color,
+  sevenDay,
+  thirtyDay,
+  difference,
+  warning,
+}: {
+  title: string;
+  unit: string;
+  Icon: InsightIcon;
+  color: string;
+  sevenDay: number;
+  thirtyDay: number;
+  difference: number;
+  warning: string | null;
+}) {
+  const maxValue = Math.max(sevenDay, thirtyDay, 1);
+
+  return (
+    <View className="gap-4 border-t border-line py-4">
+      <View className="flex-row items-start gap-3">
+        <IconDot Icon={Icon} color={color} />
+        <View className="min-w-0 flex-1 gap-1">
+          <View className="flex-row items-center justify-between gap-3">
+            <AppText variant="label" className="text-ink">
+              {title}
+            </AppText>
+            <AppText variant="caption" className="text-muted tabular-nums">
+              {formatDifference(difference, unit)}
+            </AppText>
+          </View>
+          <AppText muted>
+            Comparing the last 7 days with your 30-day pattern.
+          </AppText>
+        </View>
+      </View>
+
+      <View className="gap-3 pl-12">
+        <TrendBar
+          label="7 days"
+          value={`${formatNumber(sevenDay, 0)} ${unit}`}
+          progress={sevenDay / maxValue}
+          color={color}
+        />
+        <TrendBar
+          label="30 days"
+          value={`${formatNumber(thirtyDay, 0)} ${unit}`}
+          progress={thirtyDay / maxValue}
+          color={colors.light.ink}
+        />
+        {warning === null ? null : (
+          <AppText variant="caption" className="text-muted">
+            Log a few more days to make this pattern clearer.
+          </AppText>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function TrendBar({
+  label,
+  value,
+  progress,
+  color,
+}: {
+  label: string;
+  value: string;
+  progress: number;
+  color: string;
+}) {
+  return (
+    <View className="gap-1.5">
+      <View className="flex-row items-center justify-between gap-3">
+        <AppText variant="caption" className="text-muted">
+          {label}
+        </AppText>
+        <AppText variant="caption" className="text-ink tabular-nums">
+          {value}
+        </AppText>
+      </View>
+      <MiniRail value={progress} color={color} />
+    </View>
+  );
+}
+
+function DetailRow({
+  Icon,
+  color,
+  label,
+  value,
+  detail,
+}: {
+  Icon: InsightIcon;
+  color: string;
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-3 border-t border-line py-4">
+      <IconDot Icon={Icon} color={color} />
+      <View className="min-w-0 flex-1 gap-0.5">
+        <AppText variant="label" className="text-ink">
+          {label}
+        </AppText>
+        {detail === undefined ? null : (
+          <AppText variant="caption" className="text-muted">
+            {detail}
+          </AppText>
+        )}
+      </View>
+      <AppText variant="label" className="text-ink tabular-nums">
+        {value}
+      </AppText>
+    </View>
+  );
+}
+
+function MacroSplit({ analytics }: { analytics: AdvancedAnalytics }) {
+  const macroSplitIncomplete =
+    !analytics.dataCompleteness.nutrients.carbs.isCompleteEnough ||
+    !analytics.dataCompleteness.nutrients.fat.isCompleteEnough;
+
+  return (
+    <View className="gap-3">
+      <SectionHeader title="Macro split" detail="Detailed mode" />
+      <View className="gap-3 border-t border-line py-4">
+        <MacroSplitRow
+          Icon={Beef}
+          color={accent.protein}
+          label="Protein"
+          value={analytics.macros.calorieSplit.proteinPercent}
+        />
+        <MacroSplitRow
+          Icon={Wheat}
+          color={accent.carbs}
+          label="Carbs"
+          value={analytics.macros.calorieSplit.carbsPercent}
+        />
+        <MacroSplitRow
+          Icon={Droplet}
+          color={accent.fat}
+          label="Fat"
+          value={analytics.macros.calorieSplit.fatPercent}
+        />
+        {macroSplitIncomplete ? (
+          <AppText variant="caption" className="text-muted">
+            Some entries are missing macro details, so this split may become
+            clearer with more complete logs.
+          </AppText>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function MacroSplitRow({
+  Icon,
+  color,
+  label,
+  value,
+}: {
+  Icon: InsightIcon;
+  color: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <View className="gap-2">
+      <View className="flex-row items-center justify-between gap-3">
+        <View className="flex-row items-center gap-2">
+          <Icon color={color} size={14} strokeWidth={2.35} />
+          <AppText variant="caption" className="text-ink">
+            {label}
+          </AppText>
+        </View>
+        <AppText variant="caption" className="text-ink tabular-nums">
+          {percentage(value, 1)}
+        </AppText>
+      </View>
+      <MiniRail value={value / 100} color={color} />
+    </View>
+  );
+}
+
+function NutritionDetails({ analytics }: { analytics: AdvancedAnalytics }) {
+  const rows = [
+    {
+      key: 'calories' as const,
+      label: 'Calories',
+      unit: 'kcal',
+      Icon: Flame,
+      color: accent.calories,
+    },
+    {
+      key: 'protein' as const,
+      label: 'Protein',
+      unit: 'g',
+      Icon: Beef,
+      color: accent.protein,
+    },
+    {
+      key: 'carbs' as const,
+      label: 'Carbs',
+      unit: 'g',
+      Icon: Wheat,
+      color: accent.carbs,
+    },
+    {
+      key: 'fat' as const,
+      label: 'Fat',
+      unit: 'g',
+      Icon: Droplet,
+      color: accent.fat,
+    },
+    {
+      key: 'fiber' as const,
+      label: 'Fiber',
+      unit: 'g',
+      Icon: Wheat,
+      color: colors.light.muted,
+    },
+    {
+      key: 'sugar' as const,
+      label: 'Sugar',
+      unit: 'g',
+      Icon: Wheat,
+      color: colors.light.muted,
+    },
+    {
+      key: 'sodium' as const,
+      label: 'Sodium',
+      unit: 'mg',
+      Icon: Droplet,
+      color: colors.light.muted,
+    },
+  ];
+
+  return (
+    <View className="gap-3">
+      <SectionHeader
+        title="Nutrition detail"
+        detail={`${analytics.range.startDate} to ${analytics.range.endDate}`}
+      />
+      <View>
+        {rows.map((row) => {
+          const completeness = analytics.dataCompleteness.nutrients[row.key];
+          const hasReportedValue = completeness.loggedCount > 0;
+          const partial = hasReportedValue && !completeness.isCompleteEnough;
+          return (
+            <DetailRow
+              key={row.key}
+              Icon={row.Icon}
+              color={row.color}
+              label={row.label}
+              value={
+                hasReportedValue
+                  ? `${formatNumber(analytics.macros.averagesPerLoggedDay[row.key])} ${row.unit}`
+                  : 'Not logged'
+              }
+              detail={
+                hasReportedValue
+                  ? `Average per logged day${partial ? ' · still filling in' : ''}`
+                  : 'Add this field to see a pattern'
+              }
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
@@ -45,328 +591,241 @@ function AnalyticsContent({ analytics }: { analytics: AdvancedAnalytics }) {
   if (!hasAnalyticsData) {
     return (
       <EmptyState
-        title="Analytics need tracking data"
-        message="Log food or weight to start building 7-day and 30-day trends."
+        title="Your trends will appear here"
+        message="Log a few meals or a weight entry to start seeing patterns."
         symbol="◔"
       />
     );
   }
 
   const isComplex = analytics.trackingMode === 'complex';
-  const macroMetrics = [
-    {
-      key: 'calories' as const,
-      label: 'Calories',
-      unit: 'kcal',
-    },
-    {
-      key: 'protein' as const,
-      label: 'Protein',
-      unit: 'g',
-    },
-    {
-      key: 'carbs' as const,
-      label: 'Carbs',
-      unit: 'g',
-    },
-    {
-      key: 'fat' as const,
-      label: 'Fat',
-      unit: 'g',
-    },
-    {
-      key: 'fiber' as const,
-      label: 'Fiber',
-      unit: 'g',
-    },
-    {
-      key: 'sugar' as const,
-      label: 'Sugar',
-      unit: 'g',
-    },
-    {
-      key: 'sodium' as const,
-      label: 'Sodium',
-      unit: 'mg',
-    },
-  ];
-
-  const macroSplitIncomplete =
-    !analytics.dataCompleteness.nutrients.carbs.isCompleteEnough ||
-    !analytics.dataCompleteness.nutrients.fat.isCompleteEnough;
 
   return (
-    <View className="gap-5">
+    <View className="gap-7">
+      <Overview analytics={analytics} />
+
       {analytics.dataCompleteness.isLowConfidence ? (
-        <DataNotice title="Logging is incomplete" tone="warning">
-          Food was logged on {analytics.dataCompleteness.daysWithFoodLogs} of{' '}
-          {analytics.dataCompleteness.totalDaysInRange} days. Calendar-day
-          averages may reflect missing logs rather than actual intake.
-        </DataNotice>
+        <InsightNotice
+          title="Still building your pattern"
+          message={`Food was logged on ${analytics.dataCompleteness.daysWithFoodLogs} of ${analytics.dataCompleteness.totalDaysInRange} recent days. Log a few more days to make these signals clearer.`}
+        />
       ) : null}
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Trends</AppText>
-
-        <AppCard compact className="gap-3">
-          <AppText variant="label">Calorie average</AppText>
-          <View className="flex-row gap-3">
-            <View className="min-w-0 flex-1 gap-1">
-              <AppText variant="caption" muted>
-                PAST 7 DAYS
-              </AppText>
-              <AppText variant="heading" className="tabular-nums">
-                {formatNumber(analytics.calorieTrend.average7Day)}
-              </AppText>
-              <AppText variant="caption" muted>
-                kcal / calendar day
-              </AppText>
-              <AppText variant="caption" muted>
-                {formatNumber(
-                  analytics.calorieTrend.past7Days.loggedDayAverage,
-                )}{' '}
-                per logged day
-              </AppText>
-            </View>
-            <View className="min-w-0 flex-1 gap-1">
-              <AppText variant="caption" muted>
-                PAST 30 DAYS
-              </AppText>
-              <AppText variant="heading" className="tabular-nums">
-                {formatNumber(analytics.calorieTrend.average30Day)}
-              </AppText>
-              <AppText variant="caption" muted>
-                kcal / calendar day
-              </AppText>
-              <AppText variant="caption" muted>
-                {formatNumber(
-                  analytics.calorieTrend.past30Days.loggedDayAverage,
-                )}{' '}
-                per logged day
-              </AppText>
-            </View>
-          </View>
-          <Divider />
-          <MetricRow
-            label="7-day difference"
-            value={formatDifference(analytics.calorieTrend.difference, 'kcal')}
-          />
-          {analytics.calorieTrend.past7Days.warning === null ? null : (
-            <AppText variant="caption" muted>
-              {analytics.calorieTrend.past7Days.warning}
-            </AppText>
-          )}
-        </AppCard>
-
-        <AppCard compact className="gap-3">
-          <AppText variant="label">Protein average</AppText>
-          <View className="flex-row gap-3">
-            <View className="min-w-0 flex-1 gap-1">
-              <AppText variant="caption" muted>
-                PAST 7 DAYS
-              </AppText>
-              <AppText variant="heading" className="tabular-nums">
-                {formatNumber(analytics.proteinTrend.average7Day)}
-              </AppText>
-              <AppText variant="caption" muted>
-                grams / calendar day
-              </AppText>
-              <AppText variant="caption" muted>
-                {formatNumber(
-                  analytics.proteinTrend.past7Days.loggedDayAverage,
-                )}{' '}
-                g per logged day
-              </AppText>
-            </View>
-            <View className="min-w-0 flex-1 gap-1">
-              <AppText variant="caption" muted>
-                PAST 30 DAYS
-              </AppText>
-              <AppText variant="heading" className="tabular-nums">
-                {formatNumber(analytics.proteinTrend.average30Day)}
-              </AppText>
-              <AppText variant="caption" muted>
-                grams / calendar day
-              </AppText>
-              <AppText variant="caption" muted>
-                {formatNumber(
-                  analytics.proteinTrend.past30Days.loggedDayAverage,
-                )}{' '}
-                g per logged day
-              </AppText>
-            </View>
-          </View>
-          <Divider />
-          <MetricRow
-            label="7-day difference"
-            value={formatDifference(analytics.proteinTrend.difference, 'g')}
-          />
-        </AppCard>
+      <View className="gap-2">
+        <SectionHeader title="Trends" detail="7 vs 30 days" />
+        <TrendPair
+          title="Calories"
+          unit="kcal"
+          Icon={Flame}
+          color={accent.calories}
+          sevenDay={analytics.calorieTrend.average7Day}
+          thirtyDay={analytics.calorieTrend.average30Day}
+          difference={analytics.calorieTrend.difference}
+          warning={analytics.calorieTrend.past7Days.warning}
+        />
+        <TrendPair
+          title="Protein"
+          unit="g"
+          Icon={Beef}
+          color={accent.protein}
+          sevenDay={analytics.proteinTrend.average7Day}
+          thirtyDay={analytics.proteinTrend.average30Day}
+          difference={analytics.proteinTrend.difference}
+          warning={analytics.proteinTrend.past7Days.warning}
+        />
       </View>
 
       {isComplex ? (
         <>
-          <View className="gap-2.5">
-            <View className="gap-0.5">
-              <AppText variant="heading">Nutrition totals and averages</AppText>
-              <AppText variant="caption" muted>
-                {analytics.range.startDate} to {analytics.range.endDate}
-              </AppText>
-            </View>
-            <AppCard compact>
-              {macroMetrics.map((metric, index) => {
-                const completeness =
-                  analytics.dataCompleteness.nutrients[metric.key];
-                const hasReportedValue = completeness.loggedCount > 0;
-                const partial =
-                  hasReportedValue && !completeness.isCompleteEnough;
-
-                return (
-                  <View key={metric.key}>
-                    {index === 0 ? null : <Divider />}
-                    <View className="gap-1 py-2.5">
-                      <View className="flex-row items-center justify-between gap-3">
-                        <AppText>{metric.label}</AppText>
-                        <AppText variant="label" className="tabular-nums">
-                          {hasReportedValue
-                            ? `${formatNumber(
-                                analytics.macros.totals[metric.key],
-                              )} ${metric.unit}`
-                            : 'Not logged'}
-                        </AppText>
-                      </View>
-                      {hasReportedValue ? (
-                        <AppText variant="caption" muted>
-                          Average per logged day:{' '}
-                          {formatNumber(
-                            analytics.macros.averagesPerLoggedDay[metric.key],
-                          )}{' '}
-                          {metric.unit}
-                          {partial ? ' · partial entries' : ''}
-                        </AppText>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              })}
-            </AppCard>
-          </View>
-
-          <View className="gap-2.5">
-            <AppText variant="heading">Macro calorie split</AppText>
-            <AppCard compact className="gap-1">
-              <MetricRow
-                label="Protein"
-                value={`${formatNumber(
-                  analytics.macros.calorieSplit.proteinPercent,
-                )}%`}
-                accentClassName="bg-sage"
-              />
-              <Divider />
-              <MetricRow
-                label="Carbs"
-                value={`${formatNumber(
-                  analytics.macros.calorieSplit.carbsPercent,
-                )}%`}
-                accentClassName="bg-gold"
-              />
-              <Divider />
-              <MetricRow
-                label="Fat"
-                value={`${formatNumber(
-                  analytics.macros.calorieSplit.fatPercent,
-                )}%`}
-                accentClassName="bg-clay"
-              />
-              {macroSplitIncomplete ? (
-                <AppText variant="caption" muted>
-                  Macro split is based only on entries with reported macro
-                  values and may be incomplete.
-                </AppText>
-              ) : null}
-            </AppCard>
-          </View>
-
-          <View className="gap-2.5">
-            <AppText variant="heading">Nutrient completeness</AppText>
-            <AppCard compact>
-              {macroMetrics.slice(2).map((metric, index) => {
-                const completeness =
-                  analytics.dataCompleteness.nutrients[metric.key];
-
-                return (
-                  <View key={metric.key}>
-                    {index === 0 ? null : <Divider />}
-                    <MetricRow
-                      label={metric.label}
-                      value={`${completenessValue(
-                        completeness.loggedCount,
-                        completeness.possibleCount,
-                      )} · ${formatNumber(completeness.percent)}%`}
-                    />
-                  </View>
-                );
-              })}
-            </AppCard>
-          </View>
+          <MacroSplit analytics={analytics} />
+          <NutritionDetails analytics={analytics} />
         </>
       ) : null}
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Logging consistency</AppText>
-        <AppCard compact>
-          <MetricRow
-            label="Past 7 days"
-            value={`${analytics.loggingConsistency.past7Days.loggedDays} / ${analytics.loggingConsistency.past7Days.expectedDays} days`}
-          />
-          <Divider />
-          <MetricRow
-            label="Past 30 days"
-            value={`${analytics.loggingConsistency.past30Days.loggedDays} / ${analytics.loggingConsistency.past30Days.expectedDays} days`}
-          />
-          <Divider />
-          <MetricRow
-            label="Food entries in range"
-            value={String(analytics.dataCompleteness.foodLogCount)}
-          />
-        </AppCard>
+      <View className="gap-3">
+        <SectionHeader title="Consistency" />
+        <DetailRow
+          Icon={CalendarCheck}
+          color={colors.light.ink}
+          label="Past 7 days"
+          value={`${analytics.loggingConsistency.past7Days.loggedDays} / ${analytics.loggingConsistency.past7Days.expectedDays}`}
+          detail="Days with food logged"
+        />
+        <DetailRow
+          Icon={CalendarCheck}
+          color={colors.light.muted}
+          label="Past 30 days"
+          value={`${analytics.loggingConsistency.past30Days.loggedDays} / ${analytics.loggingConsistency.past30Days.expectedDays}`}
+          detail={`${analytics.dataCompleteness.foodLogCount} food entries`}
+        />
       </View>
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Weight trend</AppText>
-        <AppCard compact>
-          <MetricRow
-            label="Latest weight"
-            value={formatWeight(analytics.weightTrend.latestWeightLb)}
-          />
-          <Divider />
-          <MetricRow
-            label="Previous weight"
-            value={formatWeight(analytics.weightTrend.previousWeightLb)}
-          />
-          <Divider />
-          <MetricRow
-            label="Change"
-            value={
-              analytics.weightTrend.changeLb === null
-                ? '—'
-                : formatDifference(analytics.weightTrend.changeLb, 'lb')
-            }
-          />
-          <Divider />
-          <MetricRow
-            label="Weekly slope"
-            value={
-              analytics.weightTrend.weeklySlopeLb === null
-                ? '—'
-                : `${formatDifference(
-                    analytics.weightTrend.weeklySlopeLb,
-                    'lb',
-                  )} / week`
-            }
-          />
-        </AppCard>
+      <View className="gap-3">
+        <SectionHeader title="Weight" />
+        <DetailRow
+          Icon={Scale}
+          color={accent.fat}
+          label="Latest"
+          value={formatWeight(analytics.weightTrend.latestWeightLb)}
+        />
+        <DetailRow
+          Icon={TrendingUp}
+          color={colors.light.ink}
+          label="Change"
+          value={
+            analytics.weightTrend.changeLb === null
+              ? '—'
+              : formatDifference(analytics.weightTrend.changeLb, 'lb')
+          }
+          detail={
+            analytics.weightTrend.weeklySlopeLb === null
+              ? 'Log more weights to see a weekly pace'
+              : `${formatDifference(
+                  analytics.weightTrend.weeklySlopeLb,
+                  'lb',
+                )} per week`
+          }
+        />
       </View>
+    </View>
+  );
+}
+
+function severityLabel(severity: RecommendationSeverity): string {
+  if (severity === 'high') return 'High priority';
+  if (severity === 'medium') return 'Medium priority';
+  return 'Low priority';
+}
+
+function recommendationMeta(
+  type: RecommendationType,
+  severity: RecommendationSeverity,
+) {
+  const severityColor =
+    severity === 'high'
+      ? colors.light.ink
+      : severity === 'medium'
+        ? accent.alert
+        : colors.light.muted;
+
+  switch (type) {
+    case 'protein_low':
+      return { Icon: Beef, color: accent.protein, label: 'Protein' };
+    case 'calories_under_target':
+    case 'calories_over_target':
+      return { Icon: Flame, color: accent.calories, label: 'Calories' };
+    case 'missing_recent_weight_logs':
+      return { Icon: Scale, color: accent.fat, label: 'Weight' };
+    case 'inconsistent_food_logging':
+      return {
+        Icon: CalendarCheck,
+        color: severityColor,
+        label: 'Consistency',
+      };
+  }
+}
+
+function RecommendationRow({
+  recommendation,
+  dismissing,
+  disabled,
+  onDismiss,
+}: {
+  recommendation: Recommendation;
+  dismissing: boolean;
+  disabled: boolean;
+  onDismiss: () => void;
+}) {
+  const meta = recommendationMeta(recommendation.type, recommendation.severity);
+  const highPriority = recommendation.severity === 'high';
+
+  return (
+    <View className="flex-row items-start gap-3 border-t border-line py-4">
+      <IconDot Icon={meta.Icon} color={meta.color} filled={highPriority} />
+      <View className="min-w-0 flex-1 gap-2">
+        <View className="flex-row flex-wrap items-center gap-2">
+          <View
+            className={`rounded-full px-2.5 py-1 ${
+              highPriority ? 'bg-primary' : 'bg-[#F4F4F4]'
+            }`}
+          >
+            <AppText
+              variant="caption"
+              className={highPriority ? 'text-white' : 'text-muted'}
+            >
+              {severityLabel(recommendation.severity)}
+            </AppText>
+          </View>
+          <AppText variant="caption" className="text-muted">
+            {meta.label}
+          </AppText>
+        </View>
+        <View className="gap-1">
+          <AppText variant="label" className="text-ink">
+            {recommendation.title}
+          </AppText>
+          <AppText muted>{recommendation.message}</AppText>
+        </View>
+        <Pressable
+          accessibilityLabel={`Dismiss recommendation: ${recommendation.title}`}
+          accessibilityRole="button"
+          className={`min-h-10 self-start flex-row items-center gap-2 rounded-full py-1 pr-3 active:opacity-70 ${
+            disabled ? 'opacity-45' : ''
+          }`}
+          disabled={disabled}
+          onPress={onDismiss}
+        >
+          {dismissing ? (
+            <ActivityIndicator color={colors.light.primaryDark} />
+          ) : (
+            <X color={colors.light.muted} size={15} strokeWidth={2.35} />
+          )}
+          <AppText variant="caption" className="text-muted">
+            Dismiss
+          </AppText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function RecommendationsContent({
+  recommendations,
+  dismissingId,
+  onDismiss,
+}: {
+  recommendations: Recommendation[];
+  dismissingId: string | null;
+  onDismiss: (id: string) => void;
+}) {
+  if (recommendations.length === 0) {
+    return (
+      <View className="flex-row items-start gap-3 border-t border-line py-5">
+        <IconDot Icon={CheckCircle2} color={accent.protein} />
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText variant="label" className="text-ink">
+            No recommendations right now
+          </AppText>
+          <AppText muted>
+            Keep logging and fresh suggestions will appear when there’s
+            something useful to act on.
+          </AppText>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {recommendations.map((recommendation) => (
+        <RecommendationRow
+          key={recommendation.id}
+          recommendation={recommendation}
+          dismissing={dismissingId === recommendation.id}
+          disabled={dismissingId !== null && dismissingId !== recommendation.id}
+          onDismiss={() => onDismiss(recommendation.id)}
+        />
+      ))}
     </View>
   );
 }
@@ -439,8 +898,8 @@ export default function InsightsScreen() {
 
   if (loading && analytics === null && recommendations.length === 0) {
     return (
-      <AppScreen>
-        <LoadingState message="Checking for insights…" />
+      <AppScreen backgroundColor="#FFFFFF">
+        <LoadingState message="Checking your recent patterns…" />
       </AppScreen>
     );
   }
@@ -448,31 +907,58 @@ export default function InsightsScreen() {
   return (
     <AppScreen
       refreshing={refreshing}
+      contentClassName="gap-7"
+      backgroundColor="#FFFFFF"
       onRefresh={() => void loadInsights(true)}
     >
       <ScreenHeader
         title="Insights"
-        subtitle="Deterministic trends and guidance from your tracking data."
+        subtitle="Patterns from your recent food and weight logs."
       />
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Advanced analytics</AppText>
-        {analyticsError === null ? null : (
-          <ErrorState
-            title={
-              analytics === null
-                ? 'Analytics are unavailable'
-                : 'Couldn’t refresh analytics'
-            }
-            message={analyticsError}
-            onRetry={() => void loadInsights()}
-          />
-        )}
-        {analytics === null ? null : <AnalyticsContent analytics={analytics} />}
-      </View>
+      {analyticsError === null ? null : (
+        <ErrorState
+          title={
+            analytics === null
+              ? 'Insights are unavailable'
+              : 'Couldn’t refresh insights'
+          }
+          message={analyticsError}
+          onRetry={() => void loadInsights()}
+        />
+      )}
 
-      <View className="gap-2.5">
-        <AppText variant="heading">Recommendations</AppText>
+      {analytics === null ? null : <AnalyticsContent analytics={analytics} />}
+
+      <View className="gap-3">
+        <View className="flex-row items-end justify-between gap-3">
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="heading" className="text-ink">
+              Recommendations
+            </AppText>
+            <AppText className="text-muted">
+              Useful next steps based on what you’ve logged.
+            </AppText>
+          </View>
+          <AppButton
+            variant="ghost"
+            className="min-h-10 px-1 py-1"
+            loading={loading && analytics !== null}
+            disabled={loading || refreshing}
+            onPress={() => void loadInsights()}
+          >
+            <View className="flex-row items-center gap-1.5">
+              <RefreshCw
+                color={colors.light.primaryDark}
+                size={14}
+                strokeWidth={2.35}
+              />
+              <AppText variant="caption" className="text-primary-dark">
+                Refresh
+              </AppText>
+            </View>
+          </AppButton>
+        </View>
 
         {recommendationsError === null ? null : (
           <ErrorState
@@ -486,45 +972,26 @@ export default function InsightsScreen() {
           />
         )}
 
-        {recommendations.length === 0 && recommendationsError === null ? (
-          <EmptyState
-            title="Recommendations will appear here"
-            message="Guidance will show when your tracking data produces an actionable recommendation."
-            symbol="✦"
+        {recommendationsError === null || recommendations.length > 0 ? (
+          <RecommendationsContent
+            recommendations={recommendations}
+            dismissingId={dismissingId}
+            onDismiss={(id) => void dismissRecommendation(id)}
           />
-        ) : (
-          <View className="gap-3">
-            {recommendations.map((recommendation) => (
-              <AppCard key={recommendation.id} compact className="gap-2">
-                <AppText variant="caption" className="uppercase text-sage-dark">
-                  {recommendation.severity} priority
-                </AppText>
-                <AppText variant="heading">{recommendation.title}</AppText>
-                <AppText muted>{recommendation.message}</AppText>
-                <AppButton
-                  variant="ghost"
-                  loading={dismissingId === recommendation.id}
-                  disabled={
-                    dismissingId !== null && dismissingId !== recommendation.id
-                  }
-                  className="self-start px-0"
-                  onPress={() => void dismissRecommendation(recommendation.id)}
-                >
-                  Dismiss
-                </AppButton>
-              </AppCard>
-            ))}
-          </View>
-        )}
+        ) : null}
       </View>
 
-      <AppCard compact className="gap-2 bg-surface">
-        <AppText variant="label">How insights work</AppText>
-        <AppText muted>
-          Nutrition math and recommendation decisions remain deterministic in
-          the backend. This screen only presents the returned facts.
-        </AppText>
-      </AppCard>
+      <View className="flex-row items-start gap-3 border-t border-line py-5">
+        <IconDot Icon={Lightbulb} color={colors.light.ink} />
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText variant="label" className="text-ink">
+            Simple tracking, serious insight
+          </AppText>
+          <AppText muted>
+            Your patterns become clearer as you build a consistent log.
+          </AppText>
+        </View>
+      </View>
     </AppScreen>
   );
 }
