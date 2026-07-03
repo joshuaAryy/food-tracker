@@ -93,7 +93,7 @@ Avoid:
 - Use a top back arrow where needed; do not add a secondary bottom Back button.
 - The review screen should feel like "Here is your starting plan" with a mini
   dashboard preview, weight-direction context, quiet plan inputs, and
-  "Calculated from your setup" as secondary copy.
+  reassurance that targets can be adjusted later.
 
 ## Birthday Wheel Requirements
 
@@ -133,15 +133,40 @@ in-app brand marks. Do not recreate the logo with React Native view shapes. The
 simple icon is the default new-user/onboarding mark, and the complex icon is for
 complex-mode identity.
 
-Do not add static Expo launcher icon or native splash configuration unless the
-actual icon assets are placed in a tracked assets folder and the diff is
-reviewed. In-app brand mark usage is allowed. Generated native folders must
-remain ignored and uncommitted.
+Launcher icons are configured from tracked assets under
+`apps/mobile/assets/icons/`. The default launcher icon is the simple mark.
+Dynamic launcher-icon switching uses `expo-alternate-app-icons`: Simple mode
+resets to the default icon, and Complex/Detailed mode sets the `ComplexMode`
+alternate icon. Launcher icon config changes require a rebuilt Expo development
+build before they appear on the iPhone home screen.
+
+Do not change native splash configuration without explicit approval. In-app
+brand mark usage is allowed. Generated native folders must remain ignored and
+uncommitted.
 
 The Progress/Home mode badge may switch between Simple and Complex only through
 the existing tracking-preferences client/API. Do not add endpoints, schemas, or
 backend behavior for that interaction. Failed updates should rollback or surface
 a safe error state.
+
+Phase 6.5 final onboarding polish keeps the reduced-card direction and uses a
+small number of standalone informational slides instead of adding visual modules
+inside data-entry slides. Weight-direction preview and starting-plan explanation
+modules are acceptable when they use existing answers and do not collect extra
+data. Do not add a separate mode explainer after the mode choice. Onboarding
+copy should speak to a normal user, avoid internal terms such as baseline,
+deterministic, payload, setup data, stored value, trend context, and target
+calculation, and explain benefits or next actions instead of system mechanics.
+The progress-direction slide should stay text-first unless a real designed
+asset is available and tested on native iPhone. Do not build complex onboarding
+illustrations from fragile React Native view geometry. If a custom graphic looks
+broken, use a clean text-first info slide instead. Future real illustrations
+should be custom assets or properly designed SVG/image assets, not rushed
+view-block graphics.
+Numbered pace/activity selectors should use segmented rail geometry between
+marker bubbles so the rail does not visually run through the number circles.
+Wheel inputs should feel fluid on iPhone while committing state only after a
+snapped row settles or the user taps a row.
 
 ## Recent UI Issues Not To Repeat
 

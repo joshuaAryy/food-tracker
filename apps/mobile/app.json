@@ -4,14 +4,37 @@
     "slug": "food-tracker",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icons/simple.png",
     "scheme": "foodtracker",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "ComplexMode",
+            "ios": "./assets/icons/complex.png",
+            "android": {
+              "foregroundImage": "./assets/icons/complex.png",
+              "backgroundColor": "#FFFFFF"
+            }
+          }
+        ]
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     },
     "ios": {
+      "icon": "./assets/icons/simple.png",
       "bundleIdentifier": "com.anonymous.food-tracker"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/simple.png",
+        "backgroundColor": "#FFFFFF"
+      }
     }
   }
 }

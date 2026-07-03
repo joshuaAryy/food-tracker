@@ -211,23 +211,45 @@ boxes.
 - `OnboardingChoiceDeck`: focused selectable modules for categorical choices.
   They should feel like one guided decision, not stacked settings rows.
 - `OnboardingScale`: strong centered scale selectors for naturally ordered
-  choices such as pace or activity intensity.
+  choices such as pace or activity intensity. Marker centers, rail endpoints,
+  and progress fill must share the same geometry; selected markers should not
+  resize the row or drift off the rail.
 - `OnboardingPlanPreview`: renders the review payoff module as a small preview
   of the future app, with calorie target as the primary result, protein as the
   secondary result, and tracking mode as a quiet badge.
 - `OnboardingSummaryGroup`: groups supporting review details so the final step
   does not become a wall of rows.
 
-Onboarding copy should remain calm, factual, and non-judgmental. Avoid medical
-claims, motivational fluff, body-shaming language, generic SaaS hero copy, and
-large decorative assets. Decorative motifs must be extremely restrained: use
-only subtle thin neutral line/path elements when they improve composition. If a
-motif looks forced or cheap, skip it. Avoid overusing bordered boxes; the flow
-should feel like one cohesive product surface, not a stack of unrelated cards.
+Onboarding copy should remain calm, useful, user-facing, and
+non-judgmental. Avoid medical claims, motivational fluff, body-shaming
+language, generic SaaS hero copy, and implementation-facing terms such as
+baseline, deterministic, payload, setup data, stored value, trend context, and
+target calculation. Explain the user's next action and benefit instead of
+system mechanics. Decorative motifs must be extremely restrained: use only
+subtle thin neutral line/path elements when they improve composition. If a motif
+looks forced or cheap, skip it. Avoid overusing bordered boxes; the flow should
+feel like one cohesive product surface, not a stack of unrelated cards.
 Helper/support text should live in the lower screen as quiet text, not directly
 under the main module and not as another bordered card. The review step should
-emphasize calculated targets first, then show a clear starting-plan payoff and
-only quiet supporting inputs below.
+emphasize daily targets first, then show a clear starting-plan payoff and only
+quiet supporting inputs below.
+
+Small non-data onboarding moments should be standalone onboarding slides when
+they teach one useful idea, such as weight-direction preview or how the first
+plan becomes daily action. Do not add a separate mode explainer after the mode
+choice. Keep data-entry slides focused on the question, input, quiet support
+text, and CTA. These informational slides must reuse existing answers, avoid
+collecting extra fields, and sound like product guidance rather than
+documentation.
+
+The onboarding progress-direction slide should stay text-first unless a real
+designed asset is available and tested on native iPhone. Do not build complex
+onboarding illustrations from fragile React Native view geometry. Avoid axes,
+gridlines, plotted-dot chart language, blobs, ribbons, pseudo-paths, and
+anything that exposes system mechanics. If a custom graphic looks broken,
+prefer a clean text-first info slide with current weight, target weight, and
+simple next-step rows. Future real illustrations should be custom assets or
+properly designed SVG/image assets, not rushed view-block graphics.
 
 Onboarding should avoid the warmer beige/sage-heavy treatment used elsewhere in
 the current app. Use the onboarding neutral palette, charcoal text, rare
@@ -247,7 +269,7 @@ The app startup splash is separate from onboarding and only exists while setup
 status is loading or retrying after an API error. Onboarding starts at the first
 real question. The review screen should feel like "Here is your starting plan":
 mini dashboard preview first, weight-direction context below, quiet plan inputs
-last, and "Calculated from your setup" as secondary supporting copy.
+last, and simple reassurance that targets can be changed later.
 
 For new users, the simple mode PNG mark is the default brand mark. Complex mode
 uses the complex PNG mark. Render the actual tracked assets from
@@ -258,11 +280,19 @@ makes the header feel crowded. Do not turn the mark into repeated decoration.
 Launcher icon and native splash config should only change when explicitly
 approved and reviewed.
 
+The default launcher icon uses the simple mode mark from
+`apps/mobile/assets/icons/simple.png`. Complex/Detailed mode uses the configured
+`ComplexMode` alternate launcher icon from
+`apps/mobile/assets/icons/complex.png` through `expo-alternate-app-icons`.
+Changing launcher icon config requires rebuilding the Expo development build.
+
 Height, birthday, current weight, and target weight onboarding steps should use
 native-feeling wheel interactions. Height supports ft/in and cm views while
 saving the existing total `heightInches` value. Weights use lb-based wheels and
 continue saving existing lb setup fields. Wheel visuals should use a wide soft
-selected band rather than a bordered card wrapper.
+selected band rather than a bordered card wrapper. Wheels should allow natural
+momentum while committing selected values only after a snapped row settles or a
+row is tapped, so visible values and saved form state remain synchronized.
 
 ## Buttons
 

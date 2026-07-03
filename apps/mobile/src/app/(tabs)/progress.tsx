@@ -13,6 +13,7 @@ import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
+import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 
@@ -154,6 +155,11 @@ export default function ProgressScreen() {
       setSummary(nextSummary);
       setProfile(nextProfile);
       setPreferences(nextPreferences);
+      void syncLauncherIconToMode(nextPreferences.mode).catch(
+        (iconSyncError: unknown) => {
+          console.warn('Unable to sync launcher icon', iconSyncError);
+        },
+      );
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
@@ -224,6 +230,16 @@ export default function ProgressScreen() {
           : { ...current, trackingMode: savedPreferences.mode },
       );
       markDataChanged();
+
+      try {
+        await syncLauncherIconToMode(savedPreferences.mode);
+      } catch (iconSyncError) {
+        setError(
+          `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
+            iconSyncError,
+          )}`,
+        );
+      }
     } catch (switchError) {
       setPreferences(previousPreferences);
       setSummary(previousSummary);

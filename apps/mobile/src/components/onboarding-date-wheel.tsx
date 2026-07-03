@@ -138,7 +138,7 @@ export function OnboardingDateWheel({
     <View className="px-1 py-3">
       <View className="relative">
         <View
-          className="absolute left-0 right-0 rounded-full bg-onboarding-surface"
+          className="absolute left-0 right-0 rounded-full bg-onboarding-surface-muted"
           style={{
             height: wheelItemHeight,
             top: wheelVerticalPadding,
@@ -168,26 +168,38 @@ export function OnboardingDateWheel({
           />
         </View>
       </View>
-      <View className="mt-5 flex-row items-center justify-between rounded-full bg-onboarding-surface px-5 py-3">
-        <AppText
-          variant="caption"
-          className="text-onboarding-muted uppercase tracking-[1px]"
-        >
-          Calculated age
-        </AppText>
-        <AppText
-          variant="heading"
-          className="text-onboarding-text tabular-nums"
-        >
-          {ageLabel === '-' ? '-' : `${ageLabel} years`}
-        </AppText>
+      <View className="mt-5 rounded-[30px] bg-onboarding-surface px-5 py-4">
+        <View className="flex-row items-center justify-between gap-4">
+          <View className="min-w-0 flex-1">
+            <AppText
+              variant="caption"
+              className="text-onboarding-muted uppercase tracking-[1px]"
+            >
+              Selected date
+            </AppText>
+            <AppText
+              variant="heading"
+              className="mt-1 text-onboarding-text tabular-nums"
+            >
+              {selectedDateLabel(clampedValue)}
+            </AppText>
+          </View>
+          <View className="items-end">
+            <AppText
+              variant="caption"
+              className="text-onboarding-muted uppercase tracking-[1px]"
+            >
+              Age
+            </AppText>
+            <AppText
+              variant="heading"
+              className="mt-1 text-onboarding-text tabular-nums"
+            >
+              {ageLabel === '-' ? '-' : ageLabel}
+            </AppText>
+          </View>
+        </View>
       </View>
-      <AppText
-        variant="caption"
-        className="mt-3 text-center text-onboarding-muted"
-      >
-        Selected date: {selectedDateLabel(clampedValue)}
-      </AppText>
     </View>
   );
 }

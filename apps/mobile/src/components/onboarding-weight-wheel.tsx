@@ -85,7 +85,7 @@ export function OnboardingWeightWheel({
 
       <View className="relative">
         <View
-          className="absolute left-0 right-0 rounded-full bg-onboarding-surface"
+          className="absolute left-0 right-0 rounded-full bg-onboarding-surface-muted"
           style={{
             height: wheelItemHeight,
             top: wheelVerticalPadding,

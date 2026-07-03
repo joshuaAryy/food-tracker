@@ -40,6 +40,10 @@ import { OnboardingShell } from '@/components/onboarding-shell';
 import { OnboardingStepTransition } from '@/components/onboarding-step-transition';
 import { OnboardingSummaryGroup } from '@/components/onboarding-summary-group';
 import { OnboardingSupport } from '@/components/onboarding-support';
+import {
+  OnboardingPlanExplainer,
+  OnboardingWeightForecast,
+} from '@/components/onboarding-visual-modules';
 import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
@@ -54,10 +58,12 @@ type StepKey =
   | 'currentWeight'
   | 'goalType'
   | 'targetWeight'
+  | 'progressInfo'
   | 'goalPace'
   | 'activity'
   | 'training'
   | 'timezone'
+  | 'planInfo'
   | 'review';
 
 interface OnboardingForm {
@@ -91,10 +97,12 @@ const steps: readonly StepDefinition[] = [
   { key: 'currentWeight', progressLabel: 'Current weight' },
   { key: 'goalType', progressLabel: 'Setup · Goal' },
   { key: 'targetWeight', progressLabel: 'Target weight' },
+  { key: 'progressInfo', progressLabel: 'Progress direction' },
   { key: 'goalPace', progressLabel: 'Goal pace' },
   { key: 'activity', progressLabel: 'Setup · Activity' },
   { key: 'training', progressLabel: 'Training style' },
   { key: 'timezone', progressLabel: 'Daily timeline' },
+  { key: 'planInfo', progressLabel: 'Starting plan' },
   { key: 'review', progressLabel: 'Setup · Review' },
 ] as const;
 
@@ -630,32 +638,32 @@ export default function OnboardingScreen() {
     stepKey === 'mode' ? (
       <OnboardingSupport
         label="What this changes"
-        value="Your targets stay the same. This only changes how much detail the daily log asks from you."
+        value="Simple keeps logging light. Detailed gives you more nutrition detail when you want it."
       />
     ) : stepKey === 'name' ? (
       <OnboardingSupport
         label="Used for"
-        value="Your name appears in profile and progress context only."
+        value="Your name keeps the app feeling personal."
       />
     ) : stepKey === 'birthday' ? (
       <OnboardingSupport
         label="Why we ask"
-        value="Food Tracker uses age in deterministic target estimates. It does not change your tracking mode."
+        value="Your age helps make your starting targets more useful."
       />
     ) : stepKey === 'sex' ? (
       <OnboardingSupport
-        label="Calculation input"
-        value="This is used only for deterministic calorie target estimates."
+        label="Why we ask"
+        value="This helps personalize your first calorie target."
       />
     ) : stepKey === 'height' ? (
       <OnboardingSupport
-        label="Saved as"
-        value="You can view height in ft/in or cm. Food Tracker saves one total height for setup calculations."
+        label="Units"
+        value="Choose the unit that feels natural. You can change this later."
       />
     ) : stepKey === 'currentWeight' ? (
       <OnboardingSupport
         label="Starting point"
-        value="This anchors your first target estimate and your initial progress history."
+        value="This gives your plan a clear place to start."
       />
     ) : stepKey === 'targetWeight' ? (
       <OnboardingSupport
@@ -664,13 +672,13 @@ export default function OnboardingScreen() {
       />
     ) : stepKey === 'goalPace' ? (
       <OnboardingSupport
-        label="How it is used"
-        value="Pace changes the calorie adjustment. It is a starting point, not a permanent commitment."
+        label="You can change this"
+        value="Choose a pace that feels realistic for your normal week."
       />
     ) : stepKey === 'activity' ? (
       <OnboardingSupport
-        label="Best estimate is enough"
-        value="Choose the closest normal week. The app can be adjusted later as your tracking history grows."
+        label="Best guess is enough"
+        value="Pick the closest normal week. You can adjust this later."
       />
     ) : stepKey === 'timezone' ? (
       <OnboardingSupport
@@ -779,8 +787,8 @@ export default function OnboardingScreen() {
           {stepKey === 'sex' ? (
             <>
               <OnboardingQuestion
-                title="Which sex should we use for your target estimate?"
-                subtitle="This is only used for deterministic calorie calculation."
+                title="Which option should we use for your first targets?"
+                subtitle="This helps personalize your calorie target."
               />
               <Controller
                 control={control}
@@ -801,7 +809,7 @@ export default function OnboardingScreen() {
             <>
               <OnboardingQuestion
                 title="What is your height?"
-                subtitle="Use the unit that feels natural. We save one total height."
+                subtitle="Use the unit that feels natural."
               />
               <Controller
                 control={control}
@@ -836,7 +844,7 @@ export default function OnboardingScreen() {
             <>
               <OnboardingQuestion
                 title="What is your current weight?"
-                subtitle="This anchors your starting estimate and progress history."
+                subtitle="This gives your plan a clear place to start."
               />
               <Controller
                 control={control}
@@ -923,6 +931,20 @@ export default function OnboardingScreen() {
                   {errors.targetWeightLb.message}
                 </AppText>
               )}
+            </>
+          ) : null}
+
+          {stepKey === 'progressInfo' ? (
+            <>
+              <OnboardingQuestion
+                title="Progress works best with direction."
+                subtitle="Your starting weight and target show the direction you are working toward."
+              />
+              <OnboardingWeightForecast
+                currentWeightLb={weightFromValue(values.startingWeightLb)}
+                targetWeightLb={weightFromValue(values.targetWeightLb)}
+                goalType={values.goalType ?? 'maintain'}
+              />
             </>
           ) : null}
 
@@ -1024,11 +1046,21 @@ export default function OnboardingScreen() {
             </>
           ) : null}
 
+          {stepKey === 'planInfo' ? (
+            <>
+              <OnboardingQuestion
+                title="Your first plan starts simple."
+                subtitle="Start by logging what you eat. We will keep your daily targets easy to see."
+              />
+              <OnboardingPlanExplainer mode={mode} />
+            </>
+          ) : null}
+
           {stepKey === 'review' ? (
             <>
               <OnboardingQuestion
                 title="Here is your starting plan."
-                subtitle="Calculated from your setup. You can adjust these targets later."
+                subtitle="Your daily targets are ready. You can adjust them anytime."
               />
               {previewLoading ? (
                 <LoadingState message="Calculating your starting targets…" />

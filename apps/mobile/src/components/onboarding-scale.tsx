@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Pressable, View } from 'react-native';
 import { AppText } from './app-text';
 
@@ -30,63 +31,66 @@ export function OnboardingScale<T extends string>({
 
   return (
     <View className="gap-7">
-      <View className="min-h-[116px] justify-center rounded-[34px] bg-onboarding-surface px-6 py-5">
+      <View className="min-h-[104px] justify-center">
         <AppText
           variant="caption"
-          className="text-onboarding-muted uppercase tracking-[1.5px]"
+          className="text-center text-onboarding-muted uppercase tracking-[1.5px]"
         >
           Selected
         </AppText>
-        <AppText variant="title" className="mt-1 text-onboarding-text">
+        <AppText
+          variant="title"
+          className="mt-2 text-center text-onboarding-text"
+        >
           {selected.label}
         </AppText>
-        <AppText className="mt-2 text-onboarding-muted leading-5">
+        <AppText className="mt-2 text-center text-onboarding-muted leading-5">
           {selected.description}
         </AppText>
       </View>
-      <View className="relative px-1 pb-2">
-        <View className="absolute left-6 right-6 top-[23px] h-1.5 rounded-full bg-onboarding-line" />
-        <View
-          className="absolute left-6 top-[23px] h-1.5 rounded-full bg-onboarding-text"
-          style={{
-            width:
-              options.length <= 1
-                ? 0
-                : `${(selectedIndex / (options.length - 1)) * 100}%`,
-          }}
-        />
-        <View className="flex-row justify-between">
+      <View className="pb-2">
+        <View className="flex-row items-center">
           {options.map((option, index) => {
             const optionSelected = option.value === value;
 
             return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="button"
-                accessibilityState={{ selected: optionSelected }}
-                className="h-12 w-12 items-center justify-center"
-                hitSlop={8}
-                onPress={() => onChange(option.value)}
-              >
-                <View
-                  className={`items-center justify-center rounded-full ${
-                    optionSelected
-                      ? 'h-12 w-12 bg-onboarding-text'
-                      : 'h-9 w-9 bg-onboarding-surface'
-                  }`}
+              <Fragment key={option.value}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: optionSelected }}
+                  className="h-12 w-12 items-center justify-center"
+                  hitSlop={8}
+                  onPress={() => onChange(option.value)}
                 >
-                  <AppText
-                    variant="caption"
-                    className={
+                  <View
+                    className={`h-12 w-12 items-center justify-center rounded-full ${
                       optionSelected
-                        ? 'text-white'
-                        : 'text-onboarding-muted tabular-nums'
-                    }
+                        ? 'bg-onboarding-text'
+                        : 'bg-onboarding-surface-muted'
+                    }`}
                   >
-                    {index + 1}
-                  </AppText>
-                </View>
-              </Pressable>
+                    <AppText
+                      variant="label"
+                      className={
+                        optionSelected
+                          ? 'text-white'
+                          : 'text-onboarding-muted tabular-nums'
+                      }
+                    >
+                      {index + 1}
+                    </AppText>
+                  </View>
+                </Pressable>
+                {index === options.length - 1 ? null : (
+                  <View
+                    className={`mx-1 h-1.5 flex-1 rounded-full ${
+                      index < selectedIndex
+                        ? 'bg-onboarding-text'
+                        : 'bg-onboarding-line'
+                    }`}
+                  />
+                )}
+              </Fragment>
             );
           })}
         </View>

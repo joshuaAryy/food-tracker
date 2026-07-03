@@ -41,7 +41,10 @@ export function OnboardingHeightWheel({
   const centimeters = inchesToCentimeters(clampedHeight);
   const footValues = useMemo(() => valuesBetween(3, 8), []);
   const inchValues = useMemo(() => valuesBetween(0, 11), []);
-  const centimeterValues = useMemo(() => valuesBetween(91, 272), []);
+  const centimeterValues = useMemo(
+    () => Array.from(new Set(valuesBetween(36, 107).map(inchesToCentimeters))),
+    [],
+  );
 
   const selectImperial = (nextFeet: number, nextInches: number) => {
     onHeightInchesChange(clampHeightInches(nextFeet * 12 + nextInches));
@@ -80,7 +83,7 @@ export function OnboardingHeightWheel({
 
       <View className="relative">
         <View
-          className="absolute left-0 right-0 rounded-full bg-onboarding-surface"
+          className="absolute left-0 right-0 rounded-full bg-onboarding-surface-muted"
           style={{
             height: wheelItemHeight,
             top: wheelVerticalPadding,
