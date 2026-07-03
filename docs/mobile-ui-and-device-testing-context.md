@@ -5,9 +5,8 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-The onboarding visual reset has been merged into `main` as a checkpoint, not as
-final visual taste. The next work should move toward
-`phase-6-3-ios-device-testing`.
+The Phase 6.5 visual system reset begins aligning onboarding and Progress/Home
+around the imported reference set in `docs/design-references/phase-6-5/`.
 
 Do not keep spending time on desktop web onboarding polish before native
 testing. Web preview remains useful for fast layout iteration, but it is not
@@ -55,9 +54,20 @@ cards, and Phase 6.1 primitives are implementation tools; they may be rewritten
 or replaced when explicit design feedback shows they are too generic, too
 form-like, or visually weak.
 
-Prefer mostly light, off-white, and white UI with thin borders and subtle
-structure. Primary CTAs should be black/charcoal. Green/sage may exist as a
-secondary or legacy accent, but it should not be the main primary action color.
+Phase 6.5 uses Stoic as the strongest mood/style reference: calm grey canvas,
+confident black typography, soft white modules, restrained icons, purposeful
+hero panels, minimal chrome, and quiet metadata. Cal AI is useful for
+nutrition/onboarding flow structure and result payoff, not exact visual style.
+Lifesum/Cronometer-style visuals and Apple Health card spam should not be
+copied. Green health references are picker/functionality references, not green
+CTA direction.
+
+Prefer mostly light, off-white, and white UI with subtle structure. Onboarding
+should move away from bordered-card stacks and rely more on open layouts,
+native-feeling wheel zones, soft selected bands, typography, spacing, and
+subtle fills. Borders should be rare and purposeful. Primary CTAs should be
+black/charcoal. Green/sage may exist as a secondary or legacy accent, but it
+should not be the main primary action color.
 
 Avoid:
 
@@ -82,8 +92,8 @@ Avoid:
 - Bottom CTA should be fixed and black/charcoal.
 - Use a top back arrow where needed; do not add a secondary bottom Back button.
 - The review screen should feel like "Here is your starting plan" with a mini
-  dashboard preview, receipt-style summary, and "Calculated from your setup" as
-  secondary copy.
+  dashboard preview, weight-direction context, quiet plan inputs, and
+  "Calculated from your setup" as secondary copy.
 
 ## Birthday Wheel Requirements
 
@@ -105,6 +115,12 @@ This is the highest-priority functional onboarding UI requirement. A visually
 nicer wheel is not acceptable if native iPhone scroll momentum, snapping, or
 the selected date state can desynchronize from age or submitted `birthDate`.
 
+The Height step should also use wheel interaction. It supports ft/in with two
+wheel columns and cm with one wheel column, while saving the existing total
+`heightInches` value. Current weight and target weight use lb-based wheels and
+continue saving existing setup fields. Target weight should make the delta from
+current weight obvious.
+
 ## Branding And Icon Guardrails
 
 New-user onboarding and setup-loading branding should default to the simple
@@ -112,10 +128,20 @@ mode mark. The mark should be subtle inside onboarding, usually 24-32px, and may
 be omitted if it crowds the header. Use it to improve identity, not as repeated
 decoration.
 
+Use the actual provided PNG mode icons from `apps/mobile/src/assets/brand/` for
+in-app brand marks. Do not recreate the logo with React Native view shapes. The
+simple icon is the default new-user/onboarding mark, and the complex icon is for
+complex-mode identity.
+
 Do not add static Expo launcher icon or native splash configuration unless the
 actual icon assets are placed in a tracked assets folder and the diff is
 reviewed. In-app brand mark usage is allowed. Generated native folders must
 remain ignored and uncommitted.
+
+The Progress/Home mode badge may switch between Simple and Complex only through
+the existing tracking-preferences client/API. Do not add endpoints, schemas, or
+backend behavior for that interaction. Failed updates should rollback or surface
+a safe error state.
 
 ## Recent UI Issues Not To Repeat
 
@@ -225,8 +251,8 @@ needed before treating the visual system as settled.
   tap-only rows.
 - Onboarding should move away from old card-heavy styling instead of preserving
   previous visual primitives by default.
-- Future onboarding visual decisions should later inform the main app pages so
-  the whole app feels cohesive.
+- Onboarding and Progress/Home should use the same visual system so setup and
+  the first main screen feel like one designed product.
 
 ## Next-Phase Priorities
 
@@ -235,6 +261,7 @@ needed before treating the visual system as settled.
 3. Keep generated native folders ignored unless explicitly approved later.
 4. Use `apps/mobile/.env.local` with the Mac LAN IP for physical iPhone API
    access.
-5. Use native iPhone findings to plan the next onboarding polish pass.
-6. Let the next onboarding visual pass inform the main app's future visual
-   identity work.
+5. Use native iPhone findings to judge the Phase 6.5 onboarding and
+   Progress/Home reset.
+6. Keep the birthday wheel scroll/snap/state behavior intact while iterating on
+   visuals.

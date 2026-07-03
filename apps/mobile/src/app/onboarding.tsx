@@ -19,6 +19,7 @@ import {
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
+import { AppLogo } from '@/components/app-logo';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
@@ -27,6 +28,10 @@ import {
   OnboardingDateWheel,
   type DateWheelValue,
 } from '@/components/onboarding-date-wheel';
+import {
+  OnboardingHeightWheel,
+  type HeightUnit,
+} from '@/components/onboarding-height-wheel';
 import { OnboardingPanel } from '@/components/onboarding-panel';
 import { OnboardingPlanPreview } from '@/components/onboarding-plan-preview';
 import { OnboardingQuestion } from '@/components/onboarding-question';
@@ -35,6 +40,7 @@ import { OnboardingShell } from '@/components/onboarding-shell';
 import { OnboardingStepTransition } from '@/components/onboarding-step-transition';
 import { OnboardingSummaryGroup } from '@/components/onboarding-summary-group';
 import { OnboardingSupport } from '@/components/onboarding-support';
+import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
@@ -59,9 +65,8 @@ interface OnboardingForm {
   birthYear: string;
   birthMonth: string;
   birthDay: string;
-  sex: 'male' | 'female';
-  heightFeet: string;
   heightInches: string;
+  sex: 'male' | 'female';
   startingWeightLb: string;
   targetWeightLb: string;
   timezone: string;
@@ -140,13 +145,6 @@ const goalPaceOptions: Record<GoalType, ReadonlyArray<GoalPace | 'none'>> = {
   maintain: ['none'],
   gain: ['lean_bulk', 'moderate_bulk', 'aggressive_bulk'],
 };
-
-const trackingOptions = TRACKING_MODES.map((value) => ({
-  value,
-  label: value === 'simple' ? 'Simple tracking' : 'Detailed tracking',
-  description: trackingDescriptions[value],
-  meta: value === 'simple' ? 'Core' : 'Full',
-}));
 
 const goalOptions = GOAL_TYPES.map((value) => ({
   value,
@@ -265,35 +263,47 @@ function calculateAgeLabel(values: {
   return Number.isFinite(age) && age >= 0 ? String(age) : '—';
 }
 
-function heightFromParts(values: {
-  heightFeet: string;
-  heightInches: string;
-}): number | null {
-  const feet = Number(values.heightFeet);
-  const inches = Number(values.heightInches);
+function heightFromValue(value: string): number | null {
+  const heightInches = Number(value);
 
-  if (
-    !Number.isInteger(feet) ||
-    !Number.isInteger(inches) ||
-    feet < 0 ||
-    inches < 0 ||
-    inches > 11
-  ) {
+  if (!Number.isInteger(heightInches) || heightInches <= 0) {
     return null;
   }
 
-  const total = feet * 12 + inches;
-  return total > 0 ? total : null;
+  return heightInches;
 }
 
 function formatHeight(values: Partial<OnboardingForm>): string {
-  const height = heightFromParts({
-    heightFeet: values.heightFeet ?? '',
-    heightInches: values.heightInches ?? '',
-  });
+  const height = heightFromValue(values.heightInches ?? '');
 
   if (height === null) return '—';
-  return `${Math.floor(height / 12)} ft ${height % 12} in`;
+  return `${Math.floor(height / 12)} ft ${height % 12} in · ${Math.round(
+    height * 2.54,
+  )} cm`;
+}
+
+function weightFromValue(value: string | undefined): number {
+  const weight = Number(value);
+
+  return Number.isFinite(weight) && weight > 0 ? weight : 180;
+}
+
+function heightWheelValue(value: string | undefined): number {
+  const height = heightFromValue(value ?? '');
+
+  return height ?? 68;
+}
+
+function weightDirectionLabel(values: Partial<OnboardingForm>): string {
+  const current = weightFromValue(values.startingWeightLb);
+  const target = weightFromValue(values.targetWeightLb);
+  const delta = Math.round((target - current) * 10) / 10;
+
+  if (delta === 0) return 'Hold steady while building tracking consistency.';
+
+  return `${Math.abs(delta).toFixed(1)} lb ${
+    delta > 0 ? 'up' : 'down'
+  } from your starting point.`;
 }
 
 function isValidTimezone(value: string): boolean {
@@ -311,7 +321,7 @@ function setupInput(values: OnboardingForm): SetupInput {
     throw new Error('Enter a valid birthday using year, month, and day.');
   }
 
-  const heightInches = heightFromParts(values);
+  const heightInches = heightFromValue(values.heightInches);
   if (heightInches === null) {
     throw new Error('Enter a valid height.');
   }
@@ -352,9 +362,9 @@ function ContinueButton({
 }) {
   return (
     <AppButton
-      className={`min-h-[58px] rounded-[24px] ${
+      className={`min-h-[62px] rounded-full ${
         disabled
-          ? 'border-onboarding-line bg-onboarding-surface-muted'
+          ? 'border-onboarding-surface-muted bg-onboarding-surface-muted'
           : 'border-onboarding-text bg-onboarding-text'
       }`}
       disabled={disabled}
@@ -378,7 +388,7 @@ function SegmentedChoice<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <View className="flex-row rounded-[24px] bg-onboarding-surface p-1 shadow-sm">
+    <View className="flex-row rounded-full bg-onboarding-surface p-1">
       {values.map((option) => {
         const selected = value === option;
 
@@ -387,7 +397,7 @@ function SegmentedChoice<T extends string>({
             key={option}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            className={`min-h-[54px] flex-1 items-center justify-center rounded-[18px] px-3 ${
+            className={`min-h-[56px] flex-1 items-center justify-center rounded-full px-3 ${
               selected ? 'bg-onboarding-text' : 'bg-transparent'
             }`}
             onPress={() => onChange(option)}
@@ -398,6 +408,71 @@ function SegmentedChoice<T extends string>({
             >
               {labels[option]}
             </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function TrackingModeChoice({
+  value,
+  onChange,
+}: {
+  value: TrackingMode;
+  onChange: (value: TrackingMode) => void;
+}) {
+  return (
+    <View className="gap-3">
+      {TRACKING_MODES.map((option) => {
+        const selected = option === value;
+        const simple = option === 'simple';
+
+        return (
+          <Pressable
+            key={option}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            className={`min-h-[108px] rounded-[34px] px-5 py-4 active:opacity-75 ${
+              selected ? 'bg-onboarding-surface' : 'bg-transparent'
+            }`}
+            onPress={() => onChange(option)}
+          >
+            <View className="flex-row items-center gap-4">
+              <View className="h-14 w-14 items-center justify-center rounded-full bg-onboarding-surface">
+                <AppLogo
+                  size={simple ? 32 : 34}
+                  mode={simple ? 'simple' : 'complex'}
+                  tone="onboarding"
+                />
+              </View>
+              <View className="min-w-0 flex-1">
+                <View className="flex-row items-center justify-between gap-3">
+                  <AppText variant="heading" className="text-onboarding-text">
+                    {simple ? 'Simple tracking' : 'Detailed tracking'}
+                  </AppText>
+                  <View
+                    className={`rounded-full px-3 py-1 ${
+                      selected
+                        ? 'bg-onboarding-text'
+                        : 'bg-onboarding-surface-muted'
+                    }`}
+                  >
+                    <AppText
+                      variant="caption"
+                      className={
+                        selected ? 'text-white' : 'text-onboarding-muted'
+                      }
+                    >
+                      {simple ? 'Core' : 'Full'}
+                    </AppText>
+                  </View>
+                </View>
+                <AppText className="mt-2 text-onboarding-muted leading-5">
+                  {trackingDescriptions[option]}
+                </AppText>
+              </View>
+            </View>
           </Pressable>
         );
       })}
@@ -416,6 +491,7 @@ export default function OnboardingScreen() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<SetupPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [heightUnit, setHeightUnit] = useState<HeightUnit>('imperial');
 
   const {
     control,
@@ -431,10 +507,9 @@ export default function OnboardingScreen() {
       birthMonth: String(defaultBirthDate.month),
       birthDay: String(defaultBirthDate.day),
       sex: 'male',
-      heightFeet: '',
-      heightInches: '',
-      startingWeightLb: '',
-      targetWeightLb: '',
+      heightInches: '68',
+      startingWeightLb: '180',
+      targetWeightLb: '180',
       timezone,
       activityLevel: 'lightly_active',
       goalType: 'maintain',
@@ -505,7 +580,7 @@ export default function OnboardingScreen() {
       setError('Choose a valid birthday.');
       return false;
     }
-    if (stepKey === 'height') return trigger(['heightFeet', 'heightInches']);
+    if (stepKey === 'height') return trigger('heightInches');
     if (stepKey === 'currentWeight') return trigger('startingWeightLb');
     if (stepKey === 'targetWeight') return trigger('targetWeightLb');
     if (stepKey === 'timezone') return trigger('timezone');
@@ -520,10 +595,7 @@ export default function OnboardingScreen() {
 
     if (stepKey === 'goalType') {
       const nextGoalType = getValues('goalType');
-      if (
-        nextGoalType === 'maintain' &&
-        getValues('targetWeightLb').trim() === ''
-      ) {
+      if (nextGoalType === 'maintain') {
         setValue('targetWeightLb', getValues('startingWeightLb'), {
           shouldDirty: true,
           shouldValidate: true,
@@ -578,7 +650,7 @@ export default function OnboardingScreen() {
     ) : stepKey === 'height' ? (
       <OnboardingSupport
         label="Saved as"
-        value="Feet and inches are stored as one total height for the setup calculation."
+        value="You can view height in ft/in or cm. Food Tracker saves one total height for setup calculations."
       />
     ) : stepKey === 'currentWeight' ? (
       <OnboardingSupport
@@ -640,7 +712,7 @@ export default function OnboardingScreen() {
         direction={navigationDirection}
         onTransitioningChange={setTransitioning}
       >
-        <View className="flex-1 gap-5 pb-4">
+        <View className="flex-1 gap-7 pb-4">
           {error === null ? null : (
             <ErrorState title="Onboarding needs attention" message={error} />
           )}
@@ -655,8 +727,7 @@ export default function OnboardingScreen() {
                 control={control}
                 name="mode"
                 render={({ field }) => (
-                  <OnboardingChoiceDeck
-                    options={trackingOptions}
+                  <TrackingModeChoice
                     value={field.value}
                     onChange={field.onChange}
                   />
@@ -679,7 +750,7 @@ export default function OnboardingScreen() {
                   render={({ field }) => (
                     <AppInput
                       label="Name"
-                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      className="border-transparent bg-onboarding-surface-muted text-onboarding-text"
                       autoCapitalize="words"
                       value={field.value}
                       onBlur={field.onBlur}
@@ -730,69 +801,34 @@ export default function OnboardingScreen() {
             <>
               <OnboardingQuestion
                 title="What is your height?"
-                subtitle="Use feet and inches. We save it as one total height."
+                subtitle="Use the unit that feels natural. We save one total height."
               />
-              <OnboardingPanel>
-                <View className="flex-row gap-3">
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="heightFeet"
-                      rules={{
-                        required: 'Feet are required.',
-                        validate: () =>
-                          heightFromParts(getValues()) === null
-                            ? 'Enter a valid height.'
-                            : true,
-                      }}
-                      render={({ field }) => (
-                        <AppInput
-                          label="Feet"
-                          className="bg-onboarding-surface-muted text-onboarding-text"
-                          placeholder="5"
-                          keyboardType="number-pad"
-                          value={field.value}
-                          onBlur={field.onBlur}
-                          onChangeText={field.onChange}
-                          error={errors.heightFeet?.message}
-                        />
-                      )}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Controller
-                      control={control}
-                      name="heightInches"
-                      rules={{
-                        required: 'Inches are required.',
-                        validate: () =>
-                          heightFromParts(getValues()) === null
-                            ? 'Use 0 through 11 inches.'
-                            : true,
-                      }}
-                      render={({ field }) => (
-                        <AppInput
-                          label="Inches"
-                          className="bg-onboarding-surface-muted text-onboarding-text"
-                          placeholder="10"
-                          keyboardType="number-pad"
-                          value={field.value}
-                          onBlur={field.onBlur}
-                          onChangeText={field.onChange}
-                          error={errors.heightInches?.message}
-                        />
-                      )}
-                    />
-                  </View>
-                </View>
-                <View className="border-t border-onboarding-line pt-4">
-                  <SummaryRow
-                    label="Height"
-                    value={formatHeight(values)}
-                    divided={false}
+              <Controller
+                control={control}
+                name="heightInches"
+                rules={{
+                  required: 'Height is required.',
+                  validate: (value) =>
+                    heightFromValue(value) === null
+                      ? 'Choose a valid height.'
+                      : true,
+                }}
+                render={({ field }) => (
+                  <OnboardingHeightWheel
+                    heightInches={heightWheelValue(field.value)}
+                    unit={heightUnit}
+                    onUnitChange={setHeightUnit}
+                    onHeightInchesChange={(nextHeight) =>
+                      field.onChange(String(nextHeight))
+                    }
                   />
-                </View>
-              </OnboardingPanel>
+                )}
+              />
+              {errors.heightInches?.message === undefined ? null : (
+                <AppText variant="caption" className="text-error">
+                  {errors.heightInches.message}
+                </AppText>
+              )}
             </>
           ) : null}
 
@@ -802,28 +838,29 @@ export default function OnboardingScreen() {
                 title="What is your current weight?"
                 subtitle="This anchors your starting estimate and progress history."
               />
-              <OnboardingPanel>
-                <Controller
-                  control={control}
-                  name="startingWeightLb"
-                  rules={{
-                    required: 'Current weight is required.',
-                    validate: (value) =>
-                      Number(value) > 0 ? true : 'Enter a weight above zero.',
-                  }}
-                  render={({ field }) => (
-                    <AppInput
-                      label="Current weight (lb)"
-                      className="bg-onboarding-surface-muted text-onboarding-text"
-                      keyboardType="decimal-pad"
-                      value={field.value}
-                      onBlur={field.onBlur}
-                      onChangeText={field.onChange}
-                      error={errors.startingWeightLb?.message}
-                    />
-                  )}
-                />
-              </OnboardingPanel>
+              <Controller
+                control={control}
+                name="startingWeightLb"
+                rules={{
+                  required: 'Current weight is required.',
+                  validate: (value) =>
+                    Number(value) > 0 ? true : 'Choose a weight above zero.',
+                }}
+                render={({ field }) => (
+                  <OnboardingWeightWheel
+                    label="Current weight"
+                    valueLb={weightFromValue(field.value)}
+                    onChange={(nextWeight) =>
+                      field.onChange(nextWeight.toFixed(1))
+                    }
+                  />
+                )}
+              />
+              {errors.startingWeightLb?.message === undefined ? null : (
+                <AppText variant="caption" className="text-error">
+                  {errors.startingWeightLb.message}
+                </AppText>
+              )}
             </>
           ) : null}
 
@@ -862,28 +899,30 @@ export default function OnboardingScreen() {
                 title="What weight are you working toward?"
                 subtitle="Use the target that feels practical right now. You can edit it later."
               />
-              <OnboardingPanel>
-                <Controller
-                  control={control}
-                  name="targetWeightLb"
-                  rules={{
-                    required: 'Target weight is required.',
-                    validate: (value) =>
-                      Number(value) > 0 ? true : 'Enter a weight above zero.',
-                  }}
-                  render={({ field }) => (
-                    <AppInput
-                      label="Target weight (lb)"
-                      className="bg-onboarding-surface-muted text-onboarding-text"
-                      keyboardType="decimal-pad"
-                      value={field.value}
-                      onBlur={field.onBlur}
-                      onChangeText={field.onChange}
-                      error={errors.targetWeightLb?.message}
-                    />
-                  )}
-                />
-              </OnboardingPanel>
+              <Controller
+                control={control}
+                name="targetWeightLb"
+                rules={{
+                  required: 'Target weight is required.',
+                  validate: (value) =>
+                    Number(value) > 0 ? true : 'Choose a weight above zero.',
+                }}
+                render={({ field }) => (
+                  <OnboardingWeightWheel
+                    label="Target weight"
+                    referenceLb={weightFromValue(values.startingWeightLb)}
+                    valueLb={weightFromValue(field.value)}
+                    onChange={(nextWeight) =>
+                      field.onChange(nextWeight.toFixed(1))
+                    }
+                  />
+                )}
+              />
+              {errors.targetWeightLb?.message === undefined ? null : (
+                <AppText variant="caption" className="text-error">
+                  {errors.targetWeightLb.message}
+                </AppText>
+              )}
             </>
           ) : null}
 
@@ -971,7 +1010,7 @@ export default function OnboardingScreen() {
                   render={({ field }) => (
                     <AppInput
                       label="Timezone"
-                      className="bg-onboarding-surface-muted text-onboarding-text"
+                      className="border-transparent bg-onboarding-surface-muted text-onboarding-text"
                       hint="Detected from this device."
                       autoCapitalize="none"
                       value={field.value}
@@ -1010,7 +1049,48 @@ export default function OnboardingScreen() {
                           )
                     }
                   />
-                  <OnboardingSummaryGroup title="Setup receipt">
+                  <View className="gap-4 rounded-[34px] bg-onboarding-surface-muted px-5 py-5">
+                    <View className="flex-row items-center justify-between gap-4">
+                      <View className="min-w-0 flex-1">
+                        <AppText
+                          variant="caption"
+                          className="text-onboarding-muted uppercase tracking-[1.3px]"
+                        >
+                          Weight direction
+                        </AppText>
+                        <AppText
+                          variant="heading"
+                          className="mt-1 text-onboarding-text"
+                        >
+                          {label(values.goalType ?? 'maintain')}
+                        </AppText>
+                      </View>
+                      <View className="h-12 w-12 items-center justify-center rounded-full bg-onboarding-surface">
+                        <AppText
+                          variant="heading"
+                          className="text-onboarding-text"
+                        >
+                          {values.goalType === 'gain'
+                            ? '+'
+                            : values.goalType === 'lose'
+                              ? '-'
+                              : '='}
+                        </AppText>
+                      </View>
+                    </View>
+                    <View className="h-2 overflow-hidden rounded-full bg-onboarding-surface">
+                      <View
+                        className="h-full rounded-full bg-onboarding-text"
+                        style={{
+                          width: values.goalType === 'maintain' ? '50%' : '72%',
+                        }}
+                      />
+                    </View>
+                    <AppText className="text-onboarding-muted">
+                      {weightDirectionLabel(values)}
+                    </AppText>
+                  </View>
+                  <OnboardingSummaryGroup title="Plan inputs">
                     <SummaryRow label="Name" value={values.name ?? '—'} />
                     <SummaryRow
                       label="Age"

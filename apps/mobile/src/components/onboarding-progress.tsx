@@ -16,13 +16,16 @@ export function OnboardingProgress({
 
   return (
     <View className="min-w-0 flex-1 gap-2">
-      <View className="h-1 overflow-hidden rounded-full bg-onboarding-line">
+      <View className="h-0.5 overflow-hidden rounded-full bg-onboarding-line">
         <View
           className="h-full rounded-full bg-onboarding-text"
           style={{ width: `${(safeCurrentStep / totalSteps) * 100}%` }}
         />
       </View>
-      <AppText variant="caption" className="text-onboarding-muted">
+      <AppText
+        variant="caption"
+        className="text-right text-onboarding-muted uppercase tracking-[1.5px]"
+      >
         {label}
       </AppText>
     </View>

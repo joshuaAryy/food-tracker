@@ -1,10 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { AppText } from './app-text';
 
-const darkPrimaryText = '#F7F7F4';
-const darkSecondaryText = '#C9CCC4';
-const darkTertiaryText = '#A8ADA2';
-
 interface ScaleOption<T extends string> {
   value: T;
   label: string;
@@ -33,33 +29,25 @@ export function OnboardingScale<T extends string>({
   }
 
   return (
-    <View className="rounded-[28px] bg-onboarding-surface p-5 shadow-sm">
-      <View className="min-h-[108px] justify-center rounded-[22px] bg-onboarding-text px-5 py-4">
+    <View className="gap-7">
+      <View className="min-h-[116px] justify-center rounded-[34px] bg-onboarding-surface px-6 py-5">
         <AppText
           variant="caption"
-          className="text-white"
-          style={{ color: darkTertiaryText }}
+          className="text-onboarding-muted uppercase tracking-[1.5px]"
         >
-          SELECTED
+          Selected
         </AppText>
-        <AppText
-          variant="title"
-          className="mt-1 text-white"
-          style={{ color: darkPrimaryText }}
-        >
+        <AppText variant="title" className="mt-1 text-onboarding-text">
           {selected.label}
         </AppText>
-        <AppText
-          className="mt-2 text-white leading-5"
-          style={{ color: darkSecondaryText }}
-        >
+        <AppText className="mt-2 text-onboarding-muted leading-5">
           {selected.description}
         </AppText>
       </View>
-      <View className="relative mt-7 px-1 pb-2">
-        <View className="absolute left-6 right-6 top-[23px] h-1 rounded-full bg-onboarding-line" />
+      <View className="relative px-1 pb-2">
+        <View className="absolute left-6 right-6 top-[23px] h-1.5 rounded-full bg-onboarding-line" />
         <View
-          className="absolute left-6 top-[23px] h-1 rounded-full bg-onboarding-text"
+          className="absolute left-6 top-[23px] h-1.5 rounded-full bg-onboarding-text"
           style={{
             width:
               options.length <= 1
@@ -81,10 +69,10 @@ export function OnboardingScale<T extends string>({
                 onPress={() => onChange(option.value)}
               >
                 <View
-                  className={`items-center justify-center rounded-full border ${
+                  className={`items-center justify-center rounded-full ${
                     optionSelected
-                      ? 'h-12 w-12 border-onboarding-text bg-onboarding-text'
-                      : 'h-9 w-9 border-onboarding-line bg-onboarding-surface-muted'
+                      ? 'h-12 w-12 bg-onboarding-text'
+                      : 'h-9 w-9 bg-onboarding-surface'
                   }`}
                 >
                   <AppText
@@ -93,9 +81,6 @@ export function OnboardingScale<T extends string>({
                       optionSelected
                         ? 'text-white'
                         : 'text-onboarding-muted tabular-nums'
-                    }
-                    style={
-                      optionSelected ? { color: darkPrimaryText } : undefined
                     }
                   >
                     {index + 1}
@@ -106,7 +91,7 @@ export function OnboardingScale<T extends string>({
           })}
         </View>
       </View>
-      <View className="mt-2 flex-row justify-between gap-3">
+      <View className="flex-row justify-between gap-3">
         <AppText variant="caption" className="text-onboarding-muted">
           {options[0]?.label}
         </AppText>

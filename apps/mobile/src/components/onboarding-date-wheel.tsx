@@ -1,7 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react';
-import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { Pressable, ScrollView, View } from 'react-native';
+import { useEffect, useMemo } from 'react';
+import { View } from 'react-native';
 import { AppText } from './app-text';
+import {
+  OnboardingWheelColumn,
+  valuesBetween,
+  wheelItemHeight,
+  wheelVerticalPadding,
+} from './onboarding-wheel-column';
 
 const monthLabels = [
   'Jan',
@@ -17,26 +22,10 @@ const monthLabels = [
   'Nov',
   'Dec',
 ] as const;
-const mutedWheelText = '#7A7F75';
-const darkPrimaryText = '#F7F7F4';
-const darkSecondaryText = '#C9CCC4';
-const wheelItemHeight = 46;
-const wheelVisibleRows = 5;
-const wheelVerticalPadding = (wheelItemHeight * (wheelVisibleRows - 1)) / 2;
-const wheelHeight = wheelItemHeight * wheelVisibleRows;
-
 export interface DateWheelValue {
   month: number;
   day: number;
   year: number;
-}
-
-interface WheelColumnProps {
-  accessibilityLabel: string;
-  values: readonly number[];
-  selectedValue: number;
-  labelForValue: (value: number) => string;
-  onSelect: (value: number) => void;
 }
 
 interface OnboardingDateWheelProps {
@@ -71,10 +60,6 @@ export function clampDateWheelValue(value: DateWheelValue): DateWheelValue {
   return { month, day, year };
 }
 
-function valuesBetween(start: number, end: number): number[] {
-  return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-}
-
 function dateWheelAgeLabel(value: DateWheelValue): string {
   const birthDate = new Date(Date.UTC(value.year, value.month - 1, value.day));
   const now = new Date();
@@ -104,105 +89,6 @@ function dateWheelAgeLabel(value: DateWheelValue): string {
 function selectedDateLabel(value: DateWheelValue): string {
   const month = monthLabels[value.month - 1] ?? String(value.month);
   return `${month} ${value.day}, ${value.year}`;
-}
-
-function WheelColumn({
-  accessibilityLabel,
-  values,
-  selectedValue,
-  labelForValue,
-  onSelect,
-}: WheelColumnProps) {
-  const scrollRef = useRef<ScrollView>(null);
-  const selectedIndex = Math.max(values.indexOf(selectedValue), 0);
-  const scrollToIndex = (index: number, animated: boolean) => {
-    scrollRef.current?.scrollTo({
-      y: Math.max(index, 0) * wheelItemHeight,
-      animated,
-    });
-  };
-
-  useEffect(() => {
-    scrollToIndex(selectedIndex, false);
-  }, [selectedIndex, values.length]);
-
-  const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.min(
-      Math.max(
-        Math.round(event.nativeEvent.contentOffset.y / wheelItemHeight),
-        0,
-      ),
-      values.length - 1,
-    );
-    const nextValue = values[nextIndex];
-
-    if (nextValue !== undefined && nextValue !== selectedValue) {
-      onSelect(nextValue);
-    } else {
-      scrollToIndex(selectedIndex, true);
-    }
-  };
-  const handleDragEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const velocityY = event.nativeEvent.velocity?.y ?? 0;
-
-    if (Math.abs(velocityY) < 0.1) {
-      handleScrollEnd(event);
-    }
-  };
-
-  return (
-    <View
-      accessibilityLabel={accessibilityLabel}
-      className="flex-1 overflow-hidden"
-      style={{ height: wheelHeight }}
-    >
-      <ScrollView
-        ref={scrollRef}
-        bounces={false}
-        decelerationRate="fast"
-        disableIntervalMomentum
-        keyboardShouldPersistTaps="handled"
-        onMomentumScrollEnd={handleScrollEnd}
-        onScrollEndDrag={handleDragEnd}
-        scrollEventThrottle={16}
-        showsVerticalScrollIndicator={false}
-        snapToAlignment="start"
-        snapToInterval={wheelItemHeight}
-        contentContainerStyle={{
-          paddingBottom: wheelVerticalPadding,
-          paddingTop: wheelVerticalPadding,
-        }}
-      >
-        {values.map((item, index) => {
-          const selected = item === selectedValue;
-
-          return (
-            <Pressable
-              key={item}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              className="items-center justify-center px-1 active:opacity-70"
-              style={{ height: wheelItemHeight }}
-              onPress={() => {
-                scrollToIndex(index, true);
-                onSelect(item);
-              }}
-            >
-              <AppText
-                variant={selected ? 'heading' : 'body'}
-                className={`text-center tabular-nums ${
-                  selected ? 'text-onboarding-text' : 'text-onboarding-muted'
-                }`}
-                style={selected ? undefined : { color: mutedWheelText }}
-              >
-                {labelForValue(item)}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
 }
 
 export function OnboardingDateWheel({
@@ -249,39 +135,31 @@ export function OnboardingDateWheel({
   };
 
   return (
-    <View className="overflow-hidden rounded-[26px] bg-onboarding-surface px-4 py-5 shadow-sm">
+    <View className="px-1 py-3">
       <View className="relative">
         <View
-          className="absolute left-0 right-0 rounded-[18px] bg-onboarding-accent-soft"
+          className="absolute left-0 right-0 rounded-full bg-onboarding-surface"
           style={{
             height: wheelItemHeight,
             top: wheelVerticalPadding,
           }}
         />
-        <View
-          className="absolute left-0 right-0 h-px bg-onboarding-line"
-          style={{ top: wheelVerticalPadding }}
-        />
-        <View
-          className="absolute left-0 right-0 h-px bg-onboarding-line"
-          style={{ top: wheelVerticalPadding + wheelItemHeight }}
-        />
-        <View className="flex-row gap-2">
-          <WheelColumn
+        <View className="flex-row gap-2 px-2">
+          <OnboardingWheelColumn
             accessibilityLabel="Birth month"
             values={months}
             selectedValue={clampedValue.month}
             labelForValue={(month) => monthLabels[month - 1] ?? String(month)}
             onSelect={(month) => updateValue({ month })}
           />
-          <WheelColumn
+          <OnboardingWheelColumn
             accessibilityLabel="Birth day"
             values={days}
             selectedValue={clampedValue.day}
             labelForValue={(day) => String(day)}
             onSelect={(day) => updateValue({ day })}
           />
-          <WheelColumn
+          <OnboardingWheelColumn
             accessibilityLabel="Birth year"
             values={years}
             selectedValue={clampedValue.year}
@@ -290,18 +168,16 @@ export function OnboardingDateWheel({
           />
         </View>
       </View>
-      <View className="mt-5 flex-row items-center justify-between rounded-[18px] bg-onboarding-text px-4 py-3">
+      <View className="mt-5 flex-row items-center justify-between rounded-full bg-onboarding-surface px-5 py-3">
         <AppText
           variant="caption"
-          className="text-white"
-          style={{ color: darkSecondaryText }}
+          className="text-onboarding-muted uppercase tracking-[1px]"
         >
           Calculated age
         </AppText>
         <AppText
           variant="heading"
-          className="text-white tabular-nums"
-          style={{ color: darkPrimaryText }}
+          className="text-onboarding-text tabular-nums"
         >
           {ageLabel === '-' ? '-' : `${ageLabel} years`}
         </AppText>

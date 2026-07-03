@@ -11,15 +11,15 @@ export function OnboardingQuestion({
   subtitle,
 }: OnboardingQuestionProps) {
   return (
-    <View className="gap-2">
+    <View className="items-center gap-3">
       <AppText
         variant="title"
-        className="text-onboarding-text text-[31px] leading-[36px]"
+        className="max-w-[360px] text-center text-onboarding-text text-[34px] leading-[39px]"
       >
         {title}
       </AppText>
       {subtitle === undefined ? null : (
-        <AppText className="max-w-[360px] text-onboarding-muted leading-6">
+        <AppText className="max-w-[330px] text-center text-onboarding-muted text-[17px] leading-6">
           {subtitle}
         </AppText>
       )}

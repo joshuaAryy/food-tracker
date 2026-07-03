@@ -8,14 +8,14 @@ interface OnboardingSupportProps {
 
 export function OnboardingSupport({ label, value }: OnboardingSupportProps) {
   return (
-    <View className="max-w-[360px] gap-1">
+    <View className="max-w-[330px] items-center gap-2">
       <AppText
         variant="caption"
-        className="text-onboarding-muted uppercase tracking-[1px]"
+        className="text-center text-onboarding-muted uppercase tracking-[1.5px]"
       >
         {label}
       </AppText>
-      <AppText className="text-onboarding-muted text-[14px] leading-5">
+      <AppText className="text-center text-onboarding-muted text-[15px] leading-6">
         {value}
       </AppText>
     </View>

@@ -20,44 +20,39 @@ export function OnboardingChoiceDeck<T extends string>({
   onChange,
 }: OnboardingChoiceDeckProps<T>) {
   return (
-    <View className="overflow-hidden rounded-[28px] bg-onboarding-surface shadow-sm">
+    <View className="gap-3">
       {options.map((option, index) => {
         const selected = option.value === value;
-        const last = index === options.length - 1;
 
         return (
           <Pressable
             key={option.value}
             accessibilityRole="button"
             accessibilityState={{ selected }}
-            className={`min-h-[98px] px-4 py-4 active:opacity-75 ${
-              selected ? 'bg-onboarding-accent-soft' : 'bg-onboarding-surface'
-            } ${last ? '' : 'border-b border-onboarding-line'}`}
+            className={`min-h-[78px] justify-center rounded-full px-5 py-4 active:opacity-75 ${
+              selected ? 'bg-onboarding-surface' : 'bg-transparent'
+            }`}
             onPress={() => onChange(option.value)}
           >
-            <View className="flex-row items-start gap-4">
+            <View className="flex-row items-center gap-4">
               <View
-                className={`mt-1 h-10 w-[3px] rounded-full ${
-                  selected ? 'bg-onboarding-text' : 'bg-onboarding-line'
-                }`}
-              />
-              <View
-                className={`h-9 w-9 items-center justify-center rounded-full ${
-                  selected
-                    ? 'bg-onboarding-text'
-                    : 'bg-onboarding-surface-muted'
+                className={`h-8 w-8 items-center justify-center rounded-full ${
+                  selected ? 'bg-onboarding-text' : 'bg-onboarding-surface'
                 }`}
               >
                 <AppText
-                  variant="label"
+                  variant="caption"
                   className={selected ? 'text-white' : 'text-onboarding-text'}
                 >
-                  {String(index + 1).padStart(2, '0')}
+                  {selected ? '✓' : String(index + 1)}
                 </AppText>
               </View>
               <View className="min-w-0 flex-1">
                 <View className="flex-row items-start justify-between gap-3">
-                  <AppText variant="heading" className="text-onboarding-text">
+                  <AppText
+                    variant="heading"
+                    className="min-w-0 flex-1 text-onboarding-text"
+                  >
                     {option.label}
                   </AppText>
                   {option.meta === undefined ? null : (
@@ -69,7 +64,7 @@ export function OnboardingChoiceDeck<T extends string>({
                     </AppText>
                   )}
                 </View>
-                <AppText className="mt-2 text-onboarding-muted leading-5">
+                <AppText className="mt-1.5 text-onboarding-muted leading-5">
                   {option.description}
                 </AppText>
               </View>

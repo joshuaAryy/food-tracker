@@ -2,6 +2,7 @@ import type { ComponentProps } from 'react';
 import { Text } from 'react-native';
 
 type TextVariant =
+  | 'hero'
   | 'display'
   | 'title'
   | 'heading'
@@ -16,13 +17,14 @@ interface AppTextProps extends ComponentProps<typeof Text> {
 }
 
 const variantClasses: Record<TextVariant, string> = {
-  display: 'text-[34px] font-semibold leading-10 tracking-[-0.8px]',
-  title: 'text-[28px] font-semibold leading-8 tracking-[-0.5px]',
-  heading: 'text-lg font-semibold leading-6',
+  hero: 'text-[52px] font-bold leading-[56px]',
+  display: 'text-[42px] font-bold leading-[46px]',
+  title: 'text-[32px] font-bold leading-9',
+  heading: 'text-[22px] font-bold leading-7',
   body: 'text-base leading-6',
   label: 'text-sm font-semibold leading-5',
-  caption: 'text-xs font-medium leading-4',
-  number: 'text-[28px] font-semibold tabular-nums tracking-[-0.5px]',
+  caption: 'text-xs font-semibold leading-4',
+  number: 'text-[30px] font-bold tabular-nums',
 };
 
 export function AppText({

@@ -1,4 +1,6 @@
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
+import complexLogo from '@/assets/brand/mode-icon-complex-open.png';
+import simpleLogo from '@/assets/brand/mode-icon-simple-closed.png';
 
 interface AppLogoProps {
   size?: number;
@@ -12,29 +14,21 @@ export function AppLogo({
   tone = 'default',
 }: AppLogoProps) {
   const isComplex = mode === 'complex';
-  const innerSurface =
-    tone === 'onboarding' ? 'bg-onboarding-canvas' : 'bg-surface-raised';
+  const backgroundClass =
+    tone === 'onboarding' ? 'bg-onboarding-surface' : 'bg-module';
+  const imageSize = size * 0.82;
 
   return (
     <View
       accessibilityLabel="Food Tracker"
-      className={`items-center justify-center rounded-full border-[3px] ${
-        isComplex ? 'border-ink' : 'border-primary-dark'
-      }`}
+      className={`items-center justify-center rounded-full ${backgroundClass}`}
       style={{ width: size, height: size }}
     >
-      <View
-        className={`absolute rounded-full ${innerSurface}`}
-        style={{
-          width: size * 0.58,
-          height: size * 0.58,
-          right: size * 0.04,
-          top: size * 0.08,
-        }}
-      />
-      <View
-        className={`rounded-full ${isComplex ? 'bg-ink' : 'bg-primary-dark'}`}
-        style={{ width: size * 0.16, height: size * 0.16 }}
+      <Image
+        accessibilityIgnoresInvertColors
+        resizeMode="contain"
+        source={isComplex ? complexLogo : simpleLogo}
+        style={{ height: imageSize, width: imageSize }}
       />
     </View>
   );

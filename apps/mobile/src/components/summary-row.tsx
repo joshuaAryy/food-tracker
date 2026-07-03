@@ -10,8 +10,8 @@ interface SummaryRowProps {
 export function SummaryRow({ label, value, divided = true }: SummaryRowProps) {
   return (
     <View
-      className={`flex-row justify-between gap-4 pb-2 ${
-        divided ? 'border-b border-border' : ''
+      className={`flex-row justify-between gap-4 rounded-full px-1 py-1.5 ${
+        divided ? '' : 'pb-1'
       }`}
     >
       <AppText muted>{label}</AppText>

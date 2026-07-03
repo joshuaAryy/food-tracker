@@ -3,10 +3,10 @@
 ## Direction
 
 The mobile product is moving toward a visual identity summarized as "Simple
-tracking, serious insight." The current system is a working implementation
-baseline, not a final brand lock. Future visual work may revise or replace the
-current Phase 6.1 primitives when explicit design references or user feedback
-show that the existing style is too generic, too form-like, or visually weak.
+tracking, serious insight." Phase 6.5 starts the shared onboarding plus
+Progress/Home visual system reset. Stoic is the strongest mood/style reference:
+quiet grey canvas, confident black typography, soft white modules, restrained
+icons, and minimal chrome.
 
 The interface must feel:
 
@@ -18,12 +18,13 @@ The interface must feel:
 Avoid generic SaaS layouts, Apple Health-style stacked cards as a default
 answer, purple or blue gradients, beige/yellow dominance, green-heavy action
 systems, random screen-specific colors, playful food illustrations, childish
-illustration styles, random blobs, and excessive card nesting.
+illustration styles, random blobs, and excessive card nesting. Do not copy
+Lifesum/Cronometer-style visuals. Cal AI is useful for onboarding and nutrition
+flow structure, not as the primary visual style.
 
 Design references and explicit user feedback override old visual assumptions.
-Current tokens and shared components are implementation tools, not final visual
-direction. For the current onboarding checkpoint, known visual pitfalls, and
-native device-testing priorities, see
+Current Phase 6.5 references live in
+`docs/design-references/phase-6-5/`. For native device-testing priorities, see
 `docs/mobile-ui-and-device-testing-context.md`.
 
 ## Theme Tokens
@@ -35,15 +36,19 @@ use, but theme switching is not part of this phase.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `canvas` | `#EDE4D1` |
-| Standard surface | `surface` | `#F8F3E8` |
-| Raised surface | `surfaceRaised` | `#FFFCF5` |
-| Primary text | `ink` | `#252821` |
-| Secondary text | `muted` | `#74776E` |
-| Border | `border` | `#D8CEBB` |
-| Primary action | `primary` | `#171A16` |
-| Primary action dark | `primaryDark` | `#0F110E` |
-| Primary action soft | `primarySoft` | `#E8E9E5` |
+| App background | `canvas` | `#F2F2F0` |
+| Standard surface | `surface` | `#F7F7F4` |
+| Raised surface | `surfaceRaised` | `#FFFFFF` |
+| Product module | `module` | `#FFFFFF` |
+| Muted module | `moduleMuted` | `#ECECEA` |
+| Primary text | `ink` | `#111111` |
+| Secondary text | `muted` | `#7C7C78` |
+| Tertiary text | `subtle` | `#A6A6A1` |
+| Border | `border` | `#DEDEDA` |
+| Line | `line` | `#D4D4CF` |
+| Primary action | `primary` | `#141414` |
+| Primary action dark | `primaryDark` | `#050505` |
+| Primary action soft | `primarySoft` | `#E7E7E3` |
 | Legacy sage | `sage` | `#7A9B76` |
 | Legacy sage dark | `sageDark` | `#506D4F` |
 | Legacy sage soft | `sageSoft` | `#DDE7D8` |
@@ -75,19 +80,19 @@ NativeWind uses semantic class aliases for the same roles. Notable aliases:
 `bg-primary`, `bg-primary-soft`, `bg-sage-soft`, `bg-water-soft`,
 `bg-gold-soft`, `bg-clay-soft`, and `bg-error-soft`.
 
-Onboarding has its own stricter neutral presentation tokens so the first-run
-flow can feel more serious than the rest of the early app UI:
+Onboarding mirrors the shared neutral presentation tokens so setup and
+Progress/Home feel like one product:
 
 | Role | Token | Value |
 | --- | --- | --- |
-| Onboarding canvas | `onboardingCanvas` | `#F7F7F4` |
+| Onboarding canvas | `onboardingCanvas` | `#F2F2F0` |
 | Onboarding surface | `onboardingSurface` | `#FFFFFF` |
-| Onboarding muted surface | `onboardingSurfaceMuted` | `#F0F1EE` |
-| Onboarding text | `onboardingText` | `#151713` |
-| Onboarding muted text | `onboardingMuted` | `#62665F` |
-| Onboarding line | `onboardingLine` | `#DADDD6` |
-| Onboarding accent | `onboardingAccent` | `#151713` |
-| Onboarding accent soft | `onboardingAccentSoft` | `#ECEDEA` |
+| Onboarding muted surface | `onboardingSurfaceMuted` | `#ECECEA` |
+| Onboarding text | `onboardingText` | `#111111` |
+| Onboarding muted text | `onboardingMuted` | `#7C7C78` |
+| Onboarding line | `onboardingLine` | `#D4D4CF` |
+| Onboarding accent | `onboardingAccent` | `#111111` |
+| Onboarding accent soft | `onboardingAccentSoft` | `#ECECEA` |
 
 ## Typography
 
@@ -96,9 +101,10 @@ platform provides it; do not bundle a custom font for the foundation phase.
 
 Hierarchy:
 
-- Display: 36px semibold for the most important daily number
-- Title: 30px semibold for screen names and greetings
-- Heading: 20px semibold for sections and card titles
+- Hero: 52px bold for the most important daily number
+- Display: 42px bold for prominent data values
+- Title: 32px bold for screen names and key onboarding questions
+- Heading: 22px bold for modules and section titles
 - Body: 16px regular with 24px line height
 - Label: 14px semibold for controls and important metadata
 - Caption: 12px medium for dates, units, and secondary labels
@@ -137,17 +143,20 @@ The product remains mobile-first on every platform.
 ## Radius And Borders
 
 - Inputs and buttons: 14px
-- Cards: 20px
+- Product modules: 32px
+- Cards: 30px
 - Pills and circular controls: fully rounded
-- Borders: 1px using the shared border token
+- Borders: rare and purposeful. Prefer spacing, soft fills, selected bands, and
+  typography before adding visible outlines.
 
 Shadows are minimal and reserved for raised hero cards and the floating action
-button. Borders and surface contrast should do most of the separation work.
+button. Surface contrast should do most of the separation work.
 
 ## Cards
 
-`AppCard` is a reusable surface primitive, not a visual mandate. Standard card
-padding is 18px; compact cards and form sections use 16px.
+`AppCard` is a legacy reusable surface primitive, not the default Phase 6.5
+visual language. New onboarding and Progress/Home surfaces should prefer
+purpose-built modules such as `AppModule`.
 
 - Use a raised surface only when the card has a clear job.
 - Prefer one clear purpose per card.
@@ -156,6 +165,10 @@ padding is 18px; compact cards and form sections use 16px.
 - Use color as a small accent, not a full saturated background.
 
 `StatCard` is for one numeric fact with a label and optional context.
+
+`AppModule` is the preferred Phase 6.5 product module primitive for the first
+main screen and reference-led onboarding surfaces. Use it for soft white or
+muted modules with clear purpose, not for wrapping every text block.
 
 ## Shared Layout And Data Primitives
 
@@ -192,9 +205,9 @@ boxes.
 - `OnboardingQuestion`: presents direct question copy and optional helper copy
   inside the top/question zone so each step feels like one decision instead of
   a settings page.
-- `OnboardingPanel`: a focused input or summary surface, not the default visual
-  answer for every step. If a panel makes the flow feel like generic card
-  stacking, replace its styling or avoid it.
+- `OnboardingPanel`: a focused layout helper, not a visual card by default. If
+  a panel makes the flow feel like generic card stacking, avoid it or make it
+  an open layout.
 - `OnboardingChoiceDeck`: focused selectable modules for categorical choices.
   They should feel like one guided decision, not stacked settings rows.
 - `OnboardingScale`: strong centered scale selectors for naturally ordered
@@ -213,15 +226,15 @@ motif looks forced or cheap, skip it. Avoid overusing bordered boxes; the flow
 should feel like one cohesive product surface, not a stack of unrelated cards.
 Helper/support text should live in the lower screen as quiet text, not directly
 under the main module and not as another bordered card. The review step should
-emphasize calculated targets first, then show supporting inputs in grouped
-summaries.
+emphasize calculated targets first, then show a clear starting-plan payoff and
+only quiet supporting inputs below.
 
 Onboarding should avoid the warmer beige/sage-heavy treatment used elsewhere in
-the current app. Use the onboarding neutral palette, charcoal text, thin
-borders, a black/charcoal primary CTA, and restrained rounded modules. No
-green primary CTA should remain in onboarding. Do not use pastel blocks,
-playful decorative marks, large empty hero gaps, random blobs, or stacked
-bubbly cards in this flow.
+the current app. Use the onboarding neutral palette, charcoal text, rare
+purposeful borders, a black/charcoal primary CTA, and restrained rounded
+modules. No green primary CTA should remain in onboarding. Do not use pastel
+blocks, playful decorative marks, large empty hero gaps, random blobs, or
+stacked bubbly cards in this flow.
 
 Each onboarding step should read as four zones:
 
@@ -233,14 +246,23 @@ Each onboarding step should read as four zones:
 The app startup splash is separate from onboarding and only exists while setup
 status is loading or retrying after an API error. Onboarding starts at the first
 real question. The review screen should feel like "Here is your starting plan":
-mini dashboard preview first, receipt-style summary below, and "Calculated from
-your setup" as secondary supporting copy.
+mini dashboard preview first, weight-direction context below, quiet plan inputs
+last, and "Calculated from your setup" as secondary supporting copy.
 
-For new users, the simple mode mark is the default brand mark. On splash/loading
-it may be centered and slightly larger. Inside onboarding it should stay subtle
-at roughly 24-32px, or be omitted when it makes the header feel crowded. Do not
-turn the mark into repeated decoration. Launcher icon and native splash config
-should only change when real tracked assets exist and the diff is reviewed.
+For new users, the simple mode PNG mark is the default brand mark. Complex mode
+uses the complex PNG mark. Render the actual tracked assets from
+`apps/mobile/src/assets/brand/`; do not redraw the mark with React Native view
+shapes. On splash/loading it may be centered and slightly larger. Inside
+onboarding it should stay subtle at roughly 24-32px, or be omitted when it
+makes the header feel crowded. Do not turn the mark into repeated decoration.
+Launcher icon and native splash config should only change when explicitly
+approved and reviewed.
+
+Height, birthday, current weight, and target weight onboarding steps should use
+native-feeling wheel interactions. Height supports ft/in and cm views while
+saving the existing total `heightInches` value. Weights use lb-based wheels and
+continue saving existing lb setup fields. Wheel visuals should use a wide soft
+selected band rather than a bordered card wrapper.
 
 ## Buttons
 

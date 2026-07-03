@@ -31,7 +31,7 @@ export function AppScreen({
 }: AppScreenProps) {
   const content = (
     <View
-      className={`w-full self-center gap-5 px-4 pb-28 pt-3 ${contentClassName}`}
+      className={`w-full self-center gap-6 px-5 pb-28 pt-4 ${contentClassName}`}
       style={[{ maxWidth: 480 }, contentStyle]}
     >
       {children}
@@ -66,7 +66,7 @@ export function AppScreen({
           content
         )}
         {footer === undefined ? null : (
-          <View className="border-t border-border bg-surface-raised/95 px-4 py-3">
+          <View className="bg-canvas/95 px-5 py-3">
             <View className="w-full max-w-[480px] self-center">{footer}</View>
           </View>
         )}

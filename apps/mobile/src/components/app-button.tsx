@@ -14,7 +14,7 @@ interface AppButtonProps
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary: 'bg-primary border-primary',
-  secondary: 'bg-surface-raised border-border',
+  secondary: 'bg-module border-transparent',
   ghost: 'bg-transparent border-transparent',
   danger: 'bg-error border-error',
 };
@@ -45,7 +45,7 @@ export function AppButton({
   return (
     <Pressable
       accessibilityRole="button"
-      className={`min-h-[46px] items-center justify-center rounded-control border px-5 py-2.5 ${
+      className={`min-h-[52px] items-center justify-center rounded-full border px-6 py-3 ${
         variantClasses[variant]
       } ${disabledClasses} ${className}`}
       disabled={isDisabled}
