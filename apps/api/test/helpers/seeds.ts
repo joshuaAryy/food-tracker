@@ -108,6 +108,47 @@ export async function seedFoodLog(
   });
 }
 
+export async function seedFoodItem(
+  overrides: Partial<{
+    userId: string | null;
+    name: string;
+    brandName: string | null;
+    sourceType: 'user_custom' | 'cached_external' | 'app_owned';
+    foodType: 'generic' | 'branded';
+    normalizedName: string;
+    normalizedBrandName: string | null;
+    searchText: string;
+    archivedAt: Date | null;
+  }> = {},
+) {
+  const name = overrides.name ?? 'Seed food';
+  const brandName =
+    overrides.brandName === undefined ? null : overrides.brandName;
+  const normalizedName =
+    overrides.normalizedName ?? name.trim().toLocaleLowerCase();
+  const normalizedBrandName =
+    overrides.normalizedBrandName ??
+    (brandName === null ? null : brandName.trim().toLocaleLowerCase());
+
+  return prisma.foodItem.create({
+    data: {
+      userId: MOCK_USER_ID,
+      name,
+      brandName,
+      sourceType: 'user_custom',
+      foodType: 'generic',
+      normalizedName,
+      normalizedBrandName,
+      searchText:
+        overrides.searchText ??
+        (normalizedBrandName === null
+          ? normalizedName
+          : `${normalizedName} ${normalizedBrandName}`),
+      ...overrides,
+    },
+  });
+}
+
 export async function seedSevenFoodDays(input: {
   calories: number;
   protein: number;

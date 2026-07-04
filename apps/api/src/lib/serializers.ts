@@ -1,4 +1,6 @@
 import type {
+  FoodBarcode as PrismaFoodBarcode,
+  FoodItem as PrismaFoodItem,
   FoodLog as PrismaFoodLog,
   Recommendation as PrismaRecommendation,
   UserGoal,
@@ -6,6 +8,8 @@ import type {
   WeightLog as PrismaWeightLog,
 } from '@prisma/client';
 import type {
+  AdditionalNutrient,
+  FoodItem,
   FoodLog,
   Goals,
   Profile,
@@ -21,6 +25,11 @@ export const roundTo = (value: number, decimalPlaces: number): number => {
 
 const decimalToNumber = (value: { toNumber(): number } | null): number | null =>
   value?.toNumber() ?? null;
+
+type SerializableFoodItem = PrismaFoodItem & {
+  barcodes?: PrismaFoodBarcode[];
+  savedByUsers?: { id: string }[];
+};
 
 export function serializeProfile(profile: UserProfile): Profile {
   return {
@@ -64,6 +73,42 @@ export function serializeFoodLog(foodLog: PrismaFoodLog): FoodLog {
     loggedAt: foodLog.loggedAt.toISOString(),
     createdAt: foodLog.createdAt.toISOString(),
     updatedAt: foodLog.updatedAt.toISOString(),
+  };
+}
+
+export function serializeFoodItem(foodItem: SerializableFoodItem): FoodItem {
+  return {
+    id: foodItem.id,
+    name: foodItem.name,
+    brandName: foodItem.brandName,
+    sourceType: foodItem.sourceType,
+    foodType: foodItem.foodType,
+    sourceProvider: foodItem.sourceProvider,
+    sourceId: foodItem.sourceId,
+    sourceUpdatedAt: foodItem.sourceUpdatedAt?.toISOString() ?? null,
+    isSaved: (foodItem.savedByUsers?.length ?? 0) > 0,
+    servingQuantity: decimalToNumber(foodItem.servingQuantity),
+    servingUnit: foodItem.servingUnit,
+    servingWeightGrams: decimalToNumber(foodItem.servingWeightGrams),
+    calories: foodItem.calories,
+    protein: decimalToNumber(foodItem.protein),
+    carbs: decimalToNumber(foodItem.carbs),
+    fat: decimalToNumber(foodItem.fat),
+    fiber: decimalToNumber(foodItem.fiber),
+    sugar: decimalToNumber(foodItem.sugar),
+    sodium: foodItem.sodium,
+    additionalNutrients: foodItem.additionalNutrients as Record<
+      string,
+      AdditionalNutrient
+    > | null,
+    barcodes: (foodItem.barcodes ?? []).map((barcode) => ({
+      id: barcode.id,
+      barcode: barcode.barcode,
+      barcodeFormat: barcode.barcodeFormat,
+      regionCode: barcode.regionCode,
+    })),
+    createdAt: foodItem.createdAt.toISOString(),
+    updatedAt: foodItem.updatedAt.toISOString(),
   };
 }
 

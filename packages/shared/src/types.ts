@@ -2,6 +2,9 @@ import type {
   GoalType,
   ActivityLevel,
   GoalPace,
+  FoodItemSourceType,
+  FoodItemType,
+  FoodSourceProvider,
   MealType,
   RecommendationSeverity,
   RecommendationStatus,
@@ -95,6 +98,44 @@ export interface FoodLog {
   servingQuantity: number | null;
   servingUnit: string | null;
   loggedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdditionalNutrient {
+  amount: number;
+  unit: string;
+}
+
+export interface FoodBarcode {
+  id: string;
+  barcode: string;
+  barcodeFormat: string | null;
+  regionCode: string;
+}
+
+export interface FoodItem {
+  id: string;
+  name: string;
+  brandName: string | null;
+  sourceType: FoodItemSourceType;
+  foodType: FoodItemType;
+  sourceProvider: FoodSourceProvider | null;
+  sourceId: string | null;
+  sourceUpdatedAt: string | null;
+  isSaved: boolean;
+  servingQuantity: number | null;
+  servingUnit: string | null;
+  servingWeightGrams: number | null;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+  additionalNutrients: Record<string, AdditionalNutrient> | null;
+  barcodes: FoodBarcode[];
   createdAt: string;
   updatedAt: string;
 }

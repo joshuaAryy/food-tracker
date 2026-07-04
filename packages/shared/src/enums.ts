@@ -36,6 +36,18 @@ export const RECOMMENDATION_STATUSES = [
   'dismissed',
   'archived',
 ] as const;
+export const FOOD_ITEM_SOURCE_TYPES = [
+  'user_custom',
+  'cached_external',
+  'app_owned',
+] as const;
+export const FOOD_ITEM_TYPES = ['generic', 'branded'] as const;
+export const FOOD_SOURCE_PROVIDERS = [
+  'open_food_facts',
+  'usda_fdc',
+  'manual',
+  'other',
+] as const;
 export const RECOMMENDATION_TYPES = [
   'protein_low',
   'calories_under_target',
@@ -53,4 +65,7 @@ export type TrackingMode = (typeof TRACKING_MODES)[number];
 export type MealType = (typeof MEAL_TYPES)[number];
 export type RecommendationSeverity = (typeof RECOMMENDATION_SEVERITIES)[number];
 export type RecommendationStatus = (typeof RECOMMENDATION_STATUSES)[number];
+export type FoodItemSourceType = (typeof FOOD_ITEM_SOURCE_TYPES)[number];
+export type FoodItemType = (typeof FOOD_ITEM_TYPES)[number];
+export type FoodSourceProvider = (typeof FOOD_SOURCE_PROVIDERS)[number];
 export type RecommendationType = (typeof RECOMMENDATION_TYPES)[number];

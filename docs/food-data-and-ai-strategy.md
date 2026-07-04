@@ -93,6 +93,22 @@ USDA/branded fallback where useful
 custom food creation when not found
 ```
 
+### Phase 8 Local Foundation
+
+Phase 8 implements the local app-owned foundation only:
+
+- `FoodItem` for globally visible cached/app foods and current-user custom foods
+- `SavedFoodItem` for current-user saved foods
+- `FoodBarcode` for local barcode records with exact region lookup and
+  `GLOBAL` fallback
+- simple name/brand search over visible non-archived food items
+- nullable MVP nutrient columns and unit-bearing `additionalNutrients` JSON
+
+Phase 8 does not implement external Open Food Facts integration, USDA
+integration, barcode camera scanning, public barcode creation, AI/RAG logging,
+photo logging, saved meals, or full Complex mode micronutrient UI. Barcode
+records are local database groundwork for future barcode/custom-food flows.
+
 ## Full Nutrition Model
 
 Complex mode should eventually support full nutrition tracking, not only

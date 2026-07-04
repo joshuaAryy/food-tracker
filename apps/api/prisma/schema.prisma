@@ -63,6 +63,24 @@ enum RecommendationStatus {
   archived
 }
 
+enum FoodItemSourceType {
+  user_custom
+  cached_external
+  app_owned
+}
+
+enum FoodItemType {
+  generic
+  branded
+}
+
+enum FoodSourceProvider {
+  open_food_facts
+  usda_fdc
+  manual
+  other
+}
+
 model User {
   id                 String              @id @default(uuid()) @db.Uuid
   email              String?
@@ -72,6 +90,8 @@ model User {
   goal               UserGoal?
   trackingPreference TrackingPreference?
   foodLogs           FoodLog[]
+  foodItems          FoodItem[]
+  savedFoodItems     SavedFoodItem[]
   weightLogs         WeightLog[]
   recommendations    Recommendation[]
 }
@@ -113,6 +133,7 @@ model TrackingPreference {
 model FoodLog {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @db.Uuid
+  foodItemId      String?  @db.Uuid
   foodName        String
   mealType        MealType
   calories        Int
@@ -129,11 +150,81 @@ model FoodLog {
   createdAt       DateTime @default(now()) @db.Timestamptz
   updatedAt       DateTime @updatedAt @db.Timestamptz
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem        FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([foodItemId])
   @@index([loggedAt])
   @@index([userId, loggedAt])
   @@index([userId, mealType])
+}
+
+model FoodItem {
+  id                  String              @id @default(uuid()) @db.Uuid
+  userId              String?             @db.Uuid
+  name                String
+  brandName           String?
+  sourceType          FoodItemSourceType
+  foodType            FoodItemType
+  normalizedName      String
+  normalizedBrandName String?
+  searchText          String
+  servingQuantity     Decimal?            @db.Decimal(8, 2)
+  servingUnit         String?
+  servingWeightGrams  Decimal?            @db.Decimal(8, 2)
+  calories            Int?
+  protein             Decimal?            @db.Decimal(6, 1)
+  carbs               Decimal?            @db.Decimal(6, 1)
+  fat                 Decimal?            @db.Decimal(6, 1)
+  fiber               Decimal?            @db.Decimal(6, 1)
+  sugar               Decimal?            @db.Decimal(6, 1)
+  sodium              Int?
+  additionalNutrients Json?
+  sourceProvider      FoodSourceProvider?
+  sourceId            String?
+  sourceUpdatedAt     DateTime?           @db.Timestamptz
+  archivedAt          DateTime?           @db.Timestamptz
+  createdAt           DateTime            @default(now()) @db.Timestamptz
+  updatedAt           DateTime            @updatedAt @db.Timestamptz
+  user                User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barcodes            FoodBarcode[]
+  savedByUsers        SavedFoodItem[]
+  foodLogs            FoodLog[]
+
+  @@index([userId])
+  @@index([sourceType])
+  @@index([foodType])
+  @@index([archivedAt])
+  @@index([normalizedName])
+  @@index([normalizedBrandName])
+}
+
+model FoodBarcode {
+  id          String   @id @default(uuid()) @db.Uuid
+  foodItemId  String   @db.Uuid
+  barcode     String
+  barcodeFormat String?
+  regionCode  String   @default("GLOBAL")
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+  foodItem    FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([barcode, regionCode])
+  @@index([barcode])
+  @@index([foodItemId])
+}
+
+model SavedFoodItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  foodItemId String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem   FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, foodItemId])
+  @@index([userId])
+  @@index([foodItemId])
 }
 
 model WeightLog {

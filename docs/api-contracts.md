@@ -76,6 +76,12 @@ is implemented.
 - `foodName` must be a non-empty string.
 - `servingQuantity`, when supplied, must be a decimal number greater than `0`.
 - `servingUnit`, when supplied, must be a non-empty string.
+- Food item `name` must be non-empty.
+- Food item `foodType` must be `generic` or `branded`.
+- Food item nutrient values are optional and nullable; missing values remain
+  unknown/null and are not converted to zero.
+- Food item `additionalNutrients`, when supplied, must use unit-bearing objects
+  such as `{ "caffeine": { "amount": 95, "unit": "mg" } }`.
 - `date`, `startDate`, and `endDate` filters must be local dates in `YYYY-MM-DD` format.
 - Date filters are interpreted in the current user's timezone.
 - When both are supplied, `startDate` must not be after `endDate`.
@@ -276,11 +282,178 @@ Request:
 
 `mode` must be `simple` or `complex`. Success `data` uses the tracking-preferences shape above.
 
+## Food Items
+
+Phase 8 adds local app-owned food database foundation endpoints. These
+endpoints support searchable reusable foods, current-user custom foods, saved
+foods, and local barcode lookup groundwork. They do not call Open Food Facts or
+USDA, open a camera, run AI/RAG, support photo logging, create saved meals, or
+add full Complex mode micronutrient UI.
+
+Visible food items are non-archived rows where `userId` is the current user or
+`userId` is `null`. Another user's custom food must never appear in list,
+search, get, save, or barcode lookup responses.
+
+Food item response object:
+
+```json
+{
+  "id": "food-item-id",
+  "name": "Greek yogurt",
+  "brandName": "Plain Dairy",
+  "sourceType": "user_custom",
+  "foodType": "branded",
+  "sourceProvider": "manual",
+  "sourceId": null,
+  "sourceUpdatedAt": null,
+  "isSaved": false,
+  "servingQuantity": 1.0,
+  "servingUnit": "cup",
+  "servingWeightGrams": 245.0,
+  "calories": 130,
+  "protein": 22.4,
+  "carbs": null,
+  "fat": null,
+  "fiber": null,
+  "sugar": null,
+  "sodium": null,
+  "additionalNutrients": {
+    "caffeine": { "amount": 0, "unit": "mg" }
+  },
+  "barcodes": [],
+  "createdAt": "2026-07-04T15:00:00.000Z",
+  "updatedAt": "2026-07-04T15:00:00.000Z"
+}
+```
+
+### `GET /api/v1/food-items`
+
+Optional query parameters:
+- `query`: non-empty search text
+- `limit`: integer from `1` through `50`, default `25`
+- `savedOnly`: `true` or `false`, default `false`
+
+MVP search uses normalized name/brand text only. It does not use external APIs,
+full-text search, trigram search, or new dependencies.
+
+Success `data`:
+
+```json
+{
+  "foodItems": []
+}
+```
+
+### `GET /api/v1/food-items/barcode/:barcode`
+
+Looks up local `FoodBarcode` records only. The barcode route is registered
+before `GET /api/v1/food-items/:id`.
+
+Optional query parameters:
+- `regionCode`: region code such as `US` or `CA`
+
+Lookup uses an exact `regionCode` match first, then `GLOBAL` fallback. Missing
+or inaccessible barcode matches return `NOT_FOUND`. Phase 8 does not create
+barcode records through the public API; barcode creation is reserved for future
+barcode/custom-food flows.
+
+Success `data` is the food item response object.
+
+### `GET /api/v1/food-items/:id`
+
+Returns one visible non-archived food item. A missing food item, an archived
+food item, or another user's custom food returns `NOT_FOUND`.
+
+Success `data` is the food item response object.
+
+### `POST /api/v1/food-items`
+
+Creates a current-user custom food item. The backend derives `userId` from
+mock or real auth context and forces `sourceType` to `user_custom` with
+`sourceProvider` set to `manual`.
+
+Request:
+
+```json
+{
+  "name": "Greek yogurt",
+  "brandName": "Plain Dairy",
+  "foodType": "branded",
+  "servingQuantity": 1.0,
+  "servingUnit": "cup",
+  "servingWeightGrams": 245.0,
+  "calories": 130,
+  "protein": 22.4,
+  "carbs": null,
+  "fat": null,
+  "fiber": null,
+  "sugar": null,
+  "sodium": null,
+  "additionalNutrients": {
+    "caffeine": { "amount": 0, "unit": "mg" }
+  }
+}
+```
+
+Unknown fields, including `userId`, are rejected. Nutrient fields may be
+omitted or sent as `null`; omitted and null values are stored as unknown/null.
+Success `data` is the created food item response object.
+
+### `PUT /api/v1/food-items/:id`
+
+Updates a current-user custom food item using the same request shape as
+`POST /api/v1/food-items`. Global, cached, archived, or another user's food
+items return `NOT_FOUND`.
+
+Success `data` is the updated food item response object.
+
+### `DELETE /api/v1/food-items/:id`
+
+Archives a current-user custom food item by setting `archivedAt`. It does not
+hard-delete the row. Global, cached, archived, or another user's food items
+return `NOT_FOUND`.
+
+Success `data`:
+
+```json
+{
+  "id": "food-item-id",
+  "archived": true
+}
+```
+
+### `POST /api/v1/food-items/:id/save`
+
+Saves a visible food item for the current user. The operation is idempotent.
+
+Success `data`:
+
+```json
+{
+  "id": "food-item-id",
+  "saved": true
+}
+```
+
+### `DELETE /api/v1/food-items/:id/save`
+
+Unsaves a visible food item for the current user. The operation is idempotent.
+
+Success `data`:
+
+```json
+{
+  "id": "food-item-id",
+  "saved": false
+}
+```
+
 ## Food Logs
 
 The implemented food-log API supports manual structured nutrition entry only.
-There are no AI parser, nutrition matcher, automated food lookup, barcode, or
-photo endpoints.
+The optional `FoodLog.foodItemId` database relation is not exposed through the
+current food-log create/update contract. Existing logs remain snapshot-based
+and continue to store the nutrition values submitted at log time.
 
 Food-log response object:
 

@@ -174,15 +174,16 @@ Status: Locked
 - Use UUID primary keys for all models.
 - Use a local `User` model; the current mock boundary may generate its ID, and
   long-term it aligns with Supabase Auth.
-- Include only the seven locked MVP models unless a schema change is explicitly
-  approved.
+- Include only approved models. Phase 8 explicitly adds `FoodItem`,
+  `FoodBarcode`, and `SavedFoodItem`, plus optional `FoodLog.foodItemId`, as the
+  local food database foundation.
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 - Do not include `DailySummary`, raw/parsed food logs, or other future models
   without explicit approval.
 
 ## TD-010: Hybrid Food Database Direction
 
-Status: Planned
+Status: Partially implemented in Phase 8
 
 Food Tracker should use a hybrid food data strategy:
 
@@ -199,6 +200,21 @@ eventually prioritize user recent foods, saved foods/meals, custom foods,
 cached app foods, and then external generic/branded sources. Barcode lookup
 should eventually prioritize local cached barcodes, Open Food Facts,
 USDA/branded fallback where useful, and custom food creation when not found.
+
+Phase 8 implements the app-owned local foundation only:
+
+- `FoodItem` for globally visible app/cached foods and current-user custom
+  foods
+- `SavedFoodItem` for saved-food relationships
+- `FoodBarcode` for local barcode records with `[barcode, regionCode]`
+  uniqueness
+- local barcode lookup with exact region first and `GLOBAL` fallback
+- simple normalized name/brand search over visible non-archived foods
+- nullable MVP nutrient columns plus unit-bearing `additionalNutrients` JSON
+
+Phase 8 does not implement external Open Food Facts or USDA integrations,
+barcode camera scanning, public barcode creation, AI/RAG logging, photo
+logging, saved meals, or full Complex mode micronutrient UI.
 
 See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 

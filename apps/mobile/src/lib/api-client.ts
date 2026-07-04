@@ -2,6 +2,8 @@ import type {
   ApiResponse,
   AdvancedAnalytics,
   DashboardSummary,
+  FoodItem,
+  FoodItemInput,
   FoodLog,
   FoodLogInput,
   Goals,
@@ -172,6 +174,16 @@ interface FoodLogsQuery {
   limit?: number;
 }
 
+interface FoodItemsQuery {
+  query?: string;
+  limit?: number;
+  savedOnly?: boolean;
+}
+
+interface BarcodeLookupQuery {
+  regionCode?: string;
+}
+
 interface WeightLogsQuery {
   date?: string;
 }
@@ -191,6 +203,26 @@ function foodLogsQueryString(query: FoodLogsQuery): string {
   const params = new URLSearchParams();
   if (query.date !== undefined) params.set('date', query.date);
   if (query.limit !== undefined) params.set('limit', String(query.limit));
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
+function foodItemsQueryString(query: FoodItemsQuery): string {
+  const params = new URLSearchParams();
+  if (query.query !== undefined) params.set('query', query.query);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  if (query.savedOnly !== undefined) {
+    params.set('savedOnly', String(query.savedOnly));
+  }
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
+function barcodeLookupQueryString(query: BarcodeLookupQuery): string {
+  const params = new URLSearchParams();
+  if (query.regionCode !== undefined) {
+    params.set('regionCode', query.regionCode);
+  }
   const value = params.toString();
   return value === '' ? '' : `?${value}`;
 }
@@ -217,6 +249,33 @@ export const api = {
   },
   dashboard: {
     summary: () => request<DashboardSummary>('/dashboard/summary'),
+  },
+  foodItems: {
+    list: (query: FoodItemsQuery = {}) =>
+      request<{ foodItems: FoodItem[] }>(
+        `/food-items${foodItemsQueryString(query)}`,
+      ).then(({ foodItems }) => foodItems),
+    getById: (id: string) => request<FoodItem>(`/food-items/${id}`),
+    create: (input: FoodItemInput) =>
+      request<FoodItem>('/food-items', { method: 'POST', body: input }),
+    update: (id: string, input: FoodItemInput) =>
+      request<FoodItem>(`/food-items/${id}`, { method: 'PUT', body: input }),
+    archive: (id: string) =>
+      request<{ id: string; archived: true }>(`/food-items/${id}`, {
+        method: 'DELETE',
+      }),
+    save: (id: string) =>
+      request<{ id: string; saved: true }>(`/food-items/${id}/save`, {
+        method: 'POST',
+      }),
+    unsave: (id: string) =>
+      request<{ id: string; saved: false }>(`/food-items/${id}/save`, {
+        method: 'DELETE',
+      }),
+    lookupBarcode: (barcode: string, query: BarcodeLookupQuery = {}) =>
+      request<FoodItem>(
+        `/food-items/barcode/${encodeURIComponent(barcode)}${barcodeLookupQueryString(query)}`,
+      ),
   },
   foodLogs: {
     list: (query: FoodLogsQuery = {}) =>

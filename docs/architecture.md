@@ -40,8 +40,31 @@ Frontend
 ```
 
 The implemented manual logging flow does not use AI parsing, nutrition
-matching, food database lookup, Open Food Facts, barcode scanning, or photo
-recognition.
+matching, Open Food Facts, barcode camera scanning, or photo recognition.
+`FoodLog` now has an optional `foodItemId` relation for future log-from-food
+flows, but the current food-log API remains snapshot-based and does not require
+or expose that relation.
+
+## Implemented Food Database Foundation
+
+Phase 8 adds a local app-owned food database foundation. `FoodItem` stores
+globally visible app/cached foods and current-user custom foods. `SavedFoodItem`
+stores the current user's saved food relationships. `FoodBarcode` stores local
+barcode mappings for future scanning flows.
+
+Food item APIs are backend-owned and follow the same `/api/v1` envelope and
+mock-user boundary as the rest of the app. Search is intentionally simple:
+visible, non-archived food items are matched against normalized name and brand
+text. Visible means `FoodItem.userId` is the current user or `null`.
+
+Phase 8 local barcode lookup checks cached `FoodBarcode` records only, with an
+exact region match first and `GLOBAL` fallback. The app does not call Open Food
+Facts or USDA yet, does not open a camera, does not create barcode records
+through the public API, and does not add native dependencies.
+
+Food item nutrition uses nullable columns for MVP nutrients plus optional
+unit-bearing `additionalNutrients` JSON for future Complex mode expansion.
+Missing nutrients remain unknown/null and are not converted to zero.
 
 ## Future Food Data And Intelligent Logging
 
@@ -54,10 +77,11 @@ User describes food or provides an image
 → backend saves confirmed FoodLog
 ```
 
-The future food system should use a hybrid food data strategy: app-owned cached
-and user food records, Open Food Facts for barcode-first packaged food lookup,
-and USDA FoodData Central for generic foods and detailed nutrients. External
-food data should be cached into the app database where appropriate.
+The future food system should continue the hybrid strategy started in Phase 8:
+app-owned cached and user food records, Open Food Facts for barcode-first
+packaged food lookup, and USDA FoodData Central for generic foods and detailed
+nutrients. External food data should be cached into the app database where
+appropriate.
 
 AI is not the nutrition source of truth. It can parse messy input, split meals
 into likely items, estimate serving descriptions, rank candidate matches, and

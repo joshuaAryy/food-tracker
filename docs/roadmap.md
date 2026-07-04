@@ -66,7 +66,7 @@ Completed as a short hardening phase before large new features.
 - Phase 7 preserved the Phase 6 visual standard and did not change backend,
   API, schema, package, lockfile, app config, or generated native folders.
 
-## Phase 8 — Food Database Foundation — Active / Next
+## Phase 8 — Food Database Foundation — Active
 
 - app-owned food database foundation
 - cached foods
@@ -75,16 +75,19 @@ Completed as a short hardening phase before large new features.
 - saved foods
 - reusable food foundation
 - barcode-ready food items
-- saved meals
 - external source metadata
 - Open Food Facts and USDA FoodData Central integration groundwork
 - future RAG-assisted AI retrieval support
 - future Complex mode nutrition expansion support
 
-Phase 8 should begin the backend/data foundation for trusted reusable food
-records. It should not implement barcode scanning, Open Food Facts or USDA
-sync, RAG-assisted AI logging, full Complex mode nutrition, or photo logging in
-the initial foundation step unless separately scoped and approved.
+Initial Phase 8 implementation adds local `FoodItem`, `FoodBarcode`, and
+`SavedFoodItem` foundations, food item CRUD/archive, saved/unsaved foods,
+simple local search, local barcode lookup, shared contracts, mobile API client
+methods, and backend tests.
+
+Phase 8 does not implement barcode camera scanning, public barcode creation,
+Open Food Facts or USDA sync, RAG-assisted AI logging, full Complex mode
+nutrition UI, photo logging, or saved meals.
 
 See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 

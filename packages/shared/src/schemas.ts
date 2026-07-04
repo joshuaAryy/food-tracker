@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
   ACTIVITY_LEVELS,
+  FOOD_ITEM_SOURCE_TYPES,
+  FOOD_ITEM_TYPES,
+  FOOD_SOURCE_PROVIDERS,
   GOAL_PACES,
   GOAL_TYPES,
   MEAL_TYPES,
@@ -54,6 +57,9 @@ export const trackingModeSchema = z.enum(TRACKING_MODES);
 export const mealTypeSchema = z.enum(MEAL_TYPES);
 export const recommendationSeveritySchema = z.enum(RECOMMENDATION_SEVERITIES);
 export const recommendationStatusSchema = z.enum(RECOMMENDATION_STATUSES);
+export const foodItemSourceTypeSchema = z.enum(FOOD_ITEM_SOURCE_TYPES);
+export const foodItemTypeSchema = z.enum(FOOD_ITEM_TYPES);
+export const foodSourceProviderSchema = z.enum(FOOD_SOURCE_PROVIDERS);
 export const recommendationsQuerySchema = z.strictObject({
   status: recommendationStatusSchema.optional().default('active'),
 });
@@ -179,12 +185,66 @@ export const foodLogInputSchema = z.strictObject({
   loggedAt: z.iso.datetime(),
 });
 
+const optionalNonNegativeInteger = z
+  .number()
+  .int()
+  .nonnegative()
+  .nullable()
+  .optional();
+
+const additionalNutrientSchema = z.strictObject({
+  amount: z.number().nonnegative(),
+  unit: z.string().trim().min(1),
+});
+
+export const foodItemInputSchema = z.strictObject({
+  name: z.string().trim().min(1),
+  brandName: z.string().trim().min(1).nullable().optional(),
+  foodType: foodItemTypeSchema,
+  servingQuantity: z.number().positive().nullable().optional(),
+  servingUnit: z.string().trim().min(1).nullable().optional(),
+  servingWeightGrams: z.number().positive().nullable().optional(),
+  calories: optionalNonNegativeInteger,
+  protein: optionalNonNegativeDecimal,
+  carbs: optionalNonNegativeDecimal,
+  fat: optionalNonNegativeDecimal,
+  fiber: optionalNonNegativeDecimal,
+  sugar: optionalNonNegativeDecimal,
+  sodium: optionalNonNegativeInteger,
+  additionalNutrients: z
+    .record(z.string().trim().min(1), additionalNutrientSchema)
+    .nullable()
+    .optional(),
+});
+
+const booleanQuerySchema = z.preprocess((value) => {
+  if (value === undefined) return false;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return value;
+}, z.boolean());
+
+export const foodItemsQuerySchema = z.strictObject({
+  query: z.string().trim().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(25),
+  savedOnly: booleanQuerySchema.default(false),
+});
+
+export const foodBarcodeParamsSchema = z.strictObject({
+  barcode: z.string().trim().min(1),
+});
+
+export const foodBarcodeQuerySchema = z.strictObject({
+  regionCode: z.string().trim().min(1).optional(),
+});
+
 export const weightLogInputSchema = z.strictObject({
   weightLb: z.number().positive(),
   loggedAt: z.iso.datetime(),
 });
 
 export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 export type WeightLogInput = z.infer<typeof weightLogInputSchema>;
 
 export const idParamsSchema = z.strictObject({

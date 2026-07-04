@@ -32,17 +32,23 @@ Long-term:
 
 ## MVP Models
 
-The locked MVP Prisma schema includes only:
+The locked MVP Prisma schema includes:
 
 - `User`
 - `UserProfile`
 - `UserGoal`
 - `TrackingPreference`
 - `FoodLog`
+- `FoodItem`
+- `FoodBarcode`
+- `SavedFoodItem`
 - `WeightLog`
 - `Recommendation`
 
-`FoodLog` is the Phase 2 manual logging source of truth. Do not create `RawFoodLog`, `ParsedFoodLog`, or `DailySummary` for the MVP.
+`FoodLog` is the Phase 2 manual logging source of truth. Phase 8 adds
+`FoodItem`, `FoodBarcode`, and `SavedFoodItem` as the local food database
+foundation. Do not create `RawFoodLog`, `ParsedFoodLog`, `SavedMeal`, or
+`DailySummary` without separate approval.
 
 ## Enums
 
@@ -94,6 +100,21 @@ RecommendationStatus:
   active
   dismissed
   archived
+
+FoodItemSourceType:
+  user_custom
+  cached_external
+  app_owned
+
+FoodItemType:
+  generic
+  branded
+
+FoodSourceProvider:
+  open_food_facts
+  usda_fdc
+  manual
+  other
 ```
 
 ## Model Fields
@@ -117,6 +138,8 @@ Relations:
 - optional one-to-one `UserGoal`
 - optional one-to-one `TrackingPreference`
 - many `FoodLog`
+- many `FoodItem`
+- many `SavedFoodItem`
 - many `WeightLog`
 - many `Recommendation`
 
@@ -172,6 +195,7 @@ Relation:
 | --- | --- |
 | `id` | `String`, UUID primary key |
 | `userId` | required `String`, UUID foreign key |
+| `foodItemId` | nullable `String`, UUID foreign key |
 | `foodName` | `String` |
 | `mealType` | `MealType` enum |
 | `calories` | `Int` |
@@ -190,14 +214,104 @@ Relation:
 
 Relation:
 - belongs to `User`; delete cascades from `User`
+- optionally belongs to `FoodItem`; deleting the `FoodItem` sets
+  `FoodLog.foodItemId` to `null`
 
 Indexes:
 - index on `userId`
+- index on `foodItemId`
 - index on `loggedAt`
 - compound index on `userId`, `loggedAt`
 - compound index on `userId`, `mealType`
 
 There is no unique constraint on `FoodLog`. Users may log multiple foods at the same timestamp.
+
+### FoodItem
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `userId` | nullable `String`, UUID foreign key |
+| `name` | `String` |
+| `brandName` | nullable `String` |
+| `sourceType` | `FoodItemSourceType` enum |
+| `foodType` | `FoodItemType` enum |
+| `normalizedName` | `String` |
+| `normalizedBrandName` | nullable `String` |
+| `searchText` | `String` |
+| `servingQuantity` | nullable `Decimal`, precision `8`, scale `2` |
+| `servingUnit` | nullable `String` |
+| `servingWeightGrams` | nullable `Decimal`, precision `8`, scale `2` |
+| `calories` | nullable `Int` |
+| `protein` | nullable `Decimal`, precision `6`, scale `1` |
+| `carbs` | nullable `Decimal`, precision `6`, scale `1` |
+| `fat` | nullable `Decimal`, precision `6`, scale `1` |
+| `fiber` | nullable `Decimal`, precision `6`, scale `1` |
+| `sugar` | nullable `Decimal`, precision `6`, scale `1` |
+| `sodium` | nullable `Int` |
+| `additionalNutrients` | nullable `Json` |
+| `sourceProvider` | nullable `FoodSourceProvider` enum |
+| `sourceId` | nullable `String` |
+| `sourceUpdatedAt` | nullable `DateTime`, timestamp with timezone |
+| `archivedAt` | nullable `DateTime`, timestamp with timezone |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relations:
+- optionally belongs to `User`; delete cascades from `User`
+- many `FoodBarcode`
+- many `SavedFoodItem`
+- many `FoodLog`
+
+Indexes:
+- index on `userId`
+- index on `sourceType`
+- index on `foodType`
+- index on `archivedAt`
+- index on `normalizedName`
+- index on `normalizedBrandName`
+
+Nullable nutrients represent unknown values and must not be backfilled with
+synthetic zeroes. `additionalNutrients` is reserved for future unit-bearing
+nutrient values.
+
+### FoodBarcode
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `foodItemId` | required `String`, UUID foreign key |
+| `barcode` | `String` |
+| `barcodeFormat` | nullable `String` |
+| `regionCode` | `String`, default `"GLOBAL"` |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relation:
+- belongs to `FoodItem`; delete cascades from `FoodItem`
+
+Indexes and constraints:
+- unique compound constraint on `barcode`, `regionCode`
+- index on `barcode`
+- index on `foodItemId`
+
+### SavedFoodItem
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `userId` | required `String`, UUID foreign key |
+| `foodItemId` | required `String`, UUID foreign key |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+
+Relations:
+- belongs to `User`; delete cascades from `User`
+- belongs to `FoodItem`; delete cascades from `FoodItem`
+
+Indexes and constraints:
+- unique compound constraint on `userId`, `foodItemId`
+- index on `userId`
+- index on `foodItemId`
 
 ### WeightLog
 
@@ -249,12 +363,24 @@ Indexes:
 - `UserGoal.userId` is unique.
 - `TrackingPreference.userId` is unique.
 - `FoodLog.userId` is required.
+- `FoodLog.foodItemId` is nullable and uses `ON DELETE SET NULL`.
+- `FoodItem.userId` is nullable for globally visible app/cached food records.
+- Current-user custom foods use `FoodItem.userId` with `sourceType`
+  `user_custom`.
+- `FoodBarcode.foodItemId` is required.
+- `SavedFoodItem.userId` and `SavedFoodItem.foodItemId` are required.
 - `WeightLog.userId` is required.
 - `Recommendation.userId` is required.
 - Do not add a unique constraint to `FoodLog`.
 - Do not add a unique constraint to `WeightLog`.
+- `FoodBarcode` is unique by `[barcode, regionCode]`.
+- `SavedFoodItem` is unique by `[userId, foodItemId]`.
 - All user-owned relations use database-level cascade delete.
-- Deleting a `User` deletes its `UserProfile`, `UserGoal`, `TrackingPreference`, `FoodLog`, `WeightLog`, and `Recommendation` records.
+- Deleting a `User` deletes its `UserProfile`, `UserGoal`,
+  `TrackingPreference`, `FoodLog`, `FoodItem`, `SavedFoodItem`, `WeightLog`,
+  and `Recommendation` records.
+- Deleting a `FoodItem` deletes its `FoodBarcode` and `SavedFoodItem` records
+  and sets related `FoodLog.foodItemId` values to `null`.
 - No orphaned user-owned records are allowed.
 
 ## Daily Summary
@@ -270,7 +396,6 @@ approved:
 
 - `RawFoodLog`
 - `ParsedFoodLog`
-- `CustomFood`
 - `SavedMeal`
 - `WaterLog`
 - `SupplementLog`
