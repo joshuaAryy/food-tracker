@@ -2,32 +2,43 @@
 
 ## Direction
 
-The mobile product is moving toward a visual identity summarized as "Simple
-tracking, serious insight." Phase 6.5 starts the shared onboarding plus
-Progress/Home visual system reset. Stoic is the strongest mood/style reference:
-quiet grey canvas, confident black typography, soft white modules, restrained
-icons, and minimal chrome.
+The mobile product visual identity is summarized as "Simple tracking, serious
+insight." Phase 6 established the shared mobile visual standard across
+onboarding, Progress, History, logging, Insights, Recommendations,
+Profile/Settings, bottom navigation, the floating add action, mode identity,
+logo rendering, inputs, and native iPhone testing.
+
+Stoic is the strongest mood/style reference: whitespace, confident black
+typography, calm pacing, restrained icons, minimal chrome, and focused daily
+state. Cal AI is useful for nutrition-specific density and small accent
+moments, but it should not be copied visually. Apple Health/Fitness is useful
+for glanceable progress patterns, not for default card stacks.
 
 The interface must feel:
 
 - calm, premium, and serious
 - information-dense only where the data requires it
-- light/off-white, neutral, and professional rather than highly saturated
+- white-forward, charcoal-led, neutral, and professional rather than highly
+  saturated
 - native to a small phone rather than adapted from a desktop dashboard
 
 Avoid generic SaaS layouts, Apple Health-style stacked cards as a default
-answer, purple or blue gradients, beige/yellow dominance, green-heavy action
-systems, random screen-specific colors, playful food illustrations, childish
-illustration styles, random blobs, and excessive card nesting. Do not copy
-Lifesum/Cronometer-style visuals. Cal AI is useful for onboarding and nutrition
-flow structure, not as the primary visual style.
+answer, generic nutrition dashboards, purple or blue gradients, beige/yellow
+dominance, washed-out grey UI, green-heavy action systems, random
+screen-specific colors, playful food illustrations, childish illustration
+styles, random blobs, fake View-built graphics, rushed giant-ring experiments,
+and excessive card nesting. Do not copy Lifesum/Cronometer-style visuals.
 
 Design references and explicit user feedback override old visual assumptions.
-Current Phase 6.5 references live in
-`docs/design-references/phase-6-5/`. For native device-testing priorities, see
+The Phase 6 reference set lives in `docs/design-references/phase-6-5/`. For
+native device-testing priorities, see
 `docs/mobile-ui-and-device-testing-context.md`. For the product and visual
 lessons learned during Phase 6 iteration, read
 `docs/mobile-visual-lessons.md` before starting a new mobile UI phase.
+
+Future features should extend this system instead of replacing it: white
+canvas, charcoal typography, open sections, rows/dividers, restrained accents,
+crisp icons, user-facing copy, and native iPhone validation before commit.
 
 ## Theme Tokens
 
@@ -158,19 +169,20 @@ button. Surface contrast should do most of the separation work.
 
 `AppCard` is a legacy reusable surface primitive, not the default Phase 6.5
 visual language. New onboarding and Progress/Home surfaces should prefer
-purpose-built modules such as `AppModule`.
+open layouts, purpose-built modules, rows, dividers, pills, and rails.
 
 - Use a raised surface only when the card has a clear job.
 - Prefer one clear purpose per card.
 - Avoid wrapping every text block in a card.
 - Use dividers for repeated rows inside a shared card.
 - Use color as a small accent, not a full saturated background.
+- Do not solve new screens with default `AppCard` or `AppModule` stacks.
 
 `StatCard` is for one numeric fact with a label and optional context.
 
-`AppModule` is the preferred Phase 6.5 product module primitive for the first
-main screen and reference-led onboarding surfaces. Use it for soft white or
-muted modules with clear purpose, not for wrapping every text block.
+`AppModule` remains available for soft modules with clear purpose, but it is
+not the default answer for future screens. If a screen starts to look like a
+stack of modules, redesign the hierarchy around native sections and rows.
 
 ## Shared Layout And Data Primitives
 
@@ -336,8 +348,14 @@ The four destinations are:
 3. Insights
 4. Profile
 
-Each destination uses a simple icon and label. Active items use dark sage;
-inactive items use muted text. There is no full Log tab.
+Each destination uses a simple icon and label. Active items should be
+charcoal/black-led; inactive items can be slightly softer but must remain
+readable. There is no full Log tab.
+
+Phase 6 native testing showed weak grey tab glyphs reduce scanability. Bottom
+tab icons should be bold, readable, and charcoal-led, with inactive states
+slightly softer but still visible at a glance. The selected tab must be clear
+without becoming colorful or playful.
 
 The tab bar uses the raised surface token, a subtle top border, and enough
 bottom padding for phone safe areas.
@@ -360,6 +378,7 @@ accessibility state, and no press behavior.
 The menu must not become a generic square popup or alert. The current
 implementation intentionally keeps the positioning and action model isolated
 inside `FloatingActionWheel` so animation and geometry can be refined later.
+Do not add bulky CTA cards that compete with this primary create action.
 
 ## History And Logging
 
@@ -391,13 +410,24 @@ should enter, not how timestamps or records are stored internally.
 
 ## Progress Visuals
 
-`ProgressRing` presents one dominant completion ratio and a centered value.
-`MacroProgressBar` presents nutrient consumed versus target.
+Progress should read as a calm daily check-in before it reads as analytics.
+Use typography as the anchor: one large calorie balance number, one human
+status phrase, and restrained supporting rails or rows. A refined horizontal
+rail is preferred over a giant ring when the ring would compete with the
+message or risk clipping on device.
 
 - Clamp visual progress to the available track.
 - Keep over-target numeric values accurate even when the visual track is full.
 - Never calculate nutrition facts in the component.
-- Components receive deterministic values from the backend response.
+- Components render values returned by the existing dashboard response.
+- Avoid stacked dashboard modules, repeated large circular visuals, and CTA
+  cards that compete with the center add action.
+- Protein, food count, and latest weight should support the main calorie
+  status through open rows, quiet dividers, icons, and small accents.
+- The current dashboard summary only supports calories, calorie target,
+  remaining calories, protein, protein target, remaining protein, food count,
+  latest weight, and tracking mode. Do not invent macro totals, trends, or
+  advanced nutrition visuals on the client.
 
 ## Insights And Recommendations
 

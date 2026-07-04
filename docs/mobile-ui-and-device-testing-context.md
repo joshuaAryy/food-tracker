@@ -5,16 +5,18 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-The Phase 6.5 visual system reset begins aligning onboarding and Progress/Home
-around the imported reference set in `docs/design-references/phase-6-5/`.
-The durable lessons from the Phase 6 visual iterations are captured in
-`docs/mobile-visual-lessons.md`; read it before starting future mobile visual
-work.
+Phase 6 established the current mobile visual-system blueprint across
+onboarding, Progress, History, logging, Insights, Recommendations,
+Profile/Settings, bottom navigation, floating add behavior, logo rendering,
+inputs, Simple/Detailed mode identity, and native iPhone testing. The durable
+lessons from those iterations are captured in `docs/mobile-visual-lessons.md`;
+read it before starting future mobile visual work.
 
-Do not keep spending time on desktop web onboarding polish before native
-testing. Web preview remains useful for fast layout iteration, but it is not
-enough to judge spacing, touch targets, safe areas, keyboard behavior,
-transitions, or the fixed bottom CTA on a real phone.
+Do not keep spending time on desktop web polish before native testing. Web
+preview remains useful for fast layout iteration, but it is not enough to judge
+spacing, touch targets, safe areas, keyboard behavior, transitions, tab bar
+rhythm, fixed footers, logo clipping, input vertical alignment, or the overall
+feel of a screen on a real phone.
 
 ## Engineering Boundaries
 
@@ -51,31 +53,33 @@ The app should feel like clean nutrition software mixed with personal
 analytics/lifestyle wellness. It should feel simple, soft, serious,
 professional, and real enough to go to market.
 
-The mobile visual identity is still exploratory. `docs/design-system.md` is the
-current implementation baseline, not final brand authority. Current tokens,
-cards, and Phase 6.1 primitives are implementation tools; they may be rewritten
-or replaced when explicit design feedback shows they are too generic, too
-form-like, or visually weak.
+`docs/design-system.md` is the current implementation baseline. Current tokens
+and primitives are implementation tools, but future work should extend the
+Phase 6 standard instead of redesigning from scratch.
 
-Phase 6.5 uses Stoic as the strongest mood/style reference: calm grey canvas,
-confident black typography, soft white modules, restrained icons, purposeful
-hero panels, minimal chrome, and quiet metadata. Cal AI is useful for
-nutrition/onboarding flow structure and result payoff, not exact visual style.
-Lifesum/Cronometer-style visuals and Apple Health card spam should not be
-copied. Green health references are picker/functionality references, not green
-CTA direction.
+Phase 6 uses Stoic as the strongest mood/style reference: whitespace,
+confident black typography, calm pacing, restrained icons, focused daily state,
+minimal chrome, and quiet metadata. Cal AI is useful for nutrition accents and
+density, not exact visual style. Apple Health/Fitness is useful for glanceable
+status patterns, not card spam. Lifesum/Cronometer-style visuals should not be
+copied.
 
-Prefer mostly light, off-white, and white UI with subtle structure. Onboarding
-should move away from bordered-card stacks and rely more on open layouts,
-native-feeling wheel zones, soft selected bands, typography, spacing, and
-subtle fills. Borders should be rare and purposeful. Primary CTAs should be
-black/charcoal. Green/sage may exist as a secondary or legacy accent, but it
-should not be the main primary action color.
+Prefer a white-forward, charcoal-led UI with subtle structure. Use open
+layouts, native-feeling controls, rows, quiet dividers, pills, rails, strong
+typography, crisp icons, and restrained accent colors. Borders should be rare
+and purposeful. Primary CTAs should be black/charcoal. Green/sage may exist as
+a secondary or legacy accent, but it should not be the main primary action
+color.
 
 Avoid:
 
 - Apple Health-style stacked card spam
 - beige/yellow wellness templates
+- generic dashboard modules
+- default `AppCard` stacks
+- fake View-built graphics
+- giant SVG/ring experiments that dominate or overlap content
+- repeating generic tab-name headers when the tab bar already gives context
 - green-heavy or childish UI
 - generic student-project styling
 - random cards thrown onto a screen
@@ -175,6 +179,16 @@ snapped row settles or the user taps a row.
 
 - Dark selected cards with black or low-contrast text.
 - Green primary CTA returning in onboarding.
+- Beige/off-white drift when the screen should read as white and charcoal.
+- Washed-out grey UI or uniformly weak grey icons.
+- Over-coloring nutrition screens until they feel like dashboards.
+- Giant rings or rushed custom graphics that overlap content on iPhone.
+- Making Progress look like enlarged History.
+- Repeating generic tab-name headers such as `Progress`, `History`,
+  `Insights`, or `Profile`.
+- Bulky footer overlays obscuring form content.
+- AppLogo square corners escaping circular or pill containers.
+- Single-line input text sitting too low on native iPhone.
 - Helper/support text styled as another bordered card near the bottom.
 - Helper/support text sitting immediately under the main module on short
   screens instead of occupying the lower support zone.
@@ -220,6 +234,19 @@ Native-backed visual dependencies follow the same rebuild rule. Phase 6.6 uses
 for crisp mobile icons. After adding or changing native dependencies, rebuild
 and reinstall the Expo development build before judging the result on iPhone;
 Metro alone only validates JS/UI updates.
+
+For JS-only UI changes, Metro refresh is enough to inspect layout on the
+installed development build. For native dependency, native config, launcher
+icon, splash, or generated native project changes, create a new development
+build before judging behavior. `apps/mobile/ios/` and `apps/mobile/android/`
+remain generated local folders and should stay uncommitted unless the project
+explicitly changes that workflow.
+
+Major UI work should be judged on physical iPhone before merge. Screens to
+check include first load, loading/error/empty states, pull-to-refresh, keyboard
+behavior, footer overlap, tab spacing, floating add behavior, logo clipping,
+input vertical alignment, icon contrast, white/charcoal consistency, and
+Simple/Detailed mode presentation.
 
 Before changing native files or generating an iOS project, inspect and report:
 

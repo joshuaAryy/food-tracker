@@ -1,8 +1,10 @@
 # Mobile Visual Lessons
 
-This checkpoint preserves the product and design lessons from the Phase 6
-mobile visual iterations, especially the Phase 6.5 onboarding and Progress/Home
-reset. Read this before starting future mobile UI phases.
+This checkpoint preserves the product and design lessons from the full Phase 6
+mobile visual iteration: onboarding, Progress, History, logging, Insights,
+Recommendations, Profile/Settings, bottom navigation, the floating add action,
+mode identity, logo rendering, inputs, and native iPhone testing. Read this
+before starting future mobile UI phases.
 
 This document is design guidance, not an API, schema, or architecture contract.
 `AGENTS.md`, API docs, schema docs, and shared contracts remain authoritative
@@ -20,6 +22,21 @@ Food Tracker should feel like clean nutrition software combined with personal
 analytics and lifestyle wellness. The app should be soft but serious, calm,
 premium, minimal, and professional enough to feel market-ready.
 
+The Phase 6 blueprint is:
+
+- white-forward canvas and surfaces
+- strong charcoal/black typography
+- Stoic-led calmness and whitespace
+- open sections instead of default cards
+- rows, quiet dividers, pills, and rails
+- crisp icons for scanning
+- restrained nutrition accents only where they clarify information
+- user-facing copy that avoids implementation details
+- native iPhone validation before major UI work is accepted
+
+Future features should extend this blueprint instead of redesigning each screen
+from scratch.
+
 Native iPhone testing is the source of truth for mobile UI quality. Desktop web
 preview is useful for fast iteration, but it cannot approve spacing, safe
 areas, touch behavior, keyboard movement, fixed CTAs, launcher icon behavior,
@@ -30,9 +47,37 @@ Avoid:
 - student-project polish
 - generic wellness templates
 - Cronometer, Lifesum, or Apple Health card-spam visuals
+- generic dashboard-card stacks
+- beige/off-white drift when the intended read is white and charcoal
+- washed-out grey UI
 - green primary CTAs
 - copying Cal AI visually
 - treating old Phase 6.1 primitives as final brand authority
+
+## Phase 6 Standards
+
+Use these as durable standards for future mobile work:
+
+- Pure white plus charcoal/black is the strongest base direction.
+- Stoic is the strongest overall mood reference: calm, premium, focused,
+  spacious, and typography-led.
+- Cal AI is useful for nutrition-specific accents, density, and payoff moments,
+  but it should not be copied visually.
+- Apple Health/Fitness is useful for glanceable progress patterns, not for
+  default card stacks.
+- Cards are not the default layout solution.
+- Open sections, rows, dividers, pills, rails, and typography fit this product
+  better than generic modules.
+- Icons help when they improve scanning. They should be strong enough to see:
+  charcoal-led with small controlled accent moments, not uniformly weak grey.
+- Bottom tab icons should remain bold, readable, and charcoal-led.
+- The floating plus remains the primary create/log action. Do not duplicate it
+  with bulky CTA cards.
+- AppLogo must be clipped or masked wherever it appears in circular or pill
+  containers.
+- Text inputs need native iPhone testing, especially vertical centering.
+- User-facing copy is better than technical wording about calculations,
+  payloads, schemas, or stored values.
 
 ## Surface And Card Lessons
 
@@ -60,13 +105,27 @@ with borders as the main visual language.
 ## What Worked
 
 - Reduced-card and less-bordered onboarding.
+- Pure white plus charcoal/black as the main visual direction.
+- Stoic-led calmness, spacing, and strong typography.
+- Open sections, rows, quiet dividers, pills, and rails.
 - Large, confident typography.
-- Calm neutral/off-white canvas.
+- White-forward neutral canvas.
 - Black or charcoal primary CTA.
+- Controlled nutrition accent colors where they help scanning.
+- Crisp icons from `lucide-react-native` for food, calories, protein, weight,
+  settings, and navigation.
+- Stronger charcoal bottom tab icons instead of weak grey glyphs.
+- Floating plus as the primary create action.
 - Actual simple and complex PNG brand icons instead of drawn View logos.
+- Proper clipping/masking for in-app logo marks inside circular containers.
 - Dynamic launcher icon switching between Simple and Complex/Detailed mode.
 - Progress/Home daily energy hero direction.
+- Progress as a calm daily check-in: date/mode context, one large kcal status,
+  one human status phrase, restrained rails, and open supporting rows.
+- History 7-day rail with reliable calorie rings.
+- Dotted empty rings for days with no logs.
 - Wheel inputs for birthday, height, current weight, and target weight.
+- Native-tested text input vertical alignment.
 - Height wheel with ft/in and cm support.
 - Shared wheel primitive with faster momentum and snap correction.
 - Segmented scale selector geometry where the rail does not run through the
@@ -84,10 +143,22 @@ with borders as the main visual language.
 
 - Heavy bordered cards everywhere.
 - Generic rounded white card stacks.
+- Generic dashboard modules.
 - Reusing the same surface treatment for every component.
+- Reusing cards because they are easy instead of designing native layouts.
+- Repeating generic tab-name headers such as `Progress`, `History`, `Insights`,
+  or `Profile` when the tab bar already provides the destination label.
 - Decorative motifs that did not create real identity.
+- Beige/off-white drift when the target direction was white and charcoal.
+- Washed-out grey UI.
+- Removing too much color from icons until screens became flat or text-only.
+- Overusing color until the app started reading as a loud dashboard.
 - Fake custom graphics built quickly from fragile React Native View geometry.
+- Giant SVG or ring experiments that overlap, dominate, or feel rushed.
+- Making Progress look like an enlarged History screen.
 - Technical-looking charts or pseudo-graphs in onboarding.
+- Text-only screens with no visual scanning aids.
+- Bulky footer overlays that obscure form content.
 - Adding informational modules inside existing data-entry slides.
 - User-facing copy with internal terms such as baseline, deterministic, trend
   context, payload, setup data, stored value, target calculation, or
@@ -236,6 +307,35 @@ the current product direction better than stacked cards with severity labels.
 Simple mode should stay focused on calories, protein, consistency, weight, and
 direct guidance. Complex/Detailed mode can show macro and nutrient detail, but
 it still needs to remain calm and easy to scan.
+
+## Progress Lessons
+
+Progress should be the app’s calm daily check-in, not a dashboard or an
+enlarged History screen. The strongest direction is Stoic-led: whitespace,
+strong black typography, a compact date/mode context, one large meaningful
+calorie balance, one human status phrase, and open supporting rows.
+
+Progress is not finished forever, but Phase 6.9 establishes the usable
+blueprint. The current dashboard summary exposes only calories, calorie target,
+remaining calories, protein, protein target, remaining protein, food count,
+latest weight, and tracking mode. Until the backend exposes more meaningful
+daily data, Progress must not fake advanced nutrition data, macro totals,
+trend analysis, or complex visuals.
+
+Avoid giant rings, multiple competing circular visuals, CTA cards that repeat
+the center add button, and module stacks. A small rail that is correctly sized
+and easy to read is better than a large graphic that feels rushed or overlaps
+content on iPhone.
+
+Protein, food entries, and latest weight should support the main daily status
+with quiet dividers, icons, short values, and restrained accent colors. Simple
+mode should stay fast and focused. Detailed mode may acknowledge richer logging
+without inventing macro totals or adding noisy panels.
+
+Future Progress improvements should come from better available product data,
+not from redesigning the page every phase. Keep the main daily status readable
+within two or three seconds, Stoic-led first, and supported by simple rails and
+rows.
 
 ## Profile And Settings Lessons
 

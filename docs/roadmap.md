@@ -30,19 +30,21 @@ Implemented:
 - first-run setup detection and atomic setup saves
 - dedicated onboarding with deterministic calorie/protein target personalization
 - clearer physical-device API diagnostics
+- Phase 6 mobile visual-system pass across onboarding, Progress, History,
+  logging, Insights, Recommendations, Profile/Settings, bottom navigation,
+  floating add behavior, mode identity, logo rendering, inputs, and native
+  iPhone testing guidance
 
-## Current Phase — Beta Readiness
+## Current Phase — Post-Phase 6 MVP Readiness
 
 Goal:
 
-- provide a dedicated first-run onboarding path
-- collect enough personalization inputs for deterministic target calculation
-- preserve unrelated preference values during profile edits
-- improve API connection diagnostics for devices
-- keep local development and limited-beta setup repeatable
-
-Deferred within this phase: onboarding visual design polish should be handled in
-a later dedicated UI pass after the data model and first-run flow are stable.
+- preserve the Phase 6 visual-system standard while moving into the next MVP
+  module
+- keep future mobile features aligned with the white/charcoal, Stoic-led,
+  reduced-card direction captured in `docs/mobile-visual-lessons.md` and
+  `docs/design-system.md`
+- continue using native iPhone testing for meaningful mobile visual decisions
 
 Authentication remains the next major boundary; development still uses the
 fixed mock user.
