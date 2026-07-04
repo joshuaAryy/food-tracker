@@ -1,7 +1,24 @@
+import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useFocusEffect } from 'expo-router';
+import {
+  Activity,
+  Beef,
+  CalendarDays,
+  CheckCircle2,
+  CircleAlert,
+  Dumbbell,
+  Flame,
+  Goal,
+  MapPin,
+  Ruler,
+  Scale,
+  SlidersHorizontal,
+  Target,
+  UserRound,
+} from 'lucide-react-native';
 import type {
   ActivityLevel,
   GoalPace,
@@ -20,18 +37,22 @@ import {
   TRACKING_MODES,
   TRAINING_STYLES,
 } from '@food-tracker/shared';
-import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
 import { AppInput } from '@/components/app-input';
+import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { FormSection } from '@/components/form-section';
 import { LoadingState } from '@/components/loading-state';
-import { ScreenHeader } from '@/components/screen-header';
-import { SelectableOption } from '@/components/selectable-option';
+import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
+import { colors } from '@/theme/tokens';
+
+type SettingsIcon = ComponentType<{
+  color?: string;
+  size?: number;
+  strokeWidth?: number;
+}>;
 
 interface ProfileForm {
   name: string;
@@ -121,6 +142,130 @@ function label(value: string): string {
     .join(' ');
 }
 
+function modeLabel(mode: TrackingMode): string {
+  return mode === 'simple' ? 'Simple' : 'Detailed';
+}
+
+function goalLabel(value: GoalType): string {
+  if (value === 'lose') return 'Lose';
+  if (value === 'gain') return 'Gain';
+  return 'Maintain';
+}
+
+function paceLabel(value: GoalPace | 'none'): string {
+  if (value === 'none') return 'No pace';
+  return label(value);
+}
+
+function IconDot({
+  Icon,
+  color = colors.light.ink,
+  filled = false,
+}: {
+  Icon: SettingsIcon;
+  color?: string;
+  filled?: boolean;
+}) {
+  return (
+    <View
+      className={`h-9 w-9 items-center justify-center rounded-full ${
+        filled ? 'bg-primary' : 'bg-[#F4F4F4]'
+      }`}
+    >
+      <Icon color={filled ? '#FFFFFF' : color} size={16} strokeWidth={2.2} />
+    </View>
+  );
+}
+
+function SettingsSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <View className="gap-2.5">
+      <View className="gap-1">
+        <AppText
+          variant="caption"
+          className="text-ink uppercase tracking-[1.3px]"
+        >
+          {title}
+        </AppText>
+        {description === undefined ? null : (
+          <AppText variant="caption" className="text-muted">
+            {description}
+          </AppText>
+        )}
+      </View>
+      <View>{children}</View>
+    </View>
+  );
+}
+
+function SettingsRow({
+  Icon,
+  color = colors.light.ink,
+  label: rowLabel,
+  value,
+  detail,
+}: {
+  Icon: SettingsIcon;
+  color?: string;
+  label: string;
+  value: string;
+  detail?: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-3 border-t border-line py-4">
+      <IconDot Icon={Icon} color={color} />
+      <View className="min-w-0 flex-1 gap-0.5">
+        <AppText variant="label" className="text-ink">
+          {rowLabel}
+        </AppText>
+        {detail === undefined ? null : (
+          <AppText variant="caption" className="text-muted">
+            {detail}
+          </AppText>
+        )}
+      </View>
+      <AppText variant="label" className="text-right text-ink tabular-nums">
+        {value}
+      </AppText>
+    </View>
+  );
+}
+
+function StatusNotice({
+  tone,
+  title,
+  message,
+}: {
+  tone: 'success' | 'warning';
+  title: string;
+  message: string;
+}) {
+  const success = tone === 'success';
+
+  return (
+    <View className="flex-row items-start gap-3 border-t border-line py-4">
+      <IconDot
+        Icon={success ? CheckCircle2 : CircleAlert}
+        color={success ? '#679C8C' : '#A87962'}
+      />
+      <View className="min-w-0 flex-1 gap-1">
+        <AppText variant="label" className="text-ink">
+          {title}
+        </AppText>
+        <AppText muted>{message}</AppText>
+      </View>
+    </View>
+  );
+}
+
 function ChoiceRow<T extends string>({
   values,
   value,
@@ -131,20 +276,156 @@ function ChoiceRow<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <View className="flex-row flex-wrap gap-2">
+    <View className="flex-row flex-wrap gap-x-2 gap-y-2">
       {values.map((option) => {
         const selected = value === option;
         return (
-          <SelectableOption
+          <Pressable
             key={option}
-            value={option}
-            selected={selected}
-            label={label(option)}
-            shape="pill"
-            onSelect={onChange}
-          />
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            className={`min-h-[38px] rounded-full px-3.5 py-2 active:opacity-75 ${
+              selected ? 'bg-primary' : 'bg-[#F4F4F4]'
+            }`}
+            onPress={() => onChange(option)}
+          >
+            <AppText
+              variant="label"
+              className={selected ? 'text-white' : 'text-ink'}
+            >
+              {label(option)}
+            </AppText>
+          </Pressable>
         );
       })}
+    </View>
+  );
+}
+
+function ModeOption({
+  mode,
+  selected,
+  onSelect,
+}: {
+  mode: TrackingMode;
+  selected: boolean;
+  onSelect: (value: TrackingMode) => void;
+}) {
+  const simple = mode === 'simple';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      className={`min-h-11 flex-1 flex-row items-center justify-center gap-2 rounded-full px-3 py-2 active:opacity-75 ${
+        selected ? 'bg-primary' : 'bg-transparent'
+      }`}
+      onPress={() => onSelect(mode)}
+    >
+      <AppLogo mode={simple ? 'simple' : 'complex'} size={24} />
+      <AppText variant="label" className={selected ? 'text-white' : 'text-ink'}>
+        {simple ? 'Simple' : 'Detailed'}
+      </AppText>
+    </Pressable>
+  );
+}
+
+function ProfileActions({
+  saving,
+  canCancel,
+  onSave,
+  onCancel,
+}: {
+  saving: boolean;
+  canCancel: boolean;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View className="gap-3 border-t border-line pt-5">
+      <Pressable
+        accessibilityRole="button"
+        className={`min-h-12 items-center justify-center rounded-full bg-primary px-5 py-3 active:opacity-75 ${
+          saving ? 'opacity-70' : ''
+        }`}
+        disabled={saving}
+        onPress={onSave}
+      >
+        {saving ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <AppText variant="label" className="text-white">
+            Save changes
+          </AppText>
+        )}
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        className={`min-h-10 items-center justify-center rounded-full px-5 py-2 active:opacity-70 ${
+          canCancel && !saving ? '' : 'opacity-40'
+        }`}
+        disabled={!canCancel || saving}
+        onPress={onCancel}
+      >
+        <AppText variant="label" className="text-muted">
+          Cancel
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}
+
+function FieldGroup({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <View className="gap-3.5 border-t border-line py-4">
+      <View className="gap-1">
+        <AppText variant="label" className="text-ink">
+          {title}
+        </AppText>
+        {description === undefined ? null : (
+          <AppText variant="caption" className="text-muted">
+            {description}
+          </AppText>
+        )}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function ProfileOverview({ values }: { values: ProfileForm }) {
+  const displayName =
+    values.name.trim() === '' ? 'Your profile' : values.name.trim();
+  const isSimple = values.mode === 'simple';
+
+  return (
+    <View className="border-b border-line pb-4">
+      <View className="flex-row items-center gap-3">
+        <AppLogo mode={isSimple ? 'simple' : 'complex'} size={42} />
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText variant="heading" className="text-ink" numberOfLines={1}>
+            {displayName}
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            {isSimple
+              ? 'Fast, focused tracking is active.'
+              : 'Detailed tracking is active.'}
+          </AppText>
+        </View>
+        <View className="rounded-full bg-primary px-3 py-1.5">
+          <AppText variant="caption" className="font-semibold text-white">
+            {modeLabel(values.mode)} mode
+          </AppText>
+        </View>
+      </View>
     </View>
   );
 }
@@ -159,15 +440,21 @@ export default function ProfileScreen() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [savedPreferences, setSavedPreferences] =
     useState<TrackingPreferences>(defaultPreferences);
+  const [lastSavedForm, setLastSavedForm] = useState<ProfileForm>(
+    formValues(defaultProfile, defaultGoals, defaultPreferences),
+  );
 
   const {
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting },
+    watch,
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<ProfileForm>({
     defaultValues: formValues(defaultProfile, defaultGoals, defaultPreferences),
   });
+
+  const watchedValues = watch();
 
   const loadProfile = useCallback(
     async (asRefresh = false) => {
@@ -185,7 +472,13 @@ export default function ProfileScreen() {
           optionalResource(api.goals.get, defaultGoals),
           optionalResource(api.trackingPreferences.get, defaultPreferences),
         ]);
-        reset(formValues(profile.data, goals.data, preferences.data));
+        const nextValues = formValues(
+          profile.data,
+          goals.data,
+          preferences.data,
+        );
+        reset(nextValues);
+        setLastSavedForm(nextValues);
         setSavedPreferences(preferences.data);
         setHasMissingData(
           profile.missing || goals.missing || preferences.missing,
@@ -237,33 +530,42 @@ export default function ProfileScreen() {
           waterTrackingEnabled: savedPreferences.waterTrackingEnabled,
         }),
       ]);
-      reset(formValues(profile, goals, preferences));
+      const nextValues = formValues(profile, goals, preferences);
+      reset(nextValues);
+      setLastSavedForm(nextValues);
       setSavedPreferences(preferences);
       setHasMissingData(false);
-      setNotice('Profile, goals, and tracking mode saved.');
+      setNotice('Your preferences are saved.');
       markDataChanged();
+      void syncLauncherIconToMode(preferences.mode).catch(
+        (iconSyncError: unknown) => {
+          console.warn('Unable to sync launcher icon', iconSyncError);
+        },
+      );
     } catch (saveError) {
       setError(errorMessage(saveError));
     }
   });
 
+  const cancelChanges = () => {
+    reset(lastSavedForm);
+    setError(null);
+    setNotice(null);
+  };
+
   if (loading) {
     return (
-      <AppScreen>
-        <LoadingState message="Loading your profile…" />
+      <AppScreen backgroundColor="#FFFFFF">
+        <LoadingState message="Loading your settings…" />
       </AppScreen>
     );
   }
 
   if (error !== null && !hasLoaded) {
     return (
-      <AppScreen>
-        <ScreenHeader
-          title="Profile"
-          subtitle="Personal details, goals, and tracking mode."
-        />
+      <AppScreen backgroundColor="#FFFFFF">
         <ErrorState
-          title="Profile is unavailable"
+          title="We couldn’t load your settings"
           message={error}
           onRetry={() => void loadProfile()}
         />
@@ -275,304 +577,424 @@ export default function ProfileScreen() {
     <AppScreen
       refreshing={refreshing}
       onRefresh={() => void loadProfile(true)}
-      contentClassName="gap-4"
+      contentClassName="gap-7 pb-8"
+      backgroundColor="#FFFFFF"
     >
-      <ScreenHeader
-        title="Profile"
-        subtitle="Personal details, goals, and tracking mode."
-      />
-
       {error === null ? null : (
-        <ErrorState title="Couldn’t save profile" message={error} />
+        <ErrorState title="We couldn’t save your changes" message={error} />
       )}
+
       {hasMissingData ? (
-        <AppCard compact className="border-gold bg-surface">
-          <AppText variant="label">Finish your setup</AppText>
-          <AppText muted className="mt-1">
-            The values below are suggestions only. Review every section before
-            saving so your dashboard and recommendations use your information.
-          </AppText>
-        </AppCard>
+        <StatusNotice
+          tone="warning"
+          title="Review your setup"
+          message="Some settings were missing, so these fields use starting suggestions until you save them."
+        />
       ) : null}
+
       {notice === null ? null : (
-        <AppCard compact className="border-sage bg-sage-soft">
-          <AppText variant="label" className="text-sage-dark">
-            {notice}
-          </AppText>
-        </AppCard>
+        <StatusNotice
+          tone="success"
+          title={notice}
+          message="You can change this anytime."
+        />
       )}
 
-      <FormSection
-        title="Profile basics"
-        description="Used for deterministic target calculations and dashboard context."
-      >
-        <Controller
-          control={control}
-          name="name"
-          rules={{ required: 'Name is required.' }}
-          render={({ field }) => (
-            <AppInput
-              label="Name"
-              autoCapitalize="words"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.name?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="age"
-          rules={{
-            required: 'Age is required.',
-            validate: (value) =>
-              Number.isInteger(Number(value)) && Number(value) >= 0
-                ? true
-                : 'Enter a whole number.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Age"
-              keyboardType="number-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.age?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="birthDate"
-          rules={{
-            required: 'Birthday is required.',
-            pattern: {
-              value: /^\d{4}-\d{2}-\d{2}$/,
-              message: 'Use YYYY-MM-DD.',
-            },
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Birthday"
-              placeholder="YYYY-MM-DD"
-              keyboardType="numbers-and-punctuation"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.birthDate?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="sex"
-          render={({ field }) => (
-            <View className="gap-2">
-              <AppText variant="label">Sex</AppText>
-              <ChoiceRow
-                values={['male', 'female'] as const}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="heightInches"
-          rules={{
-            required: 'Height is required.',
-            validate: (value) =>
-              Number.isInteger(Number(value)) && Number(value) > 0
-                ? true
-                : 'Enter total height in whole inches.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Height (total inches)"
-              keyboardType="number-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.heightInches?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="timezone"
-          rules={{ required: 'Timezone is required.' }}
-          render={({ field }) => (
-            <AppInput
-              label="Timezone"
-              autoCapitalize="none"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.timezone?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="startingWeightLb"
-          rules={{
-            required: 'Starting weight is required.',
-            validate: (value) =>
-              Number(value) > 0 ? true : 'Enter a weight above zero.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Starting weight (lb)"
-              keyboardType="decimal-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.startingWeightLb?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="activityLevel"
-          render={({ field }) => (
-            <View className="gap-2">
-              <AppText variant="label">Activity level</AppText>
-              <ChoiceRow
-                values={ACTIVITY_LEVELS}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="trainingStyle"
-          render={({ field }) => (
-            <View className="gap-2">
-              <AppText variant="label">Training style</AppText>
-              <ChoiceRow
-                values={TRAINING_STYLES}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </View>
-          )}
-        />
-      </FormSection>
+      <ProfileOverview values={watchedValues} />
 
-      <FormSection title="Goals">
-        <Controller
-          control={control}
-          name="goalType"
-          render={({ field }) => (
-            <View className="gap-2">
-              <AppText variant="label">Goal direction</AppText>
-              <ChoiceRow
-                values={GOAL_TYPES}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="goalPace"
-          render={({ field }) => (
-            <View className="gap-2">
-              <AppText variant="label">Goal pace</AppText>
-              <ChoiceRow
-                values={['none', ...GOAL_PACES] as const}
-                value={field.value}
-                onChange={field.onChange}
-              />
-            </View>
-          )}
-        />
-        <Controller
-          control={control}
-          name="targetWeightLb"
-          rules={{
-            required: 'Target weight is required.',
-            validate: (value) =>
-              Number(value) > 0 ? true : 'Enter a weight above zero.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Target weight (lb)"
-              keyboardType="decimal-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.targetWeightLb?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="targetCalories"
-          rules={{
-            required: 'Calorie target is required.',
-            validate: (value) =>
-              Number.isInteger(Number(value)) && Number(value) >= 0
-                ? true
-                : 'Enter whole kilocalories.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Daily calorie target"
-              keyboardType="number-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.targetCalories?.message}
-            />
-          )}
-        />
-        <Controller
-          control={control}
-          name="targetProteinGrams"
-          rules={{
-            required: 'Protein target is required.',
-            validate: (value) =>
-              Number(value) >= 0 ? true : 'Enter zero or more grams.',
-          }}
-          render={({ field }) => (
-            <AppInput
-              label="Daily protein target (g)"
-              keyboardType="decimal-pad"
-              value={field.value}
-              onBlur={field.onBlur}
-              onChangeText={field.onChange}
-              error={errors.targetProteinGrams?.message}
-            />
-          )}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Tracking mode"
-        description="Simple mode keeps the daily UI focused on calories, protein, and weight."
+      <SettingsSection
+        title="Tracking style"
+        description="Choose how detailed you want tracking to feel."
       >
         <Controller
           control={control}
           name="mode"
           render={({ field }) => (
-            <ChoiceRow
-              values={TRACKING_MODES}
-              value={field.value}
-              onChange={field.onChange}
-            />
+            <View className="gap-3 border-t border-line py-4">
+              <View className="flex-row rounded-full bg-[#F4F4F4] p-1.5">
+                {TRACKING_MODES.map((mode) => (
+                  <ModeOption
+                    key={mode}
+                    mode={mode}
+                    selected={field.value === mode}
+                    onSelect={field.onChange}
+                  />
+                ))}
+              </View>
+              <AppText variant="caption" className="text-muted">
+                {field.value === 'simple'
+                  ? 'Fast logging with core targets.'
+                  : 'More nutrition detail when you want it.'}
+              </AppText>
+            </View>
           )}
         />
-      </FormSection>
+      </SettingsSection>
 
-      <AppButton loading={isSubmitting} onPress={() => void save()}>
-        Save profile
-      </AppButton>
+      <SettingsSection
+        title="Plan summary"
+        description="These values shape what you see across the app."
+      >
+        <SettingsRow
+          Icon={Goal}
+          label="Goal direction"
+          value={goalLabel(watchedValues.goalType)}
+          detail={paceLabel(watchedValues.goalPace)}
+        />
+        <SettingsRow
+          Icon={Scale}
+          color="#6F88B4"
+          label="Target weight"
+          value={`${watchedValues.targetWeightLb || '0'} lb`}
+        />
+        <SettingsRow
+          Icon={Flame}
+          color="#D98275"
+          label="Daily calories"
+          value={`${Number(watchedValues.targetCalories || 0).toLocaleString()} kcal`}
+        />
+        <SettingsRow
+          Icon={Beef}
+          color="#679C8C"
+          label="Daily protein"
+          value={`${watchedValues.targetProteinGrams || '0'} g`}
+        />
+      </SettingsSection>
+
+      <SettingsSection title="Edit profile">
+        <FieldGroup
+          title="Identity"
+          description="Personal details help keep your daily targets useful."
+        >
+          <Controller
+            control={control}
+            name="name"
+            rules={{ required: 'Name is required.' }}
+            render={({ field }) => (
+              <AppInput
+                label="Name"
+                autoCapitalize="words"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.name?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="age"
+            rules={{
+              required: 'Age is required.',
+              validate: (value) =>
+                Number.isInteger(Number(value)) && Number(value) >= 0
+                  ? true
+                  : 'Enter a whole number.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Age"
+                keyboardType="number-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.age?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="birthDate"
+            rules={{
+              required: 'Birthday is required.',
+              pattern: {
+                value: /^\d{4}-\d{2}-\d{2}$/,
+                message: 'Use YYYY-MM-DD.',
+              },
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Birthday"
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.birthDate?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="sex"
+            render={({ field }) => (
+              <View className="gap-2">
+                <AppText variant="label">Sex</AppText>
+                <ChoiceRow
+                  values={['male', 'female'] as const}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </View>
+            )}
+          />
+        </FieldGroup>
+
+        <FieldGroup title="Body and training">
+          <Controller
+            control={control}
+            name="heightInches"
+            rules={{
+              required: 'Height is required.',
+              validate: (value) =>
+                Number.isInteger(Number(value)) && Number(value) > 0
+                  ? true
+                  : 'Enter total height in whole inches.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Height (total inches)"
+                keyboardType="number-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.heightInches?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="startingWeightLb"
+            rules={{
+              required: 'Starting weight is required.',
+              validate: (value) =>
+                Number(value) > 0 ? true : 'Enter a weight above zero.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Starting weight (lb)"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.startingWeightLb?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="activityLevel"
+            render={({ field }) => (
+              <View className="gap-2">
+                <AppText variant="label">Activity level</AppText>
+                <ChoiceRow
+                  values={ACTIVITY_LEVELS}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </View>
+            )}
+          />
+          <Controller
+            control={control}
+            name="trainingStyle"
+            render={({ field }) => (
+              <View className="gap-2">
+                <AppText variant="label">Training style</AppText>
+                <ChoiceRow
+                  values={TRAINING_STYLES}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </View>
+            )}
+          />
+        </FieldGroup>
+
+        <FieldGroup title="App context">
+          <Controller
+            control={control}
+            name="timezone"
+            rules={{ required: 'Timezone is required.' }}
+            render={({ field }) => (
+              <AppInput
+                label="Timezone"
+                autoCapitalize="none"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.timezone?.message}
+              />
+            )}
+          />
+        </FieldGroup>
+      </SettingsSection>
+
+      <SettingsSection title="Edit goals">
+        <FieldGroup
+          title="Goal"
+          description="Use values that feel practical right now."
+        >
+          <Controller
+            control={control}
+            name="goalType"
+            render={({ field }) => (
+              <View className="gap-2">
+                <AppText variant="label">Goal direction</AppText>
+                <ChoiceRow
+                  values={GOAL_TYPES}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </View>
+            )}
+          />
+          <Controller
+            control={control}
+            name="goalPace"
+            render={({ field }) => (
+              <View className="gap-2">
+                <AppText variant="label">Goal pace</AppText>
+                <ChoiceRow
+                  values={['none', ...GOAL_PACES] as const}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              </View>
+            )}
+          />
+          <Controller
+            control={control}
+            name="targetWeightLb"
+            rules={{
+              required: 'Target weight is required.',
+              validate: (value) =>
+                Number(value) > 0 ? true : 'Enter a weight above zero.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Target weight (lb)"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.targetWeightLb?.message}
+              />
+            )}
+          />
+        </FieldGroup>
+
+        <FieldGroup title="Daily targets">
+          <Controller
+            control={control}
+            name="targetCalories"
+            rules={{
+              required: 'Calorie target is required.',
+              validate: (value) =>
+                Number.isInteger(Number(value)) && Number(value) >= 0
+                  ? true
+                  : 'Enter whole kilocalories.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Daily calorie target"
+                keyboardType="number-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.targetCalories?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="targetProteinGrams"
+            rules={{
+              required: 'Protein target is required.',
+              validate: (value) =>
+                Number(value) >= 0 ? true : 'Enter zero or more grams.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Daily protein target (g)"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.targetProteinGrams?.message}
+              />
+            )}
+          />
+        </FieldGroup>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Preferences"
+        description="Fixed units are shown where they apply."
+      >
+        <SettingsRow
+          Icon={Ruler}
+          color="#6F88B4"
+          label="Height"
+          value="Inches"
+          detail="Used for profile details"
+        />
+        <SettingsRow
+          Icon={Scale}
+          color="#6F88B4"
+          label="Weight"
+          value="Pounds"
+          detail="Used for weight and target fields"
+        />
+        <SettingsRow
+          Icon={MapPin}
+          label="Timezone"
+          value={watchedValues.timezone}
+          detail="Keeps daily logs aligned"
+        />
+        <SettingsRow
+          Icon={SlidersHorizontal}
+          label="Tracking detail"
+          value={modeLabel(watchedValues.mode)}
+          detail={
+            watchedValues.mode === 'simple'
+              ? 'Fast and focused'
+              : 'Detailed but organized'
+          }
+        />
+        <SettingsRow
+          Icon={Activity}
+          label="Activity"
+          value={label(watchedValues.activityLevel)}
+        />
+        <SettingsRow
+          Icon={Dumbbell}
+          label="Training"
+          value={label(watchedValues.trainingStyle)}
+        />
+        <SettingsRow
+          Icon={CalendarDays}
+          label="Birthday"
+          value={watchedValues.birthDate}
+        />
+        <SettingsRow
+          Icon={UserRound}
+          label="Profile"
+          value={label(watchedValues.sex)}
+        />
+        <SettingsRow
+          Icon={Target}
+          label="Goal pace"
+          value={paceLabel(watchedValues.goalPace)}
+        />
+      </SettingsSection>
+
+      <ProfileActions
+        saving={isSubmitting}
+        canCancel={isDirty}
+        onSave={() => void save()}
+        onCancel={cancelChanges}
+      />
     </AppScreen>
   );
 }

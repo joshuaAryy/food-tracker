@@ -420,6 +420,22 @@ Stable `react-native-svg` rings and simple rails are allowed for compact
 indicators. Do not add a charting dependency or build fragile pseudo-charts
 from arbitrary View geometry.
 
+## Profile And Settings
+
+Profile should feel like a personal control center, not a generic settings
+form. Use a pure white base, strong charcoal typography, open settings groups,
+quiet dividers, icon-supported rows, and a stable save area.
+
+Avoid solving Profile with repeated bordered cards. Settings groups should read
+as headings plus crisp rows, with pills or selected bands for choices. Use the
+real Simple and Complex/Detailed mode marks where tracking mode is shown, and
+keep the copy focused on what the user can change rather than calculation or
+storage mechanics.
+
+Goal and profile editing should preserve the existing request shapes and form
+validation while improving rhythm: grouped fields, clear units, helpful helper
+copy, charcoal primary save actions, and a quiet local cancel/reset affordance.
+
 ## Loading States
 
 Backend-connected screens show `LoadingState` during the initial request.

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Plus } from 'lucide-react-native';
 import { AppText } from './app-text';
 
 interface WheelAction {
@@ -87,7 +88,7 @@ export function FloatingActionWheel() {
                     className={`h-[52px] w-[52px] items-center justify-center rounded-full border ${
                       disabled
                         ? 'border-border bg-canvas opacity-60'
-                        : 'border-sage bg-sage-soft shadow-sm shadow-ink/15 active:bg-sage'
+                        : 'border-primary-soft bg-primary-soft shadow-sm shadow-ink/15 active:bg-primary'
                     }`}
                     disabled={disabled}
                     onPress={() => selectAction(action)}
@@ -97,7 +98,7 @@ export function FloatingActionWheel() {
                       className={
                         disabled
                           ? 'text-muted'
-                          : 'text-lg font-semibold text-sage-dark'
+                          : 'text-lg font-semibold text-primary-dark'
                       }
                     >
                       {action.symbol}
@@ -125,15 +126,12 @@ export function FloatingActionWheel() {
         <Pressable
           accessibilityLabel={open ? 'Close logging menu' : 'Open logging menu'}
           accessibilityRole="button"
-          className="h-[62px] w-[62px] items-center justify-center rounded-full border-4 border-canvas bg-sage shadow-md shadow-ink/25 active:bg-sage-dark"
+          className="h-[62px] w-[62px] items-center justify-center rounded-full border-4 border-white bg-primary shadow-md shadow-ink/25 active:bg-primary-dark"
           onPress={() => setOpen((current) => !current)}
         >
-          <Text
-            className="text-3xl font-light text-surface-raised"
-            style={{ transform: [{ rotate: open ? '45deg' : '0deg' }] }}
-          >
-            +
-          </Text>
+          <View className="h-[30px] w-[30px] items-center justify-center">
+            <Plus color="#FFFFFF" size={30} strokeWidth={2.4} />
+          </View>
         </Pressable>
       </View>
     </View>

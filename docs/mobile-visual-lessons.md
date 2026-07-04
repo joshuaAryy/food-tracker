@@ -237,6 +237,22 @@ Simple mode should stay focused on calories, protein, consistency, weight, and
 direct guidance. Complex/Detailed mode can show macro and nutrient detail, but
 it still needs to remain calm and easy to scan.
 
+## Profile And Settings Lessons
+
+Profile should extend the open settings-row language instead of returning to a
+stack of form cards. The screen works best as a personal control center: white
+canvas, strong header, compact summary, icon-supported rows, quiet dividers,
+and a stable save/cancel area.
+
+Tracking mode should use the real Simple and Complex/Detailed marks when it is
+presented as a preference. Simple should feel fast and focused; Detailed should
+feel more capable without adding visual noise. Unit labels should stay clear in
+the existing fields unless real unit preference behavior is explicitly added.
+
+Goal and profile editing can remain inline as long as field groups have a clear
+hierarchy and the copy speaks to the user. Avoid wording about payloads,
+schemas, databases, target calculations, or stored setup values.
+
 ## Branding And Icon Rules
 
 Use actual provided PNG brand assets. Do not redraw or recreate the logo with

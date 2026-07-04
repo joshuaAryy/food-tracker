@@ -29,7 +29,6 @@ import { AppText } from '@/components/app-text';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
-import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
@@ -212,7 +211,7 @@ function Overview({ analytics }: { analytics: AdvancedAnalytics }) {
             variant="caption"
             className="text-ink uppercase tracking-[1.4px]"
           >
-            Recent pattern
+            Recent patterns
           </AppText>
           <View className="flex-row items-end gap-2">
             <AppText variant="display" className="text-ink tabular-nums">
@@ -911,11 +910,6 @@ export default function InsightsScreen() {
       backgroundColor="#FFFFFF"
       onRefresh={() => void loadInsights(true)}
     >
-      <ScreenHeader
-        title="Insights"
-        subtitle="Patterns from your recent food and weight logs."
-      />
-
       {analyticsError === null ? null : (
         <ErrorState
           title={

@@ -23,7 +23,6 @@ import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
-import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { addLocalDateDays, todayInTimezone } from '@/lib/date-time';
 import { useAppStore } from '@/store/app-store';
@@ -657,10 +656,6 @@ export default function HistoryScreen() {
   if (error !== null && loadedDate !== selectedDate) {
     return (
       <AppScreen backgroundColor="#FFFFFF">
-        <ScreenHeader
-          title="History"
-          subtitle="Your daily food and weight record."
-        />
         <ErrorState
           title="History is unavailable"
           message={error}
@@ -684,11 +679,6 @@ export default function HistoryScreen() {
       backgroundColor="#FFFFFF"
       onRefresh={() => void loadHistory(selectedDate, true)}
     >
-      <ScreenHeader
-        title="History"
-        subtitle="Your daily food and weight record."
-      />
-
       <View className="gap-5">
         <View className="flex-row items-center justify-between gap-3">
           <Pressable
