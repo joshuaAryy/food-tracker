@@ -248,6 +248,13 @@ behavior, footer overlap, tab spacing, floating add behavior, logo clipping,
 input vertical alignment, icon contrast, white/charcoal consistency, and
 Simple/Detailed mode presentation.
 
+Phase 7 should add skeleton loading for backend-connected mobile screens where
+it improves perceived performance. Skeletons need native iPhone validation
+because they can create layout jumps, awkward safe-area spacing, or visual
+noise that is not obvious in web preview. They should match the final page
+shape, use subtle neutral placeholders, avoid heavy animation, and follow the
+Phase 6 white/charcoal standard.
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash

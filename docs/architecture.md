@@ -3,24 +3,24 @@
 ## High-Level System
 
 ```text
-Mobile App
-  ↓
-API Layer
-  ↓
-Validation Layer
-  ↓
-Business Modules
-  ↓
-Database
-  ↓
-Analytics Engine
-  ↓
-Recommendation Engine
-  ↓
-Dashboard
+Expo React Native mobile app
+        ↓
+Express + TypeScript API
+        ↓
+Prisma ORM
+        ↓
+PostgreSQL database
 ```
 
-The backend owns validation, business logic, analytics, and recommendation decisions. The frontend owns UI and local state.
+The project currently uses PostgreSQL as the SQL database. In local
+development, PostgreSQL runs inside Docker; the Docker container is mainly the
+local database server. The API itself is normally run locally through pnpm
+scripts, not inside Docker. Prisma handles database access and migrations.
+
+The backend owns validation, business logic, analytics, and recommendation
+decisions. The frontend owns UI and local state. Current authentication still
+uses the fixed mock/dev-user boundary. Real authentication is planned for
+later, likely through Supabase Auth.
 
 ## Implemented Manual Food Logging
 
@@ -43,16 +43,31 @@ The implemented manual logging flow does not use AI parsing, nutrition
 matching, food database lookup, Open Food Facts, barcode scanning, or photo
 recognition.
 
-## Future Intelligent Food Logging
+## Future Food Data And Intelligent Logging
 
 ```text
-Raw text input
-→ AI parser
-→ user confirmation
-→ nutrition matcher
-→ parsed food log
-→ analytics
+User describes food or provides an image
+→ AI parses intent / identifies possible foods
+→ retrieval searches trusted food sources
+→ backend returns structured candidates
+→ user reviews and edits
+→ backend saves confirmed FoodLog
 ```
+
+The future food system should use a hybrid food data strategy: app-owned cached
+and user food records, Open Food Facts for barcode-first packaged food lookup,
+and USDA FoodData Central for generic foods and detailed nutrients. External
+food data should be cached into the app database where appropriate.
+
+AI is not the nutrition source of truth. It can parse messy input, split meals
+into likely items, estimate serving descriptions, rank candidate matches, and
+generate user-friendly explanations. It must not silently save uncertain logs,
+invent nutrient data when trusted data is available, bypass user confirmation,
+or replace backend validation.
+
+Photo logging belongs after the food database and retrieval foundations. See
+[food-data-and-ai-strategy.md](food-data-and-ai-strategy.md) for the detailed
+direction.
 
 ---
 
@@ -95,6 +110,9 @@ Responsibilities:
 Responsibilities:
 - look up nutrition data for confirmed foods
 - produce structured nutrient values deterministically
+- prefer user/recent/saved/custom/cached data before external sources
+- preserve nullable unknown nutrient values instead of treating missing data as
+  zero
 
 ---
 
@@ -109,6 +127,11 @@ Responsibilities:
 Analytics computes facts only. It queries food and weight records and performs all calculations deterministically.
 
 Inputs are normalized and rounded before storage. Analytics sums stored normalized values. Calories and sodium use whole stored values; macros and body weight use one decimal place.
+
+As the backend food and nutrition model becomes richer, analytics should expose
+daily nutrient totals and reporting facts for Progress, Insights, and
+Recommendations. The mobile app should only display nutrients and charts that
+the backend actually provides.
 
 ---
 

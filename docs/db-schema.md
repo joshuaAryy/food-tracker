@@ -116,6 +116,11 @@ Each record is an individual food entry, not a full meal. Multiple entries may s
 
 ## Future Tables And Fields
 
+Future schema work should support the MVP direction documented in
+[food-data-and-ai-strategy.md](food-data-and-ai-strategy.md): faster logging,
+accurate food data, full Complex mode nutrition, barcode scanning, and
+RAG-assisted AI logging.
+
 ### RawFoodLog
 Future record for original AI-assisted or external input. Not currently
 implemented.
@@ -129,6 +134,49 @@ Future cached summary only. It is not an MVP table or source of truth. MVP analy
 
 ### SavedMeal
 Future reusable meal definition. Its data model is not yet decided.
+
+### Food Data Foundation
+
+Future food data models should support:
+
+- cached app foods
+- user-created foods
+- corrected foods
+- recent foods
+- saved foods
+- saved meals
+- barcode-linked foods
+- external source identifiers
+- serving sizes and units
+- source attribution and freshness metadata where useful
+
+Food search should eventually prefer user recent foods, saved foods/meals,
+custom foods, cached app foods, and then external generic/branded sources.
+Barcode lookup should eventually prefer local cached barcodes, Open Food Facts,
+USDA/branded fallback where useful, and custom food creation when not found.
+
+### Full Nutrition Model
+
+Complex mode should eventually support full nutrient tracking. Future nutrient
+values must include units, and missing nutrient values must be nullable/unknown
+rather than treated as zero.
+
+Future nutrient coverage should include:
+
+- calories, protein, carbohydrates, fat, fiber, sugar, added sugar where
+  available, saturated fat, trans fat, monounsaturated fat where available,
+  polyunsaturated fat where available, cholesterol, sodium, potassium, and
+  caffeine
+- vitamin A, vitamin B1 / thiamine, vitamin B2 / riboflavin, vitamin B3 /
+  niacin, vitamin B5 / pantothenic acid, vitamin B6, vitamin B7 / biotin,
+  vitamin B9 / folate, vitamin B12, vitamin C, vitamin D, vitamin E, and
+  vitamin K
+- calcium, iron, magnesium, zinc, phosphorus, selenium, copper, manganese,
+  iodine, chromium, molybdenum, and chloride
+
+Backend summaries should eventually support daily nutrient totals. Progress
+and Insights must only display nutrients that backend summaries actually
+provide.
 
 ### Other Future Models
 `CustomFood`, `WaterLog`, `SupplementLog`, and `MicronutrientLog` are not part of the MVP schema.

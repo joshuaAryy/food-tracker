@@ -475,6 +475,20 @@ an inline activity indicator while submitting.
 Loading states should identify what is loading and must not leave a blank
 screen.
 
+Phase 7 should replace circular spinners with skeleton loading where
+appropriate. Skeleton states should:
+
+- preserve the shape of the loaded page
+- reduce perceived loading time
+- avoid jarring layout jumps
+- use subtle neutral placeholder shapes
+- follow the white/charcoal Phase 6 visual standard
+- avoid heavy or distracting animation
+
+Use skeletons for Progress, History, Insights, Profile/settings, and
+food/weight log flows where they improve the experience. Do not use skeletons
+as decorative filler; they should match real content structure.
+
 ## Empty States
 
 Use `EmptyState` when a successful response contains no relevant records.

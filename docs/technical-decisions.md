@@ -92,18 +92,21 @@ recognition.
 
 Status: Locked
 
-Automated food input belongs to a later phase:
+Automated food input belongs to a later phase and should be retrieval-assisted:
 
 ```text
-Raw text input
-→ AI parser
-→ user confirmation
-→ nutrition matcher
-→ parsed food log
-→ analytics
+User describes food or provides an image
+→ AI parses intent / identifies possible foods
+→ retrieval searches trusted food sources
+→ backend returns structured candidates
+→ user reviews and edits
+→ backend saves confirmed FoodLog
 ```
 
-AI parsing proposes structured entries. The user confirms them before persistence and nutrition matching.
+AI parsing proposes structured entries. The user confirms them before
+persistence. AI must not be the nutrition source of truth, bypass user
+confirmation, invent nutrient data when trusted data is available, or replace
+backend validation.
 
 ## TD-005: Timezone And Tracking Days
 
@@ -176,3 +179,77 @@ Status: Locked
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 - Do not include `DailySummary`, raw/parsed food logs, or other future models
   without explicit approval.
+
+## TD-010: Hybrid Food Database Direction
+
+Status: Planned
+
+Food Tracker should use a hybrid food data strategy:
+
+- app-owned database for cached foods, user-created foods, corrected foods,
+  recent foods, saved foods, saved meals, and barcode-linked foods
+- Open Food Facts as the best initial source for barcode scanning and
+  international/regional packaged foods
+- USDA FoodData Central for generic foods, detailed nutrients, and
+  standardized nutrition data
+
+The app should not depend on one external source forever. The backend should
+cache external food data into the app database where appropriate. Search should
+eventually prioritize user recent foods, saved foods/meals, custom foods,
+cached app foods, and then external generic/branded sources. Barcode lookup
+should eventually prioritize local cached barcodes, Open Food Facts,
+USDA/branded fallback where useful, and custom food creation when not found.
+
+See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
+
+## TD-011: Full Nutrition For Complex Mode
+
+Status: Planned
+
+Complex mode should eventually support full nutrition tracking, including
+macros, fiber, sugar, fats, cholesterol, sodium, potassium, caffeine, vitamins,
+and minerals. Nutrients must have units. Missing nutrient values must be
+nullable/unknown, not treated as zero.
+
+Simple mode should hide this complexity. Complex mode should expose deeper
+detail. Backend summaries should eventually support daily nutrient totals, and
+mobile Progress/Insights must only display nutrients the backend actually
+provides.
+
+## TD-012: AI Is Not Source Of Truth
+
+Status: Planned
+
+RAG-assisted AI logging should use retrieval over trusted sources: user recent
+foods, saved foods, saved meals, custom foods, cached app foods, barcode foods,
+generic food data, and branded food data.
+
+AI may parse messy descriptions, split meals into likely items, estimate
+serving descriptions, rank candidate matches, and generate user-friendly
+explanations. AI must not silently save uncertain logs, invent nutrition data,
+bypass user confirmation, become the only source for calories/macros/micros, or
+replace backend validation.
+
+Every AI-assisted log requires a user review/confirmation step before saving.
+
+## TD-013: Photo Logging Sequencing
+
+Status: Planned
+
+Photo food logging should come after food database and RAG foundations. It
+should eventually support image capture/upload, food recognition, portion
+estimation, retrieval matching against trusted food data, confidence/review
+state, user edits before saving, Simple confirmation UI, and Complex nutrient
+detail review.
+
+Do not prioritize photo logging before trusted food search, barcode lookup,
+cached food data, and candidate review exist.
+
+## TD-014: Skeleton Loading
+
+Status: Planned
+
+Phase 7 should add skeleton loading where appropriate. Skeletons should match
+the page layout, preserve layout shape, reduce perceived loading time, avoid
+jarring layout jumps, follow the Phase 6 white/charcoal visual standard, use
+subtle neutral placeholder shapes, and avoid heavy animation.

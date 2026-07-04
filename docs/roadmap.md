@@ -4,6 +4,17 @@ This roadmap records implemented state and intended sequencing. It does not
 override the engineering rules in `AGENTS.md` or locked architecture and schema
 decisions.
 
+The post-Phase 6 MVP direction is:
+
+```text
+Fast logging + accurate food data + useful progress/reporting + Simple/Complex
+modes that actually feel different.
+```
+
+Future work should prioritize faster logging and richer backend-supported
+tracking data, not broad redesigns of screens that already follow the Phase 6
+visual standard.
+
 ## Completed Baseline
 
 Implemented:
@@ -28,60 +39,163 @@ Implemented:
 - mode-aware food forms and Insights
 - analytics completeness and recommendation confidence gating
 - first-run setup detection and atomic setup saves
-- dedicated onboarding with deterministic calorie/protein target personalization
+- dedicated onboarding with deterministic calorie/protein target
+  personalization
 - clearer physical-device API diagnostics
 - Phase 6 mobile visual-system pass across onboarding, Progress, History,
   logging, Insights, Recommendations, Profile/Settings, bottom navigation,
   floating add behavior, mode identity, logo rendering, inputs, and native
   iPhone testing guidance
 
-## Current Phase — Post-Phase 6 MVP Readiness
+## Phase 7 — Product Readiness + Skeleton Loading
 
-Goal:
+Short, focused hardening phase before large new features.
 
-- preserve the Phase 6 visual-system standard while moving into the next MVP
-  module
-- keep future mobile features aligned with the white/charcoal, Stoic-led,
-  reduced-card direction captured in `docs/mobile-visual-lessons.md` and
-  `docs/design-system.md`
-- continue using native iPhone testing for meaningful mobile visual decisions
+- Replace circular spinners with layout-matched skeleton loading where useful.
+- Apply skeletons to Progress, History, Insights, Profile/settings, and
+  food/weight log flows where appropriate.
+- Preserve the Phase 6 visual standard.
+- Do not turn Phase 7 into another redesign phase.
+- Fix only high-confidence product-readiness issues that block the next feature
+  modules.
 
-Authentication remains the next major boundary; development still uses the
-fixed mock user.
+## Phase 8 — Food Database Foundation
 
-## Next 1 — Authentication
+- app-owned food database foundation
+- cached foods
+- user-created and corrected foods
+- recent foods
+- saved foods
+- saved meals
+- external source metadata
+- Open Food Facts and USDA FoodData Central integration groundwork
 
-Prepare for limited multi-user use:
+See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
+
+## Phase 9 — Full Nutrition Model For Complex Mode
+
+- full macro/common nutrition fields
+- vitamins and minerals
+- caffeine
+- nutrient units
+- nullable unknown nutrient values
+- daily nutrient totals from backend summaries
+- Simple mode hiding complexity
+- Complex mode exposing deeper detail
+
+Do not show fake micronutrient charts before backend data exists.
+
+## Phase 10 — Faster Logging UX
+
+- fast food search
+- frequent foods
+- saved foods and meals
+- custom foods
+- one-tap log again improvements
+- copy previous day or previous meal where useful
+- serving amount and unit pickers
+- smart defaults based on last used amount
+- meal shortcuts
+- quick Simple mode calorie/protein entry
+- full Complex mode nutrition entry/editing
+
+## Phase 11 — Barcode Scanning
+
+- local cached barcode lookup
+- Open Food Facts barcode lookup
+- USDA/branded fallback where useful
+- custom food creation when not found
+- barcode-linked food caching
+
+## Phase 12 — RAG-Assisted AI Text Logging
+
+- parse messy food descriptions
+- split likely meal items
+- retrieve candidates from trusted food sources
+- rank candidate matches
+- user review and edit before saving
+- backend validation and confirmed `FoodLog` persistence
+
+AI must not become the nutrition source of truth.
+
+## Phase 13 — Photo Food Logging
+
+- image capture/upload
+- food recognition
+- portion estimation
+- retrieval matching against trusted food data
+- confidence/review state
+- user edits before saving
+- Simple confirmation UI
+- Complex nutrient detail review
+
+Photo logging comes after food database and RAG foundations.
+
+## Phase 14 — Streaks + Better Reporting
+
+- logging streaks
+- weekly consistency
+- calorie adherence
+- protein adherence
+- weight trend
+- goal progress
+- weekly reports
+- monthly reports
+- Simple mode summaries
+- Complex mode deeper reporting
+
+## Phase 15 — Custom Graphs + Complex Analytics
+
+- customizable graphs
+- graph metric selection
+- 7-day, 30-day, 90-day, and custom ranges
+- compare metrics
+- saved graph preferences
+- micronutrient patterns
+- caffeine trends
+- sodium, fiber, and sugar patterns
+
+Charts should follow the Phase 6 visual standard and avoid generic dashboard
+card spam.
+
+## Phase 16 — Recommendation Engine 2.0
+
+- recommendations informed by richer nutrient summaries
+- better confidence and evidence display
+- better Simple/Complex recommendation density
+- optional AI wording over backend-decided facts only
+
+AI must not calculate analytics, identify deficits, decide recommendations, or
+query the database directly.
+
+## Phase 17 — Real Auth + User Accounts
 
 - Supabase Auth integration at the existing current-user boundary
 - user-isolation regression coverage
+- account lifecycle behavior
 - CI pinned to Node 22
 - repeatable development-build and environment guidance
 
 Do not build custom password authentication or production-scale infrastructure.
 
-## Next 2 — Insights Presentation Refinement
+## Phase 18 — Deployment / TestFlight Readiness
 
-Improve interpretation after data semantics are trustworthy:
-
-- clearer completeness and time-window labels
-- better recommendation evidence presentation
-- compact native trend visuals where useful
-- improved weight-change interval wording
-
-Do not add a chart library without demonstrated need.
+- deployment hardening
+- environment configuration
+- TestFlight readiness
+- production database and migration workflow
+- observability and diagnostics
+- limited-beta release checklist
 
 ## Deferred
 
 The following remain future work:
 
-- natural-language AI food parsing with confirmation
-- deterministic nutrition matching and food database lookup
-- barcode and photo-assisted input
-- optional AI rewriting of already-decided recommendation wording
+- wearable integration
+- grocery recommendations
+- smart meal planning
 - water and note logging
-- vitamins, minerals, supplements, and custom nutrients
-- advanced charting
+- supplements and custom nutrients beyond the core nutrition model
 
 AI must not calculate analytics, identify deficits, decide recommendations, or
 query the database.
