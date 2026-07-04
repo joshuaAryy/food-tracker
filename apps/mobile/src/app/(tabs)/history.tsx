@@ -22,7 +22,12 @@ import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { LoadingState } from '@/components/loading-state';
+import {
+  SkeletonBlock,
+  SkeletonLine,
+  SkeletonPill,
+  SkeletonRail,
+} from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
 import { addLocalDateDays, todayInTimezone } from '@/lib/date-time';
 import { useAppStore } from '@/store/app-store';
@@ -525,6 +530,116 @@ function DailyNutritionSnapshot({
   );
 }
 
+function HistorySkeleton() {
+  return (
+    <AppScreen contentClassName="gap-7" backgroundColor="#FFFFFF">
+      <View className="gap-5">
+        <View className="flex-row items-center justify-between gap-3">
+          <SkeletonPill width={44} height={44} />
+          <View className="min-w-0 flex-1 items-center gap-2">
+            <SkeletonLine width={86} height={11} />
+            <SkeletonLine width={152} height={24} />
+          </View>
+          <SkeletonPill width={44} height={44} />
+        </View>
+        <View className="flex-row justify-between gap-1">
+          {Array.from({ length: 7 }, (_, index) => (
+            <View
+              key={index}
+              className="min-h-[82px] flex-1 items-center justify-center px-0.5 py-2"
+            >
+              <SkeletonLine width={22} height={10} />
+              <SkeletonBlock
+                width={48}
+                height={48}
+                radius={24}
+                className="mt-2"
+              />
+              <SkeletonBlock width={6} height={6} radius={3} className="mt-2" />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="gap-5">
+        <View className="flex-row items-start justify-between gap-5">
+          <View className="min-w-0 flex-1 gap-3">
+            <SkeletonLine width={132} height={11} />
+            <View className="flex-row items-end gap-2">
+              <SkeletonLine width={118} height={42} radius={14} />
+              <SkeletonLine width={36} height={14} className="mb-1.5" />
+            </View>
+            <SkeletonLine width="86%" height={13} />
+          </View>
+          <SkeletonBlock width={76} height={76} radius={38} />
+        </View>
+        <View className="gap-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <View key={index} className="gap-2">
+              <View className="flex-row items-center justify-between gap-3">
+                <SkeletonLine width={96} height={12} />
+                <SkeletonLine width={124} height={12} />
+              </View>
+              <SkeletonRail height={8} />
+            </View>
+          ))}
+        </View>
+        <View className="flex-row gap-3">
+          {Array.from({ length: 3 }, (_, index) => (
+            <View key={index} className="flex-1 gap-2">
+              <SkeletonPill width={36} height={36} />
+              <SkeletonLine width="64%" height={10} />
+              <SkeletonLine width="78%" height={14} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="gap-4">
+        <View className="flex-row items-end justify-between gap-3">
+          <SkeletonLine width={64} height={22} />
+          <SkeletonLine width={72} height={10} />
+        </View>
+        <View>
+          {Array.from({ length: 3 }, (_, index) => (
+            <View
+              key={index}
+              className="flex-row items-center gap-3 border-t border-line py-4"
+            >
+              <SkeletonPill width={40} height={40} />
+              <View className="min-w-0 flex-1 gap-2">
+                <SkeletonLine width="70%" height={13} />
+                <SkeletonLine width="52%" height={10} />
+              </View>
+              <View className="items-end gap-1.5">
+                <SkeletonLine width={54} height={22} />
+                <SkeletonLine width={36} height={10} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="gap-4">
+        <View className="flex-row items-end justify-between gap-3">
+          <SkeletonLine width={76} height={22} />
+          <SkeletonLine width={62} height={10} />
+        </View>
+        <View className="flex-row items-center justify-between gap-4 border-t border-line py-4">
+          <View className="flex-row items-center gap-3">
+            <SkeletonPill width={36} height={36} />
+            <View className="gap-2">
+              <SkeletonLine width={58} height={10} />
+              <SkeletonLine width={96} height={13} />
+            </View>
+          </View>
+          <SkeletonLine width={78} height={22} />
+        </View>
+      </View>
+    </AppScreen>
+  );
+}
+
 export default function HistoryScreen() {
   const router = useRouter();
   const dataVersion = useAppStore((state) => state.dataVersion);
@@ -643,11 +758,7 @@ export default function HistoryScreen() {
   );
 
   if (selectedDate === null || loading) {
-    return (
-      <AppScreen backgroundColor="#FFFFFF">
-        <LoadingState message="Loading your history…" />
-      </AppScreen>
-    );
+    return <HistorySkeleton />;
   }
 
   const today = todayInTimezone(timezone);

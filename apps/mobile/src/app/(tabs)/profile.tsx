@@ -42,7 +42,11 @@ import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { LoadingState } from '@/components/loading-state';
+import {
+  SkeletonLine,
+  SkeletonPill,
+  SkeletonRail,
+} from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
@@ -430,6 +434,75 @@ function ProfileOverview({ values }: { values: ProfileForm }) {
   );
 }
 
+function ProfileSkeleton() {
+  return (
+    <AppScreen contentClassName="gap-7 pb-8" backgroundColor="#FFFFFF">
+      <View className="border-b border-line pb-4">
+        <View className="flex-row items-center gap-3">
+          <SkeletonPill width={42} height={42} />
+          <View className="min-w-0 flex-1 gap-2">
+            <SkeletonLine width="58%" height={22} />
+            <SkeletonLine width="72%" height={11} />
+          </View>
+          <SkeletonPill width={96} height={30} />
+        </View>
+      </View>
+
+      <View className="gap-2.5">
+        <View className="gap-2">
+          <SkeletonLine width={112} height={11} />
+          <SkeletonLine width="78%" height={10} />
+        </View>
+        <View className="gap-3 border-t border-line py-4">
+          <View className="flex-row rounded-full bg-[#F4F4F4] p-1.5">
+            <SkeletonPill width="50%" height={44} className="flex-1" />
+            <SkeletonPill width="50%" height={44} className="flex-1" />
+          </View>
+          <SkeletonLine width="62%" height={10} />
+        </View>
+      </View>
+
+      <View className="gap-2.5">
+        <View className="gap-2">
+          <SkeletonLine width={108} height={11} />
+          <SkeletonLine width="70%" height={10} />
+        </View>
+        <View>
+          {Array.from({ length: 4 }, (_, index) => (
+            <View
+              key={index}
+              className="flex-row items-center gap-3 border-t border-line py-4"
+            >
+              <SkeletonPill width={36} height={36} />
+              <View className="min-w-0 flex-1 gap-2">
+                <SkeletonLine width="46%" height={13} />
+                {index === 0 ? <SkeletonLine width="36%" height={10} /> : null}
+              </View>
+              <SkeletonLine width={82} height={14} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <View className="gap-2.5">
+        <SkeletonLine width={92} height={11} />
+        <View className="gap-3.5 border-t border-line py-4">
+          <View className="gap-2">
+            <SkeletonLine width={76} height={14} />
+            <SkeletonLine width="80%" height={10} />
+          </View>
+          {Array.from({ length: 4 }, (_, index) => (
+            <View key={index} className="gap-2">
+              <SkeletonLine width={120} height={13} />
+              <SkeletonRail height={46} radius={14} />
+            </View>
+          ))}
+        </View>
+      </View>
+    </AppScreen>
+  );
+}
+
 export default function ProfileScreen() {
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
@@ -554,11 +627,7 @@ export default function ProfileScreen() {
   };
 
   if (loading) {
-    return (
-      <AppScreen backgroundColor="#FFFFFF">
-        <LoadingState message="Loading your settings…" />
-      </AppScreen>
-    );
+    return <ProfileSkeleton />;
   }
 
   if (error !== null && !hasLoaded) {

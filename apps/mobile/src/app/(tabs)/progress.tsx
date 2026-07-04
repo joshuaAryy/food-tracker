@@ -19,7 +19,11 @@ import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { LoadingState } from '@/components/loading-state';
+import {
+  SkeletonLine,
+  SkeletonPill,
+  SkeletonRail,
+} from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
@@ -280,6 +284,58 @@ function SignalRow({
   );
 }
 
+function ProgressSkeleton() {
+  return (
+    <AppScreen contentClassName="gap-8">
+      <View className="flex-row items-center justify-between gap-4 pt-1">
+        <SkeletonLine width={168} height={13} />
+        <SkeletonPill width={104} height={39} />
+      </View>
+
+      <View className="gap-6">
+        <View className="gap-4">
+          <SkeletonPill width={128} height={29} />
+          <View className="gap-3">
+            <View className="flex-row items-end gap-3">
+              <SkeletonLine width={132} height={64} radius={18} />
+              <SkeletonLine width={64} height={16} className="mb-3" />
+            </View>
+            <SkeletonLine width="76%" height={14} />
+          </View>
+        </View>
+
+        <View className="gap-3">
+          <SkeletonRail height={10} />
+          <View className="flex-row justify-between gap-3">
+            <SkeletonLine width={76} height={10} />
+            <SkeletonLine width={92} height={10} />
+          </View>
+        </View>
+      </View>
+
+      <View className="gap-1">
+        {Array.from({ length: 4 }, (_, index) => (
+          <View key={index} className="border-t border-line py-4">
+            <View className="flex-row items-center gap-3">
+              <SkeletonPill width={36} height={36} />
+              <View className="min-w-0 flex-1 gap-2">
+                <SkeletonLine width="48%" height={13} />
+                <SkeletonLine width="72%" height={10} />
+              </View>
+              <SkeletonLine width={74} height={14} />
+            </View>
+            {index === 1 ? (
+              <View className="ml-12 mt-3">
+                <SkeletonRail height={6} />
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </View>
+    </AppScreen>
+  );
+}
+
 export default function ProgressScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const markDataChanged = useAppStore((state) => state.markDataChanged);
@@ -330,11 +386,7 @@ export default function ProgressScreen() {
   );
 
   if (loading && summary === null) {
-    return (
-      <AppScreen>
-        <LoadingState message="Loading today’s progress…" />
-      </AppScreen>
-    );
+    return <ProgressSkeleton />;
   }
 
   if (error !== null && summary === null) {

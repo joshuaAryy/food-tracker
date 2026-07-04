@@ -468,9 +468,10 @@ copy, charcoal primary save actions, and a quiet local cancel/reset affordance.
 
 ## Loading States
 
-Backend-connected screens show `LoadingState` during the initial request.
-Pull-to-refresh uses the native refresh control where appropriate. Buttons show
-an inline activity indicator while submitting.
+Backend-connected screens use layout-matched skeletons during initial content
+requests where the user is waiting for page data. Pull-to-refresh uses the
+native refresh control where appropriate. Buttons show an inline activity
+indicator while submitting.
 
 Loading states should identify what is loading and must not leave a blank
 screen.
@@ -488,6 +489,11 @@ appropriate. Skeleton states should:
 Use skeletons for Progress, History, Insights, Profile/settings, and
 food/weight log flows where they improve the experience. Do not use skeletons
 as decorative filler; they should match real content structure.
+
+The shared mobile primitive lives in `apps/mobile/src/components/skeleton.tsx`.
+Use it for small lines, pills, rails, and blocks, then compose page-specific
+skeleton layouts locally. Normal blank create forms should render directly;
+food and weight log skeletons are for edit or log-again record fetches.
 
 ## Empty States
 

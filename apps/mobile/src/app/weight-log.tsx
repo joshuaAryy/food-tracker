@@ -8,8 +8,12 @@ import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { FormSection } from '@/components/form-section';
-import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
+import {
+  SkeletonLine,
+  SkeletonPill,
+  SkeletonRail,
+} from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
 import {
   isValidLocalDate,
@@ -23,6 +27,43 @@ interface WeightForm {
   weightLb: string;
   loggedDate: string;
   loggedTime: string;
+}
+
+function WeightLogSkeleton() {
+  return (
+    <AppScreen
+      contentClassName="gap-6 pb-8"
+      footer={
+        <View className="gap-2">
+          <SkeletonRail height={52} />
+          <SkeletonRail height={52} />
+        </View>
+      }
+    >
+      <ScreenHeader
+        title="Edit weight"
+        subtitle="Review and correct this measurement."
+        action={<SkeletonPill width={68} height={36} />}
+      />
+
+      <View className="gap-4">
+        <View className="gap-2">
+          <SkeletonLine width={128} height={22} />
+          <SkeletonLine width="70%" height={11} />
+        </View>
+        <SkeletonRail height={58} radius={14} />
+      </View>
+
+      <View className="gap-4">
+        <View className="gap-2">
+          <SkeletonLine width={112} height={22} />
+          <SkeletonLine width="58%" height={11} />
+        </View>
+        <SkeletonRail height={58} radius={14} />
+        <SkeletonRail height={58} radius={14} />
+      </View>
+    </AppScreen>
+  );
 }
 
 export default function WeightLogScreen() {
@@ -151,11 +192,7 @@ export default function WeightLogScreen() {
   };
 
   if (loadingRecord) {
-    return (
-      <AppScreen>
-        <LoadingState message="Loading weight entry…" />
-      </AppScreen>
-    );
+    return <WeightLogSkeleton />;
   }
 
   if (loadError !== null) {

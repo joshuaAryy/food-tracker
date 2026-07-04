@@ -255,6 +255,11 @@ noise that is not obvious in web preview. They should match the final page
 shape, use subtle neutral placeholders, avoid heavy animation, and follow the
 Phase 6 white/charcoal standard.
 
+Phase 7 skeleton QA should cover Progress, History, Insights, Profile, and
+edit/log-again states for food and weight logs. New blank logging forms should
+render normally without a skeleton. During pull-to-refresh, previously loaded
+content should remain visible if the refresh fails.
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash

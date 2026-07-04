@@ -16,8 +16,12 @@ import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { FormSection } from '@/components/form-section';
-import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
+import {
+  SkeletonLine,
+  SkeletonPill,
+  SkeletonRail,
+} from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
 import {
   dateTimeFieldsInTimezone,
@@ -118,6 +122,62 @@ function dedupeRecentFoods(foodLogs: FoodLog[], limit = 6): FoodLog[] {
   return recent;
 }
 
+function FoodLogSkeleton({
+  title,
+  subtitle,
+  footerRows,
+}: {
+  title: string;
+  subtitle: string;
+  footerRows: number;
+}) {
+  return (
+    <AppScreen
+      contentClassName="gap-6 pb-8"
+      footer={
+        <View className="gap-2">
+          {Array.from({ length: footerRows }, (_, index) => (
+            <SkeletonRail key={index} height={52} />
+          ))}
+        </View>
+      }
+    >
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        action={<SkeletonPill width={68} height={36} />}
+      />
+
+      <View className="gap-4">
+        <View className="gap-2">
+          <SkeletonLine width={104} height={22} />
+          <SkeletonLine width="78%" height={11} />
+        </View>
+        <View className="gap-4">
+          <SkeletonRail height={58} radius={14} />
+          <View className="flex-row flex-wrap gap-2">
+            {Array.from({ length: 5 }, (_, index) => (
+              <SkeletonPill key={index} width={86} height={40} />
+            ))}
+          </View>
+          <SkeletonRail height={58} radius={14} />
+          <SkeletonRail height={58} radius={14} />
+          <SkeletonRail height={62} radius={24} />
+        </View>
+      </View>
+
+      <View className="gap-4">
+        <View className="gap-2">
+          <SkeletonLine width={112} height={22} />
+          <SkeletonLine width="64%" height={11} />
+        </View>
+        <SkeletonRail height={58} radius={14} />
+        <SkeletonRail height={58} radius={14} />
+      </View>
+    </AppScreen>
+  );
+}
+
 export default function FoodLogScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -132,12 +192,17 @@ export default function FoodLogScreen() {
   const isEditing = editId !== null;
   const isDuplicating = !isEditing && duplicateId !== null;
   const markDataChanged = useAppStore((state) => state.markDataChanged);
+  const [initialTimestamp] = useState(() =>
+    dateTimeFieldsInTimezone(new Date(), DEFAULT_TIMEZONE),
+  );
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('simple');
   const [showMore, setShowMore] = useState(false);
   const [recentFoods, setRecentFoods] = useState<FoodLog[]>([]);
   const [recentError, setRecentError] = useState<string | null>(null);
-  const [loadingRecord, setLoadingRecord] = useState(true);
+  const [loadingRecord, setLoadingRecord] = useState(
+    isEditing || isDuplicating,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -161,13 +226,19 @@ export default function FoodLogScreen() {
       servingQuantity: '',
       servingUnit: '',
       notes: '',
-      loggedDate: '',
-      loggedTime: '',
+      loggedDate:
+        requestedDate !== null && isValidLocalDate(requestedDate)
+          ? requestedDate
+          : initialTimestamp.date,
+      loggedTime: initialTimestamp.time,
     },
   });
 
   const loadForm = useCallback(async () => {
-    setLoadingRecord(true);
+    const sourceId = editId ?? duplicateId;
+    if (sourceId !== null) {
+      setLoadingRecord(true);
+    }
     setLoadError(null);
     setRecentError(null);
     setDeleting(false);
@@ -197,28 +268,8 @@ export default function FoodLogScreen() {
     }
 
     const now = dateTimeFieldsInTimezone(new Date(), nextTimezone);
-    const sourceId = editId ?? duplicateId;
 
     if (sourceId === null) {
-      reset({
-        foodName: '',
-        mealType: 'breakfast',
-        calories: '',
-        protein: '',
-        carbs: '',
-        fat: '',
-        fiber: '',
-        sugar: '',
-        sodium: '',
-        servingQuantity: '',
-        servingUnit: '',
-        notes: '',
-        loggedDate:
-          requestedDate !== null && isValidLocalDate(requestedDate)
-            ? requestedDate
-            : now.date,
-        loggedTime: now.time,
-      });
       setShowMore(nextTrackingMode === 'complex');
       setLoadingRecord(false);
       return;
@@ -371,11 +422,15 @@ export default function FoodLogScreen() {
 
   if (loadingRecord) {
     return (
-      <AppScreen>
-        <LoadingState
-          message={isEditing ? 'Loading food entry…' : 'Loading food form…'}
-        />
-      </AppScreen>
+      <FoodLogSkeleton
+        title={isEditing ? 'Edit food' : 'Log food again'}
+        footerRows={isEditing ? 3 : 1}
+        subtitle={
+          isEditing
+            ? 'Review and correct this entry.'
+            : 'Review the copied values before saving.'
+        }
+      />
     );
   }
 
