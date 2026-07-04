@@ -5,7 +5,8 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-Phase 6 established the current mobile visual-system blueprint across
+Phase 7 is complete enough to move into Phase 8. Phase 6 established the
+current mobile visual-system blueprint across
 onboarding, Progress, History, logging, Insights, Recommendations,
 Profile/Settings, bottom navigation, floating add behavior, logo rendering,
 inputs, Simple/Detailed mode identity, and native iPhone testing. The durable
@@ -260,6 +261,24 @@ edit/log-again states for food and weight logs. New blank logging forms should
 render normally without a skeleton. During pull-to-refresh, previously loaded
 content should remain visible if the refresh fails.
 
+Phase 7 completion checkpoint:
+
+- Shared skeleton primitives exist for blocks, lines, pills, and rails.
+- Progress, History, Insights, and Profile use first-load skeletons.
+- Food log edit/log-again and weight log edit use record-load skeletons.
+- New food and weight create forms render immediately.
+- Small action spinners remain for saving, deleting, dismissing, and refreshing
+  existing content.
+- No backend, API, Prisma schema, package, lockfile, app config, or generated
+  native changes were part of Phase 7.
+
+Phase 8 should now focus on the backend/data foundation for app-owned food
+records, custom foods, saved or reusable foods, barcode-ready food items, future
+Open Food Facts and USDA integration, future RAG-assisted retrieval, and future
+Complex mode nutrition expansion. Do not treat this checkpoint as approval to
+implement barcode scanning, RAG-assisted AI logging, full nutrition expansion,
+or native workflow changes.
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash
@@ -329,12 +348,11 @@ needed before treating the visual system as settled.
 
 ## Next-Phase Priorities
 
-1. Create or use a branch around `phase-6-3-ios-device-testing`.
+1. Continue on the Phase 8 branch for food database foundation work.
 2. Confirm Node 22 and pnpm 10.34.3.
 3. Keep generated native folders ignored unless explicitly approved later.
 4. Use `apps/mobile/.env.local` with the Mac LAN IP for physical iPhone API
    access.
-5. Use native iPhone findings to judge the Phase 6.5 onboarding and
-   Progress/Home reset.
-6. Keep the birthday wheel scroll/snap/state behavior intact while iterating on
-   visuals.
+5. Keep Phase 7 skeleton standards intact while adding richer food-data flows.
+6. Preserve backend/API/schema approval gates before Phase 8 data-model or
+   migration work.

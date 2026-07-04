@@ -477,7 +477,8 @@ Loading states should identify what is loading and must not leave a blank
 screen.
 
 Phase 7 should replace circular spinners with skeleton loading where
-appropriate. Skeleton states should:
+appropriate. Skeleton states are for waiting on actual content or existing
+record data. They should:
 
 - preserve the shape of the loaded page
 - reduce perceived loading time
@@ -485,15 +486,55 @@ appropriate. Skeleton states should:
 - use subtle neutral placeholder shapes
 - follow the white/charcoal Phase 6 visual standard
 - avoid heavy or distracting animation
+- avoid large dead grey blocks
 
 Use skeletons for Progress, History, Insights, Profile/settings, and
 food/weight log flows where they improve the experience. Do not use skeletons
-as decorative filler; they should match real content structure.
+as decorative filler; they should match real content structure. Circular
+spinners are no longer the default page-loading pattern, but small inline
+spinners remain appropriate for tiny actions such as saving, deleting,
+dismissing, or refreshing existing content.
 
 The shared mobile primitive lives in `apps/mobile/src/components/skeleton.tsx`.
 Use it for small lines, pills, rails, and blocks, then compose page-specific
 skeleton layouts locally. Normal blank create forms should render directly;
 food and weight log skeletons are for edit or log-again record fetches.
+
+### Phase 7 Retrospective
+
+What went well:
+
+- Skeleton loading improved perceived performance across key backend-connected
+  screens.
+- Shared skeleton primitives reduced duplication and kept placeholder styling
+  consistent.
+- First-load, record-load, and small action-loading states now have clearer
+  boundaries.
+- Phase 7 stayed within scope: no backend, API, schema, package, lockfile, app
+  config, or generated native changes.
+- The implementation stayed aligned with the Phase 6 white/charcoal visual
+  standard.
+
+Risks to keep watching:
+
+- Skeletons can be overused where immediate rendering is better, especially
+  blank create forms.
+- Poorly shaped placeholders can become dead grey blocks or fail to match the
+  loaded layout.
+- Screen-specific skeletons can drift if future screens do not reuse the shared
+  primitive.
+- Small action spinners should not be replaced with complex skeletons when the
+  user is not waiting on page content.
+
+Standards going forward:
+
+- Use skeletons only when real content or existing record data is being fetched.
+- Preserve close layout fidelity between the skeleton and loaded state.
+- Render new food and new weight create forms immediately.
+- Keep skeletons lightweight, neutral, and minimally animated.
+- Avoid adding loading complexity where a small inline spinner is clearer.
+- Maintain strict scope discipline across UI, backend, schema, package, and
+  native boundaries.
 
 ## Empty States
 

@@ -46,29 +46,45 @@ Implemented:
   logging, Insights, Recommendations, Profile/Settings, bottom navigation,
   floating add behavior, mode identity, logo rendering, inputs, and native
   iPhone testing guidance
+- Phase 7 product-readiness pass with shared skeleton primitives, first-load
+  skeletons for Progress, History, Insights, and Profile, record-load
+  skeletons for food and weight editing, and no backend/API/schema/package or
+  native changes
 
-## Phase 7 — Product Readiness + Skeleton Loading
+## Phase 7 — Product Readiness + Skeleton Loading — Complete
 
-Short, focused hardening phase before large new features.
+Completed as a short hardening phase before large new features.
 
-- Replace circular spinners with layout-matched skeleton loading where useful.
-- Apply skeletons to Progress, History, Insights, Profile/settings, and
-  food/weight log flows where appropriate.
-- Preserve the Phase 6 visual standard.
-- Do not turn Phase 7 into another redesign phase.
-- Fix only high-confidence product-readiness issues that block the next feature
-  modules.
+- Shared skeleton primitives now support small blocks, lines, pills, and rails.
+- Progress, History, Insights, and Profile use layout-matched first-load
+  skeletons.
+- Food and weight log screens use skeletons only while loading existing records
+  for edit or log-again flows.
+- Normal blank create forms still render immediately.
+- Small action spinners remain for saving, deleting, dismissing, and refreshing
+  existing content.
+- Phase 7 preserved the Phase 6 visual standard and did not change backend,
+  API, schema, package, lockfile, app config, or generated native folders.
 
-## Phase 8 — Food Database Foundation
+## Phase 8 — Food Database Foundation — Active / Next
 
 - app-owned food database foundation
 - cached foods
 - user-created and corrected foods
 - recent foods
 - saved foods
+- reusable food foundation
+- barcode-ready food items
 - saved meals
 - external source metadata
 - Open Food Facts and USDA FoodData Central integration groundwork
+- future RAG-assisted AI retrieval support
+- future Complex mode nutrition expansion support
+
+Phase 8 should begin the backend/data foundation for trusted reusable food
+records. It should not implement barcode scanning, Open Food Facts or USDA
+sync, RAG-assisted AI logging, full Complex mode nutrition, or photo logging in
+the initial foundation step unless separately scoped and approved.
 
 See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 
