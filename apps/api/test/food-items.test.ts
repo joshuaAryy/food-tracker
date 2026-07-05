@@ -574,6 +574,68 @@ describe('food items API', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('matches a UPC-A lookup to a local cached EAN-13 alias', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        name: 'Canadian cola',
+        normalizedName: 'canadian cola',
+        searchText: 'canadian cola',
+        sourceType: 'cached_external',
+        sourceProvider: 'open_food_facts',
+        sourceId: '0069000013762',
+        foodType: 'branded',
+      },
+    });
+    await prisma.foodBarcode.create({
+      data: {
+        foodItemId: foodItem.id,
+        barcode: '0069000013762',
+        regionCode: 'CA',
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '069000013762', regionCode: 'ca' })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      id: foodItem.id,
+      name: 'Canadian cola',
+    });
+  });
+
+  it('matches an EAN-13 leading-zero lookup to a local cached UPC-A alias', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        name: 'US cola',
+        normalizedName: 'us cola',
+        searchText: 'us cola',
+        sourceType: 'cached_external',
+        sourceProvider: 'open_food_facts',
+        sourceId: '069000013762',
+        foodType: 'branded',
+      },
+    });
+    await prisma.foodBarcode.create({
+      data: {
+        foodItemId: foodItem.id,
+        barcode: '069000013762',
+        regionCode: 'US',
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '0069000013762', regionCode: 'us' })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      id: foodItem.id,
+      name: 'US cola',
+    });
+  });
+
   it('caches a usable Open Food Facts barcode product as a FoodItem and FoodBarcode', async () => {
     vi.stubGlobal(
       'fetch',
@@ -656,6 +718,94 @@ describe('food items API', () => {
     expect(cachedBarcode?.foodItem.sourceProvider).toBe('open_food_facts');
   });
 
+  it('tries equivalent UPC-A and EAN-13 candidates against Open Food Facts', async () => {
+    const fetchSpy = vi.fn().mockImplementation((url: string | URL) => {
+      const requestUrl = String(url);
+
+      if (requestUrl.includes('/069000013762.json')) {
+        return Promise.resolve(new Response('{}', { status: 404 }));
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            status: 'success',
+            result: { id: 'product_found' },
+            product: {
+              code: '0069000013762',
+              product_name: 'Pepsi Zero Sugar',
+              brands: 'Pepsi',
+              nutrition_data_per: '100g',
+              nutriments: {
+                'energy-kcal_100g': 0,
+                proteins_100g: 0,
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '0069000013762', regionCode: 'ca' })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      name: 'Pepsi Zero Sugar',
+      sourceId: '0069000013762',
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/069000013762.json');
+    expect(String(fetchSpy.mock.calls[1]?.[0])).toContain(
+      '/0069000013762.json',
+    );
+  });
+
+  it('caches safe UPC-A and EAN-13 aliases for Open Food Facts results', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'success',
+            result: { id: 'product_found' },
+            product: {
+              code: '069000013762',
+              product_name: 'Pepsi Zero Sugar',
+              brands: 'Pepsi',
+              nutrition_data_per: '100g',
+              nutriments: {
+                'energy-kcal_100g': 0,
+                proteins_100g: 0,
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '0069000013762', regionCode: 'ca' })
+      .expect(200);
+
+    const cachedBarcodes = await prisma.foodBarcode.findMany({
+      orderBy: { barcode: 'asc' },
+    });
+
+    expect(cachedBarcodes.map((barcode) => barcode.barcode)).toEqual([
+      '0069000013762',
+      '069000013762',
+    ]);
+    expect(cachedBarcodes.every((barcode) => barcode.regionCode === 'CA')).toBe(
+      true,
+    );
+  });
+
   it('reuses the local cache after an Open Food Facts lookup', async () => {
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(
@@ -727,6 +877,18 @@ describe('food items API', () => {
     expect(response.body.error.message).toBe('Food barcode not found');
     expect(await prisma.foodBarcode.count()).toBe(0);
     expect(await prisma.foodItem.count()).toBe(0);
+  });
+
+  it('rejects invalid non-retail barcode lookup input', async () => {
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: 'not-a-retail-code' })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+    expect(response.body.error.message).toBe(
+      'Barcode must be a supported retail barcode.',
+    );
   });
 
   it('enforces barcode uniqueness per region', async () => {

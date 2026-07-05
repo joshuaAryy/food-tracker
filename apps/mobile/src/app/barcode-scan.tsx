@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import {
   CameraView,
   useCameraPermissions,
@@ -7,7 +7,7 @@ import {
   type BarcodeType,
 } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { Camera, RotateCcw, X } from 'lucide-react-native';
+import { Camera, RotateCcw, X, Zap } from 'lucide-react-native';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -21,8 +21,31 @@ const PACKAGED_FOOD_BARCODE_TYPES: BarcodeType[] = [
   'upc_a',
   'upc_e',
 ];
+const SCANNER_ZOOM = 0.18;
 
 type ScannerState = 'scanning' | 'lookingUp' | 'noMatch' | 'error';
+
+function barcodeCandidates(value: string): string[] {
+  const digits = value.trim().replace(/\D/g, '');
+  if (digits === '') {
+    return [];
+  }
+
+  // iOS can report UPC-A as EAN-13 with a leading zero.
+  if (digits.length === 13 && digits.startsWith('0')) {
+    return [digits.slice(1), digits];
+  }
+
+  const candidates = [digits];
+
+  if (digits.length === 12) {
+    candidates.push(`0${digits}`);
+  }
+
+  return [...new Set(candidates)].filter((candidate) =>
+    [6, 8, 12, 13].includes(candidate.length),
+  );
+}
 
 export default function BarcodeScanScreen() {
   const router = useRouter();
@@ -30,12 +53,34 @@ export default function BarcodeScanScreen() {
   const [scannerState, setScannerState] = useState<ScannerState>('scanning');
   const [message, setMessage] = useState<string | null>(null);
   const [lastBarcode, setLastBarcode] = useState<string | null>(null);
+  const [cameraReadyToMount, setCameraReadyToMount] = useState(false);
+  const [requestingPermission, setRequestingPermission] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
+  const scanLockedRef = useRef(false);
+
+  const permissionGranted = permission?.granted === true;
+
+  useEffect(() => {
+    if (!permissionGranted) {
+      setCameraReadyToMount(false);
+      return;
+    }
+
+    const frame = requestAnimationFrame(() => {
+      setCameraReadyToMount(true);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [permissionGranted]);
 
   const close = () => {
     router.back();
   };
 
   const retry = () => {
+    scanLockedRef.current = false;
     setScannerState('scanning');
     setMessage(null);
     setLastBarcode(null);
@@ -46,13 +91,18 @@ export default function BarcodeScanScreen() {
   };
 
   const lookupBarcode = async (barcode: string) => {
+    const candidates = barcodeCandidates(barcode);
+    const primaryBarcode = candidates[0] ?? barcode.trim();
+
     setScannerState('lookingUp');
     setMessage(null);
-    setLastBarcode(barcode);
+    setLastBarcode(primaryBarcode);
 
     try {
       const foodItem = await api.foodItems.lookupBarcodeWithExternal({
-        barcode,
+        barcode: primaryBarcode,
+        barcodeCandidates:
+          candidates.length > 1 ? candidates.slice(1) : undefined,
       });
       router.replace({
         pathname: '/food-log',
@@ -70,12 +120,34 @@ export default function BarcodeScanScreen() {
     }
   };
 
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    const barcode = result.data.trim();
-    if (scannerState !== 'scanning' || barcode === '') {
+  const allowCamera = async () => {
+    if (requestingPermission) {
       return;
     }
 
+    setRequestingPermission(true);
+    setMessage(null);
+    try {
+      await requestPermission();
+    } catch {
+      setScannerState('error');
+      setMessage('Camera permission could not be updated.');
+    } finally {
+      setRequestingPermission(false);
+    }
+  };
+
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    const barcode = typeof result.data === 'string' ? result.data : '';
+    if (
+      scanLockedRef.current ||
+      scannerState !== 'scanning' ||
+      barcodeCandidates(barcode).length === 0
+    ) {
+      return;
+    }
+
+    scanLockedRef.current = true;
     void lookupBarcode(barcode);
   };
 
@@ -101,7 +173,10 @@ export default function BarcodeScanScreen() {
         contentClassName="flex-1 justify-center"
         footer={
           <View className="gap-2">
-            <AppButton onPress={() => void requestPermission()}>
+            <AppButton
+              loading={requestingPermission}
+              onPress={() => void allowCamera()}
+            >
               Allow camera
             </AppButton>
             <AppButton variant="secondary" onPress={close}>
@@ -128,20 +203,39 @@ export default function BarcodeScanScreen() {
     );
   }
 
+  if (!cameraReadyToMount) {
+    return (
+      <AppScreen
+        scroll={false}
+        contentClassName="flex-1 justify-center"
+        footer={<AppButton onPress={close}>Cancel</AppButton>}
+      >
+        <View className="items-center gap-3">
+          <ActivityIndicator color={colors.light.primaryDark} />
+          <AppText variant="label">Starting camera</AppText>
+        </View>
+      </AppScreen>
+    );
+  }
+
   return (
     <View className="flex-1 bg-ink">
       <CameraView
-        active={scannerState === 'scanning'}
+        autofocus="off"
         barcodeScannerSettings={{
           barcodeTypes: PACKAGED_FOOD_BARCODE_TYPES,
         }}
-        className="flex-1"
+        enableTorch={torchEnabled}
         facing="back"
-        onBarcodeScanned={handleBarcodeScanned}
+        onBarcodeScanned={
+          scannerState === 'scanning' ? handleBarcodeScanned : undefined
+        }
         onMountError={() => {
           setScannerState('error');
           setMessage('Camera is unavailable right now.');
         }}
+        style={StyleSheet.absoluteFill}
+        zoom={SCANNER_ZOOM}
       />
 
       <View className="absolute inset-x-0 top-0 px-5 pt-16">
@@ -154,18 +248,40 @@ export default function BarcodeScanScreen() {
               Hold the barcode inside the frame.
             </AppText>
           </View>
-          <Pressable
-            accessibilityLabel="Cancel barcode scan"
-            accessibilityRole="button"
-            className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
-            onPress={close}
-          >
-            <X color="#FFFFFF" size={21} strokeWidth={2.4} />
-          </Pressable>
+          <View className="flex-row gap-2">
+            <Pressable
+              accessibilityLabel={
+                torchEnabled
+                  ? 'Turn scanner light off'
+                  : 'Turn scanner light on'
+              }
+              accessibilityRole="button"
+              className={`h-11 w-11 items-center justify-center rounded-full ${
+                torchEnabled ? 'bg-white' : 'bg-white/15'
+              }`}
+              onPress={() => {
+                setTorchEnabled((current) => !current);
+              }}
+            >
+              <Zap
+                color={torchEnabled ? colors.light.ink : '#FFFFFF'}
+                size={19}
+                strokeWidth={2.4}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Cancel barcode scan"
+              accessibilityRole="button"
+              className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
+              onPress={close}
+            >
+              <X color="#FFFFFF" size={21} strokeWidth={2.4} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
-      <View className="absolute inset-x-10 top-[34%] h-[150px] rounded-[28px] border-2 border-white/85" />
+      <View className="absolute inset-x-7 top-[36%] h-[132px] rounded-[24px] border-2 border-white/85" />
 
       <View className="absolute inset-x-5 bottom-10 gap-3 rounded-[28px] bg-white p-4">
         {scannerState === 'lookingUp' ? (
@@ -225,7 +341,8 @@ export default function BarcodeScanScreen() {
           <View className="gap-1">
             <AppText variant="label">Ready to scan</AppText>
             <AppText variant="caption" muted>
-              Packaged foods with UPC or EAN barcodes work best.
+              Hold barcode inside the frame. Move back slightly if it looks
+              blurry. Use good lighting.
             </AppText>
           </View>
         )}

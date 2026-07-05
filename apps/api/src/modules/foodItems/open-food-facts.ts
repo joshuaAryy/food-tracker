@@ -14,7 +14,7 @@ interface OpenFoodFactsProductResponse {
   product?: unknown;
 }
 
-interface NormalizedOpenFoodFactsFood {
+export interface NormalizedOpenFoodFactsFood {
   name: string;
   brandName: string | null;
   sourceId: string;
@@ -349,8 +349,6 @@ export async function fetchOpenFoodFactsProduct(
 
 export function openFoodFactsData(
   food: NormalizedOpenFoodFactsFood,
-  barcode: string,
-  regionCode: string,
 ): Prisma.FoodItemCreateInput {
   const normalizedName = food.name
     .trim()
@@ -386,12 +384,6 @@ export function openFoodFactsData(
     sourceProvider: 'open_food_facts',
     sourceId: food.sourceId,
     sourceUpdatedAt: food.sourceUpdatedAt,
-    barcodes: {
-      create: {
-        barcode,
-        regionCode,
-      },
-    },
     nutrients: {
       create: food.nutrients,
     },

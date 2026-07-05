@@ -343,6 +343,11 @@ Open Food Facts is the first external packaged-food source. USDA remains later
 work. Cached external foods use `sourceType: cached_external`,
 `sourceProvider: open_food_facts`, a `FoodBarcode` row for the scanned barcode,
 and the existing `FoodItem` response and log-from-food snapshot flow.
+Canadian/US retail barcodes are normalized across safe UPC-A/EAN-13
+equivalents because iOS may report a UPC-A scan as EAN-13 with a leading zero.
+For example, `069000013762` and `0069000013762` are treated as equivalent
+lookup/cache candidates. The scanner supports UPC-A, UPC-E, EAN-13, and EAN-8
+where Expo Camera exposes those types.
 
 Normalization is intentionally conservative. Product name, brand, barcode,
 parseable serving/quantity data, calories, protein, carbs, fat, fiber, sugar,

@@ -290,6 +290,11 @@ export const foodBarcodeQuerySchema = z.strictObject({
 
 export const foodBarcodeLookupInputSchema = z.strictObject({
   barcode: z.string().trim().min(1),
+  barcodeCandidates: z
+    .array(z.string().trim().min(1).max(32))
+    .min(1)
+    .max(6)
+    .optional(),
   regionCode: z.string().trim().min(1).optional(),
 });
 

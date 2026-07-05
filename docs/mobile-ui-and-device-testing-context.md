@@ -311,6 +311,12 @@ Barcode scanner native smoke testing should cover:
 - camera unavailable state if the camera cannot mount
 - successful packaged-food scan returning to food logging with the scanned
   food selected
+- Canadian/US retail barcodes, including UPC-A, UPC-E, EAN-13, and EAN-8
+  where supported by Expo Camera
+- UPC-A values that iOS reports as EAN-13 with a leading zero, such as
+  `069000013762` and `0069000013762`
+- close-range usability: hold the barcode inside the frame, move back slightly
+  if the preview looks blurry, and use good lighting or the scanner light
 - serving multiplier, save/unsave, meal type, notes, and save using the
   existing selected-food flow
 - no-match copy: `No barcode match yet` and

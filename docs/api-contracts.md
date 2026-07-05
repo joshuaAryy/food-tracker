@@ -380,6 +380,7 @@ Request:
 ```json
 {
   "barcode": "3017624010701",
+  "barcodeCandidates": ["03017624010701"],
   "regionCode": "CA"
 }
 ```
@@ -388,18 +389,28 @@ Required fields:
 - `barcode`
 
 Optional fields:
+- `barcodeCandidates`: up to 6 non-empty alternate scanned/normalized barcode
+  values
 - `regionCode`, normalized to uppercase; omitted lookups use `GLOBAL`
+
+The backend normalizes retail barcode candidates by trimming input, keeping
+digits, and deriving safe UPC-A/EAN-13 equivalents. A 12-digit UPC-A such as
+`069000013762` is also tried as `0069000013762`; a 13-digit EAN-13 value with
+a leading zero is also tried as its 12-digit UPC-A equivalent. This handles
+iOS/AVFoundation cases where UPC-A barcodes are reported as EAN-13 with a
+leading zero. Supported retail candidates are bounded to common UPC-E, EAN-8,
+UPC-A, and EAN-13 lengths.
 
 Lookup order:
 
 ```text
-local FoodBarcode exact region
+local FoodBarcode exact region, across normalized candidates
 ↓
-local FoodBarcode GLOBAL fallback
+local FoodBarcode GLOBAL fallback, across normalized candidates
 ↓
-Open Food Facts barcode lookup
+Open Food Facts barcode lookup across bounded candidates
 ↓
-cache usable product as FoodItem/FoodBarcode
+cache usable product as FoodItem/FoodBarcode aliases
 ```
 
 Open Food Facts results are normalized conservatively into the app-owned food

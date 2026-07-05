@@ -10,7 +10,7 @@ import {
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
-import { notFoundError } from '../../lib/errors.js';
+import { AppError, notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeFoodItem } from '../../lib/serializers.js';
@@ -25,6 +25,7 @@ import {
 import {
   fetchOpenFoodFactsProduct,
   openFoodFactsData,
+  type NormalizedOpenFoodFactsFood,
 } from './open-food-facts.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
@@ -153,14 +154,47 @@ function barcodeRegionCandidates(regionCode: string | undefined): string[] {
     : [normalizedRegionCode, 'GLOBAL'];
 }
 
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function barcodeCandidates(values: string[]): string[] {
+  const candidates: string[] = [];
+
+  for (const value of values) {
+    const trimmed = value.trim();
+    const digits = trimmed.replace(/\D/g, '');
+
+    if (digits === '') {
+      continue;
+    }
+
+    if (digits.length === 13 && digits.startsWith('0')) {
+      candidates.push(digits.slice(1));
+      candidates.push(digits);
+      continue;
+    }
+
+    candidates.push(digits);
+
+    if (digits.length === 12) {
+      candidates.push(`0${digits}`);
+    }
+  }
+
+  return uniqueValues(candidates).filter((candidate) =>
+    [6, 8, 12, 13].includes(candidate.length),
+  );
+}
+
 async function lookupLocalBarcodeFoodItem(input: {
-  barcode: string;
+  barcodes: string[];
   regionCandidates: string[];
   userId: string;
 }) {
   const barcodeMatches = await prisma.foodBarcode.findMany({
     where: {
-      barcode: input.barcode,
+      barcode: { in: input.barcodes },
       regionCode: { in: input.regionCandidates },
       foodItem: visibleFoodWhere(input.userId),
     },
@@ -171,13 +205,56 @@ async function lookupLocalBarcodeFoodItem(input: {
     },
   });
 
-  const match =
-    barcodeMatches.find(
-      (foodBarcode) => foodBarcode.regionCode === input.regionCandidates[0],
-    ) ??
-    barcodeMatches.find((foodBarcode) => foodBarcode.regionCode === 'GLOBAL');
+  const match = input.regionCandidates
+    .flatMap((regionCode) =>
+      input.barcodes.map((barcode) =>
+        barcodeMatches.find(
+          (foodBarcode) =>
+            foodBarcode.regionCode === regionCode &&
+            foodBarcode.barcode === barcode,
+        ),
+      ),
+    )
+    .find((foodBarcode) => foodBarcode !== undefined);
 
   return match?.foodItem ?? null;
+}
+
+async function fetchFirstOpenFoodFactsProduct(barcodes: string[]): Promise<{
+  food: NormalizedOpenFoodFactsFood;
+  barcode: string;
+} | null> {
+  for (const barcode of barcodes) {
+    const food = await fetchOpenFoodFactsProduct(barcode);
+
+    if (food !== null) {
+      return { food, barcode };
+    }
+  }
+
+  return null;
+}
+
+function cacheBarcodeCandidates(input: {
+  food: NormalizedOpenFoodFactsFood;
+  lookupCandidates: string[];
+  matchedBarcode: string;
+  regionCode: string;
+}) {
+  const sourceCandidates = barcodeCandidates([input.food.sourceId]);
+  const primaryBarcode =
+    sourceCandidates[0] ?? input.lookupCandidates[0] ?? input.matchedBarcode;
+  const aliasCandidates = barcodeCandidates([
+    primaryBarcode,
+    input.matchedBarcode,
+    ...input.lookupCandidates,
+    ...sourceCandidates,
+  ]);
+
+  return uniqueValues([primaryBarcode, ...aliasCandidates]).map((barcode) => ({
+    barcode,
+    regionCode: input.regionCode,
+  }));
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -222,8 +299,9 @@ foodItemsRouter.get(
     const { barcode } = validatedParams<FoodBarcodeParams>(response);
     const { regionCode } = validatedQuery<FoodBarcodeQuery>(response);
     const regionCandidates = barcodeRegionCandidates(regionCode);
+    const candidates = barcodeCandidates([barcode]);
     const foodItem = await lookupLocalBarcodeFoodItem({
-      barcode,
+      barcodes: candidates,
       regionCandidates,
       userId,
     });
@@ -242,11 +320,23 @@ foodItemsRouter.post(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<FoodBarcodeLookupInput>(response);
-    const barcode = input.barcode.trim();
+    const candidates = barcodeCandidates([
+      input.barcode,
+      ...(input.barcodeCandidates ?? []),
+    ]);
+
+    if (candidates.length === 0) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Barcode must be a supported retail barcode.',
+      );
+    }
+
     const regionCandidates = barcodeRegionCandidates(input.regionCode);
     const cacheRegionCode = regionCandidates[0] ?? 'GLOBAL';
     const localFoodItem = await lookupLocalBarcodeFoodItem({
-      barcode,
+      barcodes: candidates,
       regionCandidates,
       userId,
     });
@@ -256,18 +346,47 @@ foodItemsRouter.post(
       return;
     }
 
-    const openFoodFactsFood = await fetchOpenFoodFactsProduct(barcode);
-    if (openFoodFactsFood === null) {
+    const openFoodFactsResult =
+      await fetchFirstOpenFoodFactsProduct(candidates);
+    if (openFoodFactsResult === null) {
+      throw notFoundError('Food barcode');
+    }
+    const barcodes = cacheBarcodeCandidates({
+      food: openFoodFactsResult.food,
+      lookupCandidates: candidates,
+      matchedBarcode: openFoodFactsResult.barcode,
+      regionCode: cacheRegionCode,
+    });
+    const primaryBarcode = barcodes[0];
+
+    if (primaryBarcode === undefined) {
       throw notFoundError('Food barcode');
     }
 
     try {
-      const foodItem = await prisma.$transaction(async (transaction) =>
-        transaction.foodItem.create({
-          data: openFoodFactsData(openFoodFactsFood, barcode, cacheRegionCode),
+      const foodItem = await prisma.$transaction(async (transaction) => {
+        const createdFoodItem = await transaction.foodItem.create({
+          data: {
+            ...openFoodFactsData(openFoodFactsResult.food),
+            barcodes: { create: primaryBarcode },
+          },
+        });
+
+        if (barcodes.length > 1) {
+          await transaction.foodBarcode.createMany({
+            data: barcodes.slice(1).map((barcode) => ({
+              ...barcode,
+              foodItemId: createdFoodItem.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        return transaction.foodItem.findUniqueOrThrow({
+          where: { id: createdFoodItem.id },
           include: foodItemInclude(userId),
-        }),
-      );
+        });
+      });
 
       sendSuccess(response, serializeFoodItem(foodItem));
       return;
@@ -278,7 +397,7 @@ foodItemsRouter.post(
     }
 
     const racedFoodItem = await lookupLocalBarcodeFoodItem({
-      barcode,
+      barcodes: candidates,
       regionCandidates,
       userId,
     });

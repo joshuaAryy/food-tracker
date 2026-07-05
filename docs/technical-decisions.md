@@ -225,6 +225,10 @@ Phase 11 implements the first barcode scanning slice:
 - usable external products are cached as `FoodItem` rows with
   `sourceType: cached_external`, `sourceProvider: open_food_facts`, and a
   linked `FoodBarcode`
+- UPC-A and EAN-13 leading-zero equivalents are normalized as lookup
+  candidates because iOS may report UPC-A as EAN-13
+- cached Open Food Facts products may store safe `FoodBarcode` aliases for the
+  equivalent UPC-A/EAN-13 forms
 - normalization stores only reliable fields and preserves missing nutrients as
   unknown/null or absent
 - logging still uses the existing selected-food review and
