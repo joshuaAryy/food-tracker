@@ -408,6 +408,15 @@ fields visible, keep optional nutrition details calm and collapsible, and place
 primary actions in the stable bottom footer. Copy should explain what the user
 should enter, not how timestamps or records are stored internally.
 
+Food database-powered logging should extend the same ledger language. Search
+results, saved foods, and reusable-food choices should render as open rows with
+thin dividers, compact serving/nutrition metadata, and small save affordances,
+not as stacked cards. Selected foods may use a compact chosen row plus a
+serving multiplier control. Simple mode should keep calories and protein most
+visible; Detailed mode may expose common macros and a quiet indication that
+more nutrients exist, without turning the main logging screen into a full
+micronutrient editor.
+
 ## Progress Visuals
 
 Progress should read as a calm daily check-in before it reads as analytics.

@@ -279,6 +279,46 @@ Standards to uphold:
 - use backend-provided nutrient data only
 - keep food logging fast, not overloaded
 
+## Phase 10 Faster Logging UX
+
+Phase 10 connects the local food database and nutrition snapshot foundations
+to the user logging flow.
+
+Implemented direction:
+- food item search inside food logging
+- saved foods as quick-access rows
+- recent food logs that can reuse linked `FoodItem` records when available
+- backend-owned log-from-food snapshot creation
+- serving multipliers for the selected food item with no unit conversion
+- small manual “save as reusable food” path for custom user foods
+
+Phase 10 food search uses only the local app-owned `FoodItem` database. Search
+can therefore be sparse in native testing until the user saves reusable foods
+from manual entries, or until future phases add starter catalogs, barcode
+lookup, Open Food Facts, USDA, or other external food data. Empty search
+results should guide the user toward manual logging and saving reusable foods,
+not imply a broken search.
+
+Data rules:
+- `FoodLog.foodItemId` may link a log to a visible reusable food item, but the
+  food log still stores historical nutrition snapshots.
+- `FoodItem` edits after logging must not mutate old `FoodLog` or
+  `FoodLogNutrient` values.
+- Normalized `FoodItemNutrient` rows are copied into `FoodLogNutrient`
+  snapshots only when logging from a food item.
+- Missing nutrients stay nullable/unknown or absent, not zero.
+- No column-backed nutrient is duplicated into normalized nutrient input.
+
+Phase 10 does not implement barcode scanning, Open Food Facts or USDA
+integration, AI/RAG logging, photo logging, saved meals, frequent-food ranking,
+custom graph UI, recommendation engine changes, or a full Complex-mode
+micronutrient editor.
+
+Complex mode can use richer nutrient data when a saved or reusable food
+contains normalized nutrients, but Phase 10 does not finish the full Complex
+mode logging, editing, or reporting experience. The main logging flow should
+stay fast and avoid fake micronutrient UI when no extra nutrient data exists.
+
 ## RAG-Assisted AI Logging
 
 AI should not be the nutrition source of truth. The preferred architecture is:

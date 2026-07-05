@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 import { localDateTime } from './helpers/dates.js';
-import { seedFoodLog, seedProfile } from './helpers/seeds.js';
+import { seedFoodItem, seedFoodLog, seedProfile } from './helpers/seeds.js';
 
 const OTHER_USER_ID = '00000000-0000-4000-8000-000000000002';
 const MISSING_FOOD_LOG_ID = '00000000-0000-4000-8000-000000000099';
@@ -48,6 +48,48 @@ describe('food logs API', () => {
     });
     expect(persisted?.userId).toBe(MOCK_USER_ID);
     expect(persisted?.calories).toBe(650);
+  });
+
+  it('creates a manual food log linked to a visible food item', async () => {
+    const foodItem = await seedFoodItem({ name: 'Reusable wrap' });
+
+    const response = await api
+      .post('/api/v1/food-logs')
+      .send({ ...validFoodLog, foodItemId: foodItem.id })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      foodItemId: foodItem.id,
+      foodName: 'Chicken wrap',
+    });
+    expect(
+      (
+        await prisma.foodLog.findUnique({
+          where: { id: response.body.data.id as string },
+        })
+      )?.foodItemId,
+    ).toBe(foodItem.id);
+  });
+
+  it('rejects manual food log links to inaccessible food items', async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const otherFood = await seedFoodItem({
+      userId: OTHER_USER_ID,
+      name: 'Private reusable food',
+    });
+    const archivedFood = await seedFoodItem({
+      name: 'Archived reusable food',
+      archivedAt: new Date(),
+    });
+
+    for (const foodItemId of [otherFood.id, archivedFood.id]) {
+      const response = await api
+        .post('/api/v1/food-logs')
+        .send({ ...validFoodLog, foodItemId })
+        .expect(404);
+
+      expectErrorEnvelope(response.body, 'NOT_FOUND');
+    }
   });
 
   it('creates and returns extended nutrient snapshots when provided', async () => {
@@ -253,6 +295,167 @@ describe('food logs API', () => {
         })
       )?.calories,
     ).toBe(700);
+  });
+
+  it('preserves and clears a food log food item relation on update', async () => {
+    const foodItem = await seedFoodItem({ name: 'Preserved source' });
+    const created = await api
+      .post('/api/v1/food-logs')
+      .send({ ...validFoodLog, foodItemId: foodItem.id })
+      .expect(200);
+    const id = created.body.data.id as string;
+
+    const preserved = await api
+      .put(`/api/v1/food-logs/${id}`)
+      .send({ ...validFoodLog, foodName: 'Preserved relation' })
+      .expect(200);
+
+    expect(preserved.body.data.foodItemId).toBe(foodItem.id);
+
+    const cleared = await api
+      .put(`/api/v1/food-logs/${id}`)
+      .send({ ...validFoodLog, foodItemId: null })
+      .expect(200);
+
+    expect(cleared.body.data.foodItemId).toBeNull();
+    expect(
+      (await prisma.foodLog.findUnique({ where: { id } }))?.foodItemId,
+    ).toBeNull();
+  });
+
+  it('logs from a food item with scaled snapshot nutrients', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Greek yogurt',
+        brandName: 'Plain Dairy',
+        normalizedName: 'greek yogurt',
+        normalizedBrandName: 'plain dairy',
+        searchText: 'greek yogurt plain dairy',
+        sourceType: 'user_custom',
+        foodType: 'branded',
+        servingQuantity: 1,
+        servingUnit: 'cup',
+        calories: 130,
+        protein: 22.4,
+        carbs: 8.2,
+        fat: 3.6,
+        fiber: null,
+        sugar: 6.4,
+        sodium: 55,
+        nutrients: {
+          create: [
+            { nutrientKey: 'caffeine', amount: 95, unit: 'mg' },
+            { nutrientKey: 'vitaminC', amount: 60, unit: 'mg' },
+          ],
+        },
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-food-item')
+      .send({
+        foodItemId: foodItem.id,
+        mealType: 'breakfast',
+        loggedAt: validFoodLog.loggedAt,
+        servingMultiplier: 1.5,
+        notes: 'With berries',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      foodItemId: foodItem.id,
+      foodName: 'Greek yogurt',
+      mealType: 'breakfast',
+      calories: 195,
+      protein: 33.6,
+      carbs: 12.3,
+      fat: 5.4,
+      fiber: null,
+      sugar: 9.6,
+      sodium: 83,
+      servingQuantity: 1.5,
+      servingUnit: 'cup',
+      notes: 'With berries',
+      nutrients: {
+        caffeine: { amount: 142.5, unit: 'mg' },
+        vitaminC: { amount: 90, unit: 'mg' },
+      },
+    });
+
+    expect(
+      await prisma.foodLogNutrient.count({
+        where: { foodLogId: response.body.data.id as string },
+      }),
+    ).toBe(2);
+  });
+
+  it('keeps log-from-food snapshots when the food item changes later', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Snapshot yogurt',
+        normalizedName: 'snapshot yogurt',
+        searchText: 'snapshot yogurt',
+        sourceType: 'user_custom',
+        foodType: 'generic',
+        calories: 100,
+        protein: 10,
+        nutrients: {
+          create: { nutrientKey: 'caffeine', amount: 80, unit: 'mg' },
+        },
+      },
+    });
+
+    const created = await api
+      .post('/api/v1/food-logs/from-food-item')
+      .send({
+        foodItemId: foodItem.id,
+        mealType: 'snack',
+        loggedAt: validFoodLog.loggedAt,
+      })
+      .expect(200);
+
+    await prisma.foodItem.update({
+      where: { id: foodItem.id },
+      data: {
+        calories: 200,
+        protein: 20,
+        nutrients: {
+          deleteMany: {},
+          create: { nutrientKey: 'caffeine', amount: 120, unit: 'mg' },
+        },
+      },
+    });
+
+    const fetched = await api
+      .get(`/api/v1/food-logs/${created.body.data.id as string}`)
+      .expect(200);
+
+    expect(fetched.body.data).toMatchObject({
+      calories: 100,
+      protein: 10,
+      nutrients: { caffeine: { amount: 80, unit: 'mg' } },
+    });
+  });
+
+  it('rejects log-from-food when required food log nutrients are unknown', async () => {
+    const foodItem = await seedFoodItem({
+      name: 'Unknown protein food',
+      normalizedName: 'unknown protein food',
+      searchText: 'unknown protein food',
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-food-item')
+      .send({
+        foodItemId: foodItem.id,
+        mealType: 'snack',
+        loggedAt: validFoodLog.loggedAt,
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
   });
 
   it('deletes a food log', async () => {

@@ -5,7 +5,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
+  type FoodItem,
+  type FoodItemInput,
   type FoodLog,
+  type FoodLogFromFoodItemInput,
   type FoodLogInput,
   type MealType,
   type TrackingMode,
@@ -15,8 +18,10 @@ import { AppInput } from '@/components/app-input';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { FoodItemChoiceRow } from '@/components/food-item-choice-row';
 import { FormSection } from '@/components/form-section';
 import { ScreenHeader } from '@/components/screen-header';
+import { ServingMultiplierControl } from '@/components/serving-multiplier-control';
 import {
   SkeletonLine,
   SkeletonPill,
@@ -46,6 +51,14 @@ interface FoodForm {
   notes: string;
   loggedDate: string;
   loggedTime: string;
+}
+
+function nullableNumber(value: string): number | null {
+  return value.trim() === '' ? null : Number(value);
+}
+
+function nullableInteger(value: string): number | null {
+  return value.trim() === '' ? null : Math.round(Number(value));
 }
 
 function optionalNumber(value: number | null): string {
@@ -120,6 +133,53 @@ function dedupeRecentFoods(foodLogs: FoodLog[], limit = 6): FoodLog[] {
   }
 
   return recent;
+}
+
+function formValuesFromFoodItem(
+  foodItem: FoodItem,
+  current: FoodForm,
+): FoodForm {
+  return {
+    ...current,
+    foodName: foodItem.name,
+    calories: optionalNumber(foodItem.calories),
+    protein: optionalNumber(foodItem.protein),
+    carbs: optionalNumber(foodItem.carbs),
+    fat: optionalNumber(foodItem.fat),
+    fiber: optionalNumber(foodItem.fiber),
+    sugar: optionalNumber(foodItem.sugar),
+    sodium: optionalNumber(foodItem.sodium),
+    servingQuantity: optionalNumber(foodItem.servingQuantity),
+    servingUnit: foodItem.servingUnit ?? '',
+  };
+}
+
+function hasFoodItemOptionalDetails(foodItem: FoodItem): boolean {
+  return (
+    foodItem.carbs !== null ||
+    foodItem.fat !== null ||
+    foodItem.fiber !== null ||
+    foodItem.sugar !== null ||
+    foodItem.sodium !== null ||
+    foodItem.servingQuantity !== null ||
+    foodItem.servingUnit !== null ||
+    Object.keys(foodItem.nutrients).length > 0
+  );
+}
+
+function inferMultiplier(foodLog: FoodLog, foodItem: FoodItem): string {
+  if (
+    foodLog.servingQuantity === null ||
+    foodItem.servingQuantity === null ||
+    foodItem.servingQuantity <= 0 ||
+    foodLog.servingUnit !== foodItem.servingUnit
+  ) {
+    return '1';
+  }
+
+  return String(
+    Math.max(0.25, foodLog.servingQuantity / foodItem.servingQuantity),
+  );
 }
 
 function FoodLogSkeleton({
@@ -199,7 +259,19 @@ export default function FoodLogScreen() {
   const [trackingMode, setTrackingMode] = useState<TrackingMode>('simple');
   const [showMore, setShowMore] = useState(false);
   const [recentFoods, setRecentFoods] = useState<FoodLog[]>([]);
+  const [savedFoods, setSavedFoods] = useState<FoodItem[]>([]);
+  const [foodSearchQuery, setFoodSearchQuery] = useState('');
+  const [searchedFoodQuery, setSearchedFoodQuery] = useState('');
+  const [foodSearchResults, setFoodSearchResults] = useState<FoodItem[]>([]);
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [servingMultiplier, setServingMultiplier] = useState('1');
+  const [saveAsReusableFood, setSaveAsReusableFood] = useState(false);
   const [recentError, setRecentError] = useState<string | null>(null);
+  const [savedFoodsError, setSavedFoodsError] = useState<string | null>(null);
+  const [foodSearchError, setFoodSearchError] = useState<string | null>(null);
+  const [savedFoodsLoaded, setSavedFoodsLoaded] = useState(false);
+  const [searchingFoods, setSearchingFoods] = useState(false);
+  const [savingFoodItemId, setSavingFoodItemId] = useState<string | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(
     isEditing || isDuplicating,
   );
@@ -241,13 +313,19 @@ export default function FoodLogScreen() {
     }
     setLoadError(null);
     setRecentError(null);
+    setSavedFoodsError(null);
+    setFoodSearchError(null);
+    setSavedFoodsLoaded(false);
     setDeleting(false);
 
-    const [profileResult, preferencesResult, recentResult] =
+    const [profileResult, preferencesResult, recentResult, savedResult] =
       await Promise.allSettled([
         api.profile.get(),
         api.trackingPreferences.get(),
         isEditing ? Promise.resolve([]) : api.foodLogs.list({ limit: 30 }),
+        isEditing
+          ? Promise.resolve([])
+          : api.foodItems.list({ savedOnly: true, limit: 10 }),
       ]);
     const nextTimezone =
       profileResult.status === 'fulfilled'
@@ -267,10 +345,20 @@ export default function FoodLogScreen() {
       setRecentError(errorMessage(recentResult.reason));
     }
 
+    if (savedResult.status === 'fulfilled') {
+      setSavedFoods(savedResult.value);
+    } else {
+      setSavedFoods([]);
+      setSavedFoodsError(errorMessage(savedResult.reason));
+    }
+    setSavedFoodsLoaded(true);
+
     const now = dateTimeFieldsInTimezone(new Date(), nextTimezone);
 
     if (sourceId === null) {
       setShowMore(nextTrackingMode === 'complex');
+      setSelectedFood(null);
+      setServingMultiplier('1');
       setLoadingRecord(false);
       return;
     }
@@ -290,6 +378,8 @@ export default function FoodLogScreen() {
       setShowMore(
         nextTrackingMode === 'complex' || hasOptionalDetails(foodLog),
       );
+      setSelectedFood(null);
+      setServingMultiplier('1');
     } catch (error) {
       setLoadError(errorMessage(error));
     } finally {
@@ -300,6 +390,50 @@ export default function FoodLogScreen() {
   useEffect(() => {
     void loadForm();
   }, [loadForm]);
+
+  useEffect(() => {
+    if (isEditing || foodSearchQuery.trim().length < 2) {
+      setFoodSearchResults([]);
+      setFoodSearchError(null);
+      setSearchedFoodQuery('');
+      setSearchingFoods(false);
+      return;
+    }
+
+    let cancelled = false;
+    const query = foodSearchQuery.trim();
+    setSearchingFoods(true);
+    setFoodSearchError(null);
+    setSearchedFoodQuery('');
+
+    const timeout = setTimeout(() => {
+      void api.foodItems
+        .list({ query, limit: 10 })
+        .then((foodItems) => {
+          if (!cancelled) {
+            setFoodSearchResults(foodItems);
+            setSearchedFoodQuery(query);
+          }
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            setFoodSearchResults([]);
+            setFoodSearchError(errorMessage(error));
+            setSearchedFoodQuery(query);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setSearchingFoods(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [foodSearchQuery, isEditing]);
 
   const returnToHistory = () => {
     markDataChanged();
@@ -319,7 +453,7 @@ export default function FoodLogScreen() {
       return;
     }
 
-    const input: FoodLogInput = {
+    const manualInput: FoodLogInput = {
       foodName: values.foodName.trim(),
       mealType: values.mealType,
       calories: Math.round(Number(values.calories)),
@@ -343,9 +477,55 @@ export default function FoodLogScreen() {
 
     try {
       if (editId === null) {
-        await api.foodLogs.create(input);
+        if (selectedFood !== null) {
+          const multiplier = Number(servingMultiplier);
+          if (!Number.isFinite(multiplier) || multiplier <= 0) {
+            setSubmitError('Amount must be greater than 0.');
+            return;
+          }
+
+          const input: FoodLogFromFoodItemInput = {
+            foodItemId: selectedFood.id,
+            mealType: values.mealType,
+            loggedAt,
+            servingMultiplier: multiplier,
+            ...(values.notes.trim() === ''
+              ? {}
+              : { notes: values.notes.trim() }),
+          };
+          await api.foodLogs.createFromFoodItem(input);
+        } else if (saveAsReusableFood) {
+          const foodItemInput: FoodItemInput = {
+            name: values.foodName.trim(),
+            foodType: 'generic',
+            servingQuantity: nullableNumber(values.servingQuantity),
+            servingUnit:
+              values.servingUnit.trim() === ''
+                ? null
+                : values.servingUnit.trim(),
+            calories: Math.round(Number(values.calories)),
+            protein: Number(values.protein),
+            carbs: nullableNumber(values.carbs),
+            fat: nullableNumber(values.fat),
+            fiber: nullableNumber(values.fiber),
+            sugar: nullableNumber(values.sugar),
+            sodium: nullableInteger(values.sodium),
+          };
+          const foodItem = await api.foodItems.create(foodItemInput);
+          await api.foodLogs.createFromFoodItem({
+            foodItemId: foodItem.id,
+            mealType: values.mealType,
+            loggedAt,
+            servingMultiplier: 1,
+            ...(values.notes.trim() === ''
+              ? {}
+              : { notes: values.notes.trim() }),
+          });
+        } else {
+          await api.foodLogs.create(manualInput);
+        }
       } else {
-        await api.foodLogs.update(editId, input);
+        await api.foodLogs.update(editId, manualInput);
       }
       returnToHistory();
     } catch (error) {
@@ -395,7 +575,66 @@ export default function FoodLogScreen() {
     );
   };
 
-  const applyRecentFood = (foodLog: FoodLog) => {
+  const updateFoodItemInLists = (foodItem: FoodItem) => {
+    setSavedFoods((current) => {
+      const withoutFood = current.filter((item) => item.id !== foodItem.id);
+      return foodItem.isSaved ? [foodItem, ...withoutFood] : withoutFood;
+    });
+    setFoodSearchResults((current) =>
+      current.map((item) => (item.id === foodItem.id ? foodItem : item)),
+    );
+    setSelectedFood((current) =>
+      current?.id === foodItem.id ? foodItem : current,
+    );
+  };
+
+  const selectFoodItem = (foodItem: FoodItem, multiplier = '1') => {
+    const current = getValues();
+    reset(formValuesFromFoodItem(foodItem, current));
+    setSelectedFood(foodItem);
+    setServingMultiplier(multiplier);
+    setSaveAsReusableFood(false);
+    setShowMore(
+      trackingMode === 'complex' || hasFoodItemOptionalDetails(foodItem),
+    );
+    setSubmitError(null);
+  };
+
+  const clearSelectedFood = () => {
+    setSelectedFood(null);
+    setServingMultiplier('1');
+    setSubmitError(null);
+  };
+
+  const toggleSavedFood = async (foodItem: FoodItem) => {
+    setSavingFoodItemId(foodItem.id);
+    setSubmitError(null);
+    try {
+      if (foodItem.isSaved) {
+        await api.foodItems.unsave(foodItem.id);
+        updateFoodItemInLists({ ...foodItem, isSaved: false });
+      } else {
+        await api.foodItems.save(foodItem.id);
+        updateFoodItemInLists({ ...foodItem, isSaved: true });
+      }
+    } catch (error) {
+      setSubmitError(errorMessage(error));
+    } finally {
+      setSavingFoodItemId(null);
+    }
+  };
+
+  const applyRecentFood = async (foodLog: FoodLog) => {
+    if (foodLog.foodItemId !== null) {
+      try {
+        const foodItem = await api.foodItems.getById(foodLog.foodItemId);
+        selectFoodItem(foodItem, inferMultiplier(foodLog, foodItem));
+        return;
+      } catch {
+        // Fall back to the stored snapshot if the reusable food is gone.
+      }
+    }
+
     const current = getValues();
     reset(
       formValuesFromFood(foodLog, {
@@ -403,6 +642,9 @@ export default function FoodLogScreen() {
         time: current.loggedTime,
       }),
     );
+    setSelectedFood(null);
+    setServingMultiplier('1');
+    setSaveAsReusableFood(false);
     setShowMore(trackingMode === 'complex' || hasOptionalDetails(foodLog));
     setSubmitError(null);
   };
@@ -530,6 +772,160 @@ export default function FoodLogScreen() {
         />
       )}
 
+      {!isEditing ? (
+        <View className="gap-4">
+          <View className="gap-3">
+            <View className="gap-0.5">
+              <AppText variant="heading">Find a food</AppText>
+              <AppText variant="caption" muted>
+                Search saved and reusable foods, or log manually below.
+              </AppText>
+            </View>
+            <AppInput
+              label="Search foods"
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Greek yogurt"
+              value={foodSearchQuery}
+              onChangeText={setFoodSearchQuery}
+            />
+            {trackingMode === 'complex' ? (
+              <AppText variant="caption" className="text-muted">
+                Detailed mode can use richer nutrient data when a saved food
+                includes it.
+              </AppText>
+            ) : null}
+          </View>
+
+          {selectedFood === null ? null : (
+            <View className="gap-3 border-y border-line py-3">
+              <View className="flex-row items-center justify-between gap-3">
+                <View className="min-w-0 flex-1">
+                  <AppText variant="caption" muted>
+                    Selected food
+                  </AppText>
+                  <AppText variant="label" numberOfLines={1}>
+                    {selectedFood.name}
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityLabel="Clear selected food"
+                  accessibilityRole="button"
+                  className="rounded-full bg-[#F4F4F4] px-3.5 py-2 active:bg-primary-soft"
+                  onPress={clearSelectedFood}
+                >
+                  <AppText variant="label" className="text-ink">
+                    Clear
+                  </AppText>
+                </Pressable>
+              </View>
+              <ServingMultiplierControl
+                value={servingMultiplier}
+                onChange={setServingMultiplier}
+              />
+              {Object.keys(selectedFood.nutrients).length === 0 ||
+              trackingMode !== 'complex' ? null : (
+                <AppText variant="caption" className="text-muted">
+                  {Object.keys(selectedFood.nutrients).length} more nutrients
+                  available
+                </AppText>
+              )}
+            </View>
+          )}
+
+          {foodSearchQuery.trim().length >= 2 ? (
+            <View className="gap-2">
+              <View className="flex-row items-center justify-between">
+                <AppText variant="label">Search results</AppText>
+                {searchingFoods ? (
+                  <AppText variant="caption" muted>
+                    Searching
+                  </AppText>
+                ) : null}
+              </View>
+              {foodSearchError === null ? null : (
+                <ErrorState
+                  title="Food search is unavailable"
+                  message={foodSearchError}
+                />
+              )}
+              {foodSearchResults.length === 0 &&
+              !searchingFoods &&
+              searchedFoodQuery === foodSearchQuery.trim() ? (
+                <View className="gap-1 border-y border-line py-4">
+                  <AppText variant="label">No foods found yet</AppText>
+                  <AppText variant="caption" muted>
+                    Save a manual entry as reusable food to build your food
+                    list.
+                  </AppText>
+                </View>
+              ) : foodSearchResults.length > 0 ? (
+                <View className="border-y border-line">
+                  {foodSearchResults.map((foodItem, index) => (
+                    <View
+                      key={foodItem.id}
+                      className={index === 0 ? '' : 'border-t border-line'}
+                    >
+                      <FoodItemChoiceRow
+                        foodItem={foodItem}
+                        mode={trackingMode}
+                        selected={selectedFood?.id === foodItem.id}
+                        saving={savingFoodItemId === foodItem.id}
+                        onPress={() => selectFoodItem(foodItem)}
+                        onToggleSave={() => void toggleSavedFood(foodItem)}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ) : savedFoods.length > 0 ? (
+            <View className="gap-2">
+              <AppText variant="label">Saved foods</AppText>
+              <View className="border-y border-line">
+                {savedFoods.map((foodItem, index) => (
+                  <View
+                    key={foodItem.id}
+                    className={index === 0 ? '' : 'border-t border-line'}
+                  >
+                    <FoodItemChoiceRow
+                      foodItem={foodItem}
+                      mode={trackingMode}
+                      selected={selectedFood?.id === foodItem.id}
+                      saving={savingFoodItemId === foodItem.id}
+                      onPress={() => selectFoodItem(foodItem)}
+                      onToggleSave={() => void toggleSavedFood(foodItem)}
+                    />
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : savedFoodsError !== null ? (
+            <ErrorState
+              title="Saved foods are unavailable"
+              message={savedFoodsError}
+              onRetry={() => void loadForm()}
+            />
+          ) : savedFoodsLoaded ? (
+            <View className="gap-1 border-y border-line py-4">
+              <AppText variant="label">Saved foods will appear here</AppText>
+              <AppText variant="caption" muted>
+                Save foods you use often to log faster next time.
+              </AppText>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {!isEditing && foodSearchQuery.trim().length >= 2 ? (
+        <View className="gap-1 border-t border-line pt-4">
+          <AppText variant="label">Manual entry</AppText>
+          <AppText variant="caption" muted>
+            Enter the food yourself when search does not have it yet.
+          </AppText>
+        </View>
+      ) : null}
+
       {!isEditing && recentFoods.length > 0 ? (
         <View className="gap-3">
           <View className="gap-0.5">
@@ -547,7 +943,7 @@ export default function FoodLogScreen() {
                 className={`flex-row items-center justify-between gap-3 px-4 py-3.5 ${
                   index === 0 ? '' : 'border-t border-line'
                 } active:bg-module-muted`}
-                onPress={() => applyRecentFood(foodLog)}
+                onPress={() => void applyRecentFood(foodLog)}
               >
                 <View className="min-w-0 flex-1 gap-0.5">
                   <AppText variant="label" numberOfLines={1}>
@@ -794,6 +1190,31 @@ export default function FoodLogScreen() {
               )}
             />
           </View>
+        ) : null}
+
+        {!isEditing && selectedFood === null ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ checked: saveAsReusableFood }}
+            className="flex-row items-center justify-between gap-3 border-t border-line pt-4"
+            onPress={() => setSaveAsReusableFood((current) => !current)}
+          >
+            <View className="min-w-0 flex-1 gap-0.5">
+              <AppText variant="label">Save as reusable food</AppText>
+              <AppText variant="caption" muted>
+                Keep this food available for faster logging later.
+              </AppText>
+            </View>
+            <View
+              className={`h-7 w-12 justify-center rounded-full px-1 ${
+                saveAsReusableFood
+                  ? 'items-end bg-primary'
+                  : 'items-start bg-[#E8E8E5]'
+              }`}
+            >
+              <View className="h-5 w-5 rounded-full bg-white" />
+            </View>
+          </Pressable>
         ) : null}
       </FormSection>
 

@@ -91,6 +91,7 @@ export interface SetupPreviewResult {
 
 export interface FoodLog {
   id: string;
+  foodItemId: string | null;
   foodName: string;
   mealType: MealType;
   calories: number;

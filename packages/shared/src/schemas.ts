@@ -209,6 +209,7 @@ export const normalizedNutrientsInputSchema = z
   });
 
 export const foodLogInputSchema = z.strictObject({
+  foodItemId: z.uuid().nullable().optional(),
   foodName: z.string().min(1),
   mealType: mealTypeSchema,
   calories: z.number().int().nonnegative(),
@@ -223,6 +224,14 @@ export const foodLogInputSchema = z.strictObject({
   servingUnit: z.string().min(1).nullable().optional(),
   loggedAt: z.iso.datetime(),
   nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+});
+
+export const foodLogFromFoodItemInputSchema = z.strictObject({
+  foodItemId: z.uuid(),
+  mealType: mealTypeSchema,
+  loggedAt: z.iso.datetime(),
+  servingMultiplier: z.number().positive().default(1),
+  notes: z.string().nullable().optional(),
 });
 
 const optionalNonNegativeInteger = z
@@ -285,6 +294,9 @@ export const weightLogInputSchema = z.strictObject({
 });
 
 export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+export type FoodLogFromFoodItemInput = z.infer<
+  typeof foodLogFromFoodItemInputSchema
+>;
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 export type WeightLogInput = z.infer<typeof weightLogInputSchema>;
 

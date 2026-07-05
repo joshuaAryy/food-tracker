@@ -279,6 +279,24 @@ Complex mode nutrition expansion. Do not treat this checkpoint as approval to
 implement barcode scanning, RAG-assisted AI logging, full nutrition expansion,
 or native workflow changes.
 
+Phase 10 adds food database-powered logging inside the existing food log flow.
+Native smoke testing should cover manual food create/edit/delete/log-again,
+searching reusable foods, selecting and clearing a food item, serving
+multiplier input, saved-food save/unsave rows, recent-food reuse, and the
+manual “save as reusable food” toggle. The new flow should still render a blank
+create form immediately, keep the footer reachable above the keyboard, and
+preserve the Phase 6 open row/divider visual standard without changing native
+folders, app config, package files, or launcher icons.
+
+Native iPhone testing also confirmed an expected Phase 10 limitation: food
+search is wired correctly, but the local `FoodItem` list has no real starter
+catalog yet. Search will be sparse until users create reusable foods or future
+phases add barcode lookup, Open Food Facts, USDA, or starter catalog data.
+Empty food-search and saved-food states should calmly point users back to
+manual logging and reusable-food creation. Complex mode may acknowledge richer
+nutrient data only when saved foods contain it; richer Complex UI and reporting
+come later.
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash

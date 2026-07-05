@@ -80,6 +80,7 @@ export function serializeGoals(goals: UserGoal): Goals {
 export function serializeFoodLog(foodLog: SerializableFoodLog): FoodLog {
   return {
     id: foodLog.id,
+    foodItemId: foodLog.foodItemId,
     foodName: foodLog.foodName,
     mealType: foodLog.mealType,
     calories: foodLog.calories,

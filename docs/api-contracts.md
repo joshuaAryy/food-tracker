@@ -465,17 +465,17 @@ Success `data`:
 
 ## Food Logs
 
-The implemented food-log API supports manual structured nutrition entry.
-The optional `FoodLog.foodItemId` database relation is not exposed through the
-current food-log create/update contract. Existing logs remain snapshot-based
-and continue to store the nutrition values submitted at log time, including
-Phase 9 extended nutrient snapshots when provided.
+The food-log API supports manual structured nutrition entry and Phase 10
+log-from-food flows. `FoodLog.foodItemId` may reference a reusable visible
+`FoodItem`, but logs remain snapshot-based and continue to store the nutrition
+values saved at log time, including Phase 9 extended nutrient snapshots.
 
 Food-log response object:
 
 ```json
 {
   "id": "food-log-id",
+  "foodItemId": "food-item-id",
   "foodName": "Chicken breast",
   "mealType": "dinner",
   "calories": 280,
@@ -530,6 +530,7 @@ Request:
 
 ```json
 {
+  "foodItemId": "food-item-id",
   "foodName": "Chicken breast",
   "mealType": "dinner",
   "calories": 280,
@@ -561,6 +562,7 @@ preserved. If `nutrients` is `null` or `{}`, existing food-log nutrient
 snapshots are cleared.
 
 Optional fields:
+- `foodItemId`
 - `carbs`
 - `fat`
 - `fiber`
@@ -570,11 +572,66 @@ Optional fields:
 - `servingQuantity`
 - `servingUnit`
 
-The backend derives `userId` from mock or real auth context. Success `data` is the created food-log response object.
+The backend derives `userId` from mock or real auth context. If `foodItemId` is
+provided, the referenced food item must be visible, non-archived, and
+accessible to the current user. Unknown fields including `userId` are rejected.
+Success `data` is the created food-log response object.
+
+### `POST /api/v1/food-logs/from-food-item`
+
+Creates a food log from one visible reusable food item. This endpoint is the
+Phase 10 fast logging path. It does not perform barcode scanning, external food
+data lookup, AI/RAG matching, photo recognition, saved meals, or unit
+conversion.
+
+Request:
+
+```json
+{
+  "foodItemId": "food-item-id",
+  "mealType": "breakfast",
+  "loggedAt": "2026-06-14T12:30:00.000Z",
+  "servingMultiplier": 1.5,
+  "notes": "With berries"
+}
+```
+
+Required fields:
+- `foodItemId`
+- `mealType`
+- `loggedAt`
+
+Optional fields:
+- `servingMultiplier` positive number, defaults to `1`
+- `notes`
+
+The backend verifies that the food item is visible and non-archived for the
+current user. The food item must have calories and protein because those are
+required food-log fields.
+
+The backend creates a historical snapshot:
+- `foodName` from `FoodItem.name`
+- `foodItemId` linked to the selected food item
+- column-backed nutrients scaled by `servingMultiplier`
+- normalized `FoodItemNutrient` rows copied into `FoodLogNutrient` snapshot
+  rows and scaled by `servingMultiplier`
+- missing nutrients remain `null` or absent, never zero
+
+Scaling uses no serving-unit conversion. Calories and sodium are rounded to
+whole numbers. Protein, carbs, fat, fiber, and sugar are rounded to one
+decimal. Serving quantity is rounded to two decimals. Normalized nutrients are
+rounded to four decimals. Units are preserved.
+
+Success `data` is the created food-log response object.
 
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
+
+If `foodItemId` is omitted on update, the existing relation is preserved. If
+`foodItemId` is explicitly `null`, the relation is cleared. If a new
+`foodItemId` is provided, the referenced food item must be visible,
+non-archived, and accessible to the current user.
 
 Success `data` is the updated food-log response object.
 

@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import {
   DEFAULT_TIMEZONE,
+  foodLogFromFoodItemInputSchema,
   foodLogInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
 } from '@food-tracker/shared';
-import type { NutrientKey, NutrientUnit } from '@prisma/client';
+import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
 import { localDateRange } from '../../lib/dates.js';
-import { notFoundError } from '../../lib/errors.js';
+import { AppError, notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeFoodLog } from '../../lib/serializers.js';
@@ -23,6 +24,7 @@ import {
 } from '../../middleware/validate.js';
 
 type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+type FoodLogFromFoodItemInput = z.infer<typeof foodLogFromFoodItemInputSchema>;
 type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
 
@@ -62,6 +64,36 @@ function normalizedFoodLog(input: FoodLogInput) {
   };
 }
 
+function visibleFoodWhere(userId: string): Prisma.FoodItemWhereInput {
+  return {
+    archivedAt: null,
+    OR: [{ userId }, { userId: null }],
+  };
+}
+
+async function visibleFoodItem(id: string, userId: string) {
+  return prisma.foodItem.findFirst({
+    where: { id, ...visibleFoodWhere(userId) },
+    include: { nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] } },
+  });
+}
+
+async function verifiedFoodItemId(
+  foodItemId: string | null | undefined,
+  userId: string,
+): Promise<string | null | undefined> {
+  if (foodItemId === undefined || foodItemId === null) {
+    return foodItemId;
+  }
+
+  const foodItem = await visibleFoodItem(foodItemId, userId);
+  if (foodItem === null) {
+    throw notFoundError('Food item');
+  }
+
+  return foodItem.id;
+}
+
 function nutrientRows(input: FoodLogInput['nutrients']) {
   return Object.entries(input ?? {}).map(([nutrientKey, nutrient]) => ({
     nutrientKey: nutrientKey as NutrientKey,
@@ -72,6 +104,76 @@ function nutrientRows(input: FoodLogInput['nutrients']) {
 
 function hasNutrientInput(input: FoodLogInput): boolean {
   return Object.prototype.hasOwnProperty.call(input, 'nutrients');
+}
+
+function hasFoodItemInput(input: FoodLogInput): boolean {
+  return Object.prototype.hasOwnProperty.call(input, 'foodItemId');
+}
+
+function scaledOptionalDecimal(
+  value: { toNumber(): number } | null,
+  multiplier: number,
+  places: number,
+): number | null {
+  return value === null ? null : roundTo(value.toNumber() * multiplier, places);
+}
+
+function scaledOptionalInteger(
+  value: number | null,
+  multiplier: number,
+): number | null {
+  return value === null ? null : Math.round(value * multiplier);
+}
+
+function logFromFoodItemData(
+  foodItem: NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>,
+  input: FoodLogFromFoodItemInput,
+) {
+  const servingMultiplier = input.servingMultiplier;
+
+  if (foodItem.calories === null || foodItem.protein === null) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Food item needs calories and protein before it can be logged.',
+      {
+        issues: [
+          {
+            path: ['foodItemId'],
+            message:
+              'Food item needs calories and protein before it can be logged.',
+          },
+        ],
+      },
+    );
+  }
+
+  return {
+    foodItemId: foodItem.id,
+    foodName: foodItem.name,
+    mealType: input.mealType,
+    calories: Math.round(foodItem.calories * servingMultiplier),
+    protein: roundTo(foodItem.protein.toNumber() * servingMultiplier, 1),
+    carbs: scaledOptionalDecimal(foodItem.carbs, servingMultiplier, 1),
+    fat: scaledOptionalDecimal(foodItem.fat, servingMultiplier, 1),
+    fiber: scaledOptionalDecimal(foodItem.fiber, servingMultiplier, 1),
+    sugar: scaledOptionalDecimal(foodItem.sugar, servingMultiplier, 1),
+    sodium: scaledOptionalInteger(foodItem.sodium, servingMultiplier),
+    notes: input.notes ?? null,
+    servingQuantity:
+      foodItem.servingQuantity === null
+        ? roundTo(servingMultiplier, 2)
+        : roundTo(foodItem.servingQuantity.toNumber() * servingMultiplier, 2),
+    servingUnit: foodItem.servingUnit,
+    loggedAt: new Date(input.loggedAt),
+    nutrients: {
+      create: foodItem.nutrients.map((nutrient) => ({
+        nutrientKey: nutrient.nutrientKey,
+        amount: roundTo(nutrient.amount.toNumber() * servingMultiplier, 4),
+        unit: nutrient.unit,
+      })),
+    },
+  };
 }
 
 const foodLogInclude = {
@@ -103,6 +205,30 @@ foodLogsRouter.get(
   },
 );
 
+foodLogsRouter.post(
+  '/from-food-item',
+  validateBody(foodLogFromFoodItemInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodLogFromFoodItemInput>(response);
+    const foodItem = await visibleFoodItem(input.foodItemId, userId);
+
+    if (foodItem === null) {
+      throw notFoundError('Food item');
+    }
+
+    const foodLog = await prisma.foodLog.create({
+      data: {
+        userId,
+        ...logFromFoodItemData(foodItem, input),
+      },
+      include: foodLogInclude,
+    });
+
+    sendSuccess(response, serializeFoodLog(foodLog));
+  },
+);
+
 foodLogsRouter.get(
   '/:id',
   validateParams(idParamsSchema),
@@ -127,9 +253,12 @@ foodLogsRouter.post(
   validateBody(foodLogInputSchema),
   async (_request, response) => {
     const input = validatedBody<FoodLogInput>(response);
+    const userId = currentUserId(response);
+    const foodItemId = await verifiedFoodItemId(input.foodItemId, userId);
     const foodLog = await prisma.foodLog.create({
       data: {
-        userId: currentUserId(response),
+        userId,
+        ...(foodItemId === undefined ? {} : { foodItemId }),
         ...normalizedFoodLog(input),
         nutrients: { create: nutrientRows(input.nutrients) },
       },
@@ -154,10 +283,14 @@ foodLogsRouter.put(
     }
 
     const input = validatedBody<FoodLogInput>(response);
+    const foodItemId = hasFoodItemInput(input)
+      ? await verifiedFoodItemId(input.foodItemId, userId)
+      : undefined;
     const foodLog = await prisma.foodLog.update({
       where: { id },
       data: {
         ...normalizedFoodLog(input),
+        ...(foodItemId === undefined ? {} : { foodItemId }),
         ...(hasNutrientInput(input)
           ? {
               nutrients: {

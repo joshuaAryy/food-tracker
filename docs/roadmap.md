@@ -116,15 +116,12 @@ meals, custom graphs, or recommendation engine 2.0.
 ## Phase 10 — Faster Logging UX — Active / Next
 
 - fast food search
-- frequent foods
 - saved foods
 - recent foods
 - custom food creation flow
 - log from food item
 - one-tap log again improvements
 - serving amount and unit pickers
-- smart defaults based on last used amount
-- meal shortcuts
 - quick Simple mode calorie/protein entry
 - use food database results without redesigning the whole app
 
@@ -132,6 +129,22 @@ Phase 10 should connect the Phase 8 food database and Phase 9 nutrition
 foundations to the actual logging experience while preserving the Phase 6
 visual standard. It should not become barcode scanning, AI/RAG logging, photo
 logging, custom graphs, recommendation engine 2.0, or a broad redesign.
+
+Initial Phase 10 implementation adds food item search inside the food logging
+flow, saved-food quick access, linked recent-food reuse when a prior log has a
+`foodItemId`, backend-owned log-from-food snapshot scaling, selected-food
+serving multipliers without unit conversion, and a small manual “save as
+reusable food” path. Frequent-food ranking, meal shortcuts, barcode scanning,
+external food data, AI/RAG, photo logging, saved meals, and full micronutrient
+editing remain future work.
+
+Native testing confirmed the Phase 10 search path works but is intentionally
+sparse because it searches only the local app-owned `FoodItem` database. Until
+users create reusable foods, or later phases add starter catalogs and external
+food integrations, empty search results are expected. Barcode, Open Food
+Facts, and USDA work remains Phase 11+. Complex mode has the Phase 9 data
+foundation, but richer Complex logging UI and reporting are later phases rather
+than Phase 10 scope.
 
 ## Phase 11 — Barcode Scanning
 

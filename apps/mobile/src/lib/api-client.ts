@@ -6,6 +6,7 @@ import type {
   FoodItem,
   FoodItemInput,
   FoodLog,
+  FoodLogFromFoodItemInput,
   FoodLogInput,
   Goals,
   Profile,
@@ -303,6 +304,11 @@ export const api = {
     getById: (id: string) => request<FoodLog>(`/food-logs/${id}`),
     create: (input: FoodLogInput) =>
       request<FoodLog>('/food-logs', { method: 'POST', body: input }),
+    createFromFoodItem: (input: FoodLogFromFoodItemInput) =>
+      request<FoodLog>('/food-logs/from-food-item', {
+        method: 'POST',
+        body: input,
+      }),
     update: (id: string, input: FoodLogInput) =>
       request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
     delete: (id: string) =>
