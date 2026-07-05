@@ -354,7 +354,9 @@ Indexes:
 Nullable column nutrients represent unknown values and must not be backfilled
 with synthetic zeroes. `additionalNutrients` is reserved for raw or unmapped
 unit-bearing compatibility metadata. Phase 9 extended nutrients belong in
-`FoodItemNutrient`.
+`FoodItemNutrient`. The `NutrientKey` enum includes column-backed keys for the
+shared catalog and daily totals contract, but API validation rejects those keys
+inside normalized food item nutrient input to prevent duplicate storage.
 
 ### FoodItemNutrient
 
@@ -395,6 +397,12 @@ Indexes and constraints:
 - unique compound constraint on `foodLogId`, `nutrientKey`
 - index on `foodLogId`
 - index on `nutrientKey`
+
+Food-log nutrient rows are historical snapshots. Changing or archiving a
+related `FoodItem` must not mutate old `FoodLogNutrient` values. The
+`NutrientKey` enum includes column-backed keys for shared catalog and totals
+contracts, but API validation rejects those keys inside normalized food-log
+nutrient input to prevent duplicate storage.
 
 ### FoodBarcode
 

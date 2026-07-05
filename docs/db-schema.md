@@ -331,10 +331,12 @@ The static shared catalog covers:
 - calcium, iron, magnesium, zinc, phosphorus, selenium, copper, manganese,
   iodine, chromium, molybdenum, and chloride
 
-The backend exposes daily nutrient totals for nutrients it actually has. Simple
-mode UI remains unchanged, and Phase 9 does not implement barcode scanning,
-external food data integrations, AI/RAG logging, photo logging, saved meals, or
-full Complex-mode micronutrient UI.
+Daily nutrient totals combine column-backed totals with normalized nutrient
+rows without double-counting column-backed nutrients. Missing nutrients are
+absent from totals rather than fabricated as zero. Simple mode UI remains
+unchanged, and Phase 9 does not implement barcode scanning, external food data
+integrations, AI/RAG logging, photo logging, saved meals, or full Complex-mode
+micronutrient UI.
 
 ### Other Future Models
 `CustomFood`, `WaterLog`, `SupplementLog`, and `MicronutrientLog` are not part of the MVP schema.

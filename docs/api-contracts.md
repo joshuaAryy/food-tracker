@@ -754,6 +754,9 @@ Success `data`:
 ```
 
 Missing nutrients are absent from the response. They are not returned as zero.
+Column-backed nutrients are summed from their dedicated `FoodLog` columns, and
+extended nutrients are summed from normalized nutrient snapshot rows; clients
+must not double-count a nutrient across both shapes.
 The endpoint does not implement custom graph UI, recommendations, external food
 data integrations, AI/RAG logging, barcode scanning, or photo logging.
 

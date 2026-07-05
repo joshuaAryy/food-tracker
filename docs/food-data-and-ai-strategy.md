@@ -220,6 +220,14 @@ Handling rules:
 - Phase 9 accepts only each catalog nutrient's default unit. Unit conversion
   and source mapping are deferred.
 - Missing nutrient values must be nullable/unknown, not treated as zero.
+- Calories, protein, carbs, fat, fiber, sugar, and sodium remain column-backed.
+- Extended nutrients are stored in normalized nutrient tables.
+- `additionalNutrients` remains raw/unmapped compatibility metadata only.
+- FoodLog nutrient rows are snapshots; FoodItem nutrient changes must not
+  mutate old logs.
+- Daily nutrient totals combine column-backed totals plus normalized nutrient
+  rows without double-counting, and they must not fabricate zero values for
+  missing nutrients.
 - Simple mode should hide nutrient complexity.
 - Complex mode should expose deeper nutrient detail.
 - Backend summaries include daily nutrient totals for nutrients the backend
@@ -230,6 +238,46 @@ Handling rules:
 - Phase 9 does not implement external Open Food Facts or USDA integration,
   barcode camera scanning, AI/RAG logging, photo logging, saved meals, custom
   graphs, recommendation engine 2.0, or full Complex-mode nutrition UI.
+
+## Phase 9 Checkpoint And Retrospective
+
+Phase 9 is complete enough to move into Phase 10. It delivered the full
+nutrition model backend/data foundation: shared static nutrient catalog,
+column-backed versus normalized nutrient distinction, `FoodItemNutrient`,
+`FoodLogNutrient`, daily nutrient totals, strict default-unit validation,
+nullable/unknown nutrient handling, historical food-log nutrient snapshots,
+shared schema/type support, mobile API client support, backend tests, and docs.
+
+What went well:
+- the hybrid model avoided a huge column-only schema
+- normalized rows make future Complex mode analytics and graphs possible
+- FoodLog snapshots preserve historical accuracy
+- the shared catalog gives one source of truth for keys and units
+- the daily nutrient totals endpoint creates backend foundation for future
+  reporting
+- existing manual food logging stayed compatible
+- Simple mode remains unaffected
+- there were no mobile redesign, package, lockfile, app config, or native
+  changes
+
+Risks to manage:
+- the nutrient catalog is broad and needs disciplined use
+- unit conversion is still deferred
+- external food sources will likely need source-key mapping later
+- normalized nutrients make queries more powerful but more complex
+- UI must not expose too much complexity too soon
+- daily nutrient totals are backend foundation only until Phase 10+ UI work
+  uses them carefully
+
+Standards to uphold:
+- do not fake nutrient values
+- do not treat unknown nutrients as zero
+- do not duplicate column-backed nutrients in normalized rows
+- do not display Complex nutrient charts before data exists
+- keep Simple mode simple
+- expose deeper nutrient detail only when the flow supports it
+- use backend-provided nutrient data only
+- keep food logging fast, not overloaded
 
 ## RAG-Assisted AI Logging
 

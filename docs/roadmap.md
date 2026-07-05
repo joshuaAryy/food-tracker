@@ -91,7 +91,7 @@ nutrition UI, photo logging, or saved meals.
 
 See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 
-## Phase 9 — Full Nutrition Model For Complex Mode
+## Phase 9 — Full Nutrition Model For Complex Mode — Complete
 
 - full macro/common nutrition fields
 - vitamins and minerals
@@ -113,19 +113,25 @@ Phase 9 does not implement Complex-mode nutrient UI, barcode camera scanning,
 Open Food Facts or USDA integration, AI/RAG logging, photo logging, saved
 meals, custom graphs, or recommendation engine 2.0.
 
-## Phase 10 — Faster Logging UX
+## Phase 10 — Faster Logging UX — Active / Next
 
 - fast food search
 - frequent foods
-- saved foods and meals
-- custom foods
+- saved foods
+- recent foods
+- custom food creation flow
+- log from food item
 - one-tap log again improvements
-- copy previous day or previous meal where useful
 - serving amount and unit pickers
 - smart defaults based on last used amount
 - meal shortcuts
 - quick Simple mode calorie/protein entry
-- full Complex mode nutrition entry/editing
+- use food database results without redesigning the whole app
+
+Phase 10 should connect the Phase 8 food database and Phase 9 nutrition
+foundations to the actual logging experience while preserving the Phase 6
+visual standard. It should not become barcode scanning, AI/RAG logging, photo
+logging, custom graphs, recommendation engine 2.0, or a broad redesign.
 
 ## Phase 11 — Barcode Scanning
 

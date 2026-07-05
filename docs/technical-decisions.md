@@ -242,6 +242,17 @@ provides. Phase 9 does not implement UI, barcode scanning, external food data
 integrations, AI/RAG logging, photo logging, saved meals, custom graphs, or
 recommendation engine 2.0.
 
+Standards going forward:
+- do not fake nutrient values or treat unknown nutrients as zero
+- do not duplicate column-backed nutrients in normalized nutrient rows
+- keep `additionalNutrients` as raw/unmapped compatibility metadata only
+- keep FoodLog nutrient rows as historical snapshots
+- keep Simple mode simple and avoid exposing Complex nutrition detail before
+  the user flow supports it
+- use backend-provided nutrient data only, and do not display Complex nutrient
+  charts before data exists
+- keep food logging fast rather than overloading the entry flow
+
 ## TD-012: AI Is Not Source Of Truth
 
 Status: Planned
