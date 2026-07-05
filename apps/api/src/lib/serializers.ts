@@ -1,7 +1,9 @@
 import type {
   FoodBarcode as PrismaFoodBarcode,
   FoodItem as PrismaFoodItem,
+  FoodItemNutrient as PrismaFoodItemNutrient,
   FoodLog as PrismaFoodLog,
+  FoodLogNutrient as PrismaFoodLogNutrient,
   Recommendation as PrismaRecommendation,
   UserGoal,
   UserProfile,
@@ -12,6 +14,7 @@ import type {
   FoodItem,
   FoodLog,
   Goals,
+  NormalizedNutrientMap,
   Profile,
   Recommendation,
   RecommendationType,
@@ -29,7 +32,26 @@ const decimalToNumber = (value: { toNumber(): number } | null): number | null =>
 type SerializableFoodItem = PrismaFoodItem & {
   barcodes?: PrismaFoodBarcode[];
   savedByUsers?: { id: string }[];
+  nutrients?: PrismaFoodItemNutrient[];
 };
+
+type SerializableFoodLog = PrismaFoodLog & {
+  nutrients?: PrismaFoodLogNutrient[];
+};
+
+function serializeNutrients(
+  nutrients: (PrismaFoodItemNutrient | PrismaFoodLogNutrient)[] | undefined,
+): NormalizedNutrientMap {
+  return Object.fromEntries(
+    (nutrients ?? []).map((nutrient) => [
+      nutrient.nutrientKey,
+      {
+        amount: nutrient.amount.toNumber(),
+        unit: nutrient.unit,
+      },
+    ]),
+  );
+}
 
 export function serializeProfile(profile: UserProfile): Profile {
   return {
@@ -55,7 +77,7 @@ export function serializeGoals(goals: UserGoal): Goals {
   };
 }
 
-export function serializeFoodLog(foodLog: PrismaFoodLog): FoodLog {
+export function serializeFoodLog(foodLog: SerializableFoodLog): FoodLog {
   return {
     id: foodLog.id,
     foodName: foodLog.foodName,
@@ -70,6 +92,7 @@ export function serializeFoodLog(foodLog: PrismaFoodLog): FoodLog {
     notes: foodLog.notes,
     servingQuantity: decimalToNumber(foodLog.servingQuantity),
     servingUnit: foodLog.servingUnit,
+    nutrients: serializeNutrients(foodLog.nutrients),
     loggedAt: foodLog.loggedAt.toISOString(),
     createdAt: foodLog.createdAt.toISOString(),
     updatedAt: foodLog.updatedAt.toISOString(),
@@ -101,6 +124,7 @@ export function serializeFoodItem(foodItem: SerializableFoodItem): FoodItem {
       string,
       AdditionalNutrient
     > | null,
+    nutrients: serializeNutrients(foodItem.nutrients),
     barcodes: (foodItem.barcodes ?? []).map((barcode) => ({
       id: barcode.id,
       barcode: barcode.barcode,

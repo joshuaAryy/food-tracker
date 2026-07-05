@@ -81,6 +81,84 @@ enum FoodSourceProvider {
   other
 }
 
+enum NutrientKey {
+  calories
+  protein
+  carbs
+  fat
+  fiber
+  sugar
+  sodium
+  addedSugar
+  starch
+  solubleFiber
+  insolubleFiber
+  sugarAlcohol
+  saturatedFat
+  transFat
+  monounsaturatedFat
+  polyunsaturatedFat
+  omega3
+  omega6
+  cholesterol
+  histidine
+  isoleucine
+  leucine
+  lysine
+  methionine
+  phenylalanine
+  threonine
+  tryptophan
+  valine
+  alanine
+  arginine
+  asparticAcid
+  cystine
+  glutamicAcid
+  glycine
+  proline
+  serine
+  tyrosine
+  potassium
+  caffeine
+  alcohol
+  water
+  oxalate
+  phytate
+  vitaminA
+  thiamine
+  riboflavin
+  niacin
+  pantothenicAcid
+  vitaminB6
+  biotin
+  folate
+  vitaminB12
+  vitaminC
+  vitaminD
+  vitaminE
+  vitaminK
+  calcium
+  iron
+  magnesium
+  zinc
+  phosphorus
+  selenium
+  copper
+  manganese
+  iodine
+  chromium
+  molybdenum
+  chloride
+}
+
+enum NutrientUnit {
+  kcal
+  g
+  mg
+  mcg
+}
+
 model User {
   id                 String              @id @default(uuid()) @db.Uuid
   email              String?
@@ -151,6 +229,7 @@ model FoodLog {
   updatedAt       DateTime @updatedAt @db.Timestamptz
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   foodItem        FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  nutrients       FoodLogNutrient[]
 
   @@index([userId])
   @@index([foodItemId])
@@ -190,6 +269,7 @@ model FoodItem {
   barcodes            FoodBarcode[]
   savedByUsers        SavedFoodItem[]
   foodLogs            FoodLog[]
+  nutrients           FoodItemNutrient[]
 
   @@index([userId])
   @@index([sourceType])
@@ -197,6 +277,36 @@ model FoodItem {
   @@index([archivedAt])
   @@index([normalizedName])
   @@index([normalizedBrandName])
+}
+
+model FoodItemNutrient {
+  id          String       @id @default(uuid()) @db.Uuid
+  foodItemId  String       @db.Uuid
+  nutrientKey NutrientKey
+  amount      Decimal      @db.Decimal(12, 4)
+  unit        NutrientUnit
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @db.Timestamptz
+  foodItem    FoodItem     @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([foodItemId, nutrientKey])
+  @@index([foodItemId])
+  @@index([nutrientKey])
+}
+
+model FoodLogNutrient {
+  id          String       @id @default(uuid()) @db.Uuid
+  foodLogId   String       @db.Uuid
+  nutrientKey NutrientKey
+  amount      Decimal      @db.Decimal(12, 4)
+  unit        NutrientUnit
+  createdAt   DateTime     @default(now()) @db.Timestamptz
+  updatedAt   DateTime     @updatedAt @db.Timestamptz
+  foodLog     FoodLog      @relation(fields: [foodLogId], references: [id], onDelete: Cascade)
+
+  @@unique([foodLogId, nutrientKey])
+  @@index([foodLogId])
+  @@index([nutrientKey])
 }
 
 model FoodBarcode {

@@ -6,7 +6,7 @@ import {
   foodItemsQuerySchema,
   idParamsSchema,
 } from '@food-tracker/shared';
-import { Prisma } from '@prisma/client';
+import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
 import { notFoundError } from '../../lib/errors.js';
@@ -92,6 +92,18 @@ function normalizedFoodItem(input: FoodItemInput) {
   };
 }
 
+function nutrientRows(input: FoodItemInput['nutrients']) {
+  return Object.entries(input ?? {}).map(([nutrientKey, nutrient]) => ({
+    nutrientKey: nutrientKey as NutrientKey,
+    amount: roundTo(nutrient.amount, 4),
+    unit: nutrient.unit as NutrientUnit,
+  }));
+}
+
+function hasNutrientInput(input: FoodItemInput): boolean {
+  return Object.prototype.hasOwnProperty.call(input, 'nutrients');
+}
+
 function visibleFoodWhere(userId: string): Prisma.FoodItemWhereInput {
   return {
     archivedAt: null,
@@ -102,6 +114,7 @@ function visibleFoodWhere(userId: string): Prisma.FoodItemWhereInput {
 function foodItemInclude(userId: string) {
   return {
     barcodes: { orderBy: [{ regionCode: 'asc' as const }] },
+    nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] },
     savedByUsers: {
       where: { userId },
       select: { id: true },
@@ -214,12 +227,14 @@ foodItemsRouter.post(
   '/',
   validateBody(foodItemInputSchema),
   async (_request, response) => {
+    const input = validatedBody<FoodItemInput>(response);
     const foodItem = await prisma.foodItem.create({
       data: {
         userId: currentUserId(response),
         sourceType: 'user_custom',
         sourceProvider: 'manual',
-        ...normalizedFoodItem(validatedBody<FoodItemInput>(response)),
+        ...normalizedFoodItem(input),
+        nutrients: { create: nutrientRows(input.nutrients) },
       },
       include: foodItemInclude(currentUserId(response)),
     });
@@ -241,9 +256,20 @@ foodItemsRouter.put(
       throw notFoundError('Food item');
     }
 
+    const input = validatedBody<FoodItemInput>(response);
     const foodItem = await prisma.foodItem.update({
       where: { id },
-      data: normalizedFoodItem(validatedBody<FoodItemInput>(response)),
+      data: {
+        ...normalizedFoodItem(input),
+        ...(hasNutrientInput(input)
+          ? {
+              nutrients: {
+                deleteMany: {},
+                create: nutrientRows(input.nutrients),
+              },
+            }
+          : {}),
+      },
       include: foodItemInclude(userId),
     });
 

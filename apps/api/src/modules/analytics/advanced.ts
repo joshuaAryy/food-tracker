@@ -1,8 +1,8 @@
 import {
   DEFAULT_TIMEZONE,
   type AdvancedAnalytics,
+  type ColumnBackedNutrientKey,
   type NutrientCompleteness,
-  type NutrientKey,
   type NutrientValues,
   type TrendWindowInterpretation,
 } from '@food-tracker/shared';
@@ -111,7 +111,7 @@ function completenessMetric(
 
 function nutrientCompleteness(
   logs: AnalyticsFoodLog[],
-): Record<NutrientKey, NutrientCompleteness> {
+): Record<ColumnBackedNutrientKey, NutrientCompleteness> {
   const possibleCount = logs.length;
 
   return {
@@ -163,7 +163,7 @@ function trendInterpretation(
 }
 
 function completenessWarnings(
-  nutrients: Record<NutrientKey, NutrientCompleteness>,
+  nutrients: Record<ColumnBackedNutrientKey, NutrientCompleteness>,
   isLowConfidence: boolean,
 ): string[] {
   const warnings: string[] = [];

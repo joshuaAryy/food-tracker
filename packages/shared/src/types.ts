@@ -13,6 +13,12 @@ import type {
   TrainingStyle,
   TrackingMode,
 } from './enums.js';
+import type {
+  ColumnBackedNutrientKey,
+  NormalizedNutrientKey,
+  NutrientKey,
+  NutrientUnit,
+} from './nutrients.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -97,6 +103,7 @@ export interface FoodLog {
   notes: string | null;
   servingQuantity: number | null;
   servingUnit: string | null;
+  nutrients: NormalizedNutrientMap;
   loggedAt: string;
   createdAt: string;
   updatedAt: string;
@@ -106,6 +113,15 @@ export interface AdditionalNutrient {
   amount: number;
   unit: string;
 }
+
+export interface NutrientAmount {
+  amount: number;
+  unit: NutrientUnit;
+}
+
+export type NormalizedNutrientMap = Partial<
+  Record<NormalizedNutrientKey, NutrientAmount>
+>;
 
 export interface FoodBarcode {
   id: string;
@@ -135,6 +151,7 @@ export interface FoodItem {
   sugar: number | null;
   sodium: number | null;
   additionalNutrients: Record<string, AdditionalNutrient> | null;
+  nutrients: NormalizedNutrientMap;
   barcodes: FoodBarcode[];
   createdAt: string;
   updatedAt: string;
@@ -170,8 +187,6 @@ export interface NutrientValues {
   sugar: number;
   sodium: number;
 }
-
-export type NutrientKey = keyof NutrientValues;
 
 export interface NutrientCompleteness {
   loggedCount: number;
@@ -233,7 +248,7 @@ export interface AdvancedAnalytics {
     totalDaysInRange: number;
     loggingCompletenessPercent: number;
     isLowConfidence: boolean;
-    nutrients: Record<NutrientKey, NutrientCompleteness>;
+    nutrients: Record<ColumnBackedNutrientKey, NutrientCompleteness>;
     warnings: string[];
   };
   loggingConsistency: {
@@ -254,6 +269,11 @@ export interface AdvancedAnalytics {
     changeLb: number | null;
     weeklySlopeLb: number | null;
   };
+}
+
+export interface DailyNutrientTotals {
+  date: string;
+  nutrients: Partial<Record<NutrientKey, NutrientAmount>>;
 }
 
 export interface Recommendation {

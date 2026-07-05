@@ -2,6 +2,7 @@ import type {
   ApiResponse,
   AdvancedAnalytics,
   DashboardSummary,
+  DailyNutrientTotals,
   FoodItem,
   FoodItemInput,
   FoodLog,
@@ -169,6 +170,10 @@ export interface AdvancedAnalyticsQuery {
   rangeDays?: number;
 }
 
+export interface DailyNutrientTotalsQuery {
+  date?: string;
+}
+
 interface FoodLogsQuery {
   date?: string;
   limit?: number;
@@ -227,6 +232,15 @@ function barcodeLookupQueryString(query: BarcodeLookupQuery): string {
   return value === '' ? '' : `?${value}`;
 }
 
+function dashboardQueryString(query: DailyNutrientTotalsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) {
+    params.set('date', query.date);
+  }
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
 function weightLogsQueryString(query: WeightLogsQuery): string {
   const params = new URLSearchParams();
   if (query.date !== undefined) {
@@ -246,6 +260,10 @@ export const api = {
   analytics: {
     advanced: (query: AdvancedAnalyticsQuery = {}) =>
       request<AdvancedAnalytics>(`/analytics/advanced${queryString(query)}`),
+    dailyNutrients: (query: DailyNutrientTotalsQuery = {}) =>
+      request<DailyNutrientTotals>(
+        `/analytics/nutrients/daily${dashboardQueryString(query)}`,
+      ),
   },
   dashboard: {
     summary: () => request<DashboardSummary>('/dashboard/summary'),

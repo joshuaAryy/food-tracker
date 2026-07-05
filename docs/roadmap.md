@@ -66,7 +66,7 @@ Completed as a short hardening phase before large new features.
 - Phase 7 preserved the Phase 6 visual standard and did not change backend,
   API, schema, package, lockfile, app config, or generated native folders.
 
-## Phase 8 — Food Database Foundation — Active
+## Phase 8 — Food Database Foundation — Complete
 
 - app-owned food database foundation
 - cached foods
@@ -103,6 +103,15 @@ See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 - Complex mode exposing deeper detail
 
 Do not show fake micronutrient charts before backend data exists.
+
+Initial Phase 9 implementation adds a static shared nutrient catalog,
+normalized `FoodItemNutrient` and `FoodLogNutrient` tables, extended nutrient
+support in food item and food log contracts, historical nutrient snapshots,
+daily nutrient totals, mobile API client support, backend tests, and docs.
+
+Phase 9 does not implement Complex-mode nutrient UI, barcode camera scanning,
+Open Food Facts or USDA integration, AI/RAG logging, photo logging, saved
+meals, custom graphs, or recommendation engine 2.0.
 
 ## Phase 10 — Faster Logging UX
 

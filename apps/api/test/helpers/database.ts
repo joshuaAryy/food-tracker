@@ -16,6 +16,8 @@ export async function resetTestDatabase(): Promise<void> {
     prisma.recommendation.deleteMany(),
     prisma.savedFoodItem.deleteMany(),
     prisma.foodBarcode.deleteMany(),
+    prisma.foodLogNutrient.deleteMany(),
+    prisma.foodItemNutrient.deleteMany(),
     prisma.foodLog.deleteMany(),
     prisma.foodItem.deleteMany(),
     prisma.weightLog.deleteMany(),

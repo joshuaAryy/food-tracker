@@ -1,4 +1,9 @@
-import { MOCK_USER_ID } from '@food-tracker/shared';
+import {
+  COLUMN_BACKED_NUTRIENT_KEYS,
+  MOCK_USER_ID,
+  NORMALIZED_NUTRIENT_KEYS,
+  NUTRIENT_CATALOG,
+} from '@food-tracker/shared';
 import { describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import {
@@ -29,9 +34,22 @@ const customFoodInput = {
   },
 };
 
+const customFoodWithNutrientsInput = {
+  ...customFoodInput,
+  nutrients: {
+    caffeine: { amount: 95, unit: 'mg' },
+    vitaminC: { amount: 60, unit: 'mg' },
+    vitaminD: { amount: 20, unit: 'mcg' },
+    addedSugar: { amount: 4.5, unit: 'g' },
+    leucine: { amount: 1.2, unit: 'g' },
+    calcium: { amount: 250, unit: 'mg' },
+  },
+};
+
 interface FoodItemResponseBody {
   id: string;
   name: string;
+  nutrients?: unknown;
 }
 
 interface FoodItemsListResponseBody {
@@ -39,6 +57,94 @@ interface FoodItemsListResponseBody {
 }
 
 describe('food items API', () => {
+  it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {
+    expect(COLUMN_BACKED_NUTRIENT_KEYS).toEqual([
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'fiber',
+      'sugar',
+      'sodium',
+    ]);
+    expect(NORMALIZED_NUTRIENT_KEYS).toEqual(
+      expect.arrayContaining([
+        'addedSugar',
+        'starch',
+        'solubleFiber',
+        'insolubleFiber',
+        'sugarAlcohol',
+        'saturatedFat',
+        'transFat',
+        'monounsaturatedFat',
+        'polyunsaturatedFat',
+        'omega3',
+        'omega6',
+        'cholesterol',
+        'histidine',
+        'isoleucine',
+        'leucine',
+        'lysine',
+        'methionine',
+        'phenylalanine',
+        'threonine',
+        'tryptophan',
+        'valine',
+        'alanine',
+        'arginine',
+        'asparticAcid',
+        'cystine',
+        'glutamicAcid',
+        'glycine',
+        'proline',
+        'serine',
+        'tyrosine',
+        'potassium',
+        'caffeine',
+        'alcohol',
+        'water',
+        'oxalate',
+        'phytate',
+        'vitaminA',
+        'thiamine',
+        'riboflavin',
+        'niacin',
+        'pantothenicAcid',
+        'vitaminB6',
+        'biotin',
+        'folate',
+        'vitaminB12',
+        'vitaminC',
+        'vitaminD',
+        'vitaminE',
+        'vitaminK',
+        'calcium',
+        'iron',
+        'magnesium',
+        'zinc',
+        'phosphorus',
+        'selenium',
+        'copper',
+        'manganese',
+        'iodine',
+        'chromium',
+        'molybdenum',
+        'chloride',
+      ]),
+    );
+    expect(NUTRIENT_CATALOG.caffeine).toMatchObject({
+      category: 'stimulant',
+      defaultUnit: 'mg',
+      storage: 'normalized',
+    });
+    expect(NUTRIENT_CATALOG.vitaminD).toMatchObject({
+      category: 'vitamin',
+      defaultUnit: 'mcg',
+      storage: 'normalized',
+    });
+    expect(NUTRIENT_CATALOG.protein.storage).toBe('column');
+  });
+
   it('creates a current-user custom food with nullable nutrition fields', async () => {
     const response = await api
       .post('/api/v1/food-items')
@@ -70,6 +176,66 @@ describe('food items API', () => {
     expect(persisted?.sodium).toBeNull();
   });
 
+  it('creates and returns normalized extended nutrients for custom foods', async () => {
+    const response = await api
+      .post('/api/v1/food-items')
+      .send(customFoodWithNutrientsInput)
+      .expect(200);
+
+    expectSuccessEnvelope(response.body);
+    const data = response.body.data as FoodItemResponseBody;
+    expect(data.nutrients).toEqual({
+      addedSugar: { amount: 4.5, unit: 'g' },
+      caffeine: { amount: 95, unit: 'mg' },
+      calcium: { amount: 250, unit: 'mg' },
+      leucine: { amount: 1.2, unit: 'g' },
+      vitaminC: { amount: 60, unit: 'mg' },
+      vitaminD: { amount: 20, unit: 'mcg' },
+    });
+
+    expect(await prisma.foodItemNutrient.count()).toBe(6);
+  });
+
+  it('preserves, replaces, and clears normalized food item nutrients on update', async () => {
+    const created = await api
+      .post('/api/v1/food-items')
+      .send(customFoodWithNutrientsInput)
+      .expect(200);
+    const id = created.body.data.id as string;
+
+    const preserved = await api
+      .put(`/api/v1/food-items/${id}`)
+      .send({ ...customFoodInput, name: 'Renamed yogurt' })
+      .expect(200);
+
+    expect(preserved.body.data.nutrients).toEqual(created.body.data.nutrients);
+
+    const replaced = await api
+      .put(`/api/v1/food-items/${id}`)
+      .send({
+        ...customFoodInput,
+        nutrients: { potassium: { amount: 300, unit: 'mg' } },
+      })
+      .expect(200);
+
+    expect(replaced.body.data.nutrients).toEqual({
+      potassium: { amount: 300, unit: 'mg' },
+    });
+    expect(
+      await prisma.foodItemNutrient.count({ where: { foodItemId: id } }),
+    ).toBe(1);
+
+    const cleared = await api
+      .put(`/api/v1/food-items/${id}`)
+      .send({ ...customFoodInput, nutrients: null })
+      .expect(200);
+
+    expect(cleared.body.data.nutrients).toEqual({});
+    expect(
+      await prisma.foodItemNutrient.count({ where: { foodItemId: id } }),
+    ).toBe(0);
+  });
+
   it('keeps omitted nutrition fields unknown instead of converting them to zero', async () => {
     const response = await api
       .post('/api/v1/food-items')
@@ -91,6 +257,34 @@ describe('food items API', () => {
   it.each([
     ['unknown fields', { ...customFoodInput, userId: OTHER_USER_ID }],
     ['negative nutrient', { ...customFoodInput, protein: -1 }],
+    [
+      'negative extended nutrient',
+      {
+        ...customFoodInput,
+        nutrients: { caffeine: { amount: -1, unit: 'mg' } },
+      },
+    ],
+    [
+      'invalid extended nutrient key',
+      {
+        ...customFoodInput,
+        nutrients: { mystery: { amount: 1, unit: 'mg' } },
+      },
+    ],
+    [
+      'column-backed nutrient as normalized input',
+      {
+        ...customFoodInput,
+        nutrients: { protein: { amount: 22.4, unit: 'g' } },
+      },
+    ],
+    [
+      'non-default extended nutrient unit',
+      {
+        ...customFoodInput,
+        nutrients: { caffeine: { amount: 0.095, unit: 'g' } },
+      },
+    ],
     ['invalid serving quantity', { ...customFoodInput, servingQuantity: 0 }],
   ])('rejects %s when creating a food item', async (_label, input) => {
     const response = await api

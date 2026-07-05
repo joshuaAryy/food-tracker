@@ -176,7 +176,8 @@ Status: Locked
   long-term it aligns with Supabase Auth.
 - Include only approved models. Phase 8 explicitly adds `FoodItem`,
   `FoodBarcode`, and `SavedFoodItem`, plus optional `FoodLog.foodItemId`, as the
-  local food database foundation.
+  local food database foundation. Phase 9 adds `FoodItemNutrient` and
+  `FoodLogNutrient` for normalized extended nutrients.
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 - Do not include `DailySummary`, raw/parsed food logs, or other future models
   without explicit approval.
@@ -220,17 +221,26 @@ See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 
 ## TD-011: Full Nutrition For Complex Mode
 
-Status: Planned
+Status: Implemented as backend/data foundation in Phase 9
 
-Complex mode should eventually support full nutrition tracking, including
-macros, fiber, sugar, fats, cholesterol, sodium, potassium, caffeine, vitamins,
-and minerals. Nutrients must have units. Missing nutrient values must be
-nullable/unknown, not treated as zero.
+Complex mode should eventually support full nutrition tracking. Phase 9 keeps
+`calories`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, and `sodium` in the
+existing columns and adds a static shared nutrient catalog plus normalized
+unit-bearing rows for extended nutrients on `FoodItem` and snapshot rows on
+`FoodLog`.
+
+The catalog covers carbohydrate detail, fat subtypes, amino acids, vitamins,
+minerals, stimulants, and other tracked compounds. Phase 9 accepts only each
+catalog nutrient's default unit; unit conversion and external source mapping
+are deferred. Missing nutrient values remain nullable/unknown or absent, not
+zero.
 
 Simple mode should hide this complexity. Complex mode should expose deeper
-detail. Backend summaries should eventually support daily nutrient totals, and
-mobile Progress/Insights must only display nutrients the backend actually
-provides.
+detail later. Backend summaries now include a daily nutrient totals endpoint,
+and mobile Progress/Insights must only display nutrients the backend actually
+provides. Phase 9 does not implement UI, barcode scanning, external food data
+integrations, AI/RAG logging, photo logging, saved meals, custom graphs, or
+recommendation engine 2.0.
 
 ## TD-012: AI Is Not Source Of Truth
 

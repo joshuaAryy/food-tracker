@@ -18,6 +18,15 @@ const validFoodLog = {
   loggedAt: '2026-06-15T17:00:00.000Z',
 };
 
+const validFoodLogWithNutrients = {
+  ...validFoodLog,
+  nutrients: {
+    caffeine: { amount: 95, unit: 'mg' },
+    vitaminC: { amount: 60, unit: 'mg' },
+    leucine: { amount: 1.2, unit: 'g' },
+  },
+};
+
 describe('food logs API', () => {
   it('creates and persists a valid food log', async () => {
     const response = await api
@@ -39,6 +48,124 @@ describe('food logs API', () => {
     });
     expect(persisted?.userId).toBe(MOCK_USER_ID);
     expect(persisted?.calories).toBe(650);
+  });
+
+  it('creates and returns extended nutrient snapshots when provided', async () => {
+    const response = await api
+      .post('/api/v1/food-logs')
+      .send(validFoodLogWithNutrients)
+      .expect(200);
+
+    expect(response.body.data.nutrients).toEqual({
+      caffeine: { amount: 95, unit: 'mg' },
+      leucine: { amount: 1.2, unit: 'g' },
+      vitaminC: { amount: 60, unit: 'mg' },
+    });
+    expect(
+      await prisma.foodLogNutrient.count({
+        where: { foodLogId: response.body.data.id as string },
+      }),
+    ).toBe(3);
+  });
+
+  it('preserves, replaces, and clears food log nutrient snapshots on update', async () => {
+    const created = await api
+      .post('/api/v1/food-logs')
+      .send(validFoodLogWithNutrients)
+      .expect(200);
+    const id = created.body.data.id as string;
+
+    const preserved = await api
+      .put(`/api/v1/food-logs/${id}`)
+      .send({ ...validFoodLog, foodName: 'Snapshot renamed' })
+      .expect(200);
+
+    expect(preserved.body.data.nutrients).toEqual(created.body.data.nutrients);
+
+    const replaced = await api
+      .put(`/api/v1/food-logs/${id}`)
+      .send({
+        ...validFoodLog,
+        nutrients: { potassium: { amount: 300, unit: 'mg' } },
+      })
+      .expect(200);
+
+    expect(replaced.body.data.nutrients).toEqual({
+      potassium: { amount: 300, unit: 'mg' },
+    });
+
+    const cleared = await api
+      .put(`/api/v1/food-logs/${id}`)
+      .send({ ...validFoodLog, nutrients: null })
+      .expect(200);
+
+    expect(cleared.body.data.nutrients).toEqual({});
+    expect(
+      await prisma.foodLogNutrient.count({ where: { foodLogId: id } }),
+    ).toBe(0);
+  });
+
+  it('keeps log nutrient snapshots when a related food item changes or is archived', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Snapshot source',
+        normalizedName: 'snapshot source',
+        searchText: 'snapshot source',
+        sourceType: 'user_custom',
+        foodType: 'generic',
+        nutrients: {
+          create: {
+            nutrientKey: 'caffeine',
+            amount: 95,
+            unit: 'mg',
+          },
+        },
+      },
+    });
+    const foodLog = await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodItemId: foodItem.id,
+        foodName: 'Snapshot log',
+        mealType: 'breakfast',
+        calories: 100,
+        protein: 10,
+        loggedAt: new Date(validFoodLog.loggedAt),
+        nutrients: {
+          create: {
+            nutrientKey: 'caffeine',
+            amount: 80,
+            unit: 'mg',
+          },
+        },
+      },
+      include: { nutrients: true },
+    });
+
+    await prisma.foodItem.update({
+      where: { id: foodItem.id },
+      data: {
+        archivedAt: new Date(),
+        nutrients: {
+          deleteMany: {},
+          create: {
+            nutrientKey: 'caffeine',
+            amount: 120,
+            unit: 'mg',
+          },
+        },
+      },
+    });
+
+    const response = await api
+      .get(`/api/v1/food-logs/${foodLog.id}`)
+      .expect(200);
+
+    expect(foodLog.nutrients[0]?.amount.toNumber()).toBe(80);
+    expect(response.body.data.nutrients).toEqual({
+      caffeine: { amount: 80, unit: 'mg' },
+    });
   });
 
   it('returns created food logs', async () => {
@@ -144,6 +271,22 @@ describe('food logs API', () => {
   it.each([
     ['invalid meal type', { ...validFoodLog, mealType: 'brunch' }],
     ['negative calories', { ...validFoodLog, calories: -1 }],
+    [
+      'invalid nutrient key',
+      { ...validFoodLog, nutrients: { mystery: { amount: 1, unit: 'mg' } } },
+    ],
+    [
+      'column-backed nutrient as normalized input',
+      { ...validFoodLog, nutrients: { protein: { amount: 42.5, unit: 'g' } } },
+    ],
+    [
+      'invalid nutrient unit',
+      { ...validFoodLog, nutrients: { caffeine: { amount: 95, unit: 'g' } } },
+    ],
+    [
+      'negative nutrient amount',
+      { ...validFoodLog, nutrients: { caffeine: { amount: -1, unit: 'mg' } } },
+    ],
     ['invalid datetime', { ...validFoodLog, loggedAt: 'yesterday' }],
   ])('rejects %s', async (_label, input) => {
     const response = await api

@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import {
   advancedAnalyticsQuerySchema,
+  COLUMN_BACKED_NUTRIENT_KEYS,
   dashboardSummaryQuerySchema,
   DEFAULT_TIMEZONE,
+  NUTRIENT_CATALOG,
   type DashboardSummary,
+  type DailyNutrientTotals,
+  type NutrientAmount,
+  type NutrientKey,
 } from '@food-tracker/shared';
 import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
@@ -19,6 +24,82 @@ type AdvancedAnalyticsQuery = z.infer<typeof advancedAnalyticsQuerySchema>;
 
 export const analyticsRouter = Router();
 export const advancedAnalyticsRouter = Router();
+
+advancedAnalyticsRouter.get(
+  '/nutrients/daily',
+  validateQuery(dashboardSummaryQuerySchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const query = validatedQuery<DashboardQuery>(response);
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    });
+    const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
+    const date = query.date ?? localDate(new Date(), timezone);
+    const range = localDateRange(timezone, { date });
+    const [columnTotals, normalizedTotals] = await Promise.all([
+      prisma.foodLog.aggregate({
+        where: { userId, loggedAt: range },
+        _count: { _all: true },
+        _sum: {
+          calories: true,
+          protein: true,
+          carbs: true,
+          fat: true,
+          fiber: true,
+          sugar: true,
+          sodium: true,
+        },
+      }),
+      prisma.foodLogNutrient.groupBy({
+        by: ['nutrientKey', 'unit'],
+        where: { foodLog: { userId, loggedAt: range } },
+        _sum: { amount: true },
+      }),
+    ]);
+    const nutrients: Partial<Record<NutrientKey, NutrientAmount>> = {};
+
+    if (columnTotals._count._all > 0) {
+      nutrients.calories = {
+        amount: columnTotals._sum.calories ?? 0,
+        unit: NUTRIENT_CATALOG.calories.defaultUnit,
+      };
+      nutrients.protein = {
+        amount: roundTo(columnTotals._sum.protein?.toNumber() ?? 0, 1),
+        unit: NUTRIENT_CATALOG.protein.defaultUnit,
+      };
+    }
+
+    for (const key of COLUMN_BACKED_NUTRIENT_KEYS) {
+      if (key === 'calories' || key === 'protein') continue;
+
+      const amount = columnTotals._sum[key];
+      if (amount === null) continue;
+
+      nutrients[key] = {
+        amount:
+          typeof amount === 'number'
+            ? amount
+            : roundTo(amount.toNumber(), key === 'sodium' ? 0 : 1),
+        unit: NUTRIENT_CATALOG[key].defaultUnit,
+      };
+    }
+
+    for (const total of normalizedTotals) {
+      if (total._sum.amount === null) continue;
+
+      nutrients[total.nutrientKey] = {
+        amount: roundTo(total._sum.amount.toNumber(), 4),
+        unit: total.unit,
+      };
+    }
+
+    const totals: DailyNutrientTotals = { date, nutrients };
+
+    sendSuccess(response, totals);
+  },
+);
 
 advancedAnalyticsRouter.get(
   '/advanced',

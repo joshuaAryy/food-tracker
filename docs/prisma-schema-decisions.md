@@ -42,6 +42,8 @@ The locked MVP Prisma schema includes:
 - `FoodItem`
 - `FoodBarcode`
 - `SavedFoodItem`
+- `FoodItemNutrient`
+- `FoodLogNutrient`
 - `WeightLog`
 - `Recommendation`
 
@@ -115,6 +117,82 @@ FoodSourceProvider:
   usda_fdc
   manual
   other
+
+NutrientUnit:
+  kcal
+  g
+  mg
+  mcg
+
+NutrientKey:
+  calories
+  protein
+  carbs
+  fat
+  fiber
+  sugar
+  sodium
+  addedSugar
+  starch
+  solubleFiber
+  insolubleFiber
+  sugarAlcohol
+  saturatedFat
+  transFat
+  monounsaturatedFat
+  polyunsaturatedFat
+  omega3
+  omega6
+  cholesterol
+  histidine
+  isoleucine
+  leucine
+  lysine
+  methionine
+  phenylalanine
+  threonine
+  tryptophan
+  valine
+  alanine
+  arginine
+  asparticAcid
+  cystine
+  glutamicAcid
+  glycine
+  proline
+  serine
+  tyrosine
+  potassium
+  caffeine
+  alcohol
+  water
+  oxalate
+  phytate
+  vitaminA
+  thiamine
+  riboflavin
+  niacin
+  pantothenicAcid
+  vitaminB6
+  biotin
+  folate
+  vitaminB12
+  vitaminC
+  vitaminD
+  vitaminE
+  vitaminK
+  calcium
+  iron
+  magnesium
+  zinc
+  phosphorus
+  selenium
+  copper
+  manganese
+  iodine
+  chromium
+  molybdenum
+  chloride
 ```
 
 ## Model Fields
@@ -216,6 +294,7 @@ Relation:
 - belongs to `User`; delete cascades from `User`
 - optionally belongs to `FoodItem`; deleting the `FoodItem` sets
   `FoodLog.foodItemId` to `null`
+- many `FoodLogNutrient`; delete cascades from `FoodLog`
 
 Indexes:
 - index on `userId`
@@ -262,6 +341,7 @@ Relations:
 - many `FoodBarcode`
 - many `SavedFoodItem`
 - many `FoodLog`
+- many `FoodItemNutrient`
 
 Indexes:
 - index on `userId`
@@ -271,9 +351,50 @@ Indexes:
 - index on `normalizedName`
 - index on `normalizedBrandName`
 
-Nullable nutrients represent unknown values and must not be backfilled with
-synthetic zeroes. `additionalNutrients` is reserved for future unit-bearing
-nutrient values.
+Nullable column nutrients represent unknown values and must not be backfilled
+with synthetic zeroes. `additionalNutrients` is reserved for raw or unmapped
+unit-bearing compatibility metadata. Phase 9 extended nutrients belong in
+`FoodItemNutrient`.
+
+### FoodItemNutrient
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `foodItemId` | required `String`, UUID foreign key |
+| `nutrientKey` | `NutrientKey` enum |
+| `amount` | `Decimal`, precision `12`, scale `4` |
+| `unit` | `NutrientUnit` enum |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relation:
+- belongs to `FoodItem`; delete cascades from `FoodItem`
+
+Indexes and constraints:
+- unique compound constraint on `foodItemId`, `nutrientKey`
+- index on `foodItemId`
+- index on `nutrientKey`
+
+### FoodLogNutrient
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `foodLogId` | required `String`, UUID foreign key |
+| `nutrientKey` | `NutrientKey` enum |
+| `amount` | `Decimal`, precision `12`, scale `4` |
+| `unit` | `NutrientUnit` enum |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relation:
+- belongs to `FoodLog`; delete cascades from `FoodLog`
+
+Indexes and constraints:
+- unique compound constraint on `foodLogId`, `nutrientKey`
+- index on `foodLogId`
+- index on `nutrientKey`
 
 ### FoodBarcode
 
@@ -369,18 +490,26 @@ Indexes:
   `user_custom`.
 - `FoodBarcode.foodItemId` is required.
 - `SavedFoodItem.userId` and `SavedFoodItem.foodItemId` are required.
+- `FoodItemNutrient.foodItemId`, `nutrientKey`, `amount`, and `unit` are
+  required.
+- `FoodLogNutrient.foodLogId`, `nutrientKey`, `amount`, and `unit` are
+  required.
 - `WeightLog.userId` is required.
 - `Recommendation.userId` is required.
 - Do not add a unique constraint to `FoodLog`.
 - Do not add a unique constraint to `WeightLog`.
 - `FoodBarcode` is unique by `[barcode, regionCode]`.
 - `SavedFoodItem` is unique by `[userId, foodItemId]`.
+- `FoodItemNutrient` is unique by `[foodItemId, nutrientKey]`.
+- `FoodLogNutrient` is unique by `[foodLogId, nutrientKey]`.
 - All user-owned relations use database-level cascade delete.
 - Deleting a `User` deletes its `UserProfile`, `UserGoal`,
   `TrackingPreference`, `FoodLog`, `FoodItem`, `SavedFoodItem`, `WeightLog`,
   and `Recommendation` records.
 - Deleting a `FoodItem` deletes its `FoodBarcode` and `SavedFoodItem` records
-  and sets related `FoodLog.foodItemId` values to `null`.
+  and its `FoodItemNutrient` records, and sets related `FoodLog.foodItemId`
+  values to `null`.
+- Deleting a `FoodLog` deletes its `FoodLogNutrient` snapshot rows.
 - No orphaned user-owned records are allowed.
 
 ## Daily Summary

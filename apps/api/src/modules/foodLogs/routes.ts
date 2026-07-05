@@ -5,6 +5,7 @@ import {
   foodLogsQuerySchema,
   idParamsSchema,
 } from '@food-tracker/shared';
+import type { NutrientKey, NutrientUnit } from '@prisma/client';
 import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
 import { localDateRange } from '../../lib/dates.js';
@@ -61,6 +62,22 @@ function normalizedFoodLog(input: FoodLogInput) {
   };
 }
 
+function nutrientRows(input: FoodLogInput['nutrients']) {
+  return Object.entries(input ?? {}).map(([nutrientKey, nutrient]) => ({
+    nutrientKey: nutrientKey as NutrientKey,
+    amount: roundTo(nutrient.amount, 4),
+    unit: nutrient.unit as NutrientUnit,
+  }));
+}
+
+function hasNutrientInput(input: FoodLogInput): boolean {
+  return Object.prototype.hasOwnProperty.call(input, 'nutrients');
+}
+
+const foodLogInclude = {
+  nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] },
+};
+
 foodLogsRouter.get(
   '/',
   validateQuery(foodLogsQuerySchema),
@@ -79,6 +96,7 @@ foodLogsRouter.get(
       },
       orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
       ...(query.limit === undefined ? {} : { take: query.limit }),
+      include: foodLogInclude,
     });
 
     sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });
@@ -91,7 +109,10 @@ foodLogsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const { id } = validatedParams<IdParams>(response);
-    const foodLog = await prisma.foodLog.findFirst({ where: { id, userId } });
+    const foodLog = await prisma.foodLog.findFirst({
+      where: { id, userId },
+      include: foodLogInclude,
+    });
 
     if (foodLog === null) {
       throw notFoundError('Food log');
@@ -105,11 +126,14 @@ foodLogsRouter.post(
   '/',
   validateBody(foodLogInputSchema),
   async (_request, response) => {
+    const input = validatedBody<FoodLogInput>(response);
     const foodLog = await prisma.foodLog.create({
       data: {
         userId: currentUserId(response),
-        ...normalizedFoodLog(validatedBody<FoodLogInput>(response)),
+        ...normalizedFoodLog(input),
+        nutrients: { create: nutrientRows(input.nutrients) },
       },
+      include: foodLogInclude,
     });
 
     sendSuccess(response, serializeFoodLog(foodLog));
@@ -129,9 +153,21 @@ foodLogsRouter.put(
       throw notFoundError('Food log');
     }
 
+    const input = validatedBody<FoodLogInput>(response);
     const foodLog = await prisma.foodLog.update({
       where: { id },
-      data: normalizedFoodLog(validatedBody<FoodLogInput>(response)),
+      data: {
+        ...normalizedFoodLog(input),
+        ...(hasNutrientInput(input)
+          ? {
+              nutrients: {
+                deleteMany: {},
+                create: nutrientRows(input.nutrients),
+              },
+            }
+          : {}),
+      },
+      include: foodLogInclude,
     });
     sendSuccess(response, serializeFoodLog(foodLog));
   },

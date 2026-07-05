@@ -111,10 +111,16 @@ records are local database groundwork for future barcode/custom-food flows.
 
 ## Full Nutrition Model
 
-Complex mode should eventually support full nutrition tracking, not only
-calories, protein, carbs, and fat. Simple mode should hide this complexity.
+Phase 9 implements the backend/data foundation for full nutrition tracking,
+not only calories, protein, carbs, and fat. Simple mode should hide this
+complexity.
 
-Future nutrient categories include:
+The model keeps `calories`, `protein`, `carbs`, `fat`, `fiber`, `sugar`, and
+`sodium` in existing columns. Extended Complex-mode nutrients use a static
+shared catalog and normalized unit-bearing `FoodItemNutrient` and
+`FoodLogNutrient` rows. Food-log nutrient rows are snapshots.
+
+Catalog categories include:
 
 ### Core Macros And Common Nutrition
 
@@ -133,6 +139,49 @@ Future nutrient categories include:
 - sodium
 - potassium
 - caffeine
+- alcohol
+- water
+- oxalate
+- phytate
+
+### Carbohydrate Detail
+
+- added sugar
+- starch
+- soluble fiber
+- insoluble fiber
+- sugar alcohol
+
+### Fat And Lipid Detail
+
+- saturated fat
+- trans fat
+- monounsaturated fat
+- polyunsaturated fat
+- omega-3
+- omega-6
+- cholesterol
+
+### Amino Acids
+
+- histidine
+- isoleucine
+- leucine
+- lysine
+- methionine
+- phenylalanine
+- threonine
+- tryptophan
+- valine
+- alanine
+- arginine
+- aspartic acid
+- cystine
+- glutamic acid
+- glycine
+- proline
+- serine
+- tyrosine
 
 ### Vitamins
 
@@ -168,13 +217,19 @@ Future nutrient categories include:
 Handling rules:
 
 - Nutrients must have units.
+- Phase 9 accepts only each catalog nutrient's default unit. Unit conversion
+  and source mapping are deferred.
 - Missing nutrient values must be nullable/unknown, not treated as zero.
 - Simple mode should hide nutrient complexity.
 - Complex mode should expose deeper nutrient detail.
-- Backend summaries should eventually support daily nutrient totals.
+- Backend summaries include daily nutrient totals for nutrients the backend
+  actually has.
 - Progress and Insights should only display nutrients that the backend actually
   provides.
 - Do not build fake micronutrient charts before the data exists.
+- Phase 9 does not implement external Open Food Facts or USDA integration,
+  barcode camera scanning, AI/RAG logging, photo logging, saved meals, custom
+  graphs, recommendation engine 2.0, or full Complex-mode nutrition UI.
 
 ## RAG-Assisted AI Logging
 

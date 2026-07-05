@@ -13,6 +13,12 @@ import {
   TRACKING_MODES,
   TRAINING_STYLES,
 } from './enums.js';
+import {
+  NORMALIZED_NUTRIENT_KEYS,
+  NUTRIENT_CATALOG,
+  NUTRIENT_UNITS,
+  type NormalizedNutrientKey,
+} from './nutrients.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -169,6 +175,39 @@ export const setupPreviewResultSchema = z.strictObject({
   }),
 });
 
+export const nutrientUnitSchema = z.enum(NUTRIENT_UNITS);
+
+export const normalizedNutrientKeySchema = z.enum(NORMALIZED_NUTRIENT_KEYS);
+
+export const normalizedNutrientAmountSchema = z.strictObject({
+  amount: z.number().nonnegative(),
+  unit: nutrientUnitSchema,
+});
+
+export const normalizedNutrientsInputSchema = z
+  .record(z.string().trim().min(1), normalizedNutrientAmountSchema)
+  .superRefine((nutrients, context) => {
+    for (const [key, nutrient] of Object.entries(nutrients)) {
+      if (!NORMALIZED_NUTRIENT_KEYS.includes(key as NormalizedNutrientKey)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'nutrient key must be a normalized nutrient',
+          path: [key],
+        });
+        continue;
+      }
+
+      const catalogEntry = NUTRIENT_CATALOG[key as NormalizedNutrientKey];
+      if (nutrient.unit !== catalogEntry.defaultUnit) {
+        context.addIssue({
+          code: 'custom',
+          message: `unit must be ${catalogEntry.defaultUnit} for ${key}`,
+          path: [key, 'unit'],
+        });
+      }
+    }
+  });
+
 export const foodLogInputSchema = z.strictObject({
   foodName: z.string().min(1),
   mealType: mealTypeSchema,
@@ -183,6 +222,7 @@ export const foodLogInputSchema = z.strictObject({
   servingQuantity: z.number().positive().nullable().optional(),
   servingUnit: z.string().min(1).nullable().optional(),
   loggedAt: z.iso.datetime(),
+  nutrients: normalizedNutrientsInputSchema.nullable().optional(),
 });
 
 const optionalNonNegativeInteger = z
@@ -215,6 +255,7 @@ export const foodItemInputSchema = z.strictObject({
     .record(z.string().trim().min(1), additionalNutrientSchema)
     .nullable()
     .optional(),
+  nutrients: normalizedNutrientsInputSchema.nullable().optional(),
 });
 
 const booleanQuerySchema = z.preprocess((value) => {

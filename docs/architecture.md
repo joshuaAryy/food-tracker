@@ -62,9 +62,12 @@ exact region match first and `GLOBAL` fallback. The app does not call Open Food
 Facts or USDA yet, does not open a camera, does not create barcode records
 through the public API, and does not add native dependencies.
 
-Food item nutrition uses nullable columns for MVP nutrients plus optional
-unit-bearing `additionalNutrients` JSON for future Complex mode expansion.
-Missing nutrients remain unknown/null and are not converted to zero.
+Food item nutrition uses nullable columns for MVP nutrients. Phase 9 adds
+normalized unit-bearing nutrient rows for extended Complex-mode data on both
+`FoodItem` and `FoodLog`; food-log nutrient rows are historical snapshots.
+`additionalNutrients` JSON remains only for raw or unmapped compatibility
+metadata. Missing nutrients remain unknown/null or absent and are not converted
+to zero.
 
 ## Future Food Data And Intelligent Logging
 

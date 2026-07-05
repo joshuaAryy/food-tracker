@@ -82,6 +82,11 @@ is implemented.
   unknown/null and are not converted to zero.
 - Food item `additionalNutrients`, when supplied, must use unit-bearing objects
   such as `{ "caffeine": { "amount": 95, "unit": "mg" } }`.
+- Phase 9 normalized `nutrients` maps accept only extended nutrient keys from
+  the shared catalog, non-negative amounts, and the catalog default unit.
+  Column-backed nutrients (`calories`, `protein`, `carbs`, `fat`, `fiber`,
+  `sugar`, and `sodium`) must stay in their dedicated fields and are rejected
+  inside normalized `nutrients`.
 - `date`, `startDate`, and `endDate` filters must be local dates in `YYYY-MM-DD` format.
 - Date filters are interpreted in the current user's timezone.
 - When both are supplied, `startDate` must not be after `endDate`.
@@ -320,6 +325,10 @@ Food item response object:
   "additionalNutrients": {
     "caffeine": { "amount": 0, "unit": "mg" }
   },
+  "nutrients": {
+    "caffeine": { "amount": 95, "unit": "mg" },
+    "vitaminC": { "amount": 60, "unit": "mg" }
+  },
   "barcodes": [],
   "createdAt": "2026-07-04T15:00:00.000Z",
   "updatedAt": "2026-07-04T15:00:00.000Z"
@@ -391,12 +400,18 @@ Request:
   "sodium": null,
   "additionalNutrients": {
     "caffeine": { "amount": 0, "unit": "mg" }
+  },
+  "nutrients": {
+    "caffeine": { "amount": 95, "unit": "mg" },
+    "vitaminC": { "amount": 60, "unit": "mg" }
   }
 }
 ```
 
 Unknown fields, including `userId`, are rejected. Nutrient fields may be
 omitted or sent as `null`; omitted and null values are stored as unknown/null.
+If `nutrients` is omitted on update, existing normalized nutrients are
+preserved. If `nutrients` is `null` or `{}`, normalized nutrients are cleared.
 Success `data` is the created food item response object.
 
 ### `PUT /api/v1/food-items/:id`
@@ -450,10 +465,11 @@ Success `data`:
 
 ## Food Logs
 
-The implemented food-log API supports manual structured nutrition entry only.
+The implemented food-log API supports manual structured nutrition entry.
 The optional `FoodLog.foodItemId` database relation is not exposed through the
 current food-log create/update contract. Existing logs remain snapshot-based
-and continue to store the nutrition values submitted at log time.
+and continue to store the nutrition values submitted at log time, including
+Phase 9 extended nutrient snapshots when provided.
 
 Food-log response object:
 
@@ -472,6 +488,9 @@ Food-log response object:
   "notes": null,
   "servingQuantity": 1.0,
   "servingUnit": "breast",
+  "nutrients": {
+    "caffeine": { "amount": 95, "unit": "mg" }
+  },
   "loggedAt": "2026-06-14T22:30:00.000Z",
   "createdAt": "2026-06-14T22:31:00.000Z",
   "updatedAt": "2026-06-14T22:31:00.000Z"
@@ -523,7 +542,10 @@ Request:
   "sodium": 120,
   "notes": null,
   "servingQuantity": 1.0,
-  "servingUnit": "breast"
+  "servingUnit": "breast",
+  "nutrients": {
+    "caffeine": { "amount": 95, "unit": "mg" }
+  }
 }
 ```
 
@@ -533,6 +555,10 @@ Required fields:
 - `calories`
 - `protein`
 - `loggedAt`
+
+If `nutrients` is omitted on update, existing food-log nutrient snapshots are
+preserved. If `nutrients` is `null` or `{}`, existing food-log nutrient
+snapshots are cleared.
 
 Optional fields:
 - `carbs`
@@ -702,6 +728,34 @@ clients when `0` means no value was reported rather than measured zero.
 Trend confidence requires food logs on at least half of the calendar days in a
 window. Weight change and slope values are `null` when insufficient data
 exists.
+
+### `GET /api/v1/analytics/nutrients/daily`
+
+Returns daily nutrient totals for the selected local date. The response
+combines column-backed totals with normalized extended nutrient rows and only
+includes nutrients the backend actually has for that day.
+
+Optional query parameters:
+- `date`: local date in `YYYY-MM-DD`; defaults to today in the current user's
+  timezone
+
+Success `data`:
+
+```json
+{
+  "date": "2026-06-15",
+  "nutrients": {
+    "calories": { "amount": 205, "unit": "kcal" },
+    "protein": { "amount": 20, "unit": "g" },
+    "caffeine": { "amount": 140, "unit": "mg" },
+    "vitaminC": { "amount": 60, "unit": "mg" }
+  }
+}
+```
+
+Missing nutrients are absent from the response. They are not returned as zero.
+The endpoint does not implement custom graph UI, recommendations, external food
+data integrations, AI/RAG logging, barcode scanning, or photo logging.
 
 ## Recommendations
 
