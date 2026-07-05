@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   foodBarcodeParamsSchema,
+  foodBarcodeLookupInputSchema,
   foodBarcodeQuerySchema,
   foodItemInputSchema,
   foodItemsQuerySchema,
@@ -21,9 +22,14 @@ import {
   validatedParams,
   validatedQuery,
 } from '../../middleware/validate.js';
+import {
+  fetchOpenFoodFactsProduct,
+  openFoodFactsData,
+} from './open-food-facts.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 type FoodItemsQuery = z.infer<typeof foodItemsQuerySchema>;
+type FoodBarcodeLookupInput = z.infer<typeof foodBarcodeLookupInputSchema>;
 type FoodBarcodeParams = z.infer<typeof foodBarcodeParamsSchema>;
 type FoodBarcodeQuery = z.infer<typeof foodBarcodeQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
@@ -140,6 +146,47 @@ async function editableCustomFoodItem(id: string, userId: string) {
   });
 }
 
+function barcodeRegionCandidates(regionCode: string | undefined): string[] {
+  const normalizedRegionCode = regionCode?.trim().toLocaleUpperCase();
+  return normalizedRegionCode === undefined || normalizedRegionCode === 'GLOBAL'
+    ? ['GLOBAL']
+    : [normalizedRegionCode, 'GLOBAL'];
+}
+
+async function lookupLocalBarcodeFoodItem(input: {
+  barcode: string;
+  regionCandidates: string[];
+  userId: string;
+}) {
+  const barcodeMatches = await prisma.foodBarcode.findMany({
+    where: {
+      barcode: input.barcode,
+      regionCode: { in: input.regionCandidates },
+      foodItem: visibleFoodWhere(input.userId),
+    },
+    include: {
+      foodItem: {
+        include: foodItemInclude(input.userId),
+      },
+    },
+  });
+
+  const match =
+    barcodeMatches.find(
+      (foodBarcode) => foodBarcode.regionCode === input.regionCandidates[0],
+    ) ??
+    barcodeMatches.find((foodBarcode) => foodBarcode.regionCode === 'GLOBAL');
+
+  return match?.foodItem ?? null;
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2002'
+  );
+}
+
 foodItemsRouter.get(
   '/',
   validateQuery(foodItemsQuerySchema),
@@ -174,36 +221,73 @@ foodItemsRouter.get(
     const userId = currentUserId(response);
     const { barcode } = validatedParams<FoodBarcodeParams>(response);
     const { regionCode } = validatedQuery<FoodBarcodeQuery>(response);
-    const normalizedRegionCode = regionCode?.trim().toLocaleUpperCase();
-    const regionCandidates =
-      normalizedRegionCode === undefined || normalizedRegionCode === 'GLOBAL'
-        ? ['GLOBAL']
-        : [normalizedRegionCode, 'GLOBAL'];
-
-    const barcodeMatches = await prisma.foodBarcode.findMany({
-      where: {
-        barcode,
-        regionCode: { in: regionCandidates },
-        foodItem: visibleFoodWhere(userId),
-      },
-      include: {
-        foodItem: {
-          include: foodItemInclude(userId),
-        },
-      },
+    const regionCandidates = barcodeRegionCandidates(regionCode);
+    const foodItem = await lookupLocalBarcodeFoodItem({
+      barcode,
+      regionCandidates,
+      userId,
     });
 
-    const match =
-      barcodeMatches.find(
-        (foodBarcode) => foodBarcode.regionCode === regionCandidates[0],
-      ) ??
-      barcodeMatches.find((foodBarcode) => foodBarcode.regionCode === 'GLOBAL');
-
-    if (match === undefined) {
+    if (foodItem === null) {
       throw notFoundError('Food barcode');
     }
 
-    sendSuccess(response, serializeFoodItem(match.foodItem));
+    sendSuccess(response, serializeFoodItem(foodItem));
+  },
+);
+
+foodItemsRouter.post(
+  '/barcode/lookup',
+  validateBody(foodBarcodeLookupInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodBarcodeLookupInput>(response);
+    const barcode = input.barcode.trim();
+    const regionCandidates = barcodeRegionCandidates(input.regionCode);
+    const cacheRegionCode = regionCandidates[0] ?? 'GLOBAL';
+    const localFoodItem = await lookupLocalBarcodeFoodItem({
+      barcode,
+      regionCandidates,
+      userId,
+    });
+
+    if (localFoodItem !== null) {
+      sendSuccess(response, serializeFoodItem(localFoodItem));
+      return;
+    }
+
+    const openFoodFactsFood = await fetchOpenFoodFactsProduct(barcode);
+    if (openFoodFactsFood === null) {
+      throw notFoundError('Food barcode');
+    }
+
+    try {
+      const foodItem = await prisma.$transaction(async (transaction) =>
+        transaction.foodItem.create({
+          data: openFoodFactsData(openFoodFactsFood, barcode, cacheRegionCode),
+          include: foodItemInclude(userId),
+        }),
+      );
+
+      sendSuccess(response, serializeFoodItem(foodItem));
+      return;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+    }
+
+    const racedFoodItem = await lookupLocalBarcodeFoodItem({
+      barcode,
+      regionCandidates,
+      userId,
+    });
+
+    if (racedFoodItem === null) {
+      throw notFoundError('Food barcode');
+    }
+
+    sendSuccess(response, serializeFoodItem(racedFoodItem));
   },
 );
 

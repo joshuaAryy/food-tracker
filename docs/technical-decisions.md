@@ -184,7 +184,7 @@ Status: Locked
 
 ## TD-010: Hybrid Food Database Direction
 
-Status: Partially implemented in Phase 8
+Status: Partially implemented in Phase 8 and Phase 11
 
 Food Tracker should use a hybrid food data strategy:
 
@@ -216,6 +216,22 @@ Phase 8 implements the app-owned local foundation only:
 Phase 8 does not implement external Open Food Facts or USDA integrations,
 barcode camera scanning, public barcode creation, AI/RAG logging, photo
 logging, saved meals, or full Complex mode micronutrient UI.
+
+Phase 11 implements the first barcode scanning slice:
+
+- mobile barcode scanning uses `expo-camera` in the Expo development build
+- barcode lookup checks local `FoodBarcode` records before external data
+- Open Food Facts is the first external packaged-food source
+- usable external products are cached as `FoodItem` rows with
+  `sourceType: cached_external`, `sourceProvider: open_food_facts`, and a
+  linked `FoodBarcode`
+- normalization stores only reliable fields and preserves missing nutrients as
+  unknown/null or absent
+- logging still uses the existing selected-food review and
+  `POST /api/v1/food-logs/from-food-item` snapshot flow
+
+Phase 11 does not add USDA fallback, AI/RAG logging, photo recognition, saved
+meals, custom reporting, recommendation changes, real auth, or schema changes.
 
 See [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md).
 

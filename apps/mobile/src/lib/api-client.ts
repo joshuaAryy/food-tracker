@@ -3,6 +3,7 @@ import type {
   AdvancedAnalytics,
   DashboardSummary,
   DailyNutrientTotals,
+  FoodBarcodeLookupInput,
   FoodItem,
   FoodItemInput,
   FoodLog,
@@ -295,6 +296,11 @@ export const api = {
       request<FoodItem>(
         `/food-items/barcode/${encodeURIComponent(barcode)}${barcodeLookupQueryString(query)}`,
       ),
+    lookupBarcodeWithExternal: (input: FoodBarcodeLookupInput) =>
+      request<FoodItem>('/food-items/barcode/lookup', {
+        method: 'POST',
+        body: input,
+      }),
   },
   foodLogs: {
     list: (query: FoodLogsQuery = {}) =>

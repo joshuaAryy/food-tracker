@@ -4,7 +4,7 @@ import {
   NORMALIZED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
 } from '@food-tracker/shared';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import {
   api,
@@ -57,6 +57,10 @@ interface FoodItemsListResponseBody {
 }
 
 describe('food items API', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {
     expect(COLUMN_BACKED_NUTRIENT_KEYS).toEqual([
       'calories',
@@ -528,6 +532,201 @@ describe('food items API', () => {
 
     expect(exact.body.data.name).toBe('US cereal');
     expect(fallback.body.data.name).toBe('Global cereal');
+  });
+
+  it('returns a local cached barcode match before calling Open Food Facts', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        name: 'Cached cereal',
+        normalizedName: 'cached cereal',
+        searchText: 'cached cereal',
+        sourceType: 'cached_external',
+        sourceProvider: 'open_food_facts',
+        sourceId: '4444444444444',
+        foodType: 'branded',
+        calories: 180,
+        protein: 6,
+      },
+    });
+    await prisma.foodBarcode.create({
+      data: {
+        foodItemId: foodItem.id,
+        barcode: '4444444444444',
+        regionCode: 'US',
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '4444444444444', regionCode: 'us' })
+      .expect(200);
+
+    expectSuccessEnvelope(response.body);
+    expect(response.body.data).toMatchObject({
+      id: foodItem.id,
+      name: 'Cached cereal',
+      sourceProvider: 'open_food_facts',
+      calories: 180,
+      protein: 6,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('caches a usable Open Food Facts barcode product as a FoodItem and FoodBarcode', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'success',
+            result: { id: 'product_found' },
+            product: {
+              code: '3017624010701',
+              product_name: 'Nutella',
+              brands: 'Ferrero',
+              quantity: '400 g',
+              product_quantity: 400,
+              product_quantity_unit: 'g',
+              nutrition_data_per: '100g',
+              last_modified_t: 1_782_330_807,
+              nutriments: {
+                'energy-kcal_100g': 539,
+                proteins_100g: 6.3,
+                carbohydrates_100g: 57.5,
+                fat_100g: 30.9,
+                sugars_100g: 56.3,
+                sodium_100g: 0.043,
+                'saturated-fat_100g': 10.6,
+                'saturated-fat_unit': 'g',
+                calcium_100g: 108,
+                calcium_unit: 'mg',
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '3017624010701', regionCode: 'ca' })
+      .expect(200);
+
+    expectSuccessEnvelope(response.body);
+    expect(response.body.data).toMatchObject({
+      name: 'Nutella',
+      brandName: 'Ferrero',
+      sourceType: 'cached_external',
+      foodType: 'branded',
+      sourceProvider: 'open_food_facts',
+      sourceId: '3017624010701',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      calories: 539,
+      protein: 6.3,
+      carbs: 57.5,
+      fat: 30.9,
+      sugar: 56.3,
+      sodium: 43,
+      nutrients: {
+        calcium: { amount: 108, unit: 'mg' },
+        saturatedFat: { amount: 10.6, unit: 'g' },
+      },
+    });
+    const data = response.body.data as { barcodes: unknown[] };
+    expect(data.barcodes).toEqual([
+      expect.objectContaining({
+        barcode: '3017624010701',
+        regionCode: 'CA',
+      }),
+    ]);
+
+    const cachedBarcode = await prisma.foodBarcode.findUnique({
+      where: {
+        barcode_regionCode: { barcode: '3017624010701', regionCode: 'CA' },
+      },
+      include: { foodItem: true },
+    });
+    expect(cachedBarcode?.foodItem.userId).toBeNull();
+    expect(cachedBarcode?.foodItem.sourceType).toBe('cached_external');
+    expect(cachedBarcode?.foodItem.sourceProvider).toBe('open_food_facts');
+  });
+
+  it('reuses the local cache after an Open Food Facts lookup', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          status: 'success',
+          result: { id: 'product_found' },
+          product: {
+            code: '5555555555555',
+            product_name: 'Protein bar',
+            brands: 'Fast Fuel',
+            serving_size: '60 g',
+            nutrition_data_per: 'serving',
+            nutriments: {
+              'energy-kcal_serving': 220,
+              proteins_serving: 20,
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '5555555555555' })
+      .expect(200);
+    const second = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '5555555555555' })
+      .expect(200);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(second.body.data).toMatchObject({
+      name: 'Protein bar',
+      calories: 220,
+      protein: 20,
+    });
+  });
+
+  it('returns not found when Open Food Facts has no usable product name', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            status: 'success',
+            result: { id: 'product_found' },
+            product: {
+              code: '9999999999999',
+              brands: 'Unknown Brand',
+              nutriments: {
+                'energy-kcal_100g': 120,
+                proteins_100g: 4,
+              },
+            },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/barcode/lookup')
+      .send({ barcode: '9999999999999' })
+      .expect(404);
+
+    expectErrorEnvelope(response.body, 'NOT_FOUND');
+    expect(response.body.error.message).toBe('Food barcode not found');
+    expect(await prisma.foodBarcode.count()).toBe(0);
+    expect(await prisma.foodItem.count()).toBe(0);
   });
 
   it('enforces barcode uniqueness per region', async () => {

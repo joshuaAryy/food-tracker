@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Camera } from 'lucide-react-native';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
@@ -35,6 +36,7 @@ import {
   zonedDateTimeToIso,
 } from '@/lib/date-time';
 import { useAppStore } from '@/store/app-store';
+import { colors } from '@/theme/tokens';
 
 interface FoodForm {
   foodName: string;
@@ -244,11 +246,16 @@ export default function FoodLogScreen() {
     id?: string | string[];
     duplicateId?: string | string[];
     date?: string | string[];
+    scannedFoodItemId?: string | string[];
   }>();
   const editId = typeof params.id === 'string' ? params.id : null;
   const duplicateId =
     typeof params.duplicateId === 'string' ? params.duplicateId : null;
   const requestedDate = typeof params.date === 'string' ? params.date : null;
+  const scannedFoodItemId =
+    typeof params.scannedFoodItemId === 'string'
+      ? params.scannedFoodItemId
+      : null;
   const isEditing = editId !== null;
   const isDuplicating = !isEditing && duplicateId !== null;
   const markDataChanged = useAppStore((state) => state.markDataChanged);
@@ -271,6 +278,8 @@ export default function FoodLogScreen() {
   const [foodSearchError, setFoodSearchError] = useState<string | null>(null);
   const [savedFoodsLoaded, setSavedFoodsLoaded] = useState(false);
   const [searchingFoods, setSearchingFoods] = useState(false);
+  const [loadingScannedFood, setLoadingScannedFood] = useState(false);
+  const [scannedFoodError, setScannedFoodError] = useState<string | null>(null);
   const [savingFoodItemId, setSavingFoodItemId] = useState<string | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(
     isEditing || isDuplicating,
@@ -357,7 +366,9 @@ export default function FoodLogScreen() {
 
     if (sourceId === null) {
       setShowMore(nextTrackingMode === 'complex');
-      setSelectedFood(null);
+      if (scannedFoodItemId === null) {
+        setSelectedFood(null);
+      }
       setServingMultiplier('1');
       setLoadingRecord(false);
       return;
@@ -385,7 +396,7 @@ export default function FoodLogScreen() {
     } finally {
       setLoadingRecord(false);
     }
-  }, [duplicateId, editId, isEditing, requestedDate, reset]);
+  }, [duplicateId, editId, isEditing, requestedDate, reset, scannedFoodItemId]);
 
   useEffect(() => {
     void loadForm();
@@ -603,6 +614,7 @@ export default function FoodLogScreen() {
   const clearSelectedFood = () => {
     setSelectedFood(null);
     setServingMultiplier('1');
+    setScannedFoodError(null);
     setSubmitError(null);
   };
 
@@ -623,6 +635,40 @@ export default function FoodLogScreen() {
       setSavingFoodItemId(null);
     }
   };
+
+  useEffect(() => {
+    if (scannedFoodItemId === null || isEditing) {
+      setLoadingScannedFood(false);
+      setScannedFoodError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingScannedFood(true);
+    setScannedFoodError(null);
+
+    void api.foodItems
+      .getById(scannedFoodItemId)
+      .then((foodItem) => {
+        if (!cancelled) {
+          selectFoodItem(foodItem);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setScannedFoodError(errorMessage(error));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingScannedFood(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, scannedFoodItemId]);
 
   const applyRecentFood = async (foodLog: FoodLog) => {
     if (foodLog.foodItemId !== null) {
@@ -789,12 +835,45 @@ export default function FoodLogScreen() {
               value={foodSearchQuery}
               onChangeText={setFoodSearchQuery}
             />
+            <Pressable
+              accessibilityLabel="Scan barcode"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-y border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/barcode-scan' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <Camera
+                    color={colors.light.ink}
+                    size={18}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Scan barcode</AppText>
+                  <AppText variant="caption" muted>
+                    Look up packaged foods faster.
+                  </AppText>
+                </View>
+              </View>
+              {loadingScannedFood ? (
+                <AppText variant="caption" muted>
+                  Loading
+                </AppText>
+              ) : null}
+            </Pressable>
             {trackingMode === 'complex' ? (
               <AppText variant="caption" className="text-muted">
                 Detailed mode can use richer nutrient data when a saved food
                 includes it.
               </AppText>
             ) : null}
+            {scannedFoodError === null ? null : (
+              <ErrorState
+                title="Scanned food is unavailable"
+                message={scannedFoodError}
+              />
+            )}
           </View>
 
           {selectedFood === null ? null : (

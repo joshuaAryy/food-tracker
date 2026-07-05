@@ -10,6 +10,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Food Tracker to use the camera to scan food barcodes.",
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
         "expo-alternate-app-icons",
         [
           {

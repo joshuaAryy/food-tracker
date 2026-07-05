@@ -288,6 +288,11 @@ export const foodBarcodeQuerySchema = z.strictObject({
   regionCode: z.string().trim().min(1).optional(),
 });
 
+export const foodBarcodeLookupInputSchema = z.strictObject({
+  barcode: z.string().trim().min(1),
+  regionCode: z.string().trim().min(1).optional(),
+});
+
 export const weightLogInputSchema = z.strictObject({
   weightLb: z.number().positive(),
   loggedAt: z.iso.datetime(),
@@ -298,6 +303,9 @@ export type FoodLogFromFoodItemInput = z.infer<
   typeof foodLogFromFoodItemInputSchema
 >;
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
+export type FoodBarcodeLookupInput = z.infer<
+  typeof foodBarcodeLookupInputSchema
+>;
 export type WeightLogInput = z.infer<typeof weightLogInputSchema>;
 
 export const idParamsSchema = z.strictObject({

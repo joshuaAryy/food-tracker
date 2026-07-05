@@ -297,6 +297,29 @@ manual logging and reusable-food creation. Complex mode may acknowledge richer
 nutrient data only when saved foods contain it; richer Complex UI and reporting
 come later.
 
+Phase 11 adds barcode scanning from the food-log flow. It intentionally adds
+`expo-camera`, configures camera permission copy in `apps/mobile/app.json`, and
+requires a rebuilt Expo development build before physical iPhone validation.
+Metro refresh alone is not enough after adding this native dependency or camera
+permission config.
+
+Barcode scanner native smoke testing should cover:
+
+- `Scan barcode` appears as a small action near food search, not a large card
+- first camera permission request and denied-permission recovery
+- scanner cancel/back behavior
+- camera unavailable state if the camera cannot mount
+- successful packaged-food scan returning to food logging with the scanned
+  food selected
+- serving multiplier, save/unsave, meal type, notes, and save using the
+  existing selected-food flow
+- no-match copy: `No barcode match yet` and
+  `You can still save this as a reusable food.`
+- network/backend error copy remains user-facing and non-technical
+- unknown barcodes guide back to manual reusable food creation
+- generated `apps/mobile/ios/` and `apps/mobile/android/` folders remain
+  ignored and uncommitted
+
 Before changing native files or generating an iOS project, inspect and report:
 
 ```bash

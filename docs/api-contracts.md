@@ -291,9 +291,11 @@ Request:
 
 Phase 8 adds local app-owned food database foundation endpoints. These
 endpoints support searchable reusable foods, current-user custom foods, saved
-foods, and local barcode lookup groundwork. They do not call Open Food Facts or
-USDA, open a camera, run AI/RAG, support photo logging, create saved meals, or
-add full Complex mode micronutrient UI.
+foods, and local barcode lookup groundwork. Phase 11 adds barcode-powered
+packaged-food lookup that checks local cached barcodes first, then Open Food
+Facts, and caches usable external packaged foods as normal `FoodItem` records.
+The API does not use USDA, AI/RAG, photo logging, saved meals, or full Complex
+mode micronutrient editing in this phase.
 
 Visible food items are non-archived rows where `userId` is the current user or
 `userId` is `null`. Another user's custom food must never appear in list,
@@ -367,6 +369,51 @@ barcode records through the public API; barcode creation is reserved for future
 barcode/custom-food flows.
 
 Success `data` is the food item response object.
+
+### `POST /api/v1/food-items/barcode/lookup`
+
+Looks up a packaged-food barcode for the scanner flow. This route is
+registered before id-based food item routes.
+
+Request:
+
+```json
+{
+  "barcode": "3017624010701",
+  "regionCode": "CA"
+}
+```
+
+Required fields:
+- `barcode`
+
+Optional fields:
+- `regionCode`, normalized to uppercase; omitted lookups use `GLOBAL`
+
+Lookup order:
+
+```text
+local FoodBarcode exact region
+↓
+local FoodBarcode GLOBAL fallback
+↓
+Open Food Facts barcode lookup
+↓
+cache usable product as FoodItem/FoodBarcode
+```
+
+Open Food Facts results are normalized conservatively into the app-owned food
+model. Missing nutrient values remain `null` or absent, never zero. The API
+stores column-backed nutrients in their dedicated fields and only stores
+selected extended nutrients when the unit matches the Phase 9 catalog or a
+small explicit conversion is supported. If calories or protein are missing,
+the cached `FoodItem` can still be returned, but
+`POST /api/v1/food-logs/from-food-item` continues to reject logging until both
+required values exist.
+
+Success `data` is the normal food item response object. Missing local and
+external matches, products without a usable name, and unusable external
+responses return `NOT_FOUND` with the standard error envelope.
 
 ### `GET /api/v1/food-items/:id`
 

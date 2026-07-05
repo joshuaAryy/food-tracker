@@ -319,6 +319,43 @@ contains normalized nutrients, but Phase 10 does not finish the full Complex
 mode logging, editing, or reporting experience. The main logging flow should
 stay fast and avoid fake micronutrient UI when no extra nutrient data exists.
 
+## Phase 11 Barcode Scanning
+
+Phase 11 adds barcode-powered packaged food lookup to the existing fast logging
+flow. The mobile app opens a camera scanner from food logging, sends the
+scanned barcode to the backend, and receives a normal `FoodItem` response. The
+user still reviews the selected food, serving amount, meal, and notes before
+logging.
+
+Lookup priority is:
+
+```text
+local cached barcode
+↓
+Open Food Facts barcode lookup
+↓
+cache usable result into local FoodItem/FoodBarcode
+↓
+custom reusable food creation when not found
+```
+
+Open Food Facts is the first external packaged-food source. USDA remains later
+work. Cached external foods use `sourceType: cached_external`,
+`sourceProvider: open_food_facts`, a `FoodBarcode` row for the scanned barcode,
+and the existing `FoodItem` response and log-from-food snapshot flow.
+
+Normalization is intentionally conservative. Product name, brand, barcode,
+parseable serving/quantity data, calories, protein, carbs, fat, fiber, sugar,
+sodium, and a small set of supported extended nutrients may be stored. Missing
+nutrition remains unknown/null or absent. Column-backed nutrients are not
+duplicated into normalized nutrient rows. Products without calories or protein
+may be cached, but the existing log-from-food validation prevents creating an
+invalid `FoodLog` until required values exist.
+
+Phase 11 does not implement AI/RAG logging, photo recognition, USDA fallback,
+saved meals, custom graphs, recommendation changes, real auth, or full
+micronutrient editing UI.
+
 ## RAG-Assisted AI Logging
 
 AI should not be the nutrition source of truth. The preferred architecture is:

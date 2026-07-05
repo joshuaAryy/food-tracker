@@ -154,6 +154,16 @@ than Phase 10 scope.
 - custom food creation when not found
 - barcode-linked food caching
 
+Initial Phase 11 implementation adds an Expo camera barcode scanner entry point
+inside food logging, backend barcode lookup with local cache first and Open
+Food Facts second, conservative Open Food Facts normalization into normal
+`FoodItem`/`FoodBarcode` records, and return into the existing selected-food
+logging flow. USDA fallback remains later work.
+
+Phase 11 does not implement AI/RAG logging, photo recognition, saved meals,
+custom graphs, streaks/reporting UI, recommendation engine changes, full
+micronutrient editing UI, real auth, deployment, or TestFlight.
+
 ## Phase 12 — RAG-Assisted AI Text Logging
 
 - parse messy food descriptions
