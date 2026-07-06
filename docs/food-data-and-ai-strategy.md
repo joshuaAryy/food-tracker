@@ -327,6 +327,38 @@ scanned barcode to the backend, and receives a normal `FoodItem` response. The
 user still reviews the selected food, serving amount, meal, and notes before
 logging.
 
+Barcode scanning is part of fast logging, not a separate logging model. The
+backend remains the external food-data gateway; the mobile app must not call
+Open Food Facts directly. Scanned foods return into the same selected-food
+logging flow used by search, saved foods, recent foods, serving multipliers,
+save/unsave, and log-from-food snapshot creation.
+
+Implemented workflow:
+
+```text
+Food Log
+↓
+Scan barcode
+↓
+Camera permission / scanner
+↓
+Raw barcode read
+↓
+Barcode normalization
+↓
+Local FoodBarcode lookup
+↓
+Open Food Facts fallback if local miss
+↓
+Cache usable result as FoodItem/FoodBarcode
+↓
+Return selected FoodItem to Food Log
+↓
+User reviews serving/multiplier
+↓
+Backend creates FoodLog snapshot from FoodItem
+```
+
 Lookup priority is:
 
 ```text
@@ -357,11 +389,63 @@ duplicated into normalized nutrient rows. Products without calories or protein
 may be cached, but the existing log-from-food validation prevents creating an
 invalid `FoodLog` until required values exist.
 
+Barcode route ordering must keep barcode-specific routes before `/:id`.
+Known no-match states should guide users back to manual reusable food creation
+without technical wording. Scanner guidance should remind users to use good
+lighting and move back slightly if a barcode looks blurry.
+
+### Phase 11 Retrospective
+
+What went well:
+
+- barcode scanning now connects packaged food lookup to the existing fast
+  logging flow
+- backend cache-first lookup reduces dependence on external calls over time
+- Open Food Facts gives the app real packaged-food coverage
+- scanner results reuse selected-food review, save/unsave, serving multiplier,
+  and log-from-food behavior
+- UPC-A/EAN-13 normalization made Canadian/US barcodes more reliable
+- `FoodItem`/`FoodBarcode` caching fits the Phase 8 data model
+- FoodLog snapshots and Phase 9 nutrient rules remain intact
+- no generated native folders were committed
+
+What did not go well / risks:
+
+- native camera work required a rebuilt development build and was not solvable
+  through Metro reload only
+- stale iOS native config caused a camera permission crash
+- barcode camera testing required physical iPhone validation
+- Open Food Facts data can be incomplete or missing for Canadian products
+- scanner quality depends on lighting, distance, focus, and barcode condition
+- UPC-A may be reported as EAN-13 on iOS, so raw barcode values cannot be
+  trusted blindly
+- external product data must not be treated as perfectly accurate
+- some barcodes will still have no match until users create reusable foods or
+  future sources are added
+
+Standards to uphold:
+
+- never commit generated native folders
+- rebuild the development app after native dependency or config changes
+- always test camera/barcode features on physical iPhone
+- normalize barcode equivalents before lookup
+- keep backend as the external food-data gateway
+- cache external food data into app-owned records
+- do not fake nutrients
+- preserve user review before saving logs
+- keep manual logging as a fallback
+- keep the scanner UI simple and Phase 6-aligned
+
 Phase 11 does not implement AI/RAG logging, photo recognition, USDA fallback,
 saved meals, custom graphs, recommendation changes, real auth, or full
 micronutrient editing UI.
 
 ## RAG-Assisted AI Logging
+
+Phase 12 should begin RAG-assisted AI text logging. It should build on the
+Phase 8 `FoodItem`/`FoodBarcode`/`SavedFoodItem` foundation, the Phase 9 full
+nutrition model and nutrient snapshots, the Phase 10 selected-food logging and
+reusable-food flow, and the Phase 11 barcode/Open Food Facts cached foods.
 
 AI should not be the nutrition source of truth. The preferred architecture is:
 
@@ -407,6 +491,11 @@ AI must not:
 - replace backend validation
 
 Every AI-assisted log must have a review/confirmation step before saving.
+Phase 12 should focus on text meal description parsing, retrieval from
+existing trusted food data, candidate matching, and user review/confirmation.
+It should not become photo logging, custom graphs, recommendation engine 2.0,
+a broad redesign, vector database overbuild without clear need, automatic
+nutrition invention, or automatic saving without review.
 
 ## Photo Food Logging
 

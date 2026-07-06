@@ -303,6 +303,21 @@ requires a rebuilt Expo development build before physical iPhone validation.
 Metro refresh alone is not enough after adding this native dependency or camera
 permission config.
 
+Native scanner standards:
+
+- `expo-camera` is a native dependency.
+- Adding or changing camera native config requires a rebuilt iOS development
+  build; Metro reload is not enough for new native permissions/config.
+- Generated `apps/mobile/ios/` and `apps/mobile/android/` folders stay
+  uncommitted unless the project explicitly adopts checked-in native folders.
+- Camera permission copy must exist in app config and in the generated native
+  build, including `NSCameraUsageDescription` on iOS.
+- Physical iPhone testing is required for scanner work; simulator validation is
+  not enough for barcode scanning.
+- Camera permission crashes should be debugged from native config outward:
+  app config, Expo prebuild/dev-build state, generated `Info.plist`, installed
+  development build, and physical device logs.
+
 Barcode scanner native smoke testing should cover:
 
 - `Scan barcode` appears as a small action near food search, not a large card

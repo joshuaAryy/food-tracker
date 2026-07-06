@@ -294,6 +294,10 @@ endpoints support searchable reusable foods, current-user custom foods, saved
 foods, and local barcode lookup groundwork. Phase 11 adds barcode-powered
 packaged-food lookup that checks local cached barcodes first, then Open Food
 Facts, and caches usable external packaged foods as normal `FoodItem` records.
+Barcode lookup is backend-owned; clients send scanned barcode values to the
+API and do not call external food-data providers directly. Scanned foods reuse
+the existing selected-food review and log-from-food snapshot flow instead of
+creating a separate logging model.
 The API does not use USDA, AI/RAG, photo logging, saved meals, or full Complex
 mode micronutrient editing in this phase.
 

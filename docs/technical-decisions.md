@@ -184,7 +184,7 @@ Status: Locked
 
 ## TD-010: Hybrid Food Database Direction
 
-Status: Partially implemented in Phase 8 and Phase 11
+Status: Implemented through Phase 11 for local food database and barcode lookup
 
 Food Tracker should use a hybrid food data strategy:
 
@@ -220,7 +220,14 @@ logging, saved meals, or full Complex mode micronutrient UI.
 Phase 11 implements the first barcode scanning slice:
 
 - mobile barcode scanning uses `expo-camera` in the Expo development build
+- `expo-camera` and camera permission changes require a rebuilt development
+  build; Metro reload is not enough for native dependency/config changes
+- generated `apps/mobile/ios/` and `apps/mobile/android/` folders remain
+  uncommitted unless explicitly approved
+- physical iPhone testing is required for camera/barcode work
 - barcode lookup checks local `FoodBarcode` records before external data
+- barcode lookup is backend-owned; mobile clients do not call Open Food Facts
+  directly
 - Open Food Facts is the first external packaged-food source
 - usable external products are cached as `FoodItem` rows with
   `sourceType: cached_external`, `sourceProvider: open_food_facts`, and a
@@ -233,6 +240,8 @@ Phase 11 implements the first barcode scanning slice:
   unknown/null or absent
 - logging still uses the existing selected-food review and
   `POST /api/v1/food-logs/from-food-item` snapshot flow
+- missing or uncertain nutrients stay unknown/null or absent and are not
+  fabricated
 
 Phase 11 does not add USDA fallback, AI/RAG logging, photo recognition, saved
 meals, custom reporting, recommendation changes, real auth, or schema changes.

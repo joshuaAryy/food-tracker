@@ -113,7 +113,7 @@ Phase 9 does not implement Complex-mode nutrient UI, barcode camera scanning,
 Open Food Facts or USDA integration, AI/RAG logging, photo logging, saved
 meals, custom graphs, or recommendation engine 2.0.
 
-## Phase 10 — Faster Logging UX — Active / Next
+## Phase 10 — Faster Logging UX — Complete
 
 - fast food search
 - saved foods
@@ -146,7 +146,7 @@ Facts, and USDA work remains Phase 11+. Complex mode has the Phase 9 data
 foundation, but richer Complex logging UI and reporting are later phases rather
 than Phase 10 scope.
 
-## Phase 11 — Barcode Scanning
+## Phase 11 — Barcode Scanning — Complete
 
 - local cached barcode lookup
 - Open Food Facts barcode lookup
@@ -160,11 +160,16 @@ Food Facts second, conservative Open Food Facts normalization into normal
 `FoodItem`/`FoodBarcode` records, and return into the existing selected-food
 logging flow. USDA fallback remains later work.
 
+Phase 11 is complete enough to move forward. It also includes camera
+permission handling, native iPhone scanner testing and fixes, save/unsave and
+serving multiplier reuse through the selected-food flow, and UPC-A/EAN-13
+normalization for common Canadian/US packaged foods.
+
 Phase 11 does not implement AI/RAG logging, photo recognition, saved meals,
 custom graphs, streaks/reporting UI, recommendation engine changes, full
 micronutrient editing UI, real auth, deployment, or TestFlight.
 
-## Phase 12 — RAG-Assisted AI Text Logging
+## Phase 12 — RAG-Assisted AI Text Logging — Active / Next
 
 - parse messy food descriptions
 - split likely meal items
