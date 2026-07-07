@@ -1,5 +1,5 @@
 import { MOCK_USER_ID } from '@food-tracker/shared';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 import { localDateTime } from './helpers/dates.js';
@@ -28,6 +28,11 @@ const validFoodLogWithNutrients = {
 };
 
 describe('food logs API', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.USDA_FDC_API_KEY;
+  });
+
   it('creates and persists a valid food log', async () => {
     const response = await api
       .post('/api/v1/food-logs')
@@ -537,6 +542,280 @@ describe('food logs API', () => {
 
     expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
     expect(await prisma.foodLog.count()).toBe(0);
+  });
+
+  it('logs selected USDA candidates by refetching, caching, and snapshotting trusted nutrients', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            fdcId: 173944,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+              {
+                amount: 22.84,
+                nutrient: {
+                  name: 'Carbohydrate, by difference',
+                  unitName: 'G',
+                },
+              },
+              {
+                amount: 0.33,
+                nutrient: { name: 'Total lipid (fat)', unitName: 'G' },
+              },
+              {
+                amount: 2.6,
+                nutrient: { name: 'Fiber, total dietary', unitName: 'G' },
+              },
+              {
+                amount: 358,
+                nutrient: { name: 'Potassium, K', unitName: 'MG' },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await api
+      .post('/api/v1/food-logs/from-candidates')
+      .send({
+        mealType: 'breakfast',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          {
+            candidateType: 'external_food',
+            sourceProvider: 'usda_fdc',
+            sourceId: '173944',
+            servingMultiplier: 2,
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(response.body.data.foodLogs).toEqual([
+      expect.objectContaining({
+        foodName: 'Bananas, raw',
+        calories: 178,
+        protein: 2.2,
+        carbs: 45.6,
+        fat: 0.6,
+        fiber: 5.2,
+        servingQuantity: 200,
+        servingUnit: 'g',
+        nutrients: {
+          potassium: { amount: 716, unit: 'mg' },
+        },
+      }),
+    ]);
+
+    const cachedFood = await prisma.foodItem.findFirst({
+      where: {
+        sourceProvider: 'usda_fdc',
+        sourceId: '173944',
+      },
+      include: { nutrients: true },
+    });
+    expect(cachedFood).toMatchObject({
+      userId: null,
+      name: 'Bananas, raw',
+      sourceType: 'cached_external',
+      foodType: 'generic',
+      servingQuantity: expect.objectContaining({}),
+      servingUnit: 'g',
+      calories: 89,
+    });
+    expect(cachedFood?.servingQuantity?.toNumber()).toBe(100);
+    expect(cachedFood?.nutrients).toHaveLength(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies explicit simple log-level nutrition overrides without mutating trusted food items', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Trusted salmon',
+        normalizedName: 'trusted salmon',
+        searchText: 'trusted salmon',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        calories: 200,
+        protein: 22,
+        carbs: 0,
+        fat: 12,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-candidates')
+      .send({
+        mealType: 'dinner',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          {
+            candidateType: 'food_item',
+            foodItemId: foodItem.id,
+            servingMultiplier: 1,
+            nutritionOverride: {
+              mode: 'simple',
+              calories: 240,
+              protein: 30.2,
+              fat: 14.4,
+              sodium: 80,
+            },
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(response.body.data.foodLogs[0]).toMatchObject({
+      foodItemId: foodItem.id,
+      calories: 240,
+      protein: 30.2,
+      carbs: 0,
+      fat: 14.4,
+      sodium: 80,
+    });
+    expect(
+      (await prisma.foodItem.findUnique({ where: { id: foodItem.id } }))
+        ?.calories,
+    ).toBe(200);
+  });
+
+  it('rejects normalized nutrient overrides in simple mode', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Trusted banana',
+        normalizedName: 'trusted banana',
+        searchText: 'trusted banana',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        calories: 105,
+        protein: 1.3,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-candidates')
+      .send({
+        mealType: 'snack',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          {
+            candidateType: 'food_item',
+            foodItemId: foodItem.id,
+            nutritionOverride: {
+              mode: 'simple',
+              nutrients: { potassium: { amount: 400, unit: 'mg' } },
+            },
+          },
+        ],
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+  });
+
+  it('accepts supported normalized nutrient overrides in complex mode', async () => {
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Trusted coffee',
+        normalizedName: 'trusted coffee',
+        searchText: 'trusted coffee',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        calories: 5,
+        protein: 0,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-candidates')
+      .send({
+        mealType: 'snack',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          {
+            candidateType: 'food_item',
+            foodItemId: foodItem.id,
+            nutritionOverride: {
+              mode: 'complex',
+              nutrients: { caffeine: { amount: 95, unit: 'mg' } },
+            },
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(response.body.data.foodLogs[0]).toMatchObject({
+      nutrients: { caffeine: { amount: 95, unit: 'mg' } },
+    });
+  });
+
+  it('rejects selected USDA candidates without trusted calories and protein without partial saves', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const localFood = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Loggable eggs',
+        normalizedName: 'loggable eggs',
+        searchText: 'loggable eggs',
+        sourceType: 'user_custom',
+        foodType: 'generic',
+        calories: 140,
+        protein: 12,
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              fdcId: 999,
+              description: 'Mystery food',
+              dataType: 'Foundation',
+              foodNutrients: [
+                { amount: 50, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/food-logs/from-candidates')
+      .send({
+        mealType: 'breakfast',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          {
+            candidateType: 'food_item',
+            foodItemId: localFood.id,
+            servingMultiplier: 1,
+          },
+          {
+            candidateType: 'external_food',
+            sourceProvider: 'usda_fdc',
+            sourceId: '999',
+            servingMultiplier: 1,
+          },
+        ],
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+    expect(await prisma.foodLog.count()).toBe(0);
+    expect(await prisma.foodItem.count({ where: { sourceId: '999' } })).toBe(0);
   });
 
   it('rejects log-from-food when required food log nutrients are unknown', async () => {

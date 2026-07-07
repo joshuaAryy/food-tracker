@@ -73,6 +73,22 @@ function logGeminiDiagnostic(
   });
 }
 
+function extractJsonText(text: string): string {
+  const trimmed = text.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
+  if (fenced?.[1] !== undefined) {
+    return fenced[1].trim();
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+}
+
 function cleanParsedName(value: string): {
   name: string;
   quantityText: string | null;
@@ -196,7 +212,7 @@ class GeminiFoodParseProvider implements FoodParseProvider {
 
       let output: unknown;
       try {
-        output = JSON.parse(text);
+        output = JSON.parse(extractJsonText(text));
       } catch (error) {
         logGeminiDiagnostic('json_parse_failure', {
           message: error instanceof Error ? error.message : 'unknown',

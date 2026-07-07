@@ -3,9 +3,12 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Search, Sparkles, X } from 'lucide-react-native';
 import type {
+  AiFoodParseCandidate,
   AiFoodParsedItem,
   AiFoodParseResult,
+  AiFoodParseExternalFood,
   FoodItem,
+  FoodLogsFromCandidatesInput,
   MealType,
 } from '@food-tracker/shared';
 import { MEAL_TYPES } from '@food-tracker/shared';
@@ -25,29 +28,60 @@ const examples = [
   'protein shake with milk',
 ] as const;
 
-function nutrientPreview(foodItem: FoodItem, multiplier: string): string {
+function nutrientPreview(
+  food: FoodItem | AiFoodParseExternalFood,
+  multiplier: string,
+): string {
   const parsedMultiplier = Number(multiplier);
   const amount =
     Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
       ? parsedMultiplier
       : 1;
   const parts = [
-    foodItem.calories === null
+    food.calories === null
       ? null
-      : `${Math.round(foodItem.calories * amount)} kcal`,
-    foodItem.protein === null
+      : `${Math.round(food.calories * amount)} kcal`,
+    food.protein === null
       ? null
-      : `${(foodItem.protein * amount).toFixed(1)}g protein`,
+      : `${(food.protein * amount).toFixed(1)}g protein`,
   ].filter((part): part is string => part !== null);
 
   return parts.length === 0 ? 'Nutrition unknown' : parts.join(' / ');
 }
 
-function selectedCandidate(item: AiFoodParsedItem): FoodItem | null {
+function candidateId(candidate: AiFoodParseCandidate): string {
+  return candidate.candidateType === 'food_item'
+    ? candidate.foodItem.id
+    : `${candidate.externalFood.sourceProvider}:${candidate.externalFood.sourceId}`;
+}
+
+function selectedCandidate(
+  item: AiFoodParsedItem,
+  selectedCandidateIds: Record<string, string>,
+): AiFoodParseCandidate | null {
+  const selectedCandidateId =
+    selectedCandidateIds[item.id] ?? item.selectedCandidateId;
   const candidate = item.candidates.find(
-    (value) => value.foodItem.id === item.selectedCandidateId,
+    (value) => candidateId(value) === selectedCandidateId,
   );
-  return candidate?.foodItem ?? item.candidates[0]?.foodItem ?? null;
+  return candidate ?? item.candidates[0] ?? null;
+}
+
+function candidateFood(
+  candidate: AiFoodParseCandidate | null,
+): FoodItem | AiFoodParseExternalFood | null {
+  if (candidate === null) return null;
+  return candidate.candidateType === 'food_item'
+    ? candidate.foodItem
+    : candidate.externalFood;
+}
+
+function candidateMatchCopy(candidate: AiFoodParseCandidate): string {
+  if (candidate.candidateType === 'external_food') {
+    return `USDA match: ${candidate.externalFood.name} (${candidate.externalFood.servingBasisText})`;
+  }
+
+  return `Matched to ${candidate.foodItem.name}`;
 }
 
 function statusLabel(item: AiFoodParsedItem): string {
@@ -60,6 +94,11 @@ function statusClasses(item: AiFoodParsedItem): string {
   if (item.reviewStatus === 'matched') return 'bg-sage-soft text-ink';
   if (item.reviewStatus === 'needs_review') return 'bg-carbs-soft text-ink';
   return 'bg-error-soft text-error';
+}
+
+function isCandidateLoggable(candidate: AiFoodParseCandidate | null): boolean {
+  const food = candidateFood(candidate);
+  return food !== null && food.calories !== null && food.protein !== null;
 }
 
 function MealTypePill({
@@ -97,6 +136,9 @@ export default function MealDescribeScreen() {
   const [mealType, setMealType] = useState<MealType>('lunch');
   const [result, setResult] = useState<AiFoodParseResult | null>(null);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<
+    Record<string, string>
+  >({});
   const [removedRows, setRemovedRows] = useState<string[]>([]);
   const [multipliers, setMultipliers] = useState<Record<string, string>>({});
   const [parsing, setParsing] = useState(false);
@@ -111,7 +153,9 @@ export default function MealDescribeScreen() {
     [removedRows, result],
   );
   const selectedLoggableCount = visibleItems.filter(
-    (item) => item.loggable && selectedRows.includes(item.id),
+    (item) =>
+      isCandidateLoggable(selectedCandidate(item, selectedCandidateIds)) &&
+      selectedRows.includes(item.id),
   ).length;
 
   const parseMeal = async () => {
@@ -129,6 +173,15 @@ export default function MealDescribeScreen() {
       setRemovedRows([]);
       setSelectedRows(
         parsed.items.filter((item) => item.loggable).map((item) => item.id),
+      );
+      setSelectedCandidateIds(
+        Object.fromEntries(
+          parsed.items.flatMap((item) =>
+            item.selectedCandidateId === null
+              ? []
+              : [[item.id, item.selectedCandidateId]],
+          ),
+        ),
       );
       setMultipliers(
         Object.fromEntries(
@@ -151,24 +204,43 @@ export default function MealDescribeScreen() {
     setSaving(true);
     setError(null);
     try {
-      await api.foodLogs.createFromFoodItems({
+      const items = visibleItems.reduce<FoodLogsFromCandidatesInput['items']>(
+        (selectedItems, item) => {
+          const candidate = selectedCandidate(item, selectedCandidateIds);
+
+          if (
+            !isCandidateLoggable(candidate) ||
+            !selectedRows.includes(item.id)
+          ) {
+            return selectedItems;
+          }
+
+          if (candidate === null) return selectedItems;
+
+          if (candidate.candidateType === 'food_item') {
+            selectedItems.push({
+              candidateType: 'food_item',
+              foodItemId: candidate.foodItem.id,
+              servingMultiplier: Number(multipliers[item.id] ?? 1),
+            });
+            return selectedItems;
+          }
+
+          selectedItems.push({
+            candidateType: 'external_food',
+            sourceProvider: candidate.externalFood.sourceProvider,
+            sourceId: candidate.externalFood.sourceId,
+            servingMultiplier: Number(multipliers[item.id] ?? 1),
+          });
+          return selectedItems;
+        },
+        [],
+      );
+
+      await api.foodLogs.createFromCandidates({
         mealType,
         loggedAt: new Date().toISOString(),
-        items: visibleItems
-          .filter((item) => item.loggable && selectedRows.includes(item.id))
-          .flatMap((item) => {
-            const foodItemId =
-              item.selectedCandidateId ?? item.candidates[0]?.foodItem.id;
-
-            return foodItemId === undefined
-              ? []
-              : [
-                  {
-                    foodItemId,
-                    servingMultiplier: Number(multipliers[item.id] ?? 1),
-                  },
-                ];
-          }),
+        items,
       });
       router.back();
     } catch (saveError) {
@@ -179,7 +251,8 @@ export default function MealDescribeScreen() {
   };
 
   const toggleSelected = (item: AiFoodParsedItem) => {
-    if (!item.loggable) return;
+    const candidate = selectedCandidate(item, selectedCandidateIds);
+    if (!isCandidateLoggable(candidate)) return;
     setSelectedRows((current) =>
       current.includes(item.id)
         ? current.filter((id) => id !== item.id)
@@ -310,8 +383,10 @@ export default function MealDescribeScreen() {
 
             <View className="border-y border-line">
               {visibleItems.map((item, index) => {
-                const foodItem = selectedCandidate(item);
+                const candidate = selectedCandidate(item, selectedCandidateIds);
+                const food = candidateFood(candidate);
                 const selected = selectedRows.includes(item.id);
+                const loggable = isCandidateLoggable(candidate);
 
                 return (
                   <View
@@ -325,14 +400,14 @@ export default function MealDescribeScreen() {
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: selected }}
                         className={`mt-1 h-8 w-8 items-center justify-center rounded-full ${
-                          selected && item.loggable
+                          selected && loggable
                             ? 'bg-primary'
                             : 'bg-module-muted'
                         }`}
-                        disabled={!item.loggable}
+                        disabled={!loggable}
                         onPress={() => toggleSelected(item)}
                       >
-                        {selected && item.loggable ? (
+                        {selected && loggable ? (
                           <Check color="#FFFFFF" size={16} strokeWidth={2.4} />
                         ) : null}
                       </Pressable>
@@ -357,7 +432,7 @@ export default function MealDescribeScreen() {
                           </View>
                         </View>
 
-                        {foodItem === null ? (
+                        {food === null ? (
                           <View className="gap-2">
                             <AppText variant="caption" muted>
                               No matching food yet. Search or enter it manually
@@ -381,11 +456,13 @@ export default function MealDescribeScreen() {
                         ) : (
                           <View className="gap-2">
                             <AppText variant="caption" muted numberOfLines={1}>
-                              Matched to {foodItem.name}
+                              {candidate === null
+                                ? 'Matched food'
+                                : candidateMatchCopy(candidate)}
                             </AppText>
                             <AppText variant="caption" className="text-ink">
                               {nutrientPreview(
-                                foodItem,
+                                food,
                                 multipliers[item.id] ?? '1',
                               )}
                             </AppText>
@@ -398,6 +475,59 @@ export default function MealDescribeScreen() {
                                 }))
                               }
                             />
+                            {item.candidates.length > 1 ? (
+                              <View className="flex-row flex-wrap gap-2">
+                                {item.candidates.map((candidateOption) => {
+                                  const optionId = candidateId(candidateOption);
+                                  const optionFood =
+                                    candidateFood(candidateOption);
+                                  const optionSelected =
+                                    candidate !== null &&
+                                    candidateId(candidate) === optionId;
+
+                                  return (
+                                    <Pressable
+                                      key={optionId}
+                                      accessibilityRole="button"
+                                      accessibilityState={{
+                                        selected: optionSelected,
+                                      }}
+                                      className={`rounded-full px-3 py-2 ${
+                                        optionSelected
+                                          ? 'bg-primary'
+                                          : 'bg-module'
+                                      }`}
+                                      onPress={() => {
+                                        setSelectedCandidateIds((current) => ({
+                                          ...current,
+                                          [item.id]: optionId,
+                                        }));
+                                        if (
+                                          isCandidateLoggable(candidateOption)
+                                        ) {
+                                          setSelectedRows((current) =>
+                                            current.includes(item.id)
+                                              ? current
+                                              : [...current, item.id],
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <AppText
+                                        variant="caption"
+                                        className={
+                                          optionSelected
+                                            ? 'text-white'
+                                            : 'text-ink'
+                                        }
+                                      >
+                                        {optionFood?.name ?? 'Unmatched'}
+                                      </AppText>
+                                    </Pressable>
+                                  );
+                                })}
+                              </View>
+                            ) : null}
                           </View>
                         )}
                       </View>

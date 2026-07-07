@@ -59,6 +59,8 @@ interface FoodItemsListResponseBody {
 describe('food items API', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    delete process.env.USDA_FDC_API_KEY;
+    delete process.env.USDA_FDC_SEARCH_LIMIT;
   });
 
   it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {
@@ -956,5 +958,138 @@ describe('food items API', () => {
       .expect(404);
 
     expectErrorEnvelope(response.body, 'NOT_FOUND');
+  });
+
+  it('returns USDA generic candidates from normal food search when local search has no match', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 173944,
+                  description: 'Bananas, raw',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 173944,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'banana' })
+      .expect(200);
+
+    expect(response.body.data.candidates).toEqual([
+      expect.objectContaining({
+        candidateType: 'external_food',
+        matchReason: 'usda_fdc',
+        externalFood: expect.objectContaining({
+          sourceProvider: 'usda_fdc',
+          sourceId: '173944',
+          name: 'Bananas, raw',
+          servingBasisText: 'per 100 g',
+          calories: 89,
+          protein: 1.1,
+        }),
+      }),
+    ]);
+  });
+
+  it('ranks local food search candidates before USDA candidates', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const localFood = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Eggs',
+        normalizedName: 'eggs',
+        searchText: 'eggs',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        calories: 140,
+        protein: 12,
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ foods: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'eggs' })
+      .expect(200);
+
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'food_item',
+      foodItem: { id: localFood.id },
+    });
+  });
+
+  it('keeps local food search results when USDA is unavailable', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const localFood = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Salmon',
+        normalizedName: 'salmon',
+        searchText: 'salmon',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        calories: 200,
+        protein: 22,
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'unavailable' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'salmon' })
+      .expect(200);
+
+    expect(response.body.data.candidates).toEqual([
+      expect.objectContaining({
+        candidateType: 'food_item',
+        foodItem: expect.objectContaining({ id: localFood.id }),
+      }),
+    ]);
   });
 });

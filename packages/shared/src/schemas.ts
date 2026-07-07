@@ -232,7 +232,37 @@ export const foodLogFromFoodItemInputSchema = z.strictObject({
   loggedAt: z.iso.datetime(),
   servingMultiplier: z.number().positive().default(1),
   notes: z.string().nullable().optional(),
+  nutritionOverride: z
+    .strictObject({
+      mode: trackingModeSchema,
+      calories: z.number().int().nonnegative().nullable().optional(),
+      protein: optionalNonNegativeDecimal,
+      carbs: optionalNonNegativeDecimal,
+      fat: optionalNonNegativeDecimal,
+      fiber: optionalNonNegativeDecimal,
+      sugar: optionalNonNegativeDecimal,
+      sodium: z.number().int().nonnegative().nullable().optional(),
+      nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+    })
+    .superRefine((override, context) => {
+      if (
+        override.mode === 'simple' &&
+        override.nutrients !== undefined &&
+        override.nutrients !== null &&
+        Object.keys(override.nutrients).length > 0
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Simple mode can only override main nutrients',
+          path: ['nutrients'],
+        });
+      }
+    })
+    .optional(),
 });
+
+const foodLogNutritionOverrideSchema =
+  foodLogFromFoodItemInputSchema.shape.nutritionOverride.unwrap();
 
 export const foodLogsFromFoodItemsInputSchema = z.strictObject({
   mealType: mealTypeSchema,
@@ -243,7 +273,38 @@ export const foodLogsFromFoodItemsInputSchema = z.strictObject({
       z.strictObject({
         foodItemId: z.uuid(),
         servingMultiplier: z.number().positive().default(1),
+        nutritionOverride: foodLogNutritionOverrideSchema.optional(),
       }),
+    )
+    .min(1)
+    .max(12),
+});
+
+const foodLogFoodItemCandidateInputSchema = z.strictObject({
+  candidateType: z.literal('food_item'),
+  foodItemId: z.uuid(),
+  servingMultiplier: z.number().positive().default(1),
+  nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+});
+
+const foodLogExternalCandidateInputSchema = z.strictObject({
+  candidateType: z.literal('external_food'),
+  sourceProvider: z.literal('usda_fdc'),
+  sourceId: z.string().trim().regex(/^\d+$/),
+  servingMultiplier: z.number().positive().default(1),
+  nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+});
+
+export const foodLogsFromCandidatesInputSchema = z.strictObject({
+  mealType: mealTypeSchema,
+  loggedAt: z.iso.datetime(),
+  notes: z.string().trim().min(1).nullable().optional(),
+  items: z
+    .array(
+      z.discriminatedUnion('candidateType', [
+        foodLogFoodItemCandidateInputSchema,
+        foodLogExternalCandidateInputSchema,
+      ]),
     )
     .min(1)
     .max(12),
@@ -299,6 +360,11 @@ export const foodItemsQuerySchema = z.strictObject({
   savedOnly: booleanQuerySchema.default(false),
 });
 
+export const foodItemSearchCandidatesInputSchema = z.strictObject({
+  query: z.string().trim().min(1),
+  limit: z.number().int().min(1).max(10).default(8),
+});
+
 export const foodBarcodeParamsSchema = z.strictObject({
   barcode: z.string().trim().min(1),
 });
@@ -329,8 +395,17 @@ export type FoodLogFromFoodItemInput = z.infer<
 export type FoodLogsFromFoodItemsInput = z.infer<
   typeof foodLogsFromFoodItemsInputSchema
 >;
+export type FoodLogsFromCandidatesInput = z.infer<
+  typeof foodLogsFromCandidatesInputSchema
+>;
+export type FoodLogNutritionOverride = z.infer<
+  typeof foodLogNutritionOverrideSchema
+>;
 export type AiFoodParseInput = z.infer<typeof aiFoodParseInputSchema>;
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
+export type FoodItemSearchCandidatesInput = z.infer<
+  typeof foodItemSearchCandidatesInputSchema
+>;
 export type FoodBarcodeLookupInput = z.infer<
   typeof foodBarcodeLookupInputSchema
 >;

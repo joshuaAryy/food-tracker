@@ -1,13 +1,16 @@
 import type {
   ApiResponse,
   AdvancedAnalytics,
+  AiFoodParseCandidate,
   AiFoodParseResult,
   DashboardSummary,
   DailyNutrientTotals,
   FoodBarcodeLookupInput,
   FoodItem,
   FoodItemInput,
+  FoodItemSearchCandidatesInput,
   FoodLog,
+  FoodLogsFromCandidatesInput,
   FoodLogFromFoodItemInput,
   FoodLogsFromFoodItemsInput,
   FoodLogInput,
@@ -277,6 +280,14 @@ export const api = {
       request<{ foodItems: FoodItem[] }>(
         `/food-items${foodItemsQueryString(query)}`,
       ).then(({ foodItems }) => foodItems),
+    searchCandidates: (input: FoodItemSearchCandidatesInput) =>
+      request<{ candidates: AiFoodParseCandidate[] }>(
+        '/food-items/search-candidates',
+        {
+          method: 'POST',
+          body: input,
+        },
+      ).then(({ candidates }) => candidates),
     getById: (id: string) => request<FoodItem>(`/food-items/${id}`),
     create: (input: FoodItemInput) =>
       request<FoodItem>('/food-items', { method: 'POST', body: input }),
@@ -319,6 +330,11 @@ export const api = {
       }),
     createFromFoodItems: (input: FoodLogsFromFoodItemsInput) =>
       request<{ foodLogs: FoodLog[] }>('/food-logs/from-food-items', {
+        method: 'POST',
+        body: input,
+      }).then(({ foodLogs }) => foodLogs),
+    createFromCandidates: (input: FoodLogsFromCandidatesInput) =>
+      request<{ foodLogs: FoodLog[] }>('/food-logs/from-candidates', {
         method: 'POST',
         body: input,
       }).then(({ foodLogs }) => foodLogs),

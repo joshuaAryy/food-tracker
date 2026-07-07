@@ -7,6 +7,11 @@ import type {
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import { serializeFoodItem } from '../../lib/serializers.js';
+import {
+  fetchUsdaFood,
+  searchUsdaFoods,
+  usdaFdcConfig,
+} from '../foodItems/usda-fdc.js';
 import type { ProviderParsedFoodItem } from './provider.js';
 
 function normalizeText(value: string): string {
@@ -55,8 +60,34 @@ function candidateReason(
   return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
 
+function diagnosticText(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s"',}]+/gi, (match) => {
+      try {
+        const url = new URL(match);
+        return `${url.origin}${url.pathname}`;
+      } catch {
+        return '[invalid-url]';
+      }
+    })
+    .replace(/api[_-]?key=([^&"'\s]+)/gi, 'api_key=[redacted]')
+    .replace(
+      /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
+      '$1=[redacted]',
+    )
+    .slice(0, 500);
+}
+
+function logUsdaRetrievalDiagnostic(
+  category: string,
+  details: Record<string, unknown>,
+): void {
+  console.warn('[ai-food-parse:usda]', { category, ...details });
+}
+
 export async function retrieveParsedFoodItems(input: {
   userId: string;
+  rateLimitKey: string;
   parsedItems: ProviderParsedFoodItem[];
 }): Promise<AiFoodParsedItem[]> {
   const result: AiFoodParsedItem[] = [];
@@ -73,7 +104,9 @@ export async function retrieveParsedFoodItems(input: {
       if (seen.has(foodItem.id)) return;
       seen.add(foodItem.id);
       candidates.push({
+        candidateType: 'food_item',
         foodItem,
+        externalFood: null,
         rank: candidates.length + 1,
         matchReason,
         confidence: confidenceFor(foodItem, normalizedQuery),
@@ -167,11 +200,110 @@ export async function retrieveParsedFoodItems(input: {
       );
     }
 
-    const selectedCandidate = candidates.find(
+    let selectedCandidate = candidates.find(
       (candidate) =>
+        candidate.candidateType === 'food_item' &&
         candidate.foodItem.calories !== null &&
         candidate.foodItem.protein !== null,
     );
+
+    if (selectedCandidate === undefined) {
+      const usdaConfig = usdaFdcConfig();
+      try {
+        const usdaMatches = await searchUsdaFoods({
+          query: normalizedQuery,
+          config: usdaConfig,
+          rateLimitKey: input.rateLimitKey,
+        });
+
+        for (const usdaMatch of usdaMatches) {
+          const food = await fetchUsdaFood({
+            sourceId: String(usdaMatch.fdcId),
+            config: usdaConfig,
+          });
+
+          if (food === null) continue;
+
+          const externalId = `usda_fdc:${food.sourceId}`;
+          if (seen.has(externalId)) continue;
+          seen.add(externalId);
+
+          candidates.push({
+            candidateType: 'external_food',
+            foodItem: null,
+            externalFood: {
+              sourceProvider: 'usda_fdc',
+              sourceId: food.sourceId,
+              name: food.name,
+              brandName: food.brandName,
+              foodType: food.foodType,
+              servingBasisText: food.servingBasisText,
+              servingQuantity: food.servingQuantity,
+              servingUnit: food.servingUnit,
+              servingWeightGrams: food.servingWeightGrams,
+              calories: food.calories,
+              protein: food.protein,
+              carbs: food.carbs,
+              fat: food.fat,
+              fiber: food.fiber,
+              sugar: food.sugar,
+              sodium: food.sodium,
+              nutrients: Object.fromEntries(
+                food.nutrients.map((nutrient) => [
+                  nutrient.nutrientKey,
+                  { amount: nutrient.amount, unit: nutrient.unit },
+                ]),
+              ),
+            },
+            rank: candidates.length + 1,
+            matchReason: 'usda_fdc',
+            confidence: confidenceFor(
+              {
+                id: externalId,
+                name: food.name,
+                brandName: food.brandName,
+                sourceType: 'cached_external',
+                foodType: food.foodType,
+                sourceProvider: 'usda_fdc',
+                sourceId: food.sourceId,
+                sourceUpdatedAt: food.sourceUpdatedAt?.toISOString() ?? null,
+                isSaved: false,
+                servingQuantity: food.servingQuantity,
+                servingUnit: food.servingUnit,
+                servingWeightGrams: food.servingWeightGrams,
+                calories: food.calories,
+                protein: food.protein,
+                carbs: food.carbs,
+                fat: food.fat,
+                fiber: food.fiber,
+                sugar: food.sugar,
+                sodium: food.sodium,
+                additionalNutrients: null,
+                nutrients: {},
+                barcodes: [],
+                createdAt: new Date(0).toISOString(),
+                updatedAt: new Date(0).toISOString(),
+              },
+              normalizedQuery,
+            ),
+            defaultServingMultiplier: 1,
+          });
+        }
+      } catch (error) {
+        logUsdaRetrievalDiagnostic('non_fatal_lookup_failure', {
+          query: normalizedQuery,
+          message:
+            error instanceof Error ? diagnosticText(error.message) : 'unknown',
+        });
+      }
+
+      selectedCandidate = candidates.find(
+        (candidate) =>
+          candidate.candidateType === 'external_food' &&
+          candidate.externalFood.calories !== null &&
+          candidate.externalFood.protein !== null,
+      );
+    }
 
     result.push({
       id: `item-${itemIndex + 1}`,
@@ -183,9 +315,16 @@ export async function retrieveParsedFoodItems(input: {
           ? 'unmatched'
           : selectedCandidate === undefined
             ? 'needs_review'
-            : 'matched',
+            : selectedCandidate.candidateType === 'external_food'
+              ? 'needs_review'
+              : 'matched',
       loggable: selectedCandidate !== undefined,
-      selectedCandidateId: selectedCandidate?.foodItem.id ?? null,
+      selectedCandidateId:
+        selectedCandidate === undefined
+          ? null
+          : selectedCandidate.candidateType === 'food_item'
+            ? selectedCandidate.foodItem.id
+            : `usda_fdc:${selectedCandidate.externalFood.sourceId}`,
       candidates,
     });
   }

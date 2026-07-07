@@ -6,12 +6,19 @@ import { Camera, Sparkles } from 'lucide-react-native';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
+  NORMALIZED_NUTRIENT_KEYS,
+  NUTRIENT_CATALOG,
+  type AiFoodParseCandidate,
+  type AiFoodParseExternalFood,
   type FoodItem,
   type FoodItemInput,
   type FoodLog,
   type FoodLogFromFoodItemInput,
+  type FoodLogNutritionOverride,
   type FoodLogInput,
   type MealType,
+  type NormalizedNutrientKey,
+  type NormalizedNutrientMap,
   type TrackingMode,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -55,6 +62,9 @@ interface FoodForm {
   loggedTime: string;
 }
 
+type SearchCandidate = AiFoodParseCandidate;
+type NutritionSource = FoodItem | AiFoodParseExternalFood;
+
 function nullableNumber(value: string): number | null {
   return value.trim() === '' ? null : Number(value);
 }
@@ -65,6 +75,26 @@ function nullableInteger(value: string): number | null {
 
 function optionalNumber(value: number | null): string {
   return value === null ? '' : String(value);
+}
+
+function roundTo(value: number, decimalPlaces: number): number {
+  const factor = 10 ** decimalPlaces;
+  return Math.round((value + Number.EPSILON) * factor) / factor;
+}
+
+function scaledNumber(
+  value: number | null,
+  multiplier: number,
+  decimalPlaces: number,
+): number | null {
+  return value === null ? null : roundTo(value * multiplier, decimalPlaces);
+}
+
+function scaledInteger(
+  value: number | null,
+  multiplier: number,
+): number | null {
+  return value === null ? null : Math.round(value * multiplier);
 }
 
 function formValuesFromFood(
@@ -138,25 +168,28 @@ function dedupeRecentFoods(foodLogs: FoodLog[], limit = 6): FoodLog[] {
 }
 
 function formValuesFromFoodItem(
-  foodItem: FoodItem,
+  foodItem: NutritionSource,
   current: FoodForm,
+  multiplier = 1,
 ): FoodForm {
   return {
     ...current,
     foodName: foodItem.name,
-    calories: optionalNumber(foodItem.calories),
-    protein: optionalNumber(foodItem.protein),
-    carbs: optionalNumber(foodItem.carbs),
-    fat: optionalNumber(foodItem.fat),
-    fiber: optionalNumber(foodItem.fiber),
-    sugar: optionalNumber(foodItem.sugar),
-    sodium: optionalNumber(foodItem.sodium),
-    servingQuantity: optionalNumber(foodItem.servingQuantity),
+    calories: optionalNumber(scaledInteger(foodItem.calories, multiplier)),
+    protein: optionalNumber(scaledNumber(foodItem.protein, multiplier, 1)),
+    carbs: optionalNumber(scaledNumber(foodItem.carbs, multiplier, 1)),
+    fat: optionalNumber(scaledNumber(foodItem.fat, multiplier, 1)),
+    fiber: optionalNumber(scaledNumber(foodItem.fiber, multiplier, 1)),
+    sugar: optionalNumber(scaledNumber(foodItem.sugar, multiplier, 1)),
+    sodium: optionalNumber(scaledInteger(foodItem.sodium, multiplier)),
+    servingQuantity: optionalNumber(
+      scaledNumber(foodItem.servingQuantity, multiplier, 2),
+    ),
     servingUnit: foodItem.servingUnit ?? '',
   };
 }
 
-function hasFoodItemOptionalDetails(foodItem: FoodItem): boolean {
+function hasSourceOptionalDetails(foodItem: NutritionSource): boolean {
   return (
     foodItem.carbs !== null ||
     foodItem.fat !== null ||
@@ -167,6 +200,45 @@ function hasFoodItemOptionalDetails(foodItem: FoodItem): boolean {
     foodItem.servingUnit !== null ||
     Object.keys(foodItem.nutrients).length > 0
   );
+}
+
+function candidateId(candidate: SearchCandidate): string {
+  return candidate.candidateType === 'food_item'
+    ? candidate.foodItem.id
+    : `${candidate.externalFood.sourceProvider}:${candidate.externalFood.sourceId}`;
+}
+
+function candidateSourceCopy(candidate: SearchCandidate): string {
+  if (candidate.candidateType === 'external_food') {
+    return `Generic food match · ${candidate.externalFood.servingBasisText}`;
+  }
+
+  if (candidate.foodItem.sourceProvider === 'open_food_facts') {
+    return 'Open Food Facts';
+  }
+  if (candidate.foodItem.sourceProvider === 'usda_fdc') {
+    return 'USDA match';
+  }
+  if (candidate.foodItem.sourceType === 'user_custom') {
+    return 'Custom food';
+  }
+  return 'Saved food';
+}
+
+function sourceNutrientValues(
+  source: NutritionSource,
+  multiplier: number,
+): Record<NormalizedNutrientKey, string> {
+  return Object.fromEntries(
+    NORMALIZED_NUTRIENT_KEYS.map((key) => {
+      const nutrient = source.nutrients[key];
+      const amount =
+        nutrient === undefined
+          ? ''
+          : String(roundTo(nutrient.amount * multiplier, 4));
+      return [key, amount];
+    }),
+  ) as Record<NormalizedNutrientKey, string>;
 }
 
 function inferMultiplier(foodLog: FoodLog, foodItem: FoodItem): string {
@@ -269,9 +341,22 @@ export default function FoodLogScreen() {
   const [savedFoods, setSavedFoods] = useState<FoodItem[]>([]);
   const [foodSearchQuery, setFoodSearchQuery] = useState('');
   const [searchedFoodQuery, setSearchedFoodQuery] = useState('');
-  const [foodSearchResults, setFoodSearchResults] = useState<FoodItem[]>([]);
+  const [foodSearchResults, setFoodSearchResults] = useState<SearchCandidate[]>(
+    [],
+  );
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
+  const [selectedExternalFood, setSelectedExternalFood] =
+    useState<AiFoodParseExternalFood | null>(null);
   const [servingMultiplier, setServingMultiplier] = useState('1');
+  const [nutritionEdited, setNutritionEdited] = useState(false);
+  const [complexNutrients, setComplexNutrients] = useState<
+    Record<NormalizedNutrientKey, string>
+  >(
+    () =>
+      Object.fromEntries(
+        NORMALIZED_NUTRIENT_KEYS.map((key) => [key, '']),
+      ) as Record<NormalizedNutrientKey, string>,
+  );
   const [saveAsReusableFood, setSaveAsReusableFood] = useState(false);
   const [recentError, setRecentError] = useState<string | null>(null);
   const [savedFoodsError, setSavedFoodsError] = useState<string | null>(null);
@@ -368,8 +453,10 @@ export default function FoodLogScreen() {
       setShowMore(nextTrackingMode === 'complex');
       if (scannedFoodItemId === null) {
         setSelectedFood(null);
+        setSelectedExternalFood(null);
       }
       setServingMultiplier('1');
+      setNutritionEdited(false);
       setLoadingRecord(false);
       return;
     }
@@ -390,7 +477,9 @@ export default function FoodLogScreen() {
         nextTrackingMode === 'complex' || hasOptionalDetails(foodLog),
       );
       setSelectedFood(null);
+      setSelectedExternalFood(null);
       setServingMultiplier('1');
+      setNutritionEdited(false);
     } catch (error) {
       setLoadError(errorMessage(error));
     } finally {
@@ -419,10 +508,10 @@ export default function FoodLogScreen() {
 
     const timeout = setTimeout(() => {
       void api.foodItems
-        .list({ query, limit: 10 })
-        .then((foodItems) => {
+        .searchCandidates({ query, limit: 10 })
+        .then((candidates) => {
           if (!cancelled) {
-            setFoodSearchResults(foodItems);
+            setFoodSearchResults(candidates);
             setSearchedFoodQuery(query);
           }
         })
@@ -449,6 +538,49 @@ export default function FoodLogScreen() {
   const returnToHistory = () => {
     markDataChanged();
     router.replace('/(tabs)/history');
+  };
+
+  const selectedNutritionSource = selectedFood ?? selectedExternalFood;
+
+  const nutritionOverrideFromValues = (
+    values: FoodForm,
+  ): FoodLogNutritionOverride | undefined => {
+    if (!nutritionEdited) return undefined;
+
+    const override: FoodLogNutritionOverride = {
+      mode: trackingMode,
+      calories: Math.round(Number(values.calories)),
+      protein: Number(values.protein),
+      carbs: nullableNumber(values.carbs),
+      fat: nullableNumber(values.fat),
+      fiber: nullableNumber(values.fiber),
+      sugar: nullableNumber(values.sugar),
+      sodium: nullableInteger(values.sodium),
+    };
+
+    if (trackingMode === 'complex') {
+      const nutrients = Object.fromEntries(
+        NORMALIZED_NUTRIENT_KEYS.flatMap((key) => {
+          const value = complexNutrients[key].trim();
+          if (value === '') return [];
+          return [
+            [
+              key,
+              {
+                amount: Number(value),
+                unit: NUTRIENT_CATALOG[key].defaultUnit,
+              },
+            ],
+          ];
+        }),
+      ) as NormalizedNutrientMap;
+
+      if (Object.keys(nutrients).length > 0) {
+        override.nutrients = nutrients;
+      }
+    }
+
+    return override;
   };
 
   const submit = handleSubmit(async (values) => {
@@ -500,11 +632,35 @@ export default function FoodLogScreen() {
             mealType: values.mealType,
             loggedAt,
             servingMultiplier: multiplier,
+            nutritionOverride: nutritionOverrideFromValues(values),
             ...(values.notes.trim() === ''
               ? {}
               : { notes: values.notes.trim() }),
           };
           await api.foodLogs.createFromFoodItem(input);
+        } else if (selectedExternalFood !== null) {
+          const multiplier = Number(servingMultiplier);
+          if (!Number.isFinite(multiplier) || multiplier <= 0) {
+            setSubmitError('Amount must be greater than 0.');
+            return;
+          }
+
+          await api.foodLogs.createFromCandidates({
+            mealType: values.mealType,
+            loggedAt,
+            ...(values.notes.trim() === ''
+              ? {}
+              : { notes: values.notes.trim() }),
+            items: [
+              {
+                candidateType: 'external_food',
+                sourceProvider: selectedExternalFood.sourceProvider,
+                sourceId: selectedExternalFood.sourceId,
+                servingMultiplier: multiplier,
+                nutritionOverride: nutritionOverrideFromValues(values),
+              },
+            ],
+          });
         } else if (saveAsReusableFood) {
           const foodItemInput: FoodItemInput = {
             name: values.foodName.trim(),
@@ -592,28 +748,66 @@ export default function FoodLogScreen() {
       return foodItem.isSaved ? [foodItem, ...withoutFood] : withoutFood;
     });
     setFoodSearchResults((current) =>
-      current.map((item) => (item.id === foodItem.id ? foodItem : item)),
+      current.map((candidate) =>
+        candidate.candidateType === 'food_item' &&
+        candidate.foodItem.id === foodItem.id
+          ? { ...candidate, foodItem }
+          : candidate,
+      ),
     );
     setSelectedFood((current) =>
       current?.id === foodItem.id ? foodItem : current,
     );
   };
 
-  const selectFoodItem = (foodItem: FoodItem, multiplier = '1') => {
+  const selectNutritionSource = (source: NutritionSource, multiplier = '1') => {
     const current = getValues();
-    reset(formValuesFromFoodItem(foodItem, current));
-    setSelectedFood(foodItem);
+    const parsedMultiplier = Number(multiplier);
+    const amount =
+      Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
+        ? parsedMultiplier
+        : 1;
+    reset(formValuesFromFoodItem(source, current, amount));
     setServingMultiplier(multiplier);
+    setComplexNutrients(sourceNutrientValues(source, amount));
+    setNutritionEdited(false);
     setSaveAsReusableFood(false);
-    setShowMore(
-      trackingMode === 'complex' || hasFoodItemOptionalDetails(foodItem),
-    );
+    setShowMore(trackingMode === 'complex' || hasSourceOptionalDetails(source));
     setSubmitError(null);
+  };
+
+  const selectFoodItem = (foodItem: FoodItem, multiplier = '1') => {
+    setSelectedFood(foodItem);
+    setSelectedExternalFood(null);
+    selectNutritionSource(foodItem, multiplier);
+  };
+
+  const selectExternalFood = (food: AiFoodParseExternalFood) => {
+    setSelectedFood(null);
+    setSelectedExternalFood(food);
+    selectNutritionSource(food);
+  };
+
+  const updateServingMultiplier = (value: string) => {
+    setServingMultiplier(value);
+    const source = selectedFood ?? selectedExternalFood;
+    if (source === null) return;
+
+    const parsedMultiplier = Number(value);
+    const amount =
+      Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
+        ? parsedMultiplier
+        : 1;
+    reset(formValuesFromFoodItem(source, getValues(), amount));
+    setComplexNutrients(sourceNutrientValues(source, amount));
+    setNutritionEdited(false);
   };
 
   const clearSelectedFood = () => {
     setSelectedFood(null);
+    setSelectedExternalFood(null);
     setServingMultiplier('1');
+    setNutritionEdited(false);
     setScannedFoodError(null);
     setSubmitError(null);
   };
@@ -689,7 +883,9 @@ export default function FoodLogScreen() {
       }),
     );
     setSelectedFood(null);
+    setSelectedExternalFood(null);
     setServingMultiplier('1');
+    setNutritionEdited(false);
     setSaveAsReusableFood(false);
     setShowMore(trackingMode === 'complex' || hasOptionalDetails(foodLog));
     setSubmitError(null);
@@ -898,7 +1094,7 @@ export default function FoodLogScreen() {
             )}
           </View>
 
-          {selectedFood === null ? null : (
+          {selectedNutritionSource === null ? null : (
             <View className="gap-3 border-y border-line py-3">
               <View className="flex-row items-center justify-between gap-3">
                 <View className="min-w-0 flex-1">
@@ -906,8 +1102,19 @@ export default function FoodLogScreen() {
                     Selected food
                   </AppText>
                   <AppText variant="label" numberOfLines={1}>
-                    {selectedFood.name}
+                    {selectedNutritionSource.name}
                   </AppText>
+                  {selectedExternalFood === null ? null : (
+                    <AppText variant="caption" muted>
+                      Generic food match ·{' '}
+                      {selectedExternalFood.servingBasisText}
+                    </AppText>
+                  )}
+                  {nutritionEdited ? (
+                    <AppText variant="caption" className="text-sage-dark">
+                      Manual override
+                    </AppText>
+                  ) : null}
                 </View>
                 <Pressable
                   accessibilityLabel="Clear selected food"
@@ -922,13 +1129,13 @@ export default function FoodLogScreen() {
               </View>
               <ServingMultiplierControl
                 value={servingMultiplier}
-                onChange={setServingMultiplier}
+                onChange={updateServingMultiplier}
               />
-              {Object.keys(selectedFood.nutrients).length === 0 ||
+              {Object.keys(selectedNutritionSource.nutrients).length === 0 ||
               trackingMode !== 'complex' ? null : (
                 <AppText variant="caption" className="text-muted">
-                  {Object.keys(selectedFood.nutrients).length} more nutrients
-                  available
+                  {Object.keys(selectedNutritionSource.nutrients).length} more
+                  nutrients available
                 </AppText>
               )}
             </View>
@@ -962,19 +1169,56 @@ export default function FoodLogScreen() {
                 </View>
               ) : foodSearchResults.length > 0 ? (
                 <View className="border-y border-line">
-                  {foodSearchResults.map((foodItem, index) => (
+                  {foodSearchResults.map((candidate, index) => (
                     <View
-                      key={foodItem.id}
+                      key={candidateId(candidate)}
                       className={index === 0 ? '' : 'border-t border-line'}
                     >
-                      <FoodItemChoiceRow
-                        foodItem={foodItem}
-                        mode={trackingMode}
-                        selected={selectedFood?.id === foodItem.id}
-                        saving={savingFoodItemId === foodItem.id}
-                        onPress={() => selectFoodItem(foodItem)}
-                        onToggleSave={() => void toggleSavedFood(foodItem)}
-                      />
+                      {candidate.candidateType === 'food_item' ? (
+                        <FoodItemChoiceRow
+                          foodItem={candidate.foodItem}
+                          mode={trackingMode}
+                          selected={selectedFood?.id === candidate.foodItem.id}
+                          saving={savingFoodItemId === candidate.foodItem.id}
+                          onPress={() => selectFoodItem(candidate.foodItem)}
+                          onToggleSave={() =>
+                            void toggleSavedFood(candidate.foodItem)
+                          }
+                        />
+                      ) : (
+                        <Pressable
+                          accessibilityRole="button"
+                          className="flex-row items-center justify-between gap-3 px-4 py-3.5 active:bg-module-muted"
+                          onPress={() =>
+                            selectExternalFood(candidate.externalFood)
+                          }
+                        >
+                          <View className="min-w-0 flex-1 gap-0.5">
+                            <AppText variant="label" numberOfLines={1}>
+                              {candidate.externalFood.name}
+                            </AppText>
+                            <AppText variant="caption" muted>
+                              {candidateSourceCopy(candidate)}
+                            </AppText>
+                          </View>
+                          <View className="items-end gap-0.5">
+                            {candidate.externalFood.calories === null ? null : (
+                              <AppText
+                                variant="label"
+                                className="text-ink tabular-nums"
+                              >
+                                {candidate.externalFood.calories} kcal
+                              </AppText>
+                            )}
+                            {candidate.externalFood.protein === null ? null : (
+                              <AppText variant="caption" muted>
+                                {candidate.externalFood.protein.toFixed(1)} g
+                                protein
+                              </AppText>
+                            )}
+                          </View>
+                        </Pressable>
+                      )}
                     </View>
                   ))}
                 </View>
@@ -1139,7 +1383,12 @@ export default function FoodLogScreen() {
               placeholder="280"
               value={field.value}
               onBlur={field.onBlur}
-              onChangeText={field.onChange}
+              onChangeText={(value) => {
+                if (selectedNutritionSource !== null) {
+                  setNutritionEdited(true);
+                }
+                field.onChange(value);
+              }}
               error={errors.calories?.message}
             />
           )}
@@ -1159,7 +1408,12 @@ export default function FoodLogScreen() {
               placeholder="52"
               value={field.value}
               onBlur={field.onBlur}
-              onChangeText={field.onChange}
+              onChangeText={(value) => {
+                if (selectedNutritionSource !== null) {
+                  setNutritionEdited(true);
+                }
+                field.onChange(value);
+              }}
               error={errors.protein?.message}
             />
           )}
@@ -1214,7 +1468,12 @@ export default function FoodLogScreen() {
                     keyboardType="decimal-pad"
                     value={field.value}
                     onBlur={field.onBlur}
-                    onChangeText={field.onChange}
+                    onChangeText={(value) => {
+                      if (selectedNutritionSource !== null) {
+                        setNutritionEdited(true);
+                      }
+                      field.onChange(value);
+                    }}
                     error={errors[name]?.message}
                   />
                 )}
@@ -1236,11 +1495,43 @@ export default function FoodLogScreen() {
                   keyboardType="number-pad"
                   value={field.value}
                   onBlur={field.onBlur}
-                  onChangeText={field.onChange}
+                  onChangeText={(value) => {
+                    if (selectedNutritionSource !== null) {
+                      setNutritionEdited(true);
+                    }
+                    field.onChange(value);
+                  }}
                   error={errors.sodium?.message}
                 />
               )}
             />
+            {trackingMode === 'complex' ? (
+              <View className="gap-3 border-t border-line pt-4">
+                <View className="gap-0.5">
+                  <AppText variant="label">Detailed nutrients</AppText>
+                  <AppText variant="caption" muted>
+                    Complex mode edits apply only to this food log.
+                  </AppText>
+                </View>
+                {NORMALIZED_NUTRIENT_KEYS.map((key) => (
+                  <AppInput
+                    key={key}
+                    label={`${NUTRIENT_CATALOG[key].displayName} (${NUTRIENT_CATALOG[key].defaultUnit})`}
+                    keyboardType="decimal-pad"
+                    value={complexNutrients[key]}
+                    onChangeText={(value) => {
+                      setComplexNutrients((current) => ({
+                        ...current,
+                        [key]: value,
+                      }));
+                      if (selectedNutritionSource !== null) {
+                        setNutritionEdited(true);
+                      }
+                    }}
+                  />
+                ))}
+              </View>
+            ) : null}
             <Controller
               control={control}
               name="servingQuantity"
@@ -1293,7 +1584,7 @@ export default function FoodLogScreen() {
           </View>
         ) : null}
 
-        {!isEditing && selectedFood === null ? (
+        {!isEditing && selectedNutritionSource === null ? (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ checked: saveAsReusableFood }}

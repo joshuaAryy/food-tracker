@@ -81,11 +81,10 @@ User describes food or provides an image
 → backend saves confirmed FoodLog
 ```
 
-The future food system should continue the hybrid strategy started in Phase 8:
-app-owned cached and user food records, Open Food Facts for barcode-first
-packaged food lookup, and USDA FoodData Central for generic foods and detailed
-nutrients. External food data should be cached into the app database where
-appropriate.
+The food system continues the hybrid strategy started in Phase 8: app-owned
+cached and user food records, Open Food Facts for barcode-first packaged food
+lookup, and USDA FoodData Central for generic foods and detailed nutrients.
+External food data should be cached into the app database where appropriate.
 
 AI is not the nutrition source of truth. Phase 12 uses Gemini as the first
 hosted parser behind a backend provider abstraction. API keys live only in
@@ -94,6 +93,14 @@ and performs deterministic lexical retrieval against trusted `FoodItem` data.
 AI must not silently save logs, invent nutrient data when trusted data is
 available, bypass user confirmation, or replace backend validation. Vector
 databases, embeddings, and self-hosted model serving are deferred.
+
+Phase 12.5 adds USDA FoodData Central as a backend-owned generic food fallback
+when local trusted `FoodItem` retrieval has no loggable match. USDA/FDC API
+keys live only in backend environment variables. Mobile receives structured
+review candidates, including explicit nutrient basis copy such as `per 100 g`,
+but never receives USDA keys or submits USDA nutrition as truth. Selected USDA
+references are refetched and cached by the backend before normal FoodLog
+snapshots are created.
 
 Photo logging belongs after the food database and retrieval foundations. See
 [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md) for the detailed

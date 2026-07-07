@@ -164,19 +164,56 @@ export type AiFoodCandidateMatchReason =
   | 'custom'
   | 'app'
   | 'cached_external'
-  | 'barcode_cached';
+  | 'barcode_cached'
+  | 'usda_fdc';
 
 export type AiFoodCandidateConfidence = 'high' | 'medium' | 'low';
 
 export type AiFoodReviewStatus = 'matched' | 'needs_review' | 'unmatched';
 
-export interface AiFoodParseCandidate {
+export interface AiFoodParseExternalFood {
+  sourceProvider: 'usda_fdc';
+  sourceId: string;
+  name: string;
+  brandName: string | null;
+  foodType: FoodItemType;
+  servingBasisText: string;
+  servingQuantity: number | null;
+  servingUnit: string | null;
+  servingWeightGrams: number | null;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+  nutrients: NormalizedNutrientMap;
+}
+
+export interface AiFoodParseFoodItemCandidate {
+  candidateType: 'food_item';
   foodItem: FoodItem;
+  externalFood: null;
   rank: number;
   matchReason: AiFoodCandidateMatchReason;
   confidence: AiFoodCandidateConfidence;
   defaultServingMultiplier: number;
 }
+
+export interface AiFoodParseExternalCandidate {
+  candidateType: 'external_food';
+  foodItem: null;
+  externalFood: AiFoodParseExternalFood;
+  rank: number;
+  matchReason: 'usda_fdc';
+  confidence: AiFoodCandidateConfidence;
+  defaultServingMultiplier: number;
+}
+
+export type AiFoodParseCandidate =
+  | AiFoodParseFoodItemCandidate
+  | AiFoodParseExternalCandidate;
 
 export interface AiFoodParsedItem {
   id: string;

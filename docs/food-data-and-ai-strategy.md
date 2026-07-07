@@ -480,7 +480,8 @@ Retrieval should use:
 - custom foods
 - cached app food database
 - cached barcode/Open Food Facts foods
-- generic and branded food databases later
+- generic USDA FoodData Central foods when local trusted sources do not have a
+  loggable match
 
 AI can help with:
 
@@ -509,6 +510,112 @@ Partial logging is allowed at the review-selection level: a user can log the
 matched/loggable foods and leave unmatched items unresolved. Persistence
 remains transactional for the selected confirmed rows in a single confirm
 request.
+
+### Phase 12.5 Generic Food Nutrition Lookup
+
+Phase 12.5 adds USDA FoodData Central as the first trusted generic food
+nutrition lookup layer for AI-assisted text logging and normal food search.
+Gemini still parses meal intent only. USDA/local/custom/Open Food Facts/cached
+data provide nutrition. There is no AI-estimated nutrition fallback in this
+phase.
+
+The Phase 12.5 pipeline is:
+
+```text
+User describes food
+↓
+Gemini parses food intent
+↓
+backend searches local trusted FoodItems
+↓
+if no local loggable match exists, backend searches USDA FoodData Central
+↓
+backend returns nutrient-backed candidates with explicit serving basis
+↓
+user reviews/edits/selects
+↓
+backend refetches/caches selected USDA foods and saves FoodLog snapshots
+```
+
+Normal food search also uses the same local-first candidate model:
+
+```text
+User searches food
+↓
+backend searches visible local FoodItems
+↓
+backend may add USDA generic candidates after local matches
+↓
+user selects a candidate, reviews amount/nutrition, and saves
+↓
+backend refetches/caches selected USDA foods and saves FoodLog snapshots
+```
+
+USDA candidates must make their nutrient basis explicit, for example
+`per 100 g`. The app must not pretend parsed quantities such as `2 eggs` were
+perfectly converted unless the backend has a safe serving/gram conversion. If
+quantity conversion is uncertain, the candidate can be loggable but should
+remain a review item with an adjustable multiplier.
+
+USDA/FDC API keys live only in backend environment variables. Mobile clients
+never receive USDA keys, and backend diagnostics must not log full key-bearing
+URLs or raw error bodies that expose request links or API keys.
+
+Serving changes in item-based logging flows must update the visible nutrition
+preview immediately. The backend still refetches trusted source data and saves
+the final FoodLog snapshot server-side. User nutrient edits in review/logging
+flows are explicit FoodLog-level overrides only; they must not mutate trusted
+USDA, Open Food Facts, app-owned, or global cached FoodItem rows. Simple mode
+only exposes calories, protein, carbs, fat, fiber, sugar, and sodium editing.
+Complex mode can expose supported normalized nutrient catalog entries.
+
+Phase 12.5 does not add a vector database, embeddings, photo logging,
+automatic logging, or AI-estimated calories/macros/micros. Missing nutrients
+remain null/absent, not zero.
+
+### Phase 12.6 AI-Estimated Nutrition Fallback
+
+Phase 12.6 is the next candidate after Phase 12.5. It should add a last-resort
+AI-estimated nutrition fallback only when trusted local/custom/saved/recent,
+cached barcode/Open Food Facts, and USDA sources fail.
+
+Rules:
+
+- clearly label rows as low-trust or AI-estimated
+- require user review before saving
+- save estimates as FoodLog-level values or overrides only
+- do not create trusted FoodItems from AI estimates
+- start with basic calories and macros only
+- do not hallucinate full micronutrients
+
+### Phase 12.7 Food Coverage And Candidate Ranking
+
+Phase 12.7 should improve trusted food coverage and candidate ranking before
+adding more AI authority. USDA ranking quality should improve first. Examples:
+plain banana should prefer raw banana over banana powder; eggs should prefer
+common egg variants; salmon should avoid irrelevant branded or unusual results
+when a generic match is expected. Canadian Nutrient File, improved Open Food
+Facts text search, and commercial APIs can be evaluated later.
+
+### Phase 12.8 Serving Intelligence
+
+Phase 12.8 should add safer serving and household-unit conversion for entries
+such as `1 egg`, `2 eggs`, `1 slice`, `1 cup`, and `100 g`. The app must
+preserve honest review states when conversion is uncertain and must not imply a
+precise gram conversion without a trusted basis.
+
+### Phase 12.9 Recipes And Mixed Meals
+
+Phase 12.9 should address homemade meals, ingredient-based logging, reusable
+recipes, and mixed-meal review. Recipes should reuse trusted ingredient data
+and should not let AI become the nutrition source of truth.
+
+### Phase 13 Custom Food Library
+
+Phase 13 should improve personal food-library behavior: saving adjusted logs as
+reusable custom foods when safe, improving saved/recent reuse, adding default
+serving preferences, and keeping trusted global foods separate from
+user-created custom foods.
 
 ## Photo Food Logging
 

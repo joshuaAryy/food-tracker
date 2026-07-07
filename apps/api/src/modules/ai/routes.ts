@@ -30,8 +30,9 @@ aiRouter.post(
       );
     }
 
+    const rateLimitKey = `${userId}:${request.ip ?? 'unknown'}`;
     assertAiFoodParseLimit({
-      key: `${userId}:${request.ip ?? 'unknown'}`,
+      key: rateLimitKey,
       windowMs: config.rateLimitWindowMs,
       windowMax: config.rateLimitMax,
       dailyMax: config.dailyLimit,
@@ -42,7 +43,11 @@ aiRouter.post(
       0,
       config.maxItems,
     );
-    const items = await retrieveParsedFoodItems({ userId, parsedItems });
+    const items = await retrieveParsedFoodItems({
+      userId,
+      rateLimitKey,
+      parsedItems,
+    });
 
     sendSuccess(response, {
       description: input.description,

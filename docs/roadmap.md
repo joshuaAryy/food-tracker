@@ -150,7 +150,7 @@ than Phase 10 scope.
 
 - local cached barcode lookup
 - Open Food Facts barcode lookup
-- USDA/branded fallback where useful
+- future USDA/branded fallback where useful
 - custom food creation when not found
 - barcode-linked food caching
 
@@ -158,7 +158,7 @@ Initial Phase 11 implementation adds an Expo camera barcode scanner entry point
 inside food logging, backend barcode lookup with local cache first and Open
 Food Facts second, conservative Open Food Facts normalization into normal
 `FoodItem`/`FoodBarcode` records, and return into the existing selected-food
-logging flow. USDA fallback remains later work.
+logging flow. USDA fallback remained later work until Phase 12.5.
 
 Phase 11 is complete enough to move forward. It also includes camera
 permission handling, native iPhone scanner testing and fixes, save/unsave and
@@ -169,8 +169,9 @@ Phase 11 does not implement AI/RAG logging, photo recognition, saved meals,
 custom graphs, streaks/reporting UI, recommendation engine changes, full
 micronutrient editing UI, real auth, deployment, or TestFlight.
 
-## Phase 12 — RAG-Assisted AI Text Logging — Active / Next
+## Phase 12 — RAG-Assisted AI Text Logging — Complete
 
+- Describe Meal flow for natural-language meal text
 - Gemini-backed text parse provider behind a backend provider abstraction
 - backend-only AI provider environment variables
 - deterministic lexical retrieval from trusted `FoodItem` data
@@ -181,7 +182,82 @@ micronutrient editing UI, real auth, deployment, or TestFlight.
 AI must not become the nutrition source of truth. Phase 12 uses AI only to
 parse and structure meal intent; nutrition comes from matched trusted food data.
 
-## Phase 13 — Photo Food Logging
+## Phase 12.5 — Generic Food Nutrition Lookup — Complete / Ready To Commit
+
+- USDA FoodData Central as the first generic food nutrition source
+- backend-only USDA/FDC API key handling
+- USDA/generic candidates available in AI text logging and normal food search
+- local FoodItems rank before USDA/generic candidates
+- USDA fallback after local recent, saved, custom, app-owned, cached barcode,
+  and Open Food Facts food matches
+- nutrient normalization into existing FoodItem columns and normalized
+  nutrient rows
+- explicit serving basis on USDA candidates, such as `per 100 g`
+- candidate selection/change in AI review rows
+- serving multiplier changes recalculate visible nutrition previews for
+  item-based logging flows
+- explicit FoodLog-level nutrition overrides
+- Simple mode edits only main nutrients
+- Complex mode can edit supported normalized nutrient catalog entries
+- user review remains required before saving
+
+Phase 12.5 makes generic foods such as eggs, banana, rice, chicken, and toast
+available as nutrient-backed candidates without letting Gemini invent
+nutrition. USDA failures degrade safely to local-only results. User nutrient
+edits are saved as FoodLog snapshot overrides only and must not mutate trusted
+USDA, Open Food Facts, global, or cached FoodItem records. AI-estimated
+nutrition remains deferred.
+
+## Phase 12.6 — AI-Estimated Nutrition Fallback — Active / Next Candidate
+
+- only used after local, custom, saved, recent, cached barcode, Open Food
+  Facts, and USDA trusted sources fail
+- clearly labeled low-trust or AI-estimated
+- user-reviewed before saving
+- saved as a FoodLog-level estimate/override only
+- does not create trusted FoodItems
+- starts with basic calories and macros only
+- does not hallucinate full micronutrients
+
+AI-estimated fallback is a last-resort speed feature, not a trusted food-data
+source. It must remain visibly different from local/OFF/USDA-backed logging.
+
+## Phase 12.7 — Food Coverage + Candidate Ranking Improvements
+
+- improve USDA ranking quality first
+- prefer common generic foods over odd or irrelevant matches
+- examples:
+  - plain banana should prefer raw banana over banana powder
+  - eggs should prefer common egg variants such as raw, boiled, fried,
+    scrambled, or egg white depending on user wording
+  - salmon should avoid irrelevant branded or unusual results when a generic
+    match is expected
+- evaluate Canadian Nutrient File, improved Open Food Facts text search, and
+  commercial APIs later
+
+## Phase 12.8 — Serving Intelligence / Household Unit Conversion
+
+- safer conversions for `1 egg`, `2 eggs`, `1 slice`, `1 cup`, `100 g`, and
+  similar serving language
+- preserve honest `needs_review` state when conversion is uncertain
+- do not imply precise gram conversion unless the backend has a safe basis
+
+## Phase 12.9 — Recipes And Mixed Meals
+
+- homemade meals
+- ingredient-based logging
+- reusable recipes
+- mixed-meal review and reuse without making AI nutrition authoritative
+
+## Phase 13 — Custom Food Library And Saved Foods
+
+- save adjusted logs as reusable custom foods when safe
+- improve saved and recent food reuse
+- default serving preferences
+- personal food library behavior
+- clearer distinction between trusted global foods and user-custom foods
+
+## Phase 14 — Photo Food Logging
 
 - image capture/upload
 - food recognition
@@ -194,7 +270,7 @@ parse and structure meal intent; nutrition comes from matched trusted food data.
 
 Photo logging comes after food database and RAG foundations.
 
-## Phase 14 — Streaks + Better Reporting
+## Phase 15 — Streaks + Better Reporting
 
 - logging streaks
 - weekly consistency
@@ -207,7 +283,7 @@ Photo logging comes after food database and RAG foundations.
 - Simple mode summaries
 - Complex mode deeper reporting
 
-## Phase 15 — Custom Graphs + Complex Analytics
+## Phase 16 — Custom Graphs + Complex Analytics
 
 - customizable graphs
 - graph metric selection
@@ -221,7 +297,7 @@ Photo logging comes after food database and RAG foundations.
 Charts should follow the Phase 6 visual standard and avoid generic dashboard
 card spam.
 
-## Phase 16 — Recommendation Engine 2.0
+## Phase 17 — Recommendation Engine 2.0
 
 - recommendations informed by richer nutrient summaries
 - better confidence and evidence display
@@ -231,7 +307,7 @@ card spam.
 AI must not calculate analytics, identify deficits, decide recommendations, or
 query the database directly.
 
-## Phase 17 — Real Auth + User Accounts
+## Phase 18 — Real Auth + User Accounts
 
 - Supabase Auth integration at the existing current-user boundary
 - user-isolation regression coverage
@@ -241,7 +317,7 @@ query the database directly.
 
 Do not build custom password authentication or production-scale infrastructure.
 
-## Phase 18 — Deployment / TestFlight Readiness
+## Phase 19 — Deployment / TestFlight Readiness
 
 - deployment hardening
 - environment configuration

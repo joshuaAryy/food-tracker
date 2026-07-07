@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
   DEFAULT_TIMEZONE,
+  type FoodLogNutritionOverride,
+  foodLogsFromCandidatesInputSchema,
   foodLogFromFoodItemInputSchema,
   foodLogsFromFoodItemsInputSchema,
   foodLogInputSchema,
@@ -16,6 +18,10 @@ import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeFoodLog } from '../../lib/serializers.js';
 import {
+  findOrCreateUsdaFoodItem,
+  usdaFdcConfig,
+} from '../foodItems/usda-fdc.js';
+import {
   validateBody,
   validateParams,
   validateQuery,
@@ -28,6 +34,9 @@ type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 type FoodLogFromFoodItemInput = z.infer<typeof foodLogFromFoodItemInputSchema>;
 type FoodLogsFromFoodItemsInput = z.infer<
   typeof foodLogsFromFoodItemsInputSchema
+>;
+type FoodLogsFromCandidatesInput = z.infer<
+  typeof foodLogsFromCandidatesInputSchema
 >;
 type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
@@ -127,6 +136,61 @@ function scaledOptionalInteger(
   multiplier: number,
 ): number | null {
   return value === null ? null : Math.round(value * multiplier);
+}
+
+type FoodLogCreateData = ReturnType<typeof logFromFoodItemData>;
+
+function applyNutritionOverride(
+  data: FoodLogCreateData,
+  override: FoodLogNutritionOverride | undefined,
+): FoodLogCreateData {
+  if (override === undefined) return data;
+
+  const next = { ...data };
+  if (override.calories !== undefined && override.calories !== null) {
+    next.calories = Math.round(override.calories);
+  }
+  if (override.protein !== undefined && override.protein !== null) {
+    next.protein = roundTo(override.protein, 1);
+  }
+  if (override.carbs !== undefined) {
+    next.carbs = override.carbs === null ? null : roundTo(override.carbs, 1);
+  }
+  if (override.fat !== undefined) {
+    next.fat = override.fat === null ? null : roundTo(override.fat, 1);
+  }
+  if (override.fiber !== undefined) {
+    next.fiber = override.fiber === null ? null : roundTo(override.fiber, 1);
+  }
+  if (override.sugar !== undefined) {
+    next.sugar = override.sugar === null ? null : roundTo(override.sugar, 1);
+  }
+  if (override.sodium !== undefined) {
+    next.sodium = override.sodium === null ? null : Math.round(override.sodium);
+  }
+
+  if (override.nutrients !== undefined) {
+    if (override.nutrients === null) {
+      next.nutrients = { create: [] };
+      return next;
+    }
+
+    const nutrientRows = new Map(
+      next.nutrients.create.map((nutrient) => [nutrient.nutrientKey, nutrient]),
+    );
+
+    for (const [nutrientKey, nutrient] of Object.entries(override.nutrients)) {
+      nutrientRows.set(nutrientKey as NutrientKey, {
+        nutrientKey: nutrientKey as NutrientKey,
+        amount: roundTo(nutrient.amount, 4),
+        unit: nutrient.unit as NutrientUnit,
+      });
+    }
+
+    next.nutrients = { create: [...nutrientRows.values()] };
+  }
+
+  return next;
 }
 
 function logFromFoodItemData(
@@ -240,7 +304,10 @@ foodLogsRouter.post(
     const foodLog = await prisma.foodLog.create({
       data: {
         userId,
-        ...logFromFoodItemData(foodItem, input),
+        ...applyNutritionOverride(
+          logFromFoodItemData(foodItem, input),
+          input.nutritionOverride,
+        ),
       },
       include: foodLogInclude,
     });
@@ -273,13 +340,68 @@ foodLogsRouter.post(
         const foodLog = await tx.foodLog.create({
           data: {
             userId,
-            ...logFromFoodItemData(foodItem, {
-              foodItemId: item.foodItemId,
-              mealType: input.mealType,
-              loggedAt: input.loggedAt,
-              servingMultiplier: item.servingMultiplier,
-              notes: input.notes,
-            }),
+            ...applyNutritionOverride(
+              logFromFoodItemData(foodItem, {
+                foodItemId: item.foodItemId,
+                mealType: input.mealType,
+                loggedAt: input.loggedAt,
+                servingMultiplier: item.servingMultiplier,
+                notes: input.notes,
+              }),
+              item.nutritionOverride,
+            ),
+          },
+          include: foodLogInclude,
+        });
+
+        createdFoodLogs.push(foodLog);
+      }
+
+      return createdFoodLogs;
+    });
+
+    sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });
+  },
+);
+
+foodLogsRouter.post(
+  '/from-candidates',
+  validateBody(foodLogsFromCandidatesInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodLogsFromCandidatesInput>(response);
+    const usdaConfig = usdaFdcConfig();
+
+    const foodLogs = await prisma.$transaction(async (tx) => {
+      const createdFoodLogs = [];
+
+      for (const item of input.items) {
+        const foodItem =
+          item.candidateType === 'food_item'
+            ? await visibleFoodItemInTransaction(tx, item.foodItemId, userId)
+            : await findOrCreateUsdaFoodItem({
+                sourceId: item.sourceId,
+                config: usdaConfig,
+                transaction: tx,
+              });
+
+        if (foodItem === null) {
+          throw notFoundError('Food item');
+        }
+
+        const foodLog = await tx.foodLog.create({
+          data: {
+            userId,
+            ...applyNutritionOverride(
+              logFromFoodItemData(foodItem, {
+                foodItemId: foodItem.id,
+                mealType: input.mealType,
+                loggedAt: input.loggedAt,
+                servingMultiplier: item.servingMultiplier,
+                notes: input.notes,
+              }),
+              item.nutritionOverride,
+            ),
           },
           include: foodLogInclude,
         });

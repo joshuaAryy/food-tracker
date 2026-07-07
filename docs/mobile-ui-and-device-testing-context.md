@@ -427,6 +427,21 @@ matched/loggable parsed foods to be selected, removed, and amount-adjusted.
 Unmatched foods stay visible as unresolved rows and should direct the user back
 to manual search or entry.
 
+Phase 12.5 adds USDA generic food candidates to this same review surface.
+USDA rows should read as normal food matches, not as a technical search tool.
+Show simple source copy such as `USDA match` and keep the nutrient basis
+visible, such as `per 100 g`. Do not imply that messy quantities like `2 eggs`
+were perfectly converted unless the backend supplies a safe conversion.
+
+Normal food search also needs USDA/generic candidates after local results.
+Search results should still feel like Food Tracker rows, not a USDA browser:
+local/saved/custom rows first, then source copy such as `Generic food match`.
+Changing the selected candidate or serving multiplier must update visible
+calories/macros before save. Simple mode nutrient editing stays limited to
+calories, protein, carbs, fat, fiber, sugar, and sodium. Complex mode can show
+the supported normalized nutrient catalog. Any user-edited nutrition is a
+FoodLog-level override only.
+
 Manual smoke test for implementation:
 
 - open `Describe meal`
@@ -435,6 +450,13 @@ Manual smoke test for implementation:
 - review parsed rows
 - remove one row
 - adjust a matched row amount
+- switch between multiple candidates for a parsed food such as eggs
+- search manually for `banana`, `eggs`, `salmon`, or `plantain` and verify USDA
+  candidates appear after local matches
+- change a serving amount and verify displayed nutrition updates immediately
+- verify Simple mode only exposes main nutrient editing and Complex mode
+  exposes detailed nutrients
+- verify USDA-backed rows show explicit basis copy when present
 - leave an unmatched row unresolved
 - log selected rows
 - verify AI unavailable, rate-limit, and network error copy

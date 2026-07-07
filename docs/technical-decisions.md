@@ -310,10 +310,58 @@ replace backend validation.
 
 Every AI-assisted log requires a user review/confirmation step before saving.
 The UX may partially log selected matched items while leaving unmatched parsed
-items unresolved. The confirm endpoint accepts only selected loggable FoodItem
-rows and saves them as normal FoodLog snapshots.
+items unresolved. Phase 12 confirmation accepts selected loggable FoodItem rows
+and saves them as normal FoodLog snapshots; Phase 12.5 extends confirmation to
+selected backend-owned USDA references that are refetched and cached before
+snapshot logging.
 
-## TD-013: Photo Logging Sequencing
+## TD-013: USDA Generic Food Lookup
+
+Status: Implemented in Phase 12.5 for AI text logging fallback and normal food
+search candidate enrichment
+
+USDA FoodData Central is the first trusted generic food nutrition source. The
+backend may search USDA when deterministic local retrieval does not find a
+loggable candidate. USDA is a nutrition source; Gemini is not.
+
+USDA/FDC API keys live only in backend environment variables and are never sent
+to mobile clients. Diagnostics must not log full key-bearing USDA URLs, query
+parameters, raw API keys, or raw error bodies that expose request links with
+keys.
+
+USDA candidates must expose the nutrient basis clearly, such as `per 100 g`.
+The app must not pretend parsed quantities such as `2 eggs` were perfectly
+converted unless the backend has a safe gram/serving conversion. When quantity
+conversion is uncertain, USDA candidates may be loggable but should remain
+review items with adjustable multipliers.
+
+Selected USDA references are refetched server-side, normalized into existing
+FoodItem columns and FoodItemNutrient rows, cached as global
+`sourceType: cached_external`, `sourceProvider: usda_fdc` FoodItems, and then
+logged through normal FoodLog snapshot behavior. Missing nutrients remain
+unknown/null or absent, never zero. AI-estimated nutrition remains deferred.
+
+Normal food search keeps the existing local-only `GET /food-items` contract and
+uses a candidate-search route for mixed local plus USDA results. Local visible
+FoodItems rank before USDA candidates, and USDA outages must degrade to local
+results rather than breaking manual/search logging.
+
+User nutrition edits made during review/logging are FoodLog-level overrides.
+They must not mutate trusted source FoodItems or cache edited nutrients as
+global USDA/Open Food Facts data. Simple mode can override only main nutrients;
+Complex mode can override supported normalized nutrient catalog entries.
+
+## TD-014: AI-Estimated Nutrition Fallback
+
+Status: Planned for Phase 12.6
+
+AI-estimated nutrition is deferred until after local/custom/saved/recent,
+cached barcode/Open Food Facts, and USDA sources fail. If implemented, it must
+be visibly low-trust, user-reviewed before saving, and persisted only as a
+FoodLog-level estimate or override. It must not create trusted FoodItems or
+invent full micronutrients.
+
+## TD-015: Photo Logging Sequencing
 
 Status: Planned
 
@@ -326,7 +374,7 @@ detail review.
 Do not prioritize photo logging before trusted food search, barcode lookup,
 cached food data, and candidate review exist.
 
-## TD-014: Skeleton Loading
+## TD-015: Skeleton Loading
 
 Status: Planned
 

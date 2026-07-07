@@ -39,6 +39,8 @@ describe('AI food parse API', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.GEMINI_API_KEY;
+    delete process.env.USDA_FDC_API_KEY;
+    delete process.env.USDA_FDC_SEARCH_LIMIT;
   });
 
   it('rejects unknown input fields', async () => {
@@ -129,6 +131,88 @@ describe('AI food parse API', () => {
     });
   });
 
+  it('accepts Gemini JSON wrapped in markdown code fences', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: [
+                          '```json',
+                          JSON.stringify({
+                            items: [
+                              {
+                                name: 'eggs',
+                                quantityText: '2',
+                                servingText: '2 eggs',
+                              },
+                            ],
+                          }),
+                          '```',
+                        ].join('\n'),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: '2 eggs' })
+      .expect(200);
+
+    expect(response.body.data.items).toEqual([
+      expect.objectContaining({
+        parsedName: 'eggs',
+      }),
+    ]);
+  });
+
+  it('returns clean AI unavailable for invalid Gemini JSON', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [{ text: '{not valid json' }],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: '2 eggs' })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+  });
+
   it('retrieves candidates in trusted priority order and hides other users custom foods', async () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
 
@@ -185,7 +269,8 @@ describe('AI food parse API', () => {
 
     const item = response.body.data.items[0];
     const candidateIds = item.candidates.map(
-      (candidate: { foodItem: { id: string } }) => candidate.foodItem.id,
+      (candidate: { foodItem: { id: string } | null }) =>
+        candidate.foodItem?.id,
     );
 
     expect(response.body.data).toMatchObject({
@@ -207,6 +292,229 @@ describe('AI food parse API', () => {
       cached.id,
     ]);
     expect(candidateIds).not.toContain(otherUserFood.id);
+  });
+
+  it('adds USDA generic candidates with explicit serving basis when no local loggable match exists', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    const fetchSpy = vi.fn(async (url: string | URL) => {
+      const requestUrl = String(url);
+
+      if (requestUrl.includes('/foods/search')) {
+        return new Response(
+          JSON.stringify({
+            foods: [
+              {
+                fdcId: 173944,
+                description: 'Bananas, raw',
+                dataType: 'Foundation',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          fdcId: 173944,
+          description: 'Bananas, raw',
+          dataType: 'Foundation',
+          publicationDate: '2019-04-01',
+          foodNutrients: [
+            {
+              amount: 89,
+              nutrient: { name: 'Energy', unitName: 'KCAL' },
+            },
+            {
+              amount: 1.09,
+              nutrient: { name: 'Protein', unitName: 'G' },
+            },
+            {
+              amount: 22.84,
+              nutrient: {
+                name: 'Carbohydrate, by difference',
+                unitName: 'G',
+              },
+            },
+            {
+              amount: 2.6,
+              nutrient: { name: 'Fiber, total dietary', unitName: 'G' },
+            },
+            {
+              amount: 358,
+              nutrient: { name: 'Potassium, K', unitName: 'MG' },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'banana' })
+      .expect(200);
+
+    expect(response.body.data.items).toEqual([
+      expect.objectContaining({
+        parsedName: 'banana',
+        reviewStatus: 'needs_review',
+        loggable: true,
+        selectedCandidateId: 'usda_fdc:173944',
+        candidates: [
+          expect.objectContaining({
+            candidateType: 'external_food',
+            matchReason: 'usda_fdc',
+            confidence: 'medium',
+            defaultServingMultiplier: 1,
+            externalFood: expect.objectContaining({
+              sourceProvider: 'usda_fdc',
+              sourceId: '173944',
+              name: 'Bananas, raw',
+              servingBasisText: 'per 100 g',
+              servingQuantity: 100,
+              servingUnit: 'g',
+              calories: 89,
+              protein: 1.1,
+              carbs: 22.8,
+              fiber: 2.6,
+              nutrients: {
+                potassium: { amount: 358, unit: 'mg' },
+              },
+            }),
+          }),
+        ],
+      }),
+    ]);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call USDA when a local nutrient-backed candidate exists', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const localFood = await createFoodItem({
+      userId: null,
+      name: 'Banana',
+      sourceType: 'app_owned',
+      calories: 105,
+      protein: 1.3,
+    });
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'banana' })
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      reviewStatus: 'matched',
+      loggable: true,
+      selectedCandidateId: localFood.id,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps unmatched local-only behavior when USDA is not configured', async () => {
+    delete process.env.USDA_FDC_API_KEY;
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'banana' })
+      .expect(200);
+
+    expect(response.body.data.items).toEqual([
+      expect.objectContaining({
+        parsedName: 'banana',
+        reviewStatus: 'unmatched',
+        loggable: false,
+        selectedCandidateId: null,
+        candidates: [],
+      }),
+    ]);
+  });
+
+  it('returns unresolved rows when USDA search fails during parse', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'upstream unavailable' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'boiled plantain' })
+      .expect(200);
+
+    expect(response.body.data.items).toEqual([
+      expect.objectContaining({
+        parsedName: 'boiled plantain',
+        reviewStatus: 'unmatched',
+        loggable: false,
+        selectedCandidateId: null,
+        candidates: [],
+      }),
+    ]);
+  });
+
+  it('returns unresolved rows when USDA detail normalization is unsafe during parse', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 999,
+                  description: 'Plantains, boiled',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 999,
+            dataType: 'Foundation',
+            publicationDate: 'not-a-date',
+            foodNutrients: [
+              { amount: 122, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.3, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'boiled plantain' })
+      .expect(200);
+
+    expect(response.body.data.items).toEqual([
+      expect.objectContaining({
+        parsedName: 'boiled plantain',
+        reviewStatus: 'unmatched',
+        loggable: false,
+        selectedCandidateId: null,
+        candidates: [],
+      }),
+    ]);
   });
 
   it('returns unmatched items as review-only and not loggable', async () => {

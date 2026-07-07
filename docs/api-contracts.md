@@ -298,8 +298,10 @@ Barcode lookup is backend-owned; clients send scanned barcode values to the
 API and do not call external food-data providers directly. Scanned foods reuse
 the existing selected-food review and log-from-food snapshot flow instead of
 creating a separate logging model.
-The API does not use USDA, AI/RAG, photo logging, saved meals, or full Complex
-mode micronutrient editing in this phase.
+Phase 12.5 keeps `GET /food-items` local-only for compatibility and adds a
+candidate-search endpoint for mixed local plus USDA generic search results.
+The food item API still does not implement AI/RAG parsing, photo logging, saved
+meals, or trusted source-food mutation from user review edits.
 
 Visible food items are non-archived rows where `userId` is the current user or
 `userId` is `null`. Another user's custom food must never appear in list,
@@ -358,6 +360,43 @@ Success `data`:
   "foodItems": []
 }
 ```
+
+### `POST /api/v1/food-items/search-candidates`
+
+Searches visible local FoodItems first, then enriches with USDA generic food
+candidates when configured. This route is used by the normal mobile food search
+flow when it needs mixed candidates. It does not save FoodLogs and does not
+expose USDA API keys or raw USDA internals.
+
+Request:
+
+```json
+{
+  "query": "banana",
+  "limit": 8
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- local visible FoodItems rank before USDA candidates
+- other users' custom foods are never returned
+- USDA failures return the local candidate set instead of failing food search
+- USDA candidates include source refs and preview nutrition with explicit basis
+  copy such as `per 100 g`
+
+Success `data`:
+
+```json
+{
+  "candidates": []
+}
+```
+
+Candidate objects use the same `candidateType: "food_item"` or
+`candidateType: "external_food"` union documented in
+`POST /api/v1/ai/food-parse`.
 
 ### `GET /api/v1/food-items/barcode/:barcode`
 
@@ -666,6 +705,7 @@ Required fields:
 Optional fields:
 - `servingMultiplier` positive number, defaults to `1`
 - `notes`
+- `nutritionOverride`, an explicit user-confirmed FoodLog-level override
 
 The backend verifies that the food item is visible and non-archived for the
 current user. The food item must have calories and protein because those are
@@ -683,6 +723,12 @@ Scaling uses no serving-unit conversion. Calories and sodium are rounded to
 whole numbers. Protein, carbs, fat, fiber, and sugar are rounded to one
 decimal. Serving quantity is rounded to two decimals. Normalized nutrients are
 rounded to four decimals. Units are preserved.
+
+When `nutritionOverride` is present, the backend applies it only to the created
+FoodLog snapshot. It must not mutate the trusted FoodItem. Simple-mode
+overrides may include only calories, protein, carbs, fat, fiber, sugar, and
+sodium. Complex-mode overrides may also include supported normalized nutrient
+catalog entries. Missing values remain null/absent, never zero.
 
 Success `data` is the created food-log response object.
 
@@ -712,6 +758,7 @@ Rules:
 - each selected FoodItem must be visible, non-archived, and accessible to the
   current user
 - each selected FoodItem must have calories and protein
+- each selected row may include an explicit FoodLog-level `nutritionOverride`
 - missing optional nutrients remain `null` or absent, never zero
 - selected rows in one request are saved in a transaction
 
@@ -725,6 +772,59 @@ Success `data`:
 
 Each returned FoodLog uses the normal FoodLog response shape. If any selected
 row is invalid or unloggable, no selected rows from that request are saved.
+
+### `POST /api/v1/food-logs/from-candidates`
+
+Creates multiple FoodLogs from explicitly selected review candidates. This is
+used by AI text logging when a review list may contain persisted FoodItems and
+USDA generic-food references.
+
+Request:
+
+```json
+{
+  "mealType": "breakfast",
+  "loggedAt": "2026-06-14T12:30:00.000Z",
+  "items": [
+    {
+      "candidateType": "food_item",
+      "foodItemId": "egg-food-item-id",
+      "servingMultiplier": 2
+    },
+    {
+      "candidateType": "external_food",
+      "sourceProvider": "usda_fdc",
+      "sourceId": "173944",
+      "servingMultiplier": 1
+    }
+  ]
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- mobile clients send candidate references only, not nutrition values
+- mobile clients may send explicit user-confirmed `nutritionOverride` values
+  for the created FoodLog snapshot, but not as trusted source-food data
+- `food_item` rows must reference visible, non-archived, loggable FoodItems
+- `external_food` rows currently support only `sourceProvider: "usda_fdc"`
+- USDA rows are refetched server-side, normalized, cached as global
+  `FoodItem` rows, and then logged from the cached FoodItem
+- selected rows in one request are saved in a transaction
+- if any selected row is invalid or unloggable, no selected rows from that
+  request are saved
+- missing optional nutrients remain `null` or absent, never zero
+
+Success `data`:
+
+```json
+{
+  "foodLogs": []
+}
+```
+
+Each returned FoodLog uses the normal FoodLog response shape.
 
 ### `PUT /api/v1/food-logs/:id`
 
@@ -948,7 +1048,11 @@ Rules:
 - rate limits return `RATE_LIMITED`
 - provider output is schema-validated before retrieval
 - retrieval is deterministic lexical search over trusted food data
+- if no local loggable match exists, USDA FoodData Central may be searched as
+  a generic food fallback
 - other users' custom foods are never returned
+- USDA candidates include an explicit nutrient basis such as `per 100 g`
+- AI/Gemini never supplies calories, macros, or micronutrients
 
 Success `data`:
 
@@ -966,13 +1070,44 @@ Success `data`:
       "selectedCandidateId": "food-item-id",
       "candidates": [
         {
+          "candidateType": "food_item",
           "foodItem": {
             "id": "food-item-id",
             "name": "Eggs"
           },
+          "externalFood": null,
           "rank": 1,
           "matchReason": "recent",
           "confidence": "high",
+          "defaultServingMultiplier": 1
+        },
+        {
+          "candidateType": "external_food",
+          "foodItem": null,
+          "externalFood": {
+            "sourceProvider": "usda_fdc",
+            "sourceId": "173944",
+            "name": "Bananas, raw",
+            "brandName": null,
+            "foodType": "generic",
+            "servingBasisText": "per 100 g",
+            "servingQuantity": 100,
+            "servingUnit": "g",
+            "servingWeightGrams": 100,
+            "calories": 89,
+            "protein": 1.1,
+            "carbs": 22.8,
+            "fat": 0.3,
+            "fiber": 2.6,
+            "sugar": 12.2,
+            "sodium": null,
+            "nutrients": {
+              "potassium": { "amount": 358, "unit": "mg" }
+            }
+          },
+          "rank": 2,
+          "matchReason": "usda_fdc",
+          "confidence": "medium",
           "defaultServingMultiplier": 1
         }
       ]
@@ -981,9 +1116,12 @@ Success `data`:
 }
 ```
 
-The `foodItem` object uses the normal FoodItem response shape. Unmatched items
-return `reviewStatus: "unmatched"`, `loggable: false`, no selected candidate,
-and an empty candidate list.
+For `candidateType: "food_item"`, `foodItem` uses the normal FoodItem response
+shape. For `candidateType: "external_food"`, `externalFood` is a backend-owned
+external reference and nutrition preview; clients must confirm the reference
+through `POST /api/v1/food-logs/from-candidates` rather than submitting raw
+nutrition. Unmatched items return `reviewStatus: "unmatched"`,
+`loggable: false`, no selected candidate, and an empty candidate list.
 
 ## Recommendations
 
