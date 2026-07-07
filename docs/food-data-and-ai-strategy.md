@@ -442,15 +442,25 @@ micronutrient editing UI.
 
 ## RAG-Assisted AI Logging
 
-Phase 12 should begin RAG-assisted AI text logging. It should build on the
+Phase 12 begins RAG-assisted AI text logging. It builds on the
 Phase 8 `FoodItem`/`FoodBarcode`/`SavedFoodItem` foundation, the Phase 9 full
 nutrition model and nutrient snapshots, the Phase 10 selected-food logging and
 reusable-food flow, and the Phase 11 barcode/Open Food Facts cached foods.
 
+Phase 12 uses Gemini as the first real hosted AI provider behind a backend
+provider abstraction. API keys live only in backend environment variables.
+Mobile clients never receive provider keys. Future provider options may include
+cloud-hosted self-managed inference with Ollama, vLLM, Llama, Qwen, Gemma,
+Kimi-style models, or another hosted API, but self-hosted inference is
+deferred.
+
+Phase 12 intentionally does not add a vector database or embeddings.
+Deterministic lexical retrieval is the MVP retrieval layer.
+
 AI should not be the nutrition source of truth. The preferred architecture is:
 
 ```text
-User describes food or provides an image
+User describes food
 ↓
 AI parses intent / identifies possible foods
 ↓
@@ -467,12 +477,10 @@ Retrieval should use:
 
 - user recent foods
 - saved foods
-- saved meals
 - custom foods
 - cached app food database
-- barcode foods
-- generic food database
-- branded food database
+- cached barcode/Open Food Facts foods
+- generic and branded food databases later
 
 AI can help with:
 
@@ -496,6 +504,11 @@ existing trusted food data, candidate matching, and user review/confirmation.
 It should not become photo logging, custom graphs, recommendation engine 2.0,
 a broad redesign, vector database overbuild without clear need, automatic
 nutrition invention, or automatic saving without review.
+
+Partial logging is allowed at the review-selection level: a user can log the
+matched/loggable foods and leave unmatched items unresolved. Persistence
+remains transactional for the selected confirmed rows in a single confirm
+request.
 
 ## Photo Food Logging
 

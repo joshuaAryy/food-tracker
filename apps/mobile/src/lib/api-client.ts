@@ -1,6 +1,7 @@
 import type {
   ApiResponse,
   AdvancedAnalytics,
+  AiFoodParseResult,
   DashboardSummary,
   DailyNutrientTotals,
   FoodBarcodeLookupInput,
@@ -8,6 +9,7 @@ import type {
   FoodItemInput,
   FoodLog,
   FoodLogFromFoodItemInput,
+  FoodLogsFromFoodItemsInput,
   FoodLogInput,
   Goals,
   Profile,
@@ -315,6 +317,11 @@ export const api = {
         method: 'POST',
         body: input,
       }),
+    createFromFoodItems: (input: FoodLogsFromFoodItemsInput) =>
+      request<{ foodLogs: FoodLog[] }>('/food-logs/from-food-items', {
+        method: 'POST',
+        body: input,
+      }).then(({ foodLogs }) => foodLogs),
     update: (id: string, input: FoodLogInput) =>
       request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
     delete: (id: string) =>
@@ -398,6 +405,13 @@ export const api = {
         setupResultSchema,
       ),
   },
+  ai: {
+    parseFood: (description: string) =>
+      request<AiFoodParseResult>('/ai/food-parse', {
+        method: 'POST',
+        body: { description },
+      }),
+  },
 };
 
 interface ValidationIssue {
@@ -415,6 +429,7 @@ const validationMessages: Record<string, string> = {
   activityLevel: 'Choose a valid activity level.',
   trainingStyle: 'Choose a valid training style.',
   foodName: 'Enter a food name.',
+  description: 'Describe the meal you want to log.',
   mealType: 'Choose a valid meal type.',
   calories: 'Calories must be a whole number of 0 or higher.',
   protein: 'Protein must be 0 or higher.',

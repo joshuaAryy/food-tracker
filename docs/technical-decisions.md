@@ -284,11 +284,23 @@ Standards going forward:
 
 ## TD-012: AI Is Not Source Of Truth
 
-Status: Planned
+Status: Implemented in Phase 12 for text meal descriptions
 
-RAG-assisted AI logging should use retrieval over trusted sources: user recent
-foods, saved foods, saved meals, custom foods, cached app foods, barcode foods,
-generic food data, and branded food data.
+RAG-assisted AI logging uses Gemini as the first hosted AI provider behind a
+backend provider abstraction. Future provider options may include cloud-hosted
+self-managed inference with Ollama, vLLM, Llama, Qwen, Gemma, Kimi-style
+models, or another hosted API, but Phase 12 does not implement those options.
+API keys live only in backend environment variables and are never sent to
+mobile clients.
+
+Phase 12 intentionally uses deterministic lexical retrieval only. It does not
+add embeddings, a vector database, tool calls, streaming, or self-hosted model
+serving.
+
+Retrieval uses trusted sources in priority order: recent linked FoodItems,
+saved foods, current-user custom foods, global/app-owned foods, and cached
+external/barcode/Open Food Facts foods. Other users' custom foods must never be
+returned.
 
 AI may parse messy descriptions, split meals into likely items, estimate
 serving descriptions, rank candidate matches, and generate user-friendly
@@ -297,6 +309,9 @@ bypass user confirmation, become the only source for calories/macros/micros, or
 replace backend validation.
 
 Every AI-assisted log requires a user review/confirmation step before saving.
+The UX may partially log selected matched items while leaving unmatched parsed
+items unresolved. The confirm endpoint accepts only selected loggable FoodItem
+rows and saves them as normal FoodLog snapshots.
 
 ## TD-013: Photo Logging Sequencing
 

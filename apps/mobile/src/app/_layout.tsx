@@ -22,6 +22,10 @@ export default function RootLayout() {
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
         <Stack.Screen
+          name="meal-describe"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
           name="weight-log"
           options={{ presentation: 'modal', gestureEnabled: true }}
         />

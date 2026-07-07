@@ -686,6 +686,46 @@ rounded to four decimals. Units are preserved.
 
 Success `data` is the created food-log response object.
 
+### `POST /api/v1/food-logs/from-food-items`
+
+Creates multiple FoodLogs from explicitly selected, visible, loggable FoodItem
+rows. This endpoint is used by Phase 12 AI text logging confirmation, but it
+does not accept raw AI nutrition and does not parse text.
+
+Request:
+
+```json
+{
+  "mealType": "breakfast",
+  "loggedAt": "2026-06-14T12:30:00.000Z",
+  "items": [
+    { "foodItemId": "egg-food-item-id", "servingMultiplier": 2 },
+    { "foodItemId": "toast-food-item-id", "servingMultiplier": 1 }
+  ]
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- `items` must contain at least one selected row
+- each selected FoodItem must be visible, non-archived, and accessible to the
+  current user
+- each selected FoodItem must have calories and protein
+- missing optional nutrients remain `null` or absent, never zero
+- selected rows in one request are saved in a transaction
+
+Success `data`:
+
+```json
+{
+  "foodLogs": []
+}
+```
+
+Each returned FoodLog uses the normal FoodLog response shape. If any selected
+row is invalid or unloggable, no selected rows from that request are saved.
+
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
@@ -878,6 +918,72 @@ extended nutrients are summed from normalized nutrient snapshot rows; clients
 must not double-count a nutrient across both shapes.
 The endpoint does not implement custom graph UI, recommendations, external food
 data integrations, AI/RAG logging, barcode scanning, or photo logging.
+
+## AI Food Parsing
+
+AI food parsing is backend-owned. Mobile clients never receive provider API
+keys or prompt internals. Phase 12 uses Gemini as the first hosted provider
+behind a provider abstraction, with `disabled` and `mock` modes for safe local
+development and tests.
+
+### `POST /api/v1/ai/food-parse`
+
+Parses a natural-language meal description and retrieves candidate FoodItem
+matches. This route creates no FoodLogs.
+
+Request body:
+
+```json
+{
+  "description": "2 eggs, toast with butter, and a banana"
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- description length is bounded by backend config
+- AI parse rate limiting is enforced before provider calls
+- disabled or misconfigured providers return `AI_UNAVAILABLE`
+- rate limits return `RATE_LIMITED`
+- provider output is schema-validated before retrieval
+- retrieval is deterministic lexical search over trusted food data
+- other users' custom foods are never returned
+
+Success `data`:
+
+```json
+{
+  "description": "2 eggs",
+  "items": [
+    {
+      "id": "item-1",
+      "parsedName": "eggs",
+      "quantityText": "2",
+      "servingText": "2",
+      "reviewStatus": "matched",
+      "loggable": true,
+      "selectedCandidateId": "food-item-id",
+      "candidates": [
+        {
+          "foodItem": {
+            "id": "food-item-id",
+            "name": "Eggs"
+          },
+          "rank": 1,
+          "matchReason": "recent",
+          "confidence": "high",
+          "defaultServingMultiplier": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `foodItem` object uses the normal FoodItem response shape. Unmatched items
+return `reviewStatus: "unmatched"`, `loggable: false`, no selected candidate,
+and an empty candidate list.
 
 ## Recommendations
 

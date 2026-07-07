@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Camera } from 'lucide-react-native';
+import { Camera, Sparkles } from 'lucide-react-native';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
@@ -835,6 +835,28 @@ export default function FoodLogScreen() {
               value={foodSearchQuery}
               onChangeText={setFoodSearchQuery}
             />
+            <Pressable
+              accessibilityLabel="Describe meal"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/meal-describe' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <Sparkles
+                    color={colors.light.ink}
+                    size={18}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Describe meal</AppText>
+                  <AppText variant="caption" muted>
+                    Parse a messy meal note before logging.
+                  </AppText>
+                </View>
+              </View>
+            </Pressable>
             <Pressable
               accessibilityLabel="Scan barcode"
               accessibilityRole="button"

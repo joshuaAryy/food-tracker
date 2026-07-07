@@ -3,6 +3,7 @@ import {
   advancedAnalyticsRouter,
   analyticsRouter,
 } from '../modules/analytics/routes.js';
+import { aiRouter } from '../modules/ai/routes.js';
 import { foodItemsRouter } from '../modules/foodItems/routes.js';
 import { foodLogsRouter } from '../modules/foodLogs/routes.js';
 import { goalsRouter } from '../modules/goals/routes.js';
@@ -24,3 +25,4 @@ apiRouter.use('/weight-logs', weightLogsRouter);
 apiRouter.use('/dashboard', analyticsRouter);
 apiRouter.use('/analytics', advancedAnalyticsRouter);
 apiRouter.use('/recommendations', recommendationsRouter);
+apiRouter.use('/ai', aiRouter);

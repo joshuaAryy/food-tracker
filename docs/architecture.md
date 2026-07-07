@@ -39,8 +39,9 @@ Frontend
 → Dashboard/history
 ```
 
-The implemented manual logging flow does not use AI parsing, nutrition
-matching, Open Food Facts, barcode camera scanning, or photo recognition.
+The implemented logging flow supports manual entry, reusable foods, saved and
+recent foods, barcode scanning with backend-owned Open Food Facts lookup, and
+AI-assisted text parsing. Photo recognition is not implemented.
 `FoodLog` now has an optional `foodItemId` relation for future log-from-food
 flows, but the current food-log API remains snapshot-based and does not require
 or expose that relation.
@@ -86,11 +87,13 @@ packaged food lookup, and USDA FoodData Central for generic foods and detailed
 nutrients. External food data should be cached into the app database where
 appropriate.
 
-AI is not the nutrition source of truth. It can parse messy input, split meals
-into likely items, estimate serving descriptions, rank candidate matches, and
-generate user-friendly explanations. It must not silently save uncertain logs,
-invent nutrient data when trusted data is available, bypass user confirmation,
-or replace backend validation.
+AI is not the nutrition source of truth. Phase 12 uses Gemini as the first
+hosted parser behind a backend provider abstraction. API keys live only in
+backend environment variables. The backend validates structured provider output
+and performs deterministic lexical retrieval against trusted `FoodItem` data.
+AI must not silently save logs, invent nutrient data when trusted data is
+available, bypass user confirmation, or replace backend validation. Vector
+databases, embeddings, and self-hosted model serving are deferred.
 
 Photo logging belongs after the food database and retrieval foundations. See
 [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md) for the detailed

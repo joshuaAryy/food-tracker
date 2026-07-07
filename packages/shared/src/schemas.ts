@@ -234,6 +234,25 @@ export const foodLogFromFoodItemInputSchema = z.strictObject({
   notes: z.string().nullable().optional(),
 });
 
+export const foodLogsFromFoodItemsInputSchema = z.strictObject({
+  mealType: mealTypeSchema,
+  loggedAt: z.iso.datetime(),
+  notes: z.string().trim().min(1).nullable().optional(),
+  items: z
+    .array(
+      z.strictObject({
+        foodItemId: z.uuid(),
+        servingMultiplier: z.number().positive().default(1),
+      }),
+    )
+    .min(1)
+    .max(12),
+});
+
+export const aiFoodParseInputSchema = z.strictObject({
+  description: z.string().trim().min(1),
+});
+
 const optionalNonNegativeInteger = z
   .number()
   .int()
@@ -307,6 +326,10 @@ export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 export type FoodLogFromFoodItemInput = z.infer<
   typeof foodLogFromFoodItemInputSchema
 >;
+export type FoodLogsFromFoodItemsInput = z.infer<
+  typeof foodLogsFromFoodItemsInputSchema
+>;
+export type AiFoodParseInput = z.infer<typeof aiFoodParseInputSchema>;
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 export type FoodBarcodeLookupInput = z.infer<
   typeof foodBarcodeLookupInputSchema

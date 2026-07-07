@@ -171,14 +171,15 @@ micronutrient editing UI, real auth, deployment, or TestFlight.
 
 ## Phase 12 — RAG-Assisted AI Text Logging — Active / Next
 
-- parse messy food descriptions
-- split likely meal items
-- retrieve candidates from trusted food sources
-- rank candidate matches
-- user review and edit before saving
-- backend validation and confirmed `FoodLog` persistence
+- Gemini-backed text parse provider behind a backend provider abstraction
+- backend-only AI provider environment variables
+- deterministic lexical retrieval from trusted `FoodItem` data
+- user review, edit, remove, and partial selection before saving
+- transactional selected-food confirmation through normal `FoodLog` snapshots
+- no vector database, embeddings, photo logging, or automatic save
 
-AI must not become the nutrition source of truth.
+AI must not become the nutrition source of truth. Phase 12 uses AI only to
+parse and structure meal intent; nutrition comes from matched trusted food data.
 
 ## Phase 13 — Photo Food Logging
 

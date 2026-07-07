@@ -1,8 +1,8 @@
 # Food Tracker
 
 Food Tracker is a mobile-first nutrition tracking application designed around
-fast manual logging, deterministic backend analytics, and optional future AI
-convenience.
+fast logging, trusted food data, deterministic backend analytics, and optional
+AI convenience.
 
 The product combines a focused Simple mode with a more detailed Complex mode.
 Both modes use the same mobile app, API, database, and business logic.
@@ -16,6 +16,9 @@ The implemented baseline includes:
 - Persisted profile, goals, and tracking preferences
 - Persisted food and weight log CRUD in the backend
 - Mobile food and weight creation flows
+- Food database powered logging with saved, recent, and reusable foods
+- Barcode scanning with backend-owned Open Food Facts packaged food lookup
+- AI-assisted text meal parsing with user review before saving
 - Daily calorie and protein dashboard
 - Timezone-aware food and weight history
 - Deterministic recommendation generation and dismissal
@@ -28,24 +31,24 @@ The implemented baseline includes:
 - PostgreSQL-backed backend integration tests
 
 Nutrition calculations, trends, and recommendation decisions are deterministic
-backend code. AI does not perform analytics or decide recommendations.
+backend code. AI does not perform analytics, decide recommendations, or act as
+the nutrition source of truth.
 
 ## Development Status
 
-The implemented baseline includes the full manual logging lifecycle, fast-log
-reuse, mode-aware analytics, and real onboarding with deterministic calorie and
-protein target calculation.
+The implemented baseline includes the full manual logging lifecycle, food
+database reuse, barcode lookup, AI-assisted text parsing, mode-aware analytics,
+and real onboarding with deterministic calorie and protein target calculation.
 
 ## Current Limitations
 
 - Development still uses a fixed mock-user authentication boundary.
-- Food entry is manual and structured; there is no food database lookup.
 - Water and Note actions are visible but not implemented.
 - Mobile automated tests are not yet configured.
 - Local PostgreSQL is required for API persistence and backend tests.
 - Physical devices require an explicit LAN API URL.
-- AI parsing, barcode scanning, photo recognition, and supplements are future
-  work.
+- Photo recognition, saved meals, real auth, deployment/TestFlight, and
+  supplements are future work.
 
 ## Technology
 

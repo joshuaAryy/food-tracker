@@ -413,6 +413,32 @@ needed before treating the visual system as settled.
 1. Continue on the Phase 8 branch for food database foundation work.
 2. Confirm Node 22 and pnpm 10.34.3.
 3. Keep generated native folders ignored unless explicitly approved later.
+
+## Phase 12 AI Text Logging Context
+
+Phase 12 adds a `Describe meal` entry point to the existing food-log flow. The
+screen should feel like messy thought to clean food log, not like a chat
+assistant. Keep the Phase 6 visual standard: white-forward, charcoal-led, open
+rows, thin dividers, compact pills, restrained copy, and no broad redesign.
+
+AI text logging must preserve manual search, manual entry, saved foods, recent
+foods, reusable foods, and barcode scanning. The review screen should allow
+matched/loggable parsed foods to be selected, removed, and amount-adjusted.
+Unmatched foods stay visible as unresolved rows and should direct the user back
+to manual search or entry.
+
+Manual smoke test for implementation:
+
+- open `Describe meal`
+- submit a messy description
+- see `Reading your meal...`
+- review parsed rows
+- remove one row
+- adjust a matched row amount
+- leave an unmatched row unresolved
+- log selected rows
+- verify AI unavailable, rate-limit, and network error copy
+- verify existing manual/search/barcode flows still work
 4. Use `apps/mobile/.env.local` with the Mac LAN IP for physical iPhone API
    access.
 5. Keep Phase 7 skeleton standards intact while adding richer food-data flows.

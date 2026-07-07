@@ -158,6 +158,42 @@ export interface FoodItem {
   updatedAt: string;
 }
 
+export type AiFoodCandidateMatchReason =
+  | 'recent'
+  | 'saved'
+  | 'custom'
+  | 'app'
+  | 'cached_external'
+  | 'barcode_cached';
+
+export type AiFoodCandidateConfidence = 'high' | 'medium' | 'low';
+
+export type AiFoodReviewStatus = 'matched' | 'needs_review' | 'unmatched';
+
+export interface AiFoodParseCandidate {
+  foodItem: FoodItem;
+  rank: number;
+  matchReason: AiFoodCandidateMatchReason;
+  confidence: AiFoodCandidateConfidence;
+  defaultServingMultiplier: number;
+}
+
+export interface AiFoodParsedItem {
+  id: string;
+  parsedName: string;
+  quantityText: string | null;
+  servingText: string | null;
+  reviewStatus: AiFoodReviewStatus;
+  loggable: boolean;
+  selectedCandidateId: string | null;
+  candidates: AiFoodParseCandidate[];
+}
+
+export interface AiFoodParseResult {
+  description: string;
+  items: AiFoodParsedItem[];
+}
+
 export interface WeightLog {
   id: string;
   weightLb: number;

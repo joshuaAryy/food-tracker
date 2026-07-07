@@ -439,6 +439,106 @@ describe('food logs API', () => {
     });
   });
 
+  it('logs selected food items transactionally with scaled snapshot nutrients', async () => {
+    const yogurt = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Greek yogurt',
+        normalizedName: 'greek yogurt',
+        searchText: 'greek yogurt',
+        sourceType: 'user_custom',
+        foodType: 'generic',
+        servingQuantity: 1,
+        servingUnit: 'cup',
+        calories: 130,
+        protein: 22.4,
+        nutrients: {
+          create: { nutrientKey: 'vitaminC', amount: 60, unit: 'mg' },
+        },
+      },
+    });
+    const banana = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana',
+        normalizedName: 'banana',
+        searchText: 'banana',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        servingQuantity: 1,
+        servingUnit: 'medium',
+        calories: 105,
+        protein: 1.3,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-food-items')
+      .send({
+        mealType: 'breakfast',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          { foodItemId: yogurt.id, servingMultiplier: 1.5 },
+          { foodItemId: banana.id, servingMultiplier: 2 },
+        ],
+      })
+      .expect(200);
+
+    expect(response.body.data.foodLogs).toHaveLength(2);
+    expect(response.body.data.foodLogs).toEqual([
+      expect.objectContaining({
+        foodItemId: yogurt.id,
+        foodName: 'Greek yogurt',
+        calories: 195,
+        protein: 33.6,
+        nutrients: { vitaminC: { amount: 90, unit: 'mg' } },
+      }),
+      expect.objectContaining({
+        foodItemId: banana.id,
+        foodName: 'Banana',
+        calories: 210,
+        protein: 2.6,
+        nutrients: {},
+      }),
+    ]);
+    expect(await prisma.foodLog.count()).toBe(2);
+  });
+
+  it('rejects unloggable selected food items without partially saving', async () => {
+    const loggable = await prisma.foodItem.create({
+      data: {
+        userId: MOCK_USER_ID,
+        name: 'Loggable eggs',
+        normalizedName: 'loggable eggs',
+        searchText: 'loggable eggs',
+        sourceType: 'user_custom',
+        foodType: 'generic',
+        calories: 140,
+        protein: 12,
+      },
+    });
+    const unloggable = await seedFoodItem({
+      name: 'Unknown protein food',
+      normalizedName: 'unknown protein food',
+      searchText: 'unknown protein food',
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-food-items')
+      .send({
+        mealType: 'breakfast',
+        loggedAt: validFoodLog.loggedAt,
+        items: [
+          { foodItemId: loggable.id, servingMultiplier: 1 },
+          { foodItemId: unloggable.id, servingMultiplier: 1 },
+        ],
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+    expect(await prisma.foodLog.count()).toBe(0);
+  });
+
   it('rejects log-from-food when required food log nutrients are unknown', async () => {
     const foodItem = await seedFoodItem({
       name: 'Unknown protein food',

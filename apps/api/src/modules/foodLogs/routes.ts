@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   DEFAULT_TIMEZONE,
   foodLogFromFoodItemInputSchema,
+  foodLogsFromFoodItemsInputSchema,
   foodLogInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
@@ -25,6 +26,9 @@ import {
 
 type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 type FoodLogFromFoodItemInput = z.infer<typeof foodLogFromFoodItemInputSchema>;
+type FoodLogsFromFoodItemsInput = z.infer<
+  typeof foodLogsFromFoodItemsInputSchema
+>;
 type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
 
@@ -180,6 +184,22 @@ const foodLogInclude = {
   nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] },
 };
 
+type FoodLogTransaction = Omit<
+  typeof prisma,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
+
+async function visibleFoodItemInTransaction(
+  tx: FoodLogTransaction,
+  id: string,
+  userId: string,
+) {
+  return tx.foodItem.findFirst({
+    where: { id, ...visibleFoodWhere(userId) },
+    include: { nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] } },
+  });
+}
+
 foodLogsRouter.get(
   '/',
   validateQuery(foodLogsQuerySchema),
@@ -226,6 +246,51 @@ foodLogsRouter.post(
     });
 
     sendSuccess(response, serializeFoodLog(foodLog));
+  },
+);
+
+foodLogsRouter.post(
+  '/from-food-items',
+  validateBody(foodLogsFromFoodItemsInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodLogsFromFoodItemsInput>(response);
+
+    const foodLogs = await prisma.$transaction(async (tx) => {
+      const createdFoodLogs = [];
+
+      for (const item of input.items) {
+        const foodItem = await visibleFoodItemInTransaction(
+          tx,
+          item.foodItemId,
+          userId,
+        );
+
+        if (foodItem === null) {
+          throw notFoundError('Food item');
+        }
+
+        const foodLog = await tx.foodLog.create({
+          data: {
+            userId,
+            ...logFromFoodItemData(foodItem, {
+              foodItemId: item.foodItemId,
+              mealType: input.mealType,
+              loggedAt: input.loggedAt,
+              servingMultiplier: item.servingMultiplier,
+              notes: input.notes,
+            }),
+          },
+          include: foodLogInclude,
+        });
+
+        createdFoodLogs.push(foodLog);
+      }
+
+      return createdFoodLogs;
+    });
+
+    sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });
   },
 );
 
