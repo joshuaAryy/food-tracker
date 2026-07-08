@@ -292,6 +292,7 @@ export async function searchUsdaFoods(input: {
 }): Promise<UsdaSearchFood[]> {
   const url = apiUrl(input.config, '/foods/search');
   if (url === null) return [];
+  const internalSearchLimit = Math.max(input.config.searchLimit * 3, 8);
 
   assertUsdaRateLimit({
     key: input.rateLimitKey,
@@ -309,7 +310,7 @@ export async function searchUsdaFoods(input: {
       },
       body: JSON.stringify({
         query: input.query,
-        pageSize: input.config.searchLimit,
+        pageSize: internalSearchLimit,
         dataType: ['Foundation', 'SR Legacy', 'Survey (FNDDS)'],
         sortBy: 'dataType.keyword',
         sortOrder: 'asc',
@@ -326,7 +327,7 @@ export async function searchUsdaFoods(input: {
     .map(parseSearchFood)
     .filter((food): food is UsdaSearchFood => food !== null)
     .sort((a, b) => dataTypeRank(a.dataType) - dataTypeRank(b.dataType))
-    .slice(0, input.config.searchLimit);
+    .slice(0, internalSearchLimit);
 }
 
 export async function fetchUsdaFood(input: {

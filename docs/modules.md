@@ -49,11 +49,13 @@ Handles:
 - food history
 - FoodLog snapshots from trusted FoodItem and USDA-backed candidate references
 - explicit user-confirmed FoodLog-level nutrition overrides
+- unlinked low-trust AI-estimate snapshots after user review
 
 This module does not handle AI parsing, candidate retrieval, barcode scanning,
-or photo input. It owns persistence of confirmed logs only. User nutrient edits
-made during item review are saved on the FoodLog snapshot and must not mutate
-trusted FoodItem records.
+or photo input. It owns persistence of confirmed logs only, including
+reviewed AI-estimate snapshots that remain unlinked from `FoodItem`. User
+nutrient edits made during item review are saved on the FoodLog snapshot and
+must not mutate trusted FoodItem records.
 
 The API accepts optional serving quantity and serving unit metadata. `userId` comes from auth context, not request bodies.
 
@@ -71,7 +73,8 @@ Handles:
 Food search can return local FoodItems and backend-owned external USDA
 candidate references. Local visible FoodItems rank before USDA/generic
 candidates. API keys stay backend-only. Missing nutrients remain unknown/null
-or absent, never zero.
+or absent, never zero. AI-estimated fallback must not create FoodItems or
+trusted cache rows.
 
 ---
 
@@ -114,9 +117,12 @@ Handles:
 - proposed food extraction
 - provider abstraction with Gemini as the first hosted provider
 - structured parse validation before retrieval
+- user-triggered basic AI nutrition estimates for unresolved text-logging rows
 
-Requires user confirmation. It does not calculate nutrition values, create
-FoodLogs, or become the nutrition source of truth.
+Requires user confirmation. Gemini does not create FoodLogs or become the
+nutrition source of truth. Phase 12.6 estimate output is limited to basic
+calories/macros/common fields, is low-trust, and is saved only through the
+foodLogs module after review.
 
 ---
 
@@ -127,10 +133,15 @@ Handles:
 - local/recent/saved/custom/global/cached FoodItem retrieval
 - USDA generic-food fallback after local trusted sources
 - candidate ranking and review status
+- trusted-candidate rechecks before AI estimates
 
 Gemini can parse and rank intent, but trusted nutrition comes from FoodItems,
 cached Open Food Facts foods, USDA generic foods, or explicit user-confirmed
-FoodLog overrides. AI-estimated nutrition fallback is deferred.
+FoodLog overrides. AI-estimated nutrition fallback is allowed only after
+trusted sources fail and must not be treated as a future trusted candidate.
+Weak generic token-only matches such as `bowl` or `meal` do not count as
+trusted enough to block fallback; common foods should resolve through trusted
+local/cached/USDA candidates where available.
 
 ---
 

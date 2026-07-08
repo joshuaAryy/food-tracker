@@ -20,6 +20,8 @@ The implemented baseline includes:
 - Barcode scanning with backend-owned Open Food Facts packaged food lookup
 - AI-assisted text meal parsing with user review before saving
 - USDA FoodData Central generic food lookup for AI review and normal search
+- User-triggered low-trust AI nutrition estimates for unresolved text-logging
+  rows
 - Daily calorie and protein dashboard
 - Timezone-aware food and weight history
 - Deterministic recommendation generation and dismissal
@@ -39,8 +41,9 @@ the nutrition source of truth.
 
 The implemented baseline includes the full manual logging lifecycle, food
 database reuse, barcode lookup, AI-assisted text parsing with USDA generic
-nutrition fallback, USDA-backed normal food search, mode-aware analytics, and
-real onboarding with deterministic calorie and protein target calculation.
+nutrition fallback, USDA-backed normal food search, AI-estimated nutrition for
+unresolved text-logging rows, mode-aware analytics, and real onboarding with
+deterministic calorie and protein target calculation.
 
 ## Current Limitations
 
@@ -49,8 +52,8 @@ real onboarding with deterministic calorie and protein target calculation.
 - Mobile automated tests are not yet configured.
 - Local PostgreSQL is required for API persistence and backend tests.
 - Physical devices require an explicit LAN API URL.
-- AI-estimated nutrition fallback, photo recognition, saved meals, real auth,
-  deployment/TestFlight, and supplements are future work.
+- Photo recognition, saved meals, real auth, deployment/TestFlight, and
+  supplements are future work.
 
 ## Technology
 

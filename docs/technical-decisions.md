@@ -353,13 +353,49 @@ Complex mode can override supported normalized nutrient catalog entries.
 
 ## TD-014: AI-Estimated Nutrition Fallback
 
-Status: Planned for Phase 12.6
+Status: Implemented in Phase 12.6
 
-AI-estimated nutrition is deferred until after local/custom/saved/recent,
-cached barcode/Open Food Facts, and USDA sources fail. If implemented, it must
-be visibly low-trust, user-reviewed before saving, and persisted only as a
-FoodLog-level estimate or override. It must not create trusted FoodItems or
-invent full micronutrients.
+AI-estimated nutrition is available only as a user-triggered fallback for
+unresolved AI text logging rows after local/custom/saved/recent, cached
+barcode/Open Food Facts, and USDA sources fail. The backend rechecks trusted
+candidates before estimating and returns `TRUSTED_NUTRITION_AVAILABLE` rather
+than estimating if a loggable trusted source exists.
+
+Estimates are visibly low-trust, user-reviewed before saving, and persisted
+only as unlinked FoodLog snapshots. They must not create trusted FoodItems,
+pollute external caches, appear in normal food search, or invent full
+micronutrients. Phase 12.6 uses existing FoodLog fields and prefixes `notes`
+with low-trust AI-estimated source text instead of adding Prisma schema
+metadata; structured provenance should be reconsidered only if later analytics
+or filtering require it.
+
+The backend owns estimate metadata. Gemini returns only the basic estimate
+object: food name, serving text, calories, protein, carbs, fat, and optional
+fiber, sugar, and sodium. The backend adds `source: "ai_estimate"`,
+`trustLevel: "low"`, and `nutrients: {}` after strict validation. This avoids
+asking the model for provenance or empty micronutrient objects and keeps
+Phase 12.6 compatible with the existing Prisma schema.
+
+The trusted-candidate gate blocks estimates only for genuinely relevant,
+loggable trusted candidates. Low-confidence or generic token-only matches do
+not block fallback, and generic words such as `bowl`, `plate`, `serving`,
+`homemade`, `custom`, and `meal` are ignored for meaningful overlap. Common
+foods must be resolved through trusted local/cached/USDA data before AI is
+offered.
+
+USDA lookup may overfetch internally and skip stale or failed detail records.
+A USDA candidate is trusted/loggable only after detail nutrition is fetched and
+required nutrients exist. USDA failures remain non-fatal.
+
+Gemini structured-output handling must remain defensive. The estimate provider
+collects all candidate text parts, handles fenced JSON and prose around JSON,
+extracts balanced JSON objects, validates strictly, and rejects unknown or
+micronutrient fields. Upstream 429/503 responses are temporary AI unavailable
+errors. HTTP 200 invalid model output is not treated as an upstream outage.
+`MAX_TOKENS` with no text has explicit cut-off handling; the Phase 12.6
+estimate request uses a simplified schema, shorter prompt, and
+`maxOutputTokens: 768` after live testing showed `256` could return an empty
+candidate with `finishReason: "MAX_TOKENS"`.
 
 ## TD-015: Photo Logging Sequencing
 

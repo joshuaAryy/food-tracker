@@ -416,6 +416,131 @@ describe('AI food parse API', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('adds a relevant USDA generic candidate for parsed plural eggs', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 748967,
+                  description: 'Egg, whole, raw, fresh',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 748967,
+            description: 'Egg, whole, raw, fresh',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 143, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 12.6, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: '2 eggs' })
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      parsedName: 'eggs',
+      reviewStatus: 'needs_review',
+      loggable: true,
+      selectedCandidateId: 'usda_fdc:748967',
+      candidates: [
+        expect.objectContaining({
+          candidateType: 'external_food',
+          confidence: 'medium',
+          externalFood: expect.objectContaining({
+            name: 'Egg, whole, raw, fresh',
+            calories: 143,
+            protein: 12.6,
+          }),
+        }),
+      ],
+    });
+  });
+
+  it('skips stale USDA detail failures and uses another relevant candidate', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 111,
+                  description: 'Egg, stale record',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 222,
+                  description: 'Egg, whole, raw, fresh',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        if (requestUrl.includes('/food/111')) {
+          return new Response(JSON.stringify({ error: 'not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 222,
+            description: 'Egg, whole, raw, fresh',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 143, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 12.6, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: '2 eggs' })
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      loggable: true,
+      selectedCandidateId: 'usda_fdc:222',
+    });
+  });
+
   it('keeps unmatched local-only behavior when USDA is not configured', async () => {
     delete process.env.USDA_FDC_API_KEY;
 
@@ -532,6 +657,731 @@ describe('AI food parse API', () => {
         candidates: [],
       }),
     ]);
+    expect(await prisma.foodLog.count()).toBe(0);
+  });
+
+  it('does not estimate nutrition when trusted candidates exist', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    await createFoodItem({
+      userId: null,
+      name: 'Banana',
+      sourceType: 'app_owned',
+      calories: 105,
+      protein: 1.3,
+    });
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'banana',
+        quantityText: null,
+        servingText: null,
+        description: 'banana',
+      })
+      .expect(409);
+
+    expectErrorEnvelope(response.body, 'TRUSTED_NUTRITION_AVAILABLE');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not estimate nutrition for relevant USDA eggs candidates', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    const fetchSpy = vi.fn(async (url: string | URL) => {
+      const requestUrl = String(url);
+
+      if (requestUrl.includes('/foods/search')) {
+        return new Response(
+          JSON.stringify({
+            foods: [
+              {
+                fdcId: 748967,
+                description: 'Egg, whole, raw, fresh',
+                dataType: 'Foundation',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (requestUrl.includes('/food/748967')) {
+        return new Response(
+          JSON.stringify({
+            fdcId: 748967,
+            description: 'Egg, whole, raw, fresh',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 143, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 12.6, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      throw new Error('Gemini estimate provider should not be called');
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'eggs',
+        quantityText: '2 eggs',
+        servingText: '2 eggs',
+      })
+      .expect(409);
+
+    expectErrorEnvelope(response.body, 'TRUSTED_NUTRITION_AVAILABLE');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns low-trust basic AI nutrition only for unresolved rows', async () => {
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'homemade ghanaian stew with rice',
+        quantityText: null,
+        servingText: '1 bowl',
+        description: 'homemade Ghanaian stew with rice',
+      })
+      .expect(200);
+
+    expect(response.body.data).toEqual({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      foodName: 'homemade ghanaian stew with rice',
+      servingText: '1 bowl',
+      calories: 400,
+      protein: 20,
+      carbs: 40,
+      fat: 15,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      nutrients: {},
+    });
+  });
+
+  it('parses Gemini nutrition estimates from structured output text parts', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    type GeminiRequestBody = {
+      generationConfig?: {
+        maxOutputTokens?: number;
+        responseSchema?: {
+          properties?: Record<string, Record<string, unknown>>;
+        };
+      };
+    };
+    let capturedBody: GeminiRequestBody | null = null;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        capturedBody = JSON.parse(String(init?.body));
+
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {},
+                    {
+                      text: JSON.stringify({
+                        foodName: 'teiko moonlit custom bowl',
+                        servingText: '1 bowl',
+                        calories: 410,
+                        protein: 16,
+                        carbs: 52,
+                        fat: 14,
+                        fiber: null,
+                        sugar: null,
+                        sodium: null,
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(200);
+
+    expect(capturedBody).toMatchObject({
+      generationConfig: {
+        maxOutputTokens: 768,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'object',
+        },
+      },
+    });
+    const requestBody = capturedBody as unknown as GeminiRequestBody;
+    expect(
+      requestBody.generationConfig?.responseSchema?.properties?.calories?.type,
+    ).toBe('number');
+    expect(
+      requestBody.generationConfig?.responseSchema?.properties?.sodium?.type,
+    ).toBe('number');
+    expect(
+      requestBody.generationConfig?.responseSchema?.properties?.fiber,
+    ).not.toHaveProperty('nullable');
+    expect(
+      requestBody.generationConfig?.responseSchema?.properties,
+    ).not.toHaveProperty('nutrients');
+    expect(response.body.data).toEqual({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      foodName: 'teiko moonlit custom bowl',
+      servingText: '1 bowl',
+      calories: 410,
+      protein: 16,
+      carbs: 52,
+      fat: 14,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      nutrients: {},
+    });
+  });
+
+  it('returns AI unavailable with safe diagnostics when Gemini nutrition response has no text part', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'SAFETY',
+                  safetyRatings: [
+                    {
+                      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                      probability: 'LOW',
+                    },
+                  ],
+                  content: {
+                    parts: [
+                      {
+                        functionCall: { name: 'unexpected_tool_call' },
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[ai-food-parse:gemini]',
+      expect.objectContaining({
+        category: 'nutrition_estimate_missing_text_part',
+        status: 200,
+        candidates: 1,
+        finishReasons: ['SAFETY'],
+        partShapes: [[{ functionCall: 'object' }]],
+        safetyRatings: [
+          [
+            {
+              category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              probability: 'LOW',
+            },
+          ],
+        ],
+      }),
+    );
+  });
+
+  it('returns a clear AI unavailable error when Gemini nutrition estimate is cut off by max tokens', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'MAX_TOKENS',
+                  content: {
+                    parts: [],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'homemade Ghanaian palm nut soup',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+    expect(response.body.error.message).toBe(
+      'AI nutrition estimates were cut off. Try again.',
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[ai-food-parse:gemini]',
+      expect.objectContaining({
+        category: 'nutrition_estimate_max_tokens',
+        status: 200,
+        candidates: 1,
+        finishReasons: ['MAX_TOKENS'],
+        partShapes: [[]],
+      }),
+    );
+  });
+
+  it('tries later Gemini text parts when earlier parts are not valid estimate JSON', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: 'Here is an approximate estimate. Please review it.',
+                      },
+                      {
+                        text: JSON.stringify({
+                          foodName: 'teiko moonlit custom bowl',
+                          servingText: '1 bowl',
+                          calories: 410,
+                          protein: 16,
+                          carbs: 52,
+                          fat: 14,
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      calories: 410,
+      protein: 16,
+      carbs: 52,
+      fat: 14,
+      nutrients: {},
+    });
+  });
+
+  it('accepts Gemini nutrition estimate JSON wrapped in markdown code fences', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: [
+                          '```json',
+                          JSON.stringify({
+                            foodName: 'teiko moonlit custom bowl',
+                            servingText: '1 bowl',
+                            calories: 410,
+                            protein: 16,
+                            carbs: 52,
+                            fat: 14,
+                          }),
+                          '```',
+                        ].join('\n'),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      calories: 410,
+      protein: 16,
+      carbs: 52,
+      fat: 14,
+      nutrients: {},
+    });
+  });
+
+  it('extracts valid Gemini nutrition estimate JSON from surrounding prose', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: [
+                          'Approximate estimate for review:',
+                          JSON.stringify({
+                            foodName: 'teiko moonlit custom bowl',
+                            servingText: '1 bowl',
+                            calories: 410,
+                            protein: 16,
+                            carbs: 52,
+                            fat: 14,
+                          }),
+                          'Adjust before saving.',
+                        ].join('\n'),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      calories: 410,
+      protein: 16,
+      carbs: 52,
+      fat: 14,
+      nutrients: {},
+    });
+  });
+
+  it('returns AI unavailable when no Gemini nutrition text part contains a valid estimate', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      { text: 'I cannot estimate that.' },
+                      {
+                        text: JSON.stringify({
+                          foodName: 'teiko moonlit custom bowl',
+                          calories: -1,
+                          protein: 16,
+                          carbs: 52,
+                          fat: 14,
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+  });
+
+  it.each([429, 503])(
+    'returns temporary AI unavailable for Gemini nutrition upstream %i',
+    async (status) => {
+      process.env.AI_PROVIDER = 'gemini';
+      process.env.GEMINI_API_KEY = 'test-key';
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify({ error: { status } }), {
+              status,
+              statusText: status === 429 ? 'Too Many Requests' : 'Unavailable',
+              headers: { 'Content-Type': 'application/json' },
+            }),
+        ),
+      );
+
+      const response = await api
+        .post('/api/v1/ai/nutrition-estimate')
+        .send({
+          parsedName: 'teiko moonlit custom bowl',
+          quantityText: '1 bowl',
+          servingText: '1 bowl',
+        })
+        .expect(503);
+
+      expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+      expect(response.body.error.message).toBe(
+        'AI nutrition estimates are temporarily unavailable.',
+      );
+    },
+  );
+
+  it('does not block estimates for weak USDA token-only matches', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 333,
+                  description: 'Rice bowl with chicken',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 333,
+            description: 'Rice bowl with chicken',
+            dataType: 'Foundation',
+            publicationDate: '2020-01-01',
+            foodNutrients: [
+              { amount: 180, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 7, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'teiko moonlit custom bowl',
+        quantityText: '1 bowl',
+        servingText: '1 bowl',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      source: 'ai_estimate',
+      trustLevel: 'low',
+      foodName: 'teiko moonlit custom bowl',
+    });
+  });
+
+  it('still blocks estimates for relevant USDA candidates', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '1';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 173944,
+                  description: 'Bananas, raw',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 173944,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'banana',
+        quantityText: '1 banana',
+        servingText: '1 banana',
+      })
+      .expect(409);
+
+    expectErrorEnvelope(response.body, 'TRUSTED_NUTRITION_AVAILABLE');
+  });
+
+  it('rejects AI nutrition estimates that include full micronutrients', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          foodName: 'mystery stew',
+                          servingText: '1 bowl',
+                          calories: 420,
+                          protein: 18,
+                          carbs: 50,
+                          fat: 14,
+                          vitaminC: 30,
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/nutrition-estimate')
+      .send({
+        parsedName: 'mystery stew',
+        servingText: '1 bowl',
+      })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
     expect(await prisma.foodLog.count()).toBe(0);
   });
 

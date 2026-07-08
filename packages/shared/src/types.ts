@@ -231,6 +231,21 @@ export interface AiFoodParseResult {
   items: AiFoodParsedItem[];
 }
 
+export interface AiNutritionEstimateResult {
+  source: 'ai_estimate';
+  trustLevel: 'low';
+  foodName: string;
+  servingText: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+  nutrients: Record<string, never>;
+}
+
 export interface WeightLog {
   id: string;
   weightLb: number;

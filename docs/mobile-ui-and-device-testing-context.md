@@ -442,6 +442,27 @@ calories, protein, carbs, fat, fiber, sugar, and sodium. Complex mode can show
 the supported normalized nutrient catalog. Any user-edited nutrition is a
 FoodLog-level override only.
 
+Phase 12.6 adds AI-estimated nutrition only for unresolved AI text logging
+rows. Do not offer estimates in normal food search and do not auto-generate
+estimates after parsing. The unresolved row should show a user-triggered
+`Use AI estimate` action, low-trust copy, and editable basic nutrition before
+saving. Saving an estimate creates only an unlinked FoodLog snapshot; it must
+not create a reusable FoodItem or trusted cache entry. Simple mode exposes the
+main nutrient editor fields. Complex mode must not show AI-generated detailed
+micronutrients, though the user can still use the separate manual edit flow for
+supported detailed nutrients later.
+
+Final Phase 12.6 phone smoke passed on the local development build:
+
+- `2 eggs, toast, banana` resolves through trusted review candidates instead of
+  requiring AI estimates
+- homemade/custom unresolved food can show the `Use AI estimate` action
+- the estimate is visibly low-trust and editable before saving
+- saving the estimate creates an unlinked FoodLog snapshot, not a reusable
+  FoodItem
+- Simple mode stays limited to main nutrient editing
+- Complex mode does not show AI-generated micronutrients
+
 Manual smoke test for implementation:
 
 - open `Describe meal`
@@ -457,7 +478,9 @@ Manual smoke test for implementation:
 - verify Simple mode only exposes main nutrient editing and Complex mode
   exposes detailed nutrients
 - verify USDA-backed rows show explicit basis copy when present
-- leave an unmatched row unresolved
+- leave an unmatched row unresolved, then tap `Use AI estimate`
+- verify the estimate is labeled low-trust and can be edited before saving
+- verify no AI estimate appears for matched or USDA-backed rows
 - log selected rows
 - verify AI unavailable, rate-limit, and network error copy
 - verify existing manual/search/barcode flows still work

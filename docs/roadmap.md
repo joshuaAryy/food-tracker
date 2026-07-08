@@ -208,19 +208,31 @@ edits are saved as FoodLog snapshot overrides only and must not mutate trusted
 USDA, Open Food Facts, global, or cached FoodItem records. AI-estimated
 nutrition remains deferred.
 
-## Phase 12.6 — AI-Estimated Nutrition Fallback — Active / Next Candidate
+## Phase 12.6 — AI-Estimated Nutrition Fallback — Complete / Ready To Commit
 
-- only used after local, custom, saved, recent, cached barcode, Open Food
-  Facts, and USDA trusted sources fail
+- only user-triggered from unresolved AI text logging rows
+- not available in normal food search yet
+- not auto-generated after parsing
+- trusted candidates are rechecked before estimating
 - clearly labeled low-trust or AI-estimated
-- user-reviewed before saving
-- saved as a FoodLog-level estimate/override only
+- user-reviewed and editable before saving
+- saved as an unlinked FoodLog-level snapshot only
 - does not create trusted FoodItems
-- starts with basic calories and macros only
+- does not pollute USDA, Open Food Facts, local, or cached trusted-food data
+- starts with calories, protein, carbs, fat, and optional main editor fields
 - does not hallucinate full micronutrients
+- uses no Prisma schema changes
 
 AI-estimated fallback is a last-resort speed feature, not a trusted food-data
 source. It must remain visibly different from local/OFF/USDA-backed logging.
+The final implementation also tightened trusted-candidate gating so weak
+generic token matches such as `bowl` or `meal` do not block fallback, while
+common foods such as banana and eggs still resolve through trusted candidates.
+USDA lookup now overfetches internally and skips stale or failed detail rows so
+common generic foods do not depend on Gemini. Gemini estimate handling accepts
+valid JSON from any response text part, rejects invalid or micronutrient-heavy
+output, treats upstream 429/503 as temporary unavailability, and reports
+`MAX_TOKENS` cutoffs separately after increasing the estimate output budget.
 
 ## Phase 12.7 — Food Coverage + Candidate Ranking Improvements
 

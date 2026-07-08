@@ -3,6 +3,8 @@ import type {
   AdvancedAnalytics,
   AiFoodParseCandidate,
   AiFoodParseResult,
+  AiNutritionEstimateInput,
+  AiNutritionEstimateResult,
   DashboardSummary,
   DailyNutrientTotals,
   FoodBarcodeLookupInput,
@@ -10,6 +12,7 @@ import type {
   FoodItemInput,
   FoodItemSearchCandidatesInput,
   FoodLog,
+  FoodLogFromAiEstimateInput,
   FoodLogsFromCandidatesInput,
   FoodLogFromFoodItemInput,
   FoodLogsFromFoodItemsInput,
@@ -338,6 +341,11 @@ export const api = {
         method: 'POST',
         body: input,
       }).then(({ foodLogs }) => foodLogs),
+    createFromAiEstimate: (input: FoodLogFromAiEstimateInput) =>
+      request<FoodLog>('/food-logs/from-ai-estimate', {
+        method: 'POST',
+        body: input,
+      }),
     update: (id: string, input: FoodLogInput) =>
       request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
     delete: (id: string) =>
@@ -426,6 +434,11 @@ export const api = {
       request<AiFoodParseResult>('/ai/food-parse', {
         method: 'POST',
         body: { description },
+      }),
+    estimateNutrition: (input: AiNutritionEstimateInput) =>
+      request<AiNutritionEstimateResult>('/ai/nutrition-estimate', {
+        method: 'POST',
+        body: input,
       }),
   },
 };

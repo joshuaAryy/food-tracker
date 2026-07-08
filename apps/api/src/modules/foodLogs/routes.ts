@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
   DEFAULT_TIMEZONE,
+  foodLogFromAiEstimateInputSchema,
   type FoodLogNutritionOverride,
+  type FoodLogFromAiEstimateInput,
   foodLogsFromCandidatesInputSchema,
   foodLogFromFoodItemInputSchema,
   foodLogsFromFoodItemsInputSchema,
@@ -75,6 +77,15 @@ function normalizedFoodLog(input: FoodLogInput) {
     servingUnit: input.servingUnit ?? null,
     loggedAt: new Date(input.loggedAt),
   };
+}
+
+function aiEstimateNotes(input: FoodLogFromAiEstimateInput): string {
+  const status = input.edited ? 'adjusted' : 'reviewed';
+  const prefix = `[AI-estimated nutrition: low trust, ${status}]`;
+  const userNotes = input.notes?.trim();
+  return userNotes === undefined || userNotes === ''
+    ? prefix
+    : `${prefix} ${userNotes}`;
 }
 
 function visibleFoodWhere(userId: string): Prisma.FoodItemWhereInput {
@@ -413,6 +424,49 @@ foodLogsRouter.post(
     });
 
     sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });
+  },
+);
+
+foodLogsRouter.post(
+  '/from-ai-estimate',
+  validateBody(foodLogFromAiEstimateInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodLogFromAiEstimateInput>(response);
+    const foodLog = await prisma.foodLog.create({
+      data: {
+        userId,
+        foodName: input.foodName.trim(),
+        mealType: input.mealType,
+        calories: Math.round(input.calories),
+        protein: roundTo(input.protein, 1),
+        carbs: roundTo(input.carbs, 1),
+        fat: roundTo(input.fat, 1),
+        fiber:
+          input.fiber === undefined || input.fiber === null
+            ? null
+            : roundTo(input.fiber, 1),
+        sugar:
+          input.sugar === undefined || input.sugar === null
+            ? null
+            : roundTo(input.sugar, 1),
+        sodium:
+          input.sodium === undefined || input.sodium === null
+            ? null
+            : Math.round(input.sodium),
+        notes: aiEstimateNotes(input),
+        servingQuantity:
+          input.servingQuantity === undefined || input.servingQuantity === null
+            ? null
+            : roundTo(input.servingQuantity, 2),
+        servingUnit: input.servingUnit ?? null,
+        loggedAt: new Date(input.loggedAt),
+        nutrients: { create: [] },
+      },
+      include: foodLogInclude,
+    });
+
+    sendSuccess(response, serializeFoodLog(foodLog));
   },
 );
 

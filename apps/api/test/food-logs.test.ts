@@ -760,6 +760,51 @@ describe('food logs API', () => {
     });
   });
 
+  it('saves reviewed AI estimates as unlinked food log snapshots only', async () => {
+    const response = await api
+      .post('/api/v1/food-logs/from-ai-estimate')
+      .send({
+        source: 'ai_estimate',
+        trustLevel: 'low',
+        reviewed: true,
+        edited: true,
+        foodName: 'homemade ghanaian stew with rice',
+        mealType: 'dinner',
+        calories: 520,
+        protein: 18.4,
+        carbs: 72.2,
+        fat: 16.5,
+        fiber: 8.1,
+        sugar: null,
+        sodium: null,
+        servingQuantity: 1,
+        servingUnit: 'bowl',
+        loggedAt: validFoodLog.loggedAt,
+        notes: 'Used fallback after no trusted match.',
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      foodItemId: null,
+      foodName: 'homemade ghanaian stew with rice',
+      mealType: 'dinner',
+      calories: 520,
+      protein: 18.4,
+      carbs: 72.2,
+      fat: 16.5,
+      fiber: 8.1,
+      sugar: null,
+      sodium: null,
+      servingQuantity: 1,
+      servingUnit: 'bowl',
+      notes:
+        '[AI-estimated nutrition: low trust, adjusted] Used fallback after no trusted match.',
+      nutrients: {},
+    });
+    expect(await prisma.foodLog.count()).toBe(1);
+    expect(await prisma.foodItem.count()).toBe(0);
+  });
+
   it('rejects selected USDA candidates without trusted calories and protein without partial saves', async () => {
     process.env.USDA_FDC_API_KEY = 'test-usda-key';
     const localFood = await prisma.foodItem.create({

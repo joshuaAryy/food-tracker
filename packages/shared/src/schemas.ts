@@ -310,8 +310,35 @@ export const foodLogsFromCandidatesInputSchema = z.strictObject({
     .max(12),
 });
 
+export const foodLogFromAiEstimateInputSchema = z.strictObject({
+  source: z.literal('ai_estimate'),
+  trustLevel: z.literal('low'),
+  reviewed: z.literal(true),
+  edited: z.boolean(),
+  foodName: z.string().trim().min(1),
+  mealType: mealTypeSchema,
+  calories: z.number().int().nonnegative(),
+  protein: z.number().nonnegative(),
+  carbs: z.number().nonnegative(),
+  fat: z.number().nonnegative(),
+  fiber: optionalNonNegativeDecimal,
+  sugar: optionalNonNegativeDecimal,
+  sodium: z.number().int().nonnegative().nullable().optional(),
+  notes: z.string().trim().min(1).nullable().optional(),
+  servingQuantity: z.number().positive().nullable().optional(),
+  servingUnit: z.string().trim().min(1).nullable().optional(),
+  loggedAt: z.iso.datetime(),
+});
+
 export const aiFoodParseInputSchema = z.strictObject({
   description: z.string().trim().min(1),
+});
+
+export const aiNutritionEstimateInputSchema = z.strictObject({
+  parsedName: z.string().trim().min(1).max(120),
+  quantityText: z.string().trim().min(1).max(80).nullable().optional(),
+  servingText: z.string().trim().min(1).max(120).nullable().optional(),
+  description: z.string().trim().min(1).max(500).nullable().optional(),
 });
 
 const optionalNonNegativeInteger = z
@@ -398,10 +425,16 @@ export type FoodLogsFromFoodItemsInput = z.infer<
 export type FoodLogsFromCandidatesInput = z.infer<
   typeof foodLogsFromCandidatesInputSchema
 >;
+export type FoodLogFromAiEstimateInput = z.infer<
+  typeof foodLogFromAiEstimateInputSchema
+>;
 export type FoodLogNutritionOverride = z.infer<
   typeof foodLogNutritionOverrideSchema
 >;
 export type AiFoodParseInput = z.infer<typeof aiFoodParseInputSchema>;
+export type AiNutritionEstimateInput = z.infer<
+  typeof aiNutritionEstimateInputSchema
+>;
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 export type FoodItemSearchCandidatesInput = z.infer<
   typeof foodItemSearchCandidatesInputSchema

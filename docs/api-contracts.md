@@ -826,6 +826,46 @@ Success `data`:
 
 Each returned FoodLog uses the normal FoodLog response shape.
 
+### `POST /api/v1/food-logs/from-ai-estimate`
+
+Creates one FoodLog from a user-reviewed low-trust AI nutrition estimate. This
+endpoint is separate from trusted candidate logging and must not create or
+mutate FoodItems.
+
+Request:
+
+```json
+{
+  "source": "ai_estimate",
+  "trustLevel": "low",
+  "reviewed": true,
+  "edited": true,
+  "foodName": "homemade ghanaian stew with rice",
+  "mealType": "dinner",
+  "calories": 520,
+  "protein": 18.4,
+  "carbs": 72.2,
+  "fat": 16.5,
+  "fiber": 8.1,
+  "sugar": null,
+  "sodium": null,
+  "loggedAt": "2026-06-14T23:30:00.000Z",
+  "notes": "Estimated serving: 1 bowl"
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- `source` must be `ai_estimate`, `trustLevel` must be `low`, and `reviewed`
+  must be `true`
+- the created FoodLog has `foodItemId: null`
+- notes are prefixed with an AI-estimated low-trust marker
+- normalized micronutrients are not accepted from AI estimates in Phase 12.6
+- this route does not create trusted FoodItems or external food cache rows
+
+Success `data` is the normal FoodLog response shape.
+
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
@@ -1122,6 +1162,65 @@ external reference and nutrition preview; clients must confirm the reference
 through `POST /api/v1/food-logs/from-candidates` rather than submitting raw
 nutrition. Unmatched items return `reviewStatus: "unmatched"`,
 `loggable: false`, no selected candidate, and an empty candidate list.
+
+### `POST /api/v1/ai/nutrition-estimate`
+
+Returns a low-trust AI nutrition estimate for one unresolved AI text logging
+row. This endpoint is user-triggered only and is not used by normal food
+search.
+
+Request body:
+
+```json
+{
+  "parsedName": "homemade ghanaian stew with rice",
+  "quantityText": null,
+  "servingText": "1 bowl",
+  "description": "homemade Ghanaian stew with rice"
+}
+```
+
+Rules:
+
+- unknown fields are rejected
+- backend rechecks trusted candidates before calling the AI provider
+- if a genuinely relevant, loggable trusted candidate exists, the endpoint
+  returns `TRUSTED_NUTRITION_AVAILABLE`
+- weak or generic token-only matches do not block fallback; terms such as
+  `bowl`, `plate`, `serving`, `homemade`, `custom`, and `meal` do not count as
+  meaningful overlap by themselves
+- disabled, misconfigured, unavailable, or invalid providers return
+  `AI_UNAVAILABLE`
+- upstream AI 429/503 responses return temporary AI unavailable copy
+- HTTP 200 invalid JSON/unparseable model output is handled separately from
+  upstream non-OK responses
+- HTTP 200 `finishReason: "MAX_TOKENS"` with no text returns
+  `AI_UNAVAILABLE` with cut-off copy
+- response nutrients are limited to calories, protein, carbs, fat, and optional
+  nullable fiber, sugar, and sodium
+- Gemini returns only the basic estimate fields; the backend adds
+  `source: "ai_estimate"`, `trustLevel: "low"`, and `nutrients: {}`
+- full micronutrients are rejected and never generated in Phase 12.6
+- the endpoint creates no FoodLogs and no FoodItems
+
+Success `data`:
+
+```json
+{
+  "source": "ai_estimate",
+  "trustLevel": "low",
+  "foodName": "homemade ghanaian stew with rice",
+  "servingText": "1 bowl",
+  "calories": 400,
+  "protein": 20,
+  "carbs": 40,
+  "fat": 15,
+  "fiber": null,
+  "sugar": null,
+  "sodium": null,
+  "nutrients": {}
+}
+```
 
 ## Recommendations
 

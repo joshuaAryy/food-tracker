@@ -575,18 +575,97 @@ remain null/absent, not zero.
 
 ### Phase 12.6 AI-Estimated Nutrition Fallback
 
-Phase 12.6 is the next candidate after Phase 12.5. It should add a last-resort
-AI-estimated nutrition fallback only when trusted local/custom/saved/recent,
-cached barcode/Open Food Facts, and USDA sources fail.
+Phase 12.6 adds a last-resort AI-estimated nutrition fallback only when
+trusted local/custom/saved/recent, cached barcode/Open Food Facts, and USDA
+sources fail. Estimates are only user-triggered from unresolved AI text logging
+rows; normal food search does not offer AI estimates yet.
 
 Rules:
 
 - clearly label rows as low-trust or AI-estimated
-- require user review before saving
-- save estimates as FoodLog-level values or overrides only
+- require user review and editing opportunity before saving
+- save estimates as unlinked FoodLog-level snapshots only
 - do not create trusted FoodItems from AI estimates
-- start with basic calories and macros only
+- start with calories, protein, carbs, fat, and optional main editor fields
 - do not hallucinate full micronutrients
+- do not add Prisma schema or migration changes in this phase
+
+The estimate flow is:
+
+```text
+AI text logging row remains unresolved
+↓
+user taps Use AI estimate
+↓
+backend rechecks trusted candidates
+↓
+if a genuinely relevant trusted candidate exists, return
+TRUSTED_NUTRITION_AVAILABLE
+↓
+otherwise Gemini returns only a basic estimate object
+↓
+backend validates it and adds source/trust/nutrients metadata
+↓
+user edits/reviews
+↓
+backend saves an unlinked FoodLog snapshot
+```
+
+Trusted-candidate gating must use the same idea of real loggability as the
+parse/review flow. A candidate blocks AI estimation only when it is genuinely
+relevant and nutrient-backed. Low-confidence, weak, or generic token-only
+matches do not block fallback. Generic words such as `bowl`, `plate`,
+`serving`, `homemade`, `custom`, and `meal` are not meaningful overlap by
+themselves.
+
+Common foods must resolve through trusted data before AI is offered. Phase 12.6
+therefore broadened trusted retrieval beyond the visible eggs regression:
+simple singular/plural token normalization supports forms such as `egg` and
+`eggs`; query variants support local, cached, and USDA matching; generic
+stopwords are ignored for relevance; and USDA lookup internally overfetches at
+least 8 results so stale 404/timeout detail records do not exhaust the search.
+USDA detail failures remain non-fatal and are skipped. A USDA candidate is not
+trusted/loggable until detail nutrition is successfully fetched and required
+nutrients exist.
+
+Gemini estimate output is deliberately narrow. The model is asked only for:
+
+- `foodName`
+- `servingText`
+- `calories`
+- `protein`
+- `carbs`
+- `fat`
+- optional `fiber`
+- optional `sugar`
+- optional `sodium`
+
+The backend, not Gemini, adds `source: "ai_estimate"`, `trustLevel: "low"`,
+and `nutrients: {}`. Strict validation rejects missing calories/protein/carbs/
+fat, negative values, non-integer calories/sodium, unknown fields, and any
+micronutrient-like output. Simple mode exposes only the main nutrient editor.
+Complex mode does not show AI-generated micronutrients; detailed nutrients
+remain trusted/manual only.
+
+Gemini failure handling is separate by failure class. The provider collects
+all text parts from all candidates, handles fenced JSON and prose around JSON,
+extracts balanced JSON objects, and returns the first object that validates.
+Upstream 429/503 responses are temporary AI unavailable errors, not invalid
+JSON. HTTP 200 invalid or unparseable model output is handled separately.
+HTTP 200 responses with `finishReason: "MAX_TOKENS"` and no text are reported
+as cut off; Phase 12.6 increased nutrition estimate `maxOutputTokens` from
+256 to 768 and shortened the prompt to reduce that failure mode.
+
+Manual validation for the final branch confirmed:
+
+- `banana` returns `TRUSTED_NUTRITION_AVAILABLE`
+- `eggs` returns `TRUSTED_NUTRITION_AVAILABLE`
+- `homemade Ghanaian palm nut soup` returns a low-trust AI estimate
+- on iPhone, `2 eggs, toast, banana` resolves through trusted review
+  candidates
+- on iPhone, homemade/custom unresolved food can use an editable low-trust AI
+  estimate
+- saving an AI estimate creates a FoodLog snapshot, not a reusable FoodItem
 
 ### Phase 12.7 Food Coverage And Candidate Ranking
 

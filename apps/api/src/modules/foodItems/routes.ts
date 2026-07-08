@@ -53,6 +53,72 @@ function normalizeText(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
+const GENERIC_FOOD_WORDS = new Set([
+  'bowl',
+  'plate',
+  'serving',
+  'homemade',
+  'custom',
+  'meal',
+  'food',
+  'dish',
+  'portion',
+  'with',
+  'and',
+]);
+
+function normalizeToken(value: string): string {
+  const normalized = value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+  if (normalized.length > 3 && normalized.endsWith('ies')) {
+    return `${normalized.slice(0, -3)}y`;
+  }
+  if (normalized.length > 2 && normalized.endsWith('s')) {
+    return normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+function meaningfulTokens(value: string): Set<string> {
+  return new Set(
+    value
+      .split(/\s+/)
+      .map(normalizeToken)
+      .filter((token) => token.length >= 2 && !GENERIC_FOOD_WORDS.has(token)),
+  );
+}
+
+function hasMeaningfulOverlap(left: string, right: string): boolean {
+  const leftTokens = meaningfulTokens(left);
+  if (leftTokens.size === 0) return false;
+  const rightTokens = meaningfulTokens(right);
+
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) return true;
+  }
+
+  return false;
+}
+
+function queryVariants(value: string): string[] {
+  const normalized = normalizeText(value);
+  const tokenNormalized = normalized.split(/\s+/).map(normalizeToken).join(' ');
+  return [...new Set([normalized, tokenNormalized])].filter(
+    (variant) => variant.length > 0,
+  );
+}
+
+function searchTextWhere(value: string): Prisma.FoodItemWhereInput {
+  return {
+    OR: queryVariants(value).map((variant) => ({
+      searchText: { contains: variant },
+    })),
+  };
+}
+
+function externalSearchQuery(value: string): string {
+  return queryVariants(value).at(-1) ?? value;
+}
+
 function searchText(input: Pick<FoodItemInput, 'name' | 'brandName'>): {
   normalizedName: string;
   normalizedBrandName: string | null;
@@ -154,6 +220,7 @@ function confidenceFor(
 ): AiFoodCandidateConfidence {
   const normalizedName = normalizeText(name);
   if (normalizedName === normalizedQuery) return 'high';
+  if (hasMeaningfulOverlap(normalizedQuery, name)) return 'medium';
   if (
     normalizedName.includes(normalizedQuery) ||
     normalizedQuery.includes(normalizedName)
@@ -374,8 +441,7 @@ foodItemsRouter.post(
 
     const localFoods = await prisma.foodItem.findMany({
       where: {
-        ...visibleFoodWhere(userId),
-        searchText: { contains: normalizedQuery },
+        AND: [visibleFoodWhere(userId), searchTextWhere(normalizedQuery)],
       },
       include: foodItemInclude(userId),
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
@@ -402,7 +468,7 @@ foodItemsRouter.post(
     const usdaConfig = usdaFdcConfig();
     try {
       const usdaMatches = await searchUsdaFoods({
-        query: normalizedQuery,
+        query: externalSearchQuery(normalizedQuery),
         config: usdaConfig,
         rateLimitKey: `${userId}:${request.ip ?? 'unknown'}:food-search`,
       });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Search, Sparkles, X } from 'lucide-react-native';
@@ -7,9 +7,12 @@ import type {
   AiFoodParsedItem,
   AiFoodParseResult,
   AiFoodParseExternalFood,
+  AiNutritionEstimateResult,
   FoodItem,
+  FoodLogFromAiEstimateInput,
   FoodLogsFromCandidatesInput,
   MealType,
+  TrackingMode,
 } from '@food-tracker/shared';
 import { MEAL_TYPES } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -27,6 +30,60 @@ const examples = [
   'rice bowl with chicken',
   'protein shake with milk',
 ] as const;
+
+interface EstimateForm {
+  foodName: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+  fiber: string;
+  sugar: string;
+  sodium: string;
+  servingText: string;
+}
+
+function estimateFormFromResult(
+  estimate: AiNutritionEstimateResult,
+): EstimateForm {
+  return {
+    foodName: estimate.foodName,
+    calories: String(estimate.calories),
+    protein: String(estimate.protein),
+    carbs: String(estimate.carbs),
+    fat: String(estimate.fat),
+    fiber: estimate.fiber === null ? '' : String(estimate.fiber),
+    sugar: estimate.sugar === null ? '' : String(estimate.sugar),
+    sodium: estimate.sodium === null ? '' : String(estimate.sodium),
+    servingText: estimate.servingText ?? '',
+  };
+}
+
+function nullableNumber(value: string): number | null {
+  return value.trim() === '' ? null : Number(value);
+}
+
+function nullableInteger(value: string): number | null {
+  return value.trim() === '' ? null : Math.round(Number(value));
+}
+
+function isEstimateFormLoggable(form: EstimateForm | undefined): boolean {
+  if (form === undefined) return false;
+  return [form.foodName, form.calories, form.protein, form.carbs, form.fat]
+    .map((value) => value.trim())
+    .every((value) => value.length > 0 && Number.isFinite(Number(value)));
+}
+
+function estimateWasEdited(
+  estimate: AiNutritionEstimateResult,
+  form: EstimateForm,
+): boolean {
+  const original = estimateFormFromResult(estimate);
+  return Object.keys(original).some((key) => {
+    const field = key as keyof EstimateForm;
+    return original[field] !== form[field];
+  });
+}
 
 function nutrientPreview(
   food: FoodItem | AiFoodParseExternalFood,
@@ -135,15 +192,46 @@ export default function MealDescribeScreen() {
   const [description, setDescription] = useState('');
   const [mealType, setMealType] = useState<MealType>('lunch');
   const [result, setResult] = useState<AiFoodParseResult | null>(null);
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>('simple');
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<
     Record<string, string>
   >({});
   const [removedRows, setRemovedRows] = useState<string[]>([]);
   const [multipliers, setMultipliers] = useState<Record<string, string>>({});
+  const [estimates, setEstimates] = useState<
+    Record<string, AiNutritionEstimateResult>
+  >({});
+  const [estimateForms, setEstimateForms] = useState<
+    Record<string, EstimateForm>
+  >({});
+  const [estimatingRows, setEstimatingRows] = useState<string[]>([]);
+  const [estimateErrors, setEstimateErrors] = useState<Record<string, string>>(
+    {},
+  );
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.trackingPreferences
+      .get()
+      .then((preferences) => {
+        if (!cancelled) {
+          setTrackingMode(preferences.mode);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTrackingMode('simple');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const visibleItems = useMemo(
     () =>
@@ -154,7 +242,8 @@ export default function MealDescribeScreen() {
   );
   const selectedLoggableCount = visibleItems.filter(
     (item) =>
-      isCandidateLoggable(selectedCandidate(item, selectedCandidateIds)) &&
+      (isCandidateLoggable(selectedCandidate(item, selectedCandidateIds)) ||
+        isEstimateFormLoggable(estimateForms[item.id])) &&
       selectedRows.includes(item.id),
   ).length;
 
@@ -171,6 +260,10 @@ export default function MealDescribeScreen() {
       const parsed = await api.ai.parseFood(trimmed);
       setResult(parsed);
       setRemovedRows([]);
+      setEstimates({});
+      setEstimateForms({});
+      setEstimatingRows([]);
+      setEstimateErrors({});
       setSelectedRows(
         parsed.items.filter((item) => item.loggable).map((item) => item.id),
       );
@@ -204,44 +297,85 @@ export default function MealDescribeScreen() {
     setSaving(true);
     setError(null);
     try {
-      const items = visibleItems.reduce<FoodLogsFromCandidatesInput['items']>(
+      const trustedItems = visibleItems.reduce<
+        FoodLogsFromCandidatesInput['items']
+      >((selectedItems, item) => {
+        const candidate = selectedCandidate(item, selectedCandidateIds);
+
+        if (
+          !isCandidateLoggable(candidate) ||
+          !selectedRows.includes(item.id)
+        ) {
+          return selectedItems;
+        }
+
+        if (candidate === null) return selectedItems;
+
+        if (candidate.candidateType === 'food_item') {
+          selectedItems.push({
+            candidateType: 'food_item',
+            foodItemId: candidate.foodItem.id,
+            servingMultiplier: Number(multipliers[item.id] ?? 1),
+          });
+          return selectedItems;
+        }
+
+        selectedItems.push({
+          candidateType: 'external_food',
+          sourceProvider: candidate.externalFood.sourceProvider,
+          sourceId: candidate.externalFood.sourceId,
+          servingMultiplier: Number(multipliers[item.id] ?? 1),
+        });
+        return selectedItems;
+      }, []);
+      const estimateInputs = visibleItems.reduce<FoodLogFromAiEstimateInput[]>(
         (selectedItems, item) => {
-          const candidate = selectedCandidate(item, selectedCandidateIds);
+          const estimate = estimates[item.id];
+          const form = estimateForms[item.id];
 
           if (
-            !isCandidateLoggable(candidate) ||
-            !selectedRows.includes(item.id)
+            estimate === undefined ||
+            form === undefined ||
+            !selectedRows.includes(item.id) ||
+            !isEstimateFormLoggable(form)
           ) {
             return selectedItems;
           }
 
-          if (candidate === null) return selectedItems;
-
-          if (candidate.candidateType === 'food_item') {
-            selectedItems.push({
-              candidateType: 'food_item',
-              foodItemId: candidate.foodItem.id,
-              servingMultiplier: Number(multipliers[item.id] ?? 1),
-            });
-            return selectedItems;
-          }
-
           selectedItems.push({
-            candidateType: 'external_food',
-            sourceProvider: candidate.externalFood.sourceProvider,
-            sourceId: candidate.externalFood.sourceId,
-            servingMultiplier: Number(multipliers[item.id] ?? 1),
+            source: 'ai_estimate',
+            trustLevel: 'low',
+            reviewed: true,
+            edited: estimateWasEdited(estimate, form),
+            foodName: form.foodName.trim(),
+            mealType,
+            calories: Math.round(Number(form.calories)),
+            protein: Number(form.protein),
+            carbs: Number(form.carbs),
+            fat: Number(form.fat),
+            fiber: nullableNumber(form.fiber),
+            sugar: nullableNumber(form.sugar),
+            sodium: nullableInteger(form.sodium),
+            loggedAt: new Date().toISOString(),
+            ...(form.servingText.trim() === ''
+              ? {}
+              : { notes: `Estimated serving: ${form.servingText.trim()}` }),
           });
           return selectedItems;
         },
         [],
       );
 
-      await api.foodLogs.createFromCandidates({
-        mealType,
-        loggedAt: new Date().toISOString(),
-        items,
-      });
+      if (trustedItems.length > 0) {
+        await api.foodLogs.createFromCandidates({
+          mealType,
+          loggedAt: new Date().toISOString(),
+          items: trustedItems,
+        });
+      }
+      for (const estimateInput of estimateInputs) {
+        await api.foodLogs.createFromAiEstimate(estimateInput);
+      }
       router.back();
     } catch (saveError) {
       setError(errorMessage(saveError));
@@ -252,12 +386,69 @@ export default function MealDescribeScreen() {
 
   const toggleSelected = (item: AiFoodParsedItem) => {
     const candidate = selectedCandidate(item, selectedCandidateIds);
-    if (!isCandidateLoggable(candidate)) return;
+    if (
+      !isCandidateLoggable(candidate) &&
+      !isEstimateFormLoggable(estimateForms[item.id])
+    ) {
+      return;
+    }
     setSelectedRows((current) =>
       current.includes(item.id)
         ? current.filter((id) => id !== item.id)
         : [...current, item.id],
     );
+  };
+
+  const requestEstimate = async (item: AiFoodParsedItem) => {
+    setEstimatingRows((current) =>
+      current.includes(item.id) ? current : [...current, item.id],
+    );
+    setEstimateErrors((current) => {
+      const next = { ...current };
+      delete next[item.id];
+      return next;
+    });
+    try {
+      const estimate = await api.ai.estimateNutrition({
+        parsedName: item.parsedName,
+        quantityText: item.quantityText,
+        servingText: item.servingText,
+        description: result?.description ?? null,
+      });
+      setEstimates((current) => ({ ...current, [item.id]: estimate }));
+      setEstimateForms((current) => ({
+        ...current,
+        [item.id]: estimateFormFromResult(estimate),
+      }));
+      setSelectedRows((current) =>
+        current.includes(item.id) ? current : [...current, item.id],
+      );
+    } catch (estimateError) {
+      setEstimateErrors((current) => ({
+        ...current,
+        [item.id]: errorMessage(estimateError),
+      }));
+    } finally {
+      setEstimatingRows((current) => current.filter((id) => id !== item.id));
+    }
+  };
+
+  const updateEstimateForm = (
+    rowId: string,
+    field: keyof EstimateForm,
+    value: string,
+  ) => {
+    setEstimateForms((current) => {
+      const form = current[rowId];
+      if (form === undefined) return current;
+      return {
+        ...current,
+        [rowId]: {
+          ...form,
+          [field]: value,
+        },
+      };
+    });
   };
 
   return (
@@ -385,8 +576,14 @@ export default function MealDescribeScreen() {
               {visibleItems.map((item, index) => {
                 const candidate = selectedCandidate(item, selectedCandidateIds);
                 const food = candidateFood(candidate);
+                const estimate = estimates[item.id];
+                const estimateForm = estimateForms[item.id];
+                const estimating = estimatingRows.includes(item.id);
+                const estimateError = estimateErrors[item.id];
                 const selected = selectedRows.includes(item.id);
-                const loggable = isCandidateLoggable(candidate);
+                const loggable =
+                  isCandidateLoggable(candidate) ||
+                  isEstimateFormLoggable(estimateForm);
 
                 return (
                   <View
@@ -434,24 +631,197 @@ export default function MealDescribeScreen() {
 
                         {food === null ? (
                           <View className="gap-2">
-                            <AppText variant="caption" muted>
-                              No matching food yet. Search or enter it manually
-                              before logging this item.
-                            </AppText>
-                            <Pressable
-                              accessibilityRole="button"
-                              className="flex-row items-center gap-2 self-start rounded-full bg-module px-3.5 py-2"
-                              onPress={() => router.replace('/food-log')}
-                            >
-                              <Search
-                                color={colors.light.ink}
-                                size={14}
-                                strokeWidth={2.2}
-                              />
-                              <AppText variant="caption" className="text-ink">
-                                Search manually
-                              </AppText>
-                            </Pressable>
+                            {estimate === undefined ||
+                            estimateForm === undefined ? (
+                              <>
+                                <AppText variant="caption" muted>
+                                  No trusted match found. You can search
+                                  manually or review a low-trust AI estimate.
+                                </AppText>
+                                {estimateError === undefined ? null : (
+                                  <ErrorState
+                                    title="AI estimate is unavailable"
+                                    message={estimateError}
+                                  />
+                                )}
+                                <View className="flex-row flex-wrap gap-2">
+                                  <Pressable
+                                    accessibilityRole="button"
+                                    className="self-start rounded-full bg-primary px-3.5 py-2 disabled:opacity-60"
+                                    disabled={estimating}
+                                    onPress={() => void requestEstimate(item)}
+                                  >
+                                    <AppText
+                                      variant="caption"
+                                      className="text-white"
+                                    >
+                                      {estimating
+                                        ? 'Estimating...'
+                                        : 'Use AI estimate'}
+                                    </AppText>
+                                  </Pressable>
+                                  <Pressable
+                                    accessibilityRole="button"
+                                    className="flex-row items-center gap-2 self-start rounded-full bg-module px-3.5 py-2"
+                                    onPress={() => router.replace('/food-log')}
+                                  >
+                                    <Search
+                                      color={colors.light.ink}
+                                      size={14}
+                                      strokeWidth={2.2}
+                                    />
+                                    <AppText
+                                      variant="caption"
+                                      className="text-ink"
+                                    >
+                                      Search manually
+                                    </AppText>
+                                  </Pressable>
+                                </View>
+                              </>
+                            ) : (
+                              <View className="gap-3 rounded-[24px] bg-module px-4 py-4">
+                                <View className="gap-1">
+                                  <AppText
+                                    variant="caption"
+                                    className="text-error"
+                                  >
+                                    AI estimate · low trust
+                                  </AppText>
+                                  <AppText variant="caption" muted>
+                                    Review and edit before saving. This will be
+                                    saved only to this food log.
+                                  </AppText>
+                                  {trackingMode === 'complex' ? (
+                                    <AppText variant="caption" muted>
+                                      AI is not filling detailed nutrients.
+                                      Complex details can be entered manually
+                                      after saving if needed.
+                                    </AppText>
+                                  ) : null}
+                                </View>
+                                <AppInput
+                                  label="Food"
+                                  value={estimateForm.foodName}
+                                  onChangeText={(value) =>
+                                    updateEstimateForm(
+                                      item.id,
+                                      'foodName',
+                                      value,
+                                    )
+                                  }
+                                />
+                                <View className="flex-row gap-3">
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Calories"
+                                      keyboardType="number-pad"
+                                      value={estimateForm.calories}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'calories',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Protein (g)"
+                                      keyboardType="decimal-pad"
+                                      value={estimateForm.protein}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'protein',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                </View>
+                                <View className="flex-row gap-3">
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Carbs (g)"
+                                      keyboardType="decimal-pad"
+                                      value={estimateForm.carbs}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'carbs',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Fat (g)"
+                                      keyboardType="decimal-pad"
+                                      value={estimateForm.fat}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'fat',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                </View>
+                                <View className="flex-row gap-3">
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Fiber (g)"
+                                      keyboardType="decimal-pad"
+                                      value={estimateForm.fiber}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'fiber',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                  <View className="flex-1">
+                                    <AppInput
+                                      label="Sugar (g)"
+                                      keyboardType="decimal-pad"
+                                      value={estimateForm.sugar}
+                                      onChangeText={(value) =>
+                                        updateEstimateForm(
+                                          item.id,
+                                          'sugar',
+                                          value,
+                                        )
+                                      }
+                                    />
+                                  </View>
+                                </View>
+                                <AppInput
+                                  label="Sodium (mg)"
+                                  keyboardType="number-pad"
+                                  value={estimateForm.sodium}
+                                  onChangeText={(value) =>
+                                    updateEstimateForm(item.id, 'sodium', value)
+                                  }
+                                />
+                                <AppInput
+                                  label="Serving note"
+                                  value={estimateForm.servingText}
+                                  onChangeText={(value) =>
+                                    updateEstimateForm(
+                                      item.id,
+                                      'servingText',
+                                      value,
+                                    )
+                                  }
+                                />
+                              </View>
+                            )}
                           </View>
                         ) : (
                           <View className="gap-2">
