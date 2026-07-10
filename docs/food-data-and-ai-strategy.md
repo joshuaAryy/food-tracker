@@ -669,12 +669,161 @@ Manual validation for the final branch confirmed:
 
 ### Phase 12.7 Food Coverage And Candidate Ranking
 
-Phase 12.7 should improve trusted food coverage and candidate ranking before
-adding more AI authority. USDA ranking quality should improve first. Examples:
-plain banana should prefer raw banana over banana powder; eggs should prefer
-common egg variants; salmon should avoid irrelevant branded or unusual results
-when a generic match is expected. Canadian Nutrient File, improved Open Food
-Facts text search, and commercial APIs can be evaluated later.
+Phase 12.7 improves trusted food coverage and candidate ranking before adding
+more AI authority. Normal search, AI parse retrieval, and AI-estimate trusted
+candidate rechecks share deterministic lexical scoring. Ranking uses exact and
+singular/plural phrase matches, meaningful-token coverage, requested preparation
+terms such as `boiled`, `scrambled`, `cooked`, `grilled`, `raw`, and `plain`,
+nutrition completeness, serving usability, and source/user intent signals.
+High-quality generic USDA rows may outrank weak local, cached, or branded rows
+for unbranded common-food queries.
+
+Lexical relevance is identity-first. Query tokens are separated into core food
+tokens, preparation/form modifiers, generic stopwords, negative descriptors,
+and applicable brand terms. A candidate must match a core food token to be
+relevant; modifiers such as `boiled` and `cooked` are only bonuses after that
+gate. High confidence requires the full core-food identity, including both
+`peanut` and `butter` for peanut butter. Meaningful non-state terms in compound
+foods are identity-bearing: `sweet potato`, `rice noodles`, `egg sandwich`,
+`whole milk`, `oat milk`, `steak sauce`, and `banana pudding` must match their
+complete requested identity before they are selection-eligible. A partial head
+match can remain visible at low or medium confidence, but cannot auto-select or
+block AI estimate fallback. The lexical `sweet potato`/`yam` equivalence is
+handled without introducing a broader food ontology. These rules also prevent
+modifier-only rows such as cooked kale from being returned for cooked rice or
+boiled egg.
+
+Core relevance alone is not high confidence. High confidence also requires a
+strong phrase or food-name-head match, requested-form agreement, and default
+food suitability. A small deterministic food-intent profile distinguishes
+`visibleRelevant` from `selectionEligible`: raw, dry, and other imperfect
+forms can remain visible, but cannot be auto-selected by AI parse or block AI
+estimate fallback unless the user requested that form. A plain `rice` query
+therefore prefers cooked/plain rice while keeping dry rice, snacks, cakes,
+crackers, or flour lower. The same default preference applies to fluid milk,
+plain Greek yogurt, cooked/plain chicken breast, whole cooked egg, cooked
+protein/fish, and plain peanut butter. Raw/fresh fruit is already an edible
+default.
+
+Negative descriptor handling is category-aware rather than a universal word
+ban. Unrequested terms such as `dehydrated`, `dried`, `powder`, `powdered`,
+`flour`, `baby`, `infant`, `toddler`, `restaurant`, `fast food`, `school`,
+`commercial mix`, and `prepared meal` are scored down, but requested terms
+override the penalty. Queries such as `dried apple`, `protein powder`, `raw
+apple`, and `cooked rice` should prefer the requested form. Milk can match
+fluid/beverage-style generic USDA rows. Rice and oats prefer cooked/plain rows
+when the query implies ready-to-eat food while keeping dry/raw candidates
+visible. Chicken breast prefers breast/meat/plain rows over prepared meals,
+breaded products, sauces, or restaurant items. Greek yogurt prefers plain Greek
+yogurt without over-penalizing normal yogurt/dairy descriptors.
+
+Other form conflicts such as flour, crackers, candy, chocolate, breaded,
+lunchmeat, chips, melon, pepper, and rolls are likewise penalties only when
+unrequested. The search may return fewer than its limit when the alternatives
+are not core-food relevant instead of padding the result list with junk.
+Snack/cake/cookie/sandwich/cereal, deli, prepackaged, honey-glazed, and
+unrequested fruit or vanilla flavors follow the same rule. Explicit queries
+such as `rice cakes`, `rice crackers`, `milk chocolate`, `banana chips`,
+`peanut butter cookies`, `rice noodles`, `egg sandwich`, `steak sauce`, and
+`breaded chicken` override their matching form penalty. For a milk identity,
+whole fluid milk outranks yogurt, buttermilk, evaporated milk, desserts, and
+other unrequested dairy forms.
+
+The AI estimate fallback remains last-resort only. A trusted candidate must be
+selection-eligible, not merely medium confidence, to auto-select during AI
+parse or block an estimate. This prevents rows such as `Bread, egg, toasted`,
+raw chicken, dry rice, raw steak, and raw/frozen egg products from becoming
+implicit defaults for plain edible-food queries. Explicit requests such as
+`raw chicken`, `dry rice`, `raw egg`, `egg white`, and `raw steak` override
+that rule. Canadian Nutrient File, improved Open Food Facts text search, and
+commercial APIs can be evaluated later.
+
+USDA enrichment is intentionally bounded for mobile latency. The backend
+preserves USDA search relevance when it collects metadata, then applies the
+same edible-default and foreign-head checks before fetching details. It fetches
+only a small top window with bounded concurrency, short per-detail timeouts,
+and an overall enrichment budget. Normal food search uses a smaller/faster
+budget than AI parse and AI estimate trusted-candidate rechecks. Failed, 404,
+or timed-out USDA detail rows are skipped and are never treated as loggable
+trusted candidates. If USDA is slow, endpoints return partial usable candidates
+instead of waiting for every possible detail result.
+
+The initial detail window is identity-ranked. If its relevant detail rows are
+unloggable or fail and the requested count is still unmet, retrieval may
+backfill from additional core-relevant USDA metadata while the same endpoint
+budget remains; modifier-only metadata is never used as backfill.
+
+When primary metadata lacks two strong edible-default rows, retrieval may make
+one bounded intent fallback query within the same endpoint budget. Metadata is
+evaluated for default suitability without requiring detail nutrients, because
+nutrition is not present until the detail stage. Examples include `rice ->
+cooked plain rice`, `eggs -> egg cooked`, `boiled egg -> egg cooked boiled`,
+`scrambled eggs -> egg cooked scrambled`, `chicken breast -> chicken breast
+cooked`, `steak -> beef steak cooked`, `salmon -> salmon cooked`, `oats <->
+oatmeal`, and `milk -> fluid milk`. The original query remains the final
+ranking intent. Explicit forms either retain their original query or use a
+form-preserving fallback such as `breaded chicken -> chicken breast breaded`;
+they never expand away from the requested form. Potato uses only `cooked
+potato` as its standard fallback; it never performs a second `baked potato`
+request in the same search. There is no public `searchDepth` parameter yet.
+
+Candidate adequacy is checked before spending that one fallback. A technically
+relevant result is inadequate when it is primarily a product, composite, or
+non-default form for the profile, such as rice noodles or rice with milk for
+plain rice, malted milk for milk, steak sauce for steak, or oat bran/oat milk
+for oats. Ranking remains deterministic and the original query remains the
+display and final-ranking intent. Empty USDA metadata responses are not cached,
+so a transient empty result cannot make a later warm-cache retry empty.
+
+USDA lookup also uses process-local in-memory caching only. Search metadata is
+cached by normalized query for tens of minutes; successful normalized detail
+records are cached for roughly a day; 404 misses are cached for under an hour;
+timeouts are cached only briefly. Ranking still runs fresh per request, so the
+cache stores source/normalized data rather than a final ranked list.
+
+One logical enrichment may issue the primary USDA metadata query plus at most
+one bounded fallback metadata query. The logical allowance remains 20
+enrichments per limiter window; because each enrichment can make at most two
+metadata searches, metadata traffic is capped at 40 calls per window. This
+prevents a fallback from prematurely exhausting the logical search allowance.
+Detail enrichment remains bounded by its existing concurrency, timeout,
+detail-window, and total-budget controls. No unbounded retry or serial detail
+fetch behavior was added.
+
+The same identity, adequacy, confidence, and `selectionEligible` rules are
+used by normal search, AI parsing, and trusted-candidate checks before an
+AI-estimate fallback. AI parsing does not simply accept the first lexical
+match; it may return `needs_review` when several plausible trusted candidates
+remain. A foreign-head composite such as `Bread, egg, toasted` is not selected
+for eggs, while `egg white` is eligible when explicitly requested. The test
+`2 eggs, toast, banana` produces separate candidate groups. Low-trust AI
+nutrition remains available only after trusted retrieval finds no
+selection-eligible candidate. AI estimates are unlinked FoodLog snapshots and
+never populate trusted FoodItem or USDA caches.
+
+Phase 12.7 final validation passed with Node `v22.23.0`, pnpm `10.34.3`, and
+PostgreSQL database `food_tracker_test`: format check, lint, typecheck, build,
+and the full suite (13 test files, 326 tests). `git diff --check` passed and
+the forbidden native/package/config/environment/Prisma scans produced no
+output. API terminal smoke, mixed regression/out-of-sample testing,
+compound-identity holdout testing, and physical-phone smoke testing also
+passed. Representative holdouts included `sweet potato`, `rice noodles`,
+`egg sandwich`, `whole milk`, `almond milk`, `chicken sandwich`, `whole wheat
+bread`, `brown rice noodles`, `baked sweet potato`, and `turkey sandwich`,
+alongside the core banana/rice/eggs/milk/chicken breast/steak/salmon/oats/
+potato/Greek yogurt/peanut butter queries. Cold and warm-cache behavior stayed
+stable with no empty results or request errors.
+
+Remaining limitations are non-blocking targeted follow-up: USDA secondary
+ordering and naming can be imperfect; generic banana can still rank dessert
+products below raw banana; generic eggs can prefer prepared scrambled/omelet
+variants; generic sweet potato can include processed products; breaded chicken
+can still rank meatless breaded products too highly; unknown foods outside the
+small deterministic profile set primarily use lexical ranking; public
+expanded search/show-more remains deferred; and semantic typo handling,
+embeddings, vector search, recipes, and additional providers remain out of
+scope. These should be future targeted search-quality work, not an extension
+of Phase 12.7.
 
 ### Phase 12.8 Serving Intelligence
 

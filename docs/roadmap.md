@@ -234,18 +234,74 @@ valid JSON from any response text part, rejects invalid or micronutrient-heavy
 output, treats upstream 429/503 as temporary unavailability, and reports
 `MAX_TOKENS` cutoffs separately after increasing the estimate output budget.
 
-## Phase 12.7 — Food Coverage + Candidate Ranking Improvements
+## Phase 12.7 — Food Coverage + Candidate Ranking Improvements — Complete / Commit-ready
 
-- improve USDA ranking quality first
-- prefer common generic foods over odd or irrelevant matches
-- examples:
-  - plain banana should prefer raw banana over banana powder
-  - eggs should prefer common egg variants such as raw, boiled, fried,
-    scrambled, or egg white depending on user wording
-  - salmon should avoid irrelevant branded or unusual results when a generic
-    match is expected
-- evaluate Canadian Nutrient File, improved Open Food Facts text search, and
-  commercial APIs later
+- centralized trusted candidate ranking across normal food search, AI parse
+  retrieval, and AI-estimate trusted-candidate rechecks
+- uses exact/singular/plural matches, lexical identity tokens, complete
+  compound-food identity, requested preparation words, source/user signals,
+  nutrition completeness, and serving usability
+- high-quality generic USDA candidates may outrank weak local/cached/branded
+  matches for unbranded common-food queries
+- category-aware penalties avoid odd forms such as unrequested dehydrated,
+  powdered, baby-food, restaurant, school, commercial-mix, or prepared-meal
+  rows while preserving requested forms such as `dried apple`, `protein
+  powder`, `raw apple`, and `cooked rice`
+- common foods such as banana, eggs, rice, chicken breast, milk, oats, apples,
+  salmon, toast, peanut butter, and Greek yogurt now have regression coverage
+- USDA enrichment now pre-ranks search metadata before detail fetches, limits
+  detail windows, uses bounded concurrency and short per-detail budgets, and
+  returns partial usable results when external lookup is slow
+- process-local USDA caches cover search metadata, normalized detail rows, 404
+  misses, and short-lived timeout misses without adding schema or provider
+  changes
+- ranking now gates preparation/form matches behind core food identity, scores
+  unrequested crackers/candy/chocolate/breaded/lunchmeat/chips and misleading
+  food modifiers down, and uses relevant-metadata backfill only within the
+  existing USDA time budget
+- high confidence now requires default-food suitability in addition to core
+  relevance; modifier searches may use a bounded core-food metadata fallback
+  before ranking combined results with the original query
+- final completion pass adds deterministic edible-default profiles and a
+  `visibleRelevant` versus `selectionEligible` distinction: raw/dry/product
+  alternatives remain searchable but cannot auto-select or block AI fallback
+  for plain cooked-default foods; one safe USDA fallback query covers aliases
+  such as `steak -> beef steak` without changing the public API
+- complete compound identity is required for default suitability and
+  `selectionEligible`; partial matches remain visible but cannot become
+  trusted/high-confidence selections. Validated compounds include sweet
+  potato/yam, rice noodles, egg sandwich, whole milk, oat milk, steak sauce,
+  banana pudding, peanut butter cookies, almond milk, chicken sandwich, and
+  turkey sandwich
+- final retrieval-quality guardrails preserve USDA metadata relevance before
+  local pre-ranking, detect viable cooked/default metadata without requiring
+  detail nutrients, use one form-preserving cooked fallback query, and keep
+  foreign-head composites out of bounded detail enrichment
+- candidate adequacy now distinguishes technically relevant product/composite
+  rows from an edible default before using the single focused fallback; empty
+  USDA metadata responses are intentionally not retained in the process cache
+- one logical enrichment may perform one primary plus one fallback metadata
+  query; the configured allowance remains 20 logical enrichments per limiter
+  window, so metadata traffic is capped at 40 calls per window
+- no public `searchDepth` or show-more mode was added; expanded search remains
+  deferred until a mobile caller and product workflow require it
+
+Phase 12.7 is complete and commit-ready. It passed automated validation, API
+terminal smoke testing, mixed regression/out-of-sample testing,
+compound-identity holdout testing, and physical-phone smoke testing. Final
+validation used Node `v22.23.0`, pnpm `10.34.3`, PostgreSQL database
+`food_tracker_test`, and 13 test files with 326 passing tests. The next
+defined project step is Phase 12.8 serving intelligence / household unit
+conversion; no new roadmap phase is introduced here.
+
+Known non-blocking limitations remain targeted follow-up work: USDA secondary
+ordering and naming can be imperfect; generic banana can still show dessert
+products below raw banana; generic eggs can prefer prepared scrambled/omelet
+variants; generic sweet potato can include processed products; breaded chicken
+can still rank meatless breaded products too highly; unknown foods outside the
+small deterministic profile set primarily use lexical ranking; and semantic
+typo handling, embeddings, vector search, recipes, and additional providers
+remain out of scope.
 
 ## Phase 12.8 — Serving Intelligence / Household Unit Conversion
 

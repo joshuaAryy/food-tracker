@@ -5,6 +5,11 @@ import {
 } from '@food-tracker/shared';
 import { AppError } from '../../lib/errors.js';
 import { roundTo } from '../../lib/serializers.js';
+import {
+  assessFoodCandidateAdequacy,
+  scoreFoodCandidate,
+} from './candidate-ranking.js';
+import { foodIntentFallbackQuery } from './food-intent.js';
 
 interface LimitBucket {
   windowStartedAt: number;
@@ -13,6 +18,36 @@ interface LimitBucket {
 
 const buckets = new Map<string, LimitBucket>();
 const DEFAULT_BASE_URL = 'https://api.nal.usda.gov/fdc/v1';
+const USDA_SEARCH_CACHE_TTL_MS = 30 * 60 * 1000;
+const USDA_DETAIL_CACHE_TTL_MS = 18 * 60 * 60 * 1000;
+const USDA_NOT_FOUND_CACHE_TTL_MS = 45 * 60 * 1000;
+const USDA_TIMEOUT_CACHE_TTL_MS = 3 * 60 * 1000;
+const USDA_METADATA_SEARCHES_PER_ENRICHMENT = 2;
+
+export const USDA_ENRICHMENT_POLICIES = {
+  normalSearch: {
+    metadataLimit: 15,
+    detailWindow: 6,
+    concurrency: 3,
+    detailTimeoutMs: 1200,
+    totalBudgetMs: 2800,
+  },
+  aiRetrieval: {
+    metadataLimit: 20,
+    detailWindow: 8,
+    concurrency: 3,
+    detailTimeoutMs: 1500,
+    totalBudgetMs: 4500,
+  },
+} as const;
+
+export interface UsdaEnrichmentPolicy {
+  metadataLimit: number;
+  detailWindow: number;
+  concurrency: number;
+  detailTimeoutMs: number;
+  totalBudgetMs: number;
+}
 
 const USDA_DATA_TYPE_PRIORITY = [
   'Foundation',
@@ -65,12 +100,13 @@ interface UsdaSearchResponse {
   foods?: unknown;
 }
 
-interface UsdaSearchFood {
+export interface UsdaSearchFood {
   fdcId: number;
   description: string;
   dataType: string;
   brandOwner: string | null;
   brandName: string | null;
+  foodCategory: string | null;
 }
 
 export interface NormalizedUsdaFood {
@@ -96,6 +132,26 @@ export interface NormalizedUsdaFood {
     amount: number;
     unit: NutrientUnit;
   }[];
+}
+
+interface CacheEntry<T> {
+  expiresAt: number;
+  value: T;
+}
+
+type NegativeDetailReason = 'not_found' | 'timeout' | 'invalid';
+
+const searchCache = new Map<string, CacheEntry<UsdaSearchFood[]>>();
+const detailCache = new Map<string, CacheEntry<NormalizedUsdaFood>>();
+const negativeDetailCache = new Map<string, CacheEntry<NegativeDetailReason>>();
+const detailInflight = new Map<string, Promise<NormalizedUsdaFood | null>>();
+
+export function clearUsdaFdcCaches(): void {
+  buckets.clear();
+  searchCache.clear();
+  detailCache.clear();
+  negativeDetailCache.clear();
+  detailInflight.clear();
 }
 
 function integerEnv(name: string, fallback: number): number {
@@ -226,6 +282,17 @@ async function fetchJson(
   init: RequestInit,
   timeoutMs: number,
 ): Promise<unknown | null> {
+  return (await fetchJsonResult(url, init, timeoutMs)).payload;
+}
+
+async function fetchJsonResult(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<{
+  payload: unknown | null;
+  failure: NegativeDetailReason | 'failure' | null;
+}> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -238,25 +305,47 @@ async function fetchJson(
         url: safeUrlForLog(url),
         body: await responseDiagnostic(response),
       });
-      return null;
+      return {
+        payload: null,
+        failure: response.status === 404 ? 'not_found' : 'failure',
+      };
     }
 
-    return await response.json();
+    return { payload: await response.json(), failure: null };
   } catch (error) {
-    logUsdaDiagnostic(
-      error instanceof DOMException && error.name === 'AbortError'
-        ? 'timeout'
-        : 'request_failure',
-      {
-        url: safeUrlForLog(url),
-        message:
-          error instanceof Error ? diagnosticText(error.message) : 'unknown',
-      },
-    );
-    return null;
+    const isTimeout =
+      error instanceof DOMException && error.name === 'AbortError';
+    logUsdaDiagnostic(isTimeout ? 'timeout' : 'request_failure', {
+      url: safeUrlForLog(url),
+      message:
+        error instanceof Error ? diagnosticText(error.message) : 'unknown',
+    });
+    return { payload: null, failure: isTimeout ? 'timeout' : 'failure' };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function cacheValue<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+): T | null {
+  const entry = cache.get(key);
+  if (entry === undefined) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCacheValue<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  value: T,
+  ttlMs: number,
+): void {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
 function parseSearchFood(value: unknown): UsdaSearchFood | null {
@@ -275,6 +364,7 @@ function parseSearchFood(value: unknown): UsdaSearchFood | null {
     dataType,
     brandOwner: stringValue(value.brandOwner),
     brandName: stringValue(value.brandName),
+    foodCategory: stringValue(value.foodCategory),
   };
 }
 
@@ -289,15 +379,23 @@ export async function searchUsdaFoods(input: {
   query: string;
   config: UsdaFdcConfig;
   rateLimitKey: string;
+  metadataLimit?: number;
+  timeoutMs?: number;
 }): Promise<UsdaSearchFood[]> {
   const url = apiUrl(input.config, '/foods/search');
   if (url === null) return [];
-  const internalSearchLimit = Math.max(input.config.searchLimit * 3, 8);
+  const internalSearchLimit =
+    input.metadataLimit ?? Math.max(input.config.searchLimit * 3, 8);
+  const normalizedQuery = normalizeText(input.query);
+  const cacheKey = `${input.config.baseUrl}:${normalizedQuery}:${internalSearchLimit}`;
+  const cached = cacheValue(searchCache, cacheKey);
+  if (cached !== null) return cached;
 
   assertUsdaRateLimit({
     key: input.rateLimitKey,
     windowMs: input.config.rateLimitWindowMs,
-    windowMax: input.config.rateLimitMax,
+    windowMax:
+      input.config.rateLimitMax * USDA_METADATA_SEARCHES_PER_ENRICHMENT,
   });
 
   const payload = await fetchJson(
@@ -312,44 +410,218 @@ export async function searchUsdaFoods(input: {
         query: input.query,
         pageSize: internalSearchLimit,
         dataType: ['Foundation', 'SR Legacy', 'Survey (FNDDS)'],
-        sortBy: 'dataType.keyword',
-        sortOrder: 'asc',
       }),
     },
-    input.config.timeoutMs,
+    input.timeoutMs ?? input.config.timeoutMs,
   );
 
   if (!isRecord(payload)) return [];
   const response = payload as UsdaSearchResponse;
   const foods = Array.isArray(response.foods) ? response.foods : [];
 
-  return foods
+  const result = foods
     .map(parseSearchFood)
     .filter((food): food is UsdaSearchFood => food !== null)
     .sort((a, b) => dataTypeRank(a.dataType) - dataTypeRank(b.dataType))
     .slice(0, internalSearchLimit);
+  if (result.length > 0) {
+    setCacheValue(searchCache, cacheKey, result, USDA_SEARCH_CACHE_TTL_MS);
+  }
+  return result;
 }
 
 export async function fetchUsdaFood(input: {
   sourceId: string;
   config: UsdaFdcConfig;
+  timeoutMs?: number;
 }): Promise<NormalizedUsdaFood | null> {
+  const cached = cacheValue(detailCache, input.sourceId);
+  if (cached !== null) return cached;
+  if (cacheValue(negativeDetailCache, input.sourceId) !== null) return null;
+
   const url = apiUrl(
     input.config,
     `/food/${encodeURIComponent(input.sourceId)}`,
   );
   if (url === null) return null;
+  const inflight = detailInflight.get(input.sourceId);
+  if (inflight !== undefined) return inflight;
 
-  const payload = await fetchJson(
-    url,
-    {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
+  const promise = (async () => {
+    const fetched = await fetchJsonResult(
+      url,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      input.timeoutMs ?? input.config.timeoutMs,
+    );
+    const food = normalizeUsdaFood(fetched.payload);
+    if (food === null) {
+      const reason =
+        fetched.failure === 'not_found' || fetched.failure === 'timeout'
+          ? fetched.failure
+          : 'invalid';
+      setCacheValue(
+        negativeDetailCache,
+        input.sourceId,
+        reason,
+        reason === 'timeout'
+          ? USDA_TIMEOUT_CACHE_TTL_MS
+          : USDA_NOT_FOUND_CACHE_TTL_MS,
+      );
+      return null;
+    }
+    setCacheValue(detailCache, input.sourceId, food, USDA_DETAIL_CACHE_TTL_MS);
+    return food;
+  })();
+  detailInflight.set(input.sourceId, promise);
+
+  try {
+    return await promise;
+  } finally {
+    detailInflight.delete(input.sourceId);
+  }
+}
+
+export function rankUsdaSearchFoods(
+  query: string,
+  foods: UsdaSearchFood[],
+): UsdaSearchFood[] {
+  return foods
+    .map((food, index) => ({
+      food,
+      index,
+      score: scoreUsdaSearchFood(query, food),
+    }))
+    .filter(({ score }) => score.relevant)
+    .sort((left, right) => {
+      if (right.score.score !== left.score.score) {
+        return right.score.score - left.score.score;
+      }
+      const dataTypeDifference =
+        dataTypeRank(left.food.dataType) - dataTypeRank(right.food.dataType);
+      return dataTypeDifference === 0
+        ? left.index - right.index
+        : dataTypeDifference;
+    })
+    .map(({ food }) => food);
+}
+
+function scoreUsdaSearchFood(query: string, food: UsdaSearchFood) {
+  return scoreFoodCandidate({
+    query,
+    candidate: {
+      name: food.description,
+      brandName: food.brandName ?? food.brandOwner,
+      foodType:
+        food.dataType === 'Branded' ||
+        food.brandName !== null ||
+        food.brandOwner !== null
+          ? 'branded'
+          : 'generic',
+      source: 'usda_fdc',
+      calories: null,
+      protein: null,
+      carbs: null,
+      fat: null,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      nutrientCount: 0,
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
     },
-    input.config.timeoutMs,
-  );
+  });
+}
 
-  return normalizeUsdaFood(payload);
+function needsIntentQueryFallback(input: {
+  query: string;
+  foods: UsdaSearchFood[];
+  detailWindow: number;
+}): string | null {
+  const adequacy = assessFoodCandidateAdequacy({
+    query: input.query,
+    candidateNames: input.foods.map((food) => food.description),
+  });
+
+  if (adequacy.adequateCandidateCount >= Math.min(2, input.detailWindow)) {
+    return null;
+  }
+
+  const fallback = foodIntentFallbackQuery(input.query);
+  return fallback === null ||
+    normalizeText(fallback) === normalizeText(input.query)
+    ? null
+    : fallback;
+}
+
+export async function enrichUsdaFoods(input: {
+  query: string;
+  config: UsdaFdcConfig;
+  rateLimitKey: string;
+  policy: UsdaEnrichmentPolicy;
+  isEnough?: (foods: NormalizedUsdaFood[]) => boolean;
+}): Promise<NormalizedUsdaFood[]> {
+  const deadline = Date.now() + input.policy.totalBudgetMs;
+  const primaryMatches = await searchUsdaFoods({
+    query: input.query,
+    config: input.config,
+    rateLimitKey: input.rateLimitKey,
+    metadataLimit: input.policy.metadataLimit,
+    timeoutMs: Math.max(1, deadline - Date.now()),
+  });
+  const fallbackQuery = needsIntentQueryFallback({
+    query: input.query,
+    foods: primaryMatches,
+    detailWindow: input.policy.detailWindow,
+  });
+  const remainingFallbackBudget = deadline - Date.now();
+  const fallbackMatches =
+    fallbackQuery === null ||
+    remainingFallbackBudget < input.policy.detailTimeoutMs
+      ? []
+      : await searchUsdaFoods({
+          query: fallbackQuery,
+          config: input.config,
+          rateLimitKey: input.rateLimitKey,
+          metadataLimit: input.policy.metadataLimit,
+          timeoutMs: remainingFallbackBudget,
+        });
+  const matches = [...primaryMatches, ...fallbackMatches].filter(
+    (food, index, foods) =>
+      foods.findIndex((candidate) => candidate.fdcId === food.fdcId) === index,
+  );
+  const ranked = rankUsdaSearchFoods(input.query, matches);
+  const initialWindow = ranked.slice(0, input.policy.detailWindow);
+  const backfillWindow = ranked.slice(input.policy.detailWindow);
+  const queue = [...initialWindow, ...backfillWindow];
+  const result: NormalizedUsdaFood[] = [];
+
+  for (let index = 0; index < queue.length; index += input.policy.concurrency) {
+    if (Date.now() >= deadline) break;
+    if (input.isEnough?.(result) ?? false) break;
+
+    const batch = queue.slice(index, index + input.policy.concurrency);
+    const remainingBudget = Math.max(1, deadline - Date.now());
+    const timeoutMs = Math.min(input.policy.detailTimeoutMs, remainingBudget);
+    const batchFoods = await Promise.all(
+      batch.map((food) =>
+        fetchUsdaFood({
+          sourceId: String(food.fdcId),
+          config: input.config,
+          timeoutMs,
+        }),
+      ),
+    );
+
+    for (const food of batchFoods) {
+      if (food !== null) result.push(food);
+    }
+  }
+
+  return result;
 }
 
 function nutrientEntries(

@@ -7,7 +7,7 @@ import {
   foodItemSearchCandidatesInputSchema,
   foodItemsQuerySchema,
   idParamsSchema,
-  type AiFoodCandidateConfidence,
+  type AiFoodCandidateMatchReason,
   type AiFoodParseCandidate,
 } from '@food-tracker/shared';
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
@@ -31,11 +31,17 @@ import {
   type NormalizedOpenFoodFactsFood,
 } from './open-food-facts.js';
 import {
-  fetchUsdaFood,
-  searchUsdaFoods,
+  enrichUsdaFoods,
+  USDA_ENRICHMENT_POLICIES,
   usdaFdcConfig,
   type NormalizedUsdaFood,
 } from './usda-fdc.js';
+import {
+  externalSearchQuery,
+  normalizeText,
+  queryVariants,
+  rankParseCandidates,
+} from './candidate-ranking.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 type FoodItemsQuery = z.infer<typeof foodItemsQuerySchema>;
@@ -49,74 +55,12 @@ type IdParams = z.infer<typeof idParamsSchema>;
 
 export const foodItemsRouter = Router();
 
-function normalizeText(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
-}
-
-const GENERIC_FOOD_WORDS = new Set([
-  'bowl',
-  'plate',
-  'serving',
-  'homemade',
-  'custom',
-  'meal',
-  'food',
-  'dish',
-  'portion',
-  'with',
-  'and',
-]);
-
-function normalizeToken(value: string): string {
-  const normalized = value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
-  if (normalized.length > 3 && normalized.endsWith('ies')) {
-    return `${normalized.slice(0, -3)}y`;
-  }
-  if (normalized.length > 2 && normalized.endsWith('s')) {
-    return normalized.slice(0, -1);
-  }
-  return normalized;
-}
-
-function meaningfulTokens(value: string): Set<string> {
-  return new Set(
-    value
-      .split(/\s+/)
-      .map(normalizeToken)
-      .filter((token) => token.length >= 2 && !GENERIC_FOOD_WORDS.has(token)),
-  );
-}
-
-function hasMeaningfulOverlap(left: string, right: string): boolean {
-  const leftTokens = meaningfulTokens(left);
-  if (leftTokens.size === 0) return false;
-  const rightTokens = meaningfulTokens(right);
-
-  for (const token of leftTokens) {
-    if (rightTokens.has(token)) return true;
-  }
-
-  return false;
-}
-
-function queryVariants(value: string): string[] {
-  const normalized = normalizeText(value);
-  const tokenNormalized = normalized.split(/\s+/).map(normalizeToken).join(' ');
-  return [...new Set([normalized, tokenNormalized])].filter(
-    (variant) => variant.length > 0,
-  );
-}
-
 function searchTextWhere(value: string): Prisma.FoodItemWhereInput {
   return {
     OR: queryVariants(value).map((variant) => ({
       searchText: { contains: variant },
     })),
   };
-}
-
-function externalSearchQuery(value: string): string {
-  return queryVariants(value).at(-1) ?? value;
 }
 
 function searchText(input: Pick<FoodItemInput, 'name' | 'brandName'>): {
@@ -214,23 +158,12 @@ async function visibleFoodItem(id: string, userId: string) {
   });
 }
 
-function confidenceFor(
-  name: string,
-  normalizedQuery: string,
-): AiFoodCandidateConfidence {
-  const normalizedName = normalizeText(name);
-  if (normalizedName === normalizedQuery) return 'high';
-  if (hasMeaningfulOverlap(normalizedQuery, name)) return 'medium';
-  if (
-    normalizedName.includes(normalizedQuery) ||
-    normalizedQuery.includes(normalizedName)
-  ) {
-    return 'medium';
-  }
-  return 'low';
-}
-
-function candidateReason(sourceType: string, hasBarcode: boolean) {
+function candidateReason(
+  sourceType: string,
+  hasBarcode: boolean,
+  isSaved = false,
+): AiFoodCandidateMatchReason {
+  if (isSaved) return 'saved';
   if (sourceType === 'user_custom') return 'custom';
   if (sourceType === 'app_owned') return 'app';
   return hasBarcode ? 'barcode_cached' : 'cached_external';
@@ -239,7 +172,6 @@ function candidateReason(sourceType: string, hasBarcode: boolean) {
 function usdaExternalCandidate(
   food: NormalizedUsdaFood,
   rank: number,
-  normalizedQuery: string,
 ): AiFoodParseCandidate {
   return {
     candidateType: 'external_food',
@@ -270,7 +202,7 @@ function usdaExternalCandidate(
     },
     rank,
     matchReason: 'usda_fdc',
-    confidence: confidenceFor(food.name, normalizedQuery),
+    confidence: 'low',
     defaultServingMultiplier: 1,
   };
 }
@@ -436,7 +368,7 @@ foodItemsRouter.post(
     const userId = currentUserId(response);
     const input = validatedBody<FoodItemSearchCandidatesInput>(response);
     const normalizedQuery = normalizeText(input.query);
-    const candidates: AiFoodParseCandidate[] = [];
+    let candidates: AiFoodParseCandidate[] = [];
     const seen = new Set<string>();
 
     const localFoods = await prisma.foodItem.findMany({
@@ -459,38 +391,37 @@ foodItemsRouter.post(
         matchReason: candidateReason(
           foodItem.sourceType,
           foodItem.barcodes.length > 0,
+          serialized.isSaved,
         ),
-        confidence: confidenceFor(serialized.name, normalizedQuery),
+        confidence: 'low',
         defaultServingMultiplier: 1,
       });
     }
 
     const usdaConfig = usdaFdcConfig();
     try {
-      const usdaMatches = await searchUsdaFoods({
+      const usdaFoods = await enrichUsdaFoods({
         query: externalSearchQuery(normalizedQuery),
         config: usdaConfig,
         rateLimitKey: `${userId}:${request.ip ?? 'unknown'}:food-search`,
+        policy: USDA_ENRICHMENT_POLICIES.normalSearch,
+        isEnough: (foods) =>
+          foods.filter(
+            (food) => food.calories !== null && food.protein !== null,
+          ).length >= input.limit,
       });
 
-      for (const usdaMatch of usdaMatches) {
-        const food = await fetchUsdaFood({
-          sourceId: String(usdaMatch.fdcId),
-          config: usdaConfig,
-        });
-
-        if (food === null) continue;
-
+      for (const food of usdaFoods) {
         const externalId = `usda_fdc:${food.sourceId}`;
         if (seen.has(externalId)) continue;
         seen.add(externalId);
-        candidates.push(
-          usdaExternalCandidate(food, candidates.length + 1, normalizedQuery),
-        );
+        candidates.push(usdaExternalCandidate(food, candidates.length + 1));
       }
     } catch {
       // USDA lookup is an enrichment path. Local food search must keep working.
     }
+
+    candidates = rankParseCandidates(normalizedQuery, candidates);
 
     sendSuccess(response, { candidates: candidates.slice(0, input.limit) });
   },

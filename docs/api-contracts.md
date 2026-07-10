@@ -380,11 +380,56 @@ Request:
 Rules:
 
 - unknown fields are rejected
-- local visible FoodItems rank before USDA candidates
+- candidates are ordered by deterministic quality signals across trusted local
+  and USDA sources; high-quality generic USDA rows may outrank weak local,
+  cached, or branded rows for unbranded common-food queries
+- candidates use lexical identity matching, a small deterministic edible-
+  default intent profile, candidate adequacy checks, and bounded USDA metadata
+  and detail enrichment
+- meaningful non-state query terms form the complete food identity. Compound
+  identities such as `sweet potato`, `rice noodles`, `egg sandwich`, `whole
+  milk`, `oat milk`, `steak sauce`, `banana pudding`, and `peanut butter
+  cookies` must match completely for default suitability and trusted
+  selection; partial matches may remain visible but cannot become trusted or
+  high-confidence selections
+- preparation/state terms such as `cooked`, `boiled`, `grilled`, `baked`,
+  `roasted`, `raw`, `plain`, and `reduced sodium` are modifiers after identity
+  matching; explicit requested forms override edible-default preferences
+- high confidence additionally requires a strong phrase or food-name-head
+  match and default-food suitability; a relevant product-form alternative may
+  be medium or low confidence for a plain generic query
+- `visibleRelevant` means sufficiently related to appear as a manual search
+  option. `selectionEligible` means safe enough to auto-select during AI
+  parsing or block the low-trust AI-estimate fallback. High confidence implies
+  `selectionEligible`; medium confidence alone does not. Raw, dry, frozen,
+  unprepared, composite, or conflicting forms may remain visible but are not
+  automatically trusted unless explicitly requested
+- AI parsing and trusted-candidate gating require `selectionEligible`; an
+  inadequate candidate must not block the low-trust AI-estimate fallback
 - other users' custom foods are never returned
 - USDA failures return the local candidate set instead of failing food search
+- USDA enrichment is bounded; when USDA search or detail lookup is slow, the
+  endpoint may return the best available local/cached/USDA candidates instead of
+  waiting for every possible external detail row
+- USDA enrichment uses process-local metadata/detail caches, bounded
+  concurrency, timeouts, detail windows, partial-result backfill, and one
+  focused internal fallback metadata query. A logical enrichment may make at
+  most two metadata calls; the configured allowance remains 20 logical
+  enrichments per limiter window, capping metadata traffic at 40 calls per
+  window. Transient empty metadata responses are not cached
+- the backend may make one internal, budget-bound USDA metadata fallback query
+  for a recognized food intent, after preserving provider relevance and
+  applying deterministic edible-default and candidate-adequacy metadata checks;
+  this does not change request or response shape or add a public `searchDepth`
+  or show-more mode. Expanded search remains deferred until a mobile caller
+  and product workflow require it
+- the endpoint may return fewer than `limit` candidates rather than pad results
+  with low-relevance external matches
 - USDA candidates include source refs and preview nutrition with explicit basis
   copy such as `per 100 g`
+
+The public request and response schema for this route is unchanged in Phase
+12.7. No `searchDepth` field or show-more mode was added.
 
 Success `data`:
 
@@ -1087,9 +1132,15 @@ Rules:
 - disabled or misconfigured providers return `AI_UNAVAILABLE`
 - rate limits return `RATE_LIMITED`
 - provider output is schema-validated before retrieval
-- retrieval is deterministic lexical search over trusted food data
+- retrieval and candidate ranking use the same deterministic lexical identity,
+  adequacy, edible-default, compound-identity, visibility, and selection rules
+  as normal food search; AI does not simply accept the first lexical match
 - if no local loggable match exists, USDA FoodData Central may be searched as
   a generic food fallback
+- AI parsing can return `needs_review` when several plausible trusted
+  candidates remain, and does not select foreign-head composites such as
+  `Bread, egg, toasted` for eggs. `2 eggs, toast, banana` produces separate
+  candidate groups
 - other users' custom foods are never returned
 - USDA candidates include an explicit nutrient basis such as `per 100 g`
 - AI/Gemini never supplies calories, macros, or micronutrients
@@ -1186,6 +1237,8 @@ Rules:
 - backend rechecks trusted candidates before calling the AI provider
 - if a genuinely relevant, loggable trusted candidate exists, the endpoint
   returns `TRUSTED_NUTRITION_AVAILABLE`
+- only a `selectionEligible` trusted candidate blocks the low-trust estimate;
+  inadequate, weak, or medium-confidence-only candidates do not
 - weak or generic token-only matches do not block fallback; terms such as
   `bowl`, `plate`, `serving`, `homemade`, `custom`, and `meal` do not count as
   meaningful overlap by themselves
@@ -1202,6 +1255,8 @@ Rules:
   `source: "ai_estimate"`, `trustLevel: "low"`, and `nutrients: {}`
 - full micronutrients are rejected and never generated in Phase 12.6
 - the endpoint creates no FoodLogs and no FoodItems
+- estimates remain unlinked FoodLog snapshots and do not populate trusted
+  FoodItem or USDA caches
 
 Success `data`:
 

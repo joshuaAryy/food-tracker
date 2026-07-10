@@ -397,6 +397,55 @@ estimate request uses a simplified schema, shorter prompt, and
 `maxOutputTokens: 768` after live testing showed `256` could return an empty
 candidate with `finishReason: "MAX_TOKENS"`.
 
+## TD-016: Phase 12.7 Trusted Candidate Ranking And Bounded Enrichment
+
+Status: Implemented and validated in Phase 12.7
+
+Trusted food search uses one deterministic ranking and intent layer across
+normal food search, AI parse retrieval, and trusted-candidate checks before an
+AI estimate. Lexical identity matching is complete for meaningful non-state
+terms, including compound foods; preparation/state terms remain modifiers.
+Partial identities may remain visible, but complete identity is required for
+default suitability and `selectionEligible`. The narrow `sweet potato`/`yam`
+equivalence is explicit and does not introduce a broad food ontology.
+
+Candidate semantics are intentionally split: `visibleRelevant` means related
+enough to show as a manual option, while `selectionEligible` means safe for AI
+auto-selection or for blocking a low-trust estimate. High confidence implies
+selection eligibility; medium confidence alone does not. Raw, dry, frozen,
+unprepared, composite, and conflicting forms remain visible only as review
+options unless explicitly requested. Inadequate candidates do not block the
+AI-estimate fallback.
+
+The backend owns edible-default profiles: fruit prefers raw/fresh; rice, oats,
+pasta-like starches, and potato prefer cooked/ready-to-eat; proteins and eggs
+prefer cooked/prepared; milk prefers ordinary fluid milk; Greek yogurt prefers
+plain Greek yogurt; and peanut butter prefers spread forms. Explicit products
+and preparation states override those defaults. This is a small deterministic
+intent layer, not AI ranking or a general food ontology.
+
+USDA enrichment remains bounded. A logical lookup can make one primary and at
+most one fallback metadata query, so the configured allowance of 20 logical
+enrichments per limiter window caps metadata traffic at 40 calls per window.
+Detail windows, concurrency, timeouts, backfill, and total budgets remain
+bounded. Process-local metadata/detail caches are used, but transient empty
+metadata responses are not cached. No public `searchDepth` or show-more mode
+was added; that remains deferred until a mobile caller and product workflow
+exist. The public candidate-search API contract is unchanged.
+
+AI parsing uses the same identity, adequacy, visibility, and selection rules;
+it does not accept the first lexical match and does not select foreign-head
+composites. `2 eggs, toast, banana` produces separate candidate groups.
+Low-trust AI estimates remain user-reviewed, unlinked FoodLog snapshots and
+never populate trusted FoodItem or USDA caches.
+
+Phase 12.7 is commit-ready after automated validation, API terminal smoke,
+mixed regression/out-of-sample testing, compound-identity holdout testing,
+and physical-phone smoke testing. The next defined project step is Phase 12.8
+serving intelligence / household unit conversion. Remaining USDA secondary
+ordering, dessert/omelet/meatless-product polish, typo semantics, embeddings,
+vector search, recipes, and additional providers are future targeted work.
+
 ## TD-015: Photo Logging Sequencing
 
 Status: Planned

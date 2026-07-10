@@ -410,8 +410,10 @@ needed before treating the visual system as settled.
 
 ## Next-Phase Priorities
 
-1. Continue on the Phase 8 branch for food database foundation work.
-2. Confirm Node 22 and pnpm 10.34.3.
+1. Continue with the already-defined Phase 12.8 serving intelligence /
+   household unit conversion work.
+2. Preserve Phase 12.7 trusted-search behavior when adding serving review and
+   conversion states; do not make AI nutrition authoritative.
 3. Keep generated native folders ignored unless explicitly approved later.
 
 ## Phase 12 AI Text Logging Context
@@ -452,6 +454,37 @@ main nutrient editor fields. Complex mode must not show AI-generated detailed
 micronutrients, though the user can still use the separate manual edit flow for
 supported detailed nutrients later.
 
+## Final Phase 12.7 Search Validation
+
+Phase 12.7 is complete and commit-ready. Physical-phone smoke testing passed
+with significantly improved search quality, alongside API terminal smoke,
+mixed regression/out-of-sample testing, and compound-identity holdout testing.
+The public candidate-search request contract remains unchanged; no public
+`searchDepth` or show-more workflow was added.
+
+The mobile caller should treat candidate confidence and review state as backend
+facts. `visibleRelevant` means a candidate is related enough to show as a
+manual option. `selectionEligible` means it is safe for AI parsing to select
+automatically or for trusted-candidate checks to block a low-trust estimate.
+Raw, dry, frozen, unprepared, composite, conflicting, or partial compound
+forms may remain visible but are not trusted automatically unless explicitly
+requested. Medium confidence alone is not selection-safe.
+
+The final phone/search smoke covered the core set (`banana`, `rice`, `eggs`,
+`milk`, `chicken breast`, `steak`, `salmon`, `oats`, `potato`, `Greek yogurt`,
+and `peanut butter`) plus compound and out-of-sample holdouts: `sweet potato`,
+`rice noodles`, `egg sandwich`, `whole milk`, `almond milk`, `chicken
+sandwich`, `whole wheat bread`, `brown rice noodles`, `baked sweet potato`,
+and `turkey sandwich`. These queries returned no empty results or request
+errors, and cold/warm cache behavior remained stable. Explicit forms such as
+oat milk, steak sauce, banana pudding, peanut butter cookies, egg white, and
+raw salmon remain distinct from their plain/default queries.
+
+The next defined project step is Phase 12.8 serving intelligence. Public
+expanded search/show-more, typo semantics, embeddings/vector search, recipes,
+and additional providers remain future backlog, not mobile requirements for
+Phase 12.7.
+
 Final Phase 12.6 phone smoke passed on the local development build:
 
 - `2 eggs, toast, banana` resolves through trusted review candidates instead of
@@ -472,8 +505,37 @@ Manual smoke test for implementation:
 - remove one row
 - adjust a matched row amount
 - switch between multiple candidates for a parsed food such as eggs
-- search manually for `banana`, `eggs`, `salmon`, or `plantain` and verify USDA
-  candidates appear after local matches
+- search manually for `banana`, `eggs`, `rice`, `cooked rice`, `chicken breast`,
+  `milk`, `Greek yogurt`, and `peanut butter`; verify the most obvious trusted
+  candidate ranks first even when weaker local/cached/branded rows exist
+- verify preparation-only false matches are absent: `boiled egg` and `cooked
+  rice` must not show kale; plain `milk` must not show milk chocolate; plain
+  `banana` must rank raw banana above banana chips
+- verify plain/default ordering: cooked/plain rice above rice snacks or flour,
+  plain Greek yogurt above flavored branded yogurt, whole egg above processed
+  egg white, and cooked/plain chicken breast above raw, deli, or honey-glazed
+  products; raw/dry alternatives may remain visible but must not be selected
+  automatically for AI parse
+- search `banana chips`, `rice cakes`, `milk chocolate`, `breaded chicken`,
+  `egg white`, and `peanut butter cookies`; verify explicit requested forms
+  rank above edible defaults for their own queries
+- search `steak`, `beef steak`, `salmon`, `oats`, `oatmeal`, and `potato`;
+  verify usable cooked/default candidates appear when USDA metadata supports
+  them, with no more than one bounded fallback lookup per search
+- search `sweet potato`, `rice noodles`, `egg sandwich`, and `whole milk`;
+  verify complete compound identities outrank ordinary potato, plain rice,
+  plain egg, yogurt, buttermilk, and evaporated milk
+- search `oat milk`, `steak sauce`, `banana pudding`, `almond milk`, `chicken
+  sandwich`, `whole wheat bread`, `brown rice noodles`, `baked sweet potato`,
+  and `turkey sandwich`; verify each remains distinct from its plain/default
+  identity
+- for plain `rice`, `milk`, `steak`, and `oats`, verify noodles/rice-with-milk,
+  malted milk, steak sauce, and oat bran/oat milk do not outrank an available
+  cooked/default candidate
+- live smoke scripts should read candidate names from `externalFood.name` for
+  USDA candidates and `foodItem.name` for local candidates, and should print
+  elapsed time; normal searches should return usable candidates quickly, with
+  repeat searches faster because of process-local USDA caches
 - change a serving amount and verify displayed nutrition updates immediately
 - verify Simple mode only exposes main nutrient editing and Complex mode
   exposes detailed nutrients

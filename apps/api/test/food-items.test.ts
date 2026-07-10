@@ -6,6 +6,7 @@ import {
 } from '@food-tracker/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
+import { clearUsdaFdcCaches } from '../src/modules/foodItems/usda-fdc.js';
 import {
   api,
   expectErrorEnvelope,
@@ -59,8 +60,12 @@ interface FoodItemsListResponseBody {
 describe('food items API', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    clearUsdaFdcCaches();
     delete process.env.USDA_FDC_API_KEY;
     delete process.env.USDA_FDC_SEARCH_LIMIT;
+    delete process.env.USDA_FDC_TIMEOUT_MS;
+    delete process.env.USDA_FDC_RATE_LIMIT_MAX;
+    delete process.env.USDA_FDC_RATE_LIMIT_WINDOW;
   });
 
   it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {
@@ -1092,4 +1097,556 @@ describe('food items API', () => {
       }),
     ]);
   });
+
+  it('ranks high-quality USDA generic candidates above weak local branded matches', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '2';
+    await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana powder',
+        brandName: 'Acme',
+        normalizedName: 'banana powder',
+        normalizedBrandName: 'acme',
+        searchText: 'banana powder acme',
+        sourceType: 'cached_external',
+        foodType: 'branded',
+        calories: 360,
+        protein: 4,
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 111,
+                  description: 'Bananas, dehydrated, powder',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 222,
+                  description: 'Bananas, raw',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        if (requestUrl.includes('/food/111')) {
+          return new Response(
+            JSON.stringify({
+              fdcId: 111,
+              description: 'Bananas, dehydrated, powder',
+              dataType: 'Foundation',
+              foodNutrients: [
+                { amount: 346, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+                { amount: 3.9, nutrient: { name: 'Protein', unitName: 'G' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 222,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'banana', limit: 4 })
+      .expect(200);
+
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'external_food',
+      externalFood: { sourceId: '222', name: 'Bananas, raw' },
+      rank: 1,
+    });
+  });
+
+  it('pre-ranks USDA metadata and limits normal search detail fetches', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '5';
+    const detailIds: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 100,
+                  description: 'Bananas, dehydrated, powder',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 101,
+                  description: 'Babyfood, banana',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 102,
+                  description: 'Bananas, raw',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 103,
+                  description: 'Banana chips',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 104,
+                  description: 'Banana restaurant dessert',
+                  dataType: 'Survey (FNDDS)',
+                },
+                {
+                  fdcId: 105,
+                  description: 'Banana commercial mix',
+                  dataType: 'Survey (FNDDS)',
+                },
+                {
+                  fdcId: 106,
+                  description: 'Banana school lunch item',
+                  dataType: 'Survey (FNDDS)',
+                },
+                {
+                  fdcId: 107,
+                  description: 'Banana powdered beverage',
+                  dataType: 'Survey (FNDDS)',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        const id = requestUrl.match(/\/food\/(\d+)/)?.[1] ?? 'unknown';
+        detailIds.push(id);
+        return new Response(
+          JSON.stringify({
+            fdcId: Number(id),
+            description:
+              id === '102' ? 'Bananas, raw' : `Banana fallback ${id}`,
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 100, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 2, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'banana', limit: 3 })
+      .expect(200);
+
+    expect(detailIds).toHaveLength(3);
+    expect(detailIds.length).toBeLessThanOrEqual(6);
+    expect(detailIds[0]).toBe('102');
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'external_food',
+      externalFood: { sourceId: '102', name: 'Bananas, raw' },
+    });
+  });
+
+  it('skips failed USDA details and returns partial usable candidates', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '3';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 201,
+                  description: 'Egg, stale',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 202,
+                  description: 'Egg, whole, cooked, hard-boiled',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        if (requestUrl.includes('/food/201')) {
+          return new Response(JSON.stringify({ error: 'not found' }), {
+            status: 404,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 202,
+            description: 'Egg, whole, cooked, hard-boiled',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 155, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 12.6, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'boiled egg', limit: 3 })
+      .expect(200);
+
+    expect(response.body.data.candidates).toEqual([
+      expect.objectContaining({
+        candidateType: 'external_food',
+        externalFood: expect.objectContaining({ sourceId: '202' }),
+      }),
+    ]);
+  });
+
+  it('caches USDA search metadata, details, and 404 misses', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '2';
+    const fetchSpy = vi.fn(async (url: string | URL) => {
+      const requestUrl = String(url);
+
+      if (requestUrl.includes('/foods/search')) {
+        return new Response(
+          JSON.stringify({
+            foods: [
+              { fdcId: 301, description: 'Rice stale', dataType: 'Foundation' },
+              {
+                fdcId: 302,
+                description: 'Rice, white, cooked',
+                dataType: 'Foundation',
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+
+      if (requestUrl.includes('/food/301')) {
+        return new Response(JSON.stringify({ error: 'not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(
+        JSON.stringify({
+          fdcId: 302,
+          description: 'Rice, white, cooked',
+          dataType: 'Foundation',
+          foodNutrients: [
+            { amount: 130, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+            { amount: 2.4, nutrient: { name: 'Protein', unitName: 'G' } },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'rice', limit: 3 })
+      .expect(200);
+    await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'rice', limit: 3 })
+      .expect(200);
+
+    expect(
+      fetchSpy.mock.calls.filter(([url]) =>
+        String(url).includes('/foods/search'),
+      ),
+    ).toHaveLength(2);
+    expect(
+      fetchSpy.mock.calls.filter(([url]) => String(url).includes('/food/301')),
+    ).toHaveLength(1);
+    expect(
+      fetchSpy.mock.calls.filter(([url]) => String(url).includes('/food/302')),
+    ).toHaveLength(1);
+  });
+
+  it('keeps tail common-food searches non-empty on cold and warm cache requests', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_RATE_LIMIT_MAX = '20';
+    process.env.USDA_FDC_RATE_LIMIT_WINDOW = '600000';
+    const namesById = new Map<string, string>();
+    let nextId = 5000;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes('/foods/search')) {
+          const { query } = JSON.parse(String(init?.body)) as { query: string };
+          const normalized = query.toLocaleLowerCase();
+          const name = normalized.includes('potato')
+            ? normalized.includes('cooked')
+              ? 'Potatoes, boiled, cooked in skin, flesh'
+              : 'Potatoes, raw, flesh and skin'
+            : normalized.includes('greek yogurt')
+              ? 'Yogurt, Greek, plain, lowfat'
+              : normalized.includes('peanut butter')
+                ? normalized.includes('cookie')
+                  ? 'Cookies, peanut butter, commercially prepared, regular'
+                  : 'Peanut butter, creamy'
+                : query;
+          const id = String(nextId++);
+          namesById.set(id, name);
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: Number(id),
+                  description: name,
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        const id = requestUrl.match(/\/food\/(\d+)/)?.[1] ?? '';
+        return new Response(
+          JSON.stringify({
+            fdcId: Number(id),
+            description: namesById.get(id),
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 100, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 5, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    for (let index = 1; index <= 18; index += 1) {
+      await api
+        .post('/api/v1/food-items/search-candidates')
+        .send({ query: `coverage item ${index}`, limit: 5 })
+        .expect(200);
+    }
+
+    const expectations = [
+      ['potato', 'Potatoes, boiled, cooked in skin, flesh'],
+      ['Greek yogurt', 'Yogurt, Greek, plain, lowfat'],
+      ['peanut butter', 'Peanut butter, creamy'],
+      [
+        'peanut butter cookies',
+        'Cookies, peanut butter, commercially prepared, regular',
+      ],
+    ] as const;
+
+    for (const run of ['cold', 'warm']) {
+      for (const [query, expectedName] of expectations) {
+        const response = await api
+          .post('/api/v1/food-items/search-candidates')
+          .send({ query, limit: 5 })
+          .expect(200);
+
+        expect(response.body.data.candidates, `${run}: ${query}`).not.toEqual(
+          [],
+        );
+        expect(
+          response.body.data.candidates[0],
+          `${run}: ${query}`,
+        ).toMatchObject({
+          externalFood: { name: expectedName },
+        });
+      }
+    }
+  });
+
+  it('keeps requested negative descriptors relevant in normal food search', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_SEARCH_LIMIT = '2';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 333,
+                  description: 'Apples, raw, with skin',
+                  dataType: 'Foundation',
+                },
+                {
+                  fdcId: 444,
+                  description: 'Apples, dried',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        if (requestUrl.includes('/food/333')) {
+          return new Response(
+            JSON.stringify({
+              fdcId: 333,
+              description: 'Apples, raw, with skin',
+              dataType: 'Foundation',
+              foodNutrients: [
+                { amount: 52, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+                { amount: 0.3, nutrient: { name: 'Protein', unitName: 'G' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            fdcId: 444,
+            description: 'Apples, dried',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 243, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 0.9, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'dried apple', limit: 4 })
+      .expect(200);
+
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'external_food',
+      externalFood: { sourceId: '444', name: 'Apples, dried' },
+    });
+  });
+
+  it.each([
+    ['banana', 'Bananas, raw'],
+    ['banana chips', 'Banana chips'],
+    ['protein powder', 'Protein powder'],
+    ['milk', 'Milk, fluid, whole'],
+    ['milk chocolate', 'Milk chocolate'],
+    ['rice', 'Rice, white, cooked'],
+    ['cooked rice', 'Rice, white, cooked'],
+    ['rice cakes', 'Rice cakes'],
+    ['eggs', 'Egg, whole, cooked, scrambled'],
+    ['egg white', 'Egg, white, cooked'],
+    ['chicken breast', 'Chicken, breast, meat only, cooked, roasted'],
+    ['breaded chicken', 'Chicken breast, breaded, cooked'],
+    ['steak', 'Beef steak, grilled'],
+    ['beef steak', 'Beef steak, grilled'],
+    ['salmon', 'Salmon, Atlantic, cooked, dry heat'],
+    ['oats', 'Oats, cooked'],
+    ['oatmeal', 'Oatmeal, cooked'],
+    ['potato', 'Potato, baked, flesh and skin'],
+    ['Greek yogurt', 'Yogurt, Greek, plain'],
+    ['peanut butter', 'Peanut butter, smooth style'],
+    ['peanut butter cookies', 'Cookies, peanut butter'],
+    ['apple', 'Apples, raw, with skin'],
+    ['toast', 'Bread, whole-wheat, toasted'],
+    ['boiled egg', 'Egg, whole, cooked, hard-boiled'],
+    ['scrambled eggs', 'Egg, whole, cooked, scrambled'],
+  ])(
+    'ranks expected common USDA candidate first for %s',
+    async (query, name) => {
+      process.env.USDA_FDC_API_KEY = 'test-usda-key';
+      process.env.USDA_FDC_SEARCH_LIMIT = '2';
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (url: string | URL) => {
+          const requestUrl = String(url);
+
+          if (requestUrl.includes('/foods/search')) {
+            return new Response(
+              JSON.stringify({
+                foods: [
+                  {
+                    fdcId: 555,
+                    description: `${name} prepared meal, restaurant`,
+                    dataType: 'Survey (FNDDS)',
+                  },
+                  {
+                    fdcId: 666,
+                    description: name,
+                    dataType: 'Foundation',
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            );
+          }
+
+          const isExpected = requestUrl.includes('/food/666');
+          return new Response(
+            JSON.stringify({
+              fdcId: isExpected ? 666 : 555,
+              description: isExpected
+                ? name
+                : `${name} prepared meal, restaurant`,
+              dataType: isExpected ? 'Foundation' : 'Survey (FNDDS)',
+              foodNutrients: [
+                { amount: 100, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+                { amount: 5, nutrient: { name: 'Protein', unitName: 'G' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }),
+      );
+
+      const response = await api
+        .post('/api/v1/food-items/search-candidates')
+        .send({ query, limit: 4 })
+        .expect(200);
+
+      expect(response.body.data.candidates[0]).toMatchObject({
+        candidateType: 'external_food',
+        externalFood: { sourceId: '666', name },
+      });
+    },
+  );
 });
