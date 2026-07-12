@@ -9,6 +9,7 @@ import type {
   DailyNutrientTotals,
   FoodBarcodeLookupInput,
   FoodItem,
+  FoodItemExternalCandidateInput,
   FoodItemInput,
   FoodItemSearchCandidatesInput,
   FoodLog,
@@ -22,6 +23,11 @@ import type {
   Profile,
   Recommendation,
   RecommendationStatus,
+  Recipe,
+  RecipeCreateInput,
+  RecipeIngredientInput,
+  RecipeLogInput,
+  RecipeUpdateInput,
   SetupInput,
   SetupPreviewResult,
   SetupResult,
@@ -292,6 +298,11 @@ export const api = {
           body: input,
         },
       ).then(({ candidates }) => candidates),
+    persistExternalCandidate: (input: FoodItemExternalCandidateInput) =>
+      request<FoodItem>('/food-items/from-external-candidate', {
+        method: 'POST',
+        body: input,
+      }),
     getById: (id: string) => request<FoodItem>(`/food-items/${id}`),
     create: (input: FoodItemInput) =>
       request<FoodItem>('/food-items', { method: 'POST', body: input }),
@@ -351,6 +362,39 @@ export const api = {
       request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
     delete: (id: string) =>
       request<{ id: string; deleted: true }>(`/food-logs/${id}`, {
+        method: 'DELETE',
+      }),
+  },
+  recipes: {
+    list: () =>
+      request<{ recipes: Recipe[] }>('/recipes').then(({ recipes }) => recipes),
+    getById: (id: string) => request<Recipe>(`/recipes/${id}`),
+    create: (input: RecipeCreateInput) =>
+      request<Recipe>('/recipes', { method: 'POST', body: input }),
+    update: (id: string, input: RecipeUpdateInput) =>
+      request<Recipe>(`/recipes/${id}`, { method: 'PUT', body: input }),
+    archive: (id: string) =>
+      request<{ id: string; archived: true }>(`/recipes/${id}`, {
+        method: 'DELETE',
+      }),
+    log: (id: string, input: RecipeLogInput) =>
+      request<FoodLog>(`/recipes/${id}/log`, { method: 'POST', body: input }),
+    addIngredient: (id: string, input: RecipeIngredientInput) =>
+      request<Recipe>(`/recipes/${id}/ingredients`, {
+        method: 'POST',
+        body: input,
+      }),
+    updateIngredient: (
+      id: string,
+      ingredientId: string,
+      input: RecipeIngredientInput,
+    ) =>
+      request<Recipe>(`/recipes/${id}/ingredients/${ingredientId}`, {
+        method: 'PUT',
+        body: input,
+      }),
+    deleteIngredient: (id: string, ingredientId: string) =>
+      request<Recipe>(`/recipes/${id}/ingredients/${ingredientId}`, {
         method: 'DELETE',
       }),
   },

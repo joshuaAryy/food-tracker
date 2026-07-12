@@ -609,3 +609,37 @@ owns its amount, unit, selected trusted option, preview, and error state.
 No interactive device or simulator smoke has been performed for this flow.
 6. Preserve backend/API/schema approval gates before Phase 8 data-model or
    migration work.
+
+## Phase 12.9A Slice 4 — Mobile Recipe Experience
+
+The reusable recipe experience lives inside the existing Food Log flow rather
+than in a new tab. `Recipes` opens a compact modal-stack sequence for the list,
+builder/editor, detail, and logging surfaces. It reuses `FoodItemChoiceRow`,
+`ServingAmountControl`, `AppScreen`, the shared Food Log refresh signal, and
+the white/charcoal open-row visual language.
+
+- Recipe search accepts persisted `food_item` candidates only. External
+  candidates stay visible as explanatory non-selectable rows; manual foods and
+  client nutrition totals are never sent to recipe endpoints.
+- Ingredient serving previews are provisional Phase 12.8 feedback. Invalid or
+  needs-review servings remain visible but prevent saving. The backend recipe
+  response remains the nutrition authority.
+- Builder metadata updates call only the recipe update endpoint. Existing
+  ingredients are compared with their frozen requests so only added, changed,
+  or removed ingredients use mutation endpoints. A missing source FoodItem
+  remains an unchanged frozen ingredient until the user intentionally replaces
+  it.
+- Recipe detail displays backend total, per-portion, and—only when available—
+  per-gram summaries. Simple mode hides normalized nutrients; Detailed mode
+  shows the returned normalized nutrient map without recomputing it.
+- Recipe logging has portion and optional gram modes, uses the existing
+  meal/date/time/notes conventions, disables duplicate submissions, and bumps
+  the shared data version after the authoritative FoodLog response. History,
+  Progress/Dashboard, Insights, and the next Food Log load then refresh.
+- Editing a recipe-origin History entry exposes only meal, timestamp, and
+  notes. It clearly directs nutrition or quantity corrections to delete and
+  re-log from Recipes. Ordinary FoodLogs retain their existing screen.
+
+Physical-device validation is still required before Phase 12.9A is marked
+complete. Use the installed Expo development build and the LAN API URL; no
+native rebuild is needed because this slice changes only JavaScript/TypeScript.

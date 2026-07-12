@@ -339,6 +339,22 @@ values. Automated validation and final physical-device smoke testing passed.
 - reusable recipes
 - mixed-meal review and reuse without making AI nutrition authoritative
 
+### Phase 12.9A Slice 4 — Mobile Recipe Experience Implemented
+
+Slices 1–3 establish recipe persistence, frozen authoritative ingredients,
+recipe CRUD, and immutable recipe-to-FoodLog materialization. Slice 4 adds the
+mobile list, builder, detail, logging, archive, and recipe-origin History edit
+surfaces using the existing Food Log modal stack and trusted serving controls.
+
+Automated Slice 4 validation is complete. Phase 12.9A is not fully complete
+until the documented physical-device recipe smoke test passes.
+
+### Phase 12.9B — One-Off Mixed Meals (Deferred)
+
+Phase 12.9B combines one-off mixed meals and manual ingredients. It must not
+blur the reusable-recipe boundary, make AI nutrition authoritative, or weaken
+the trusted FoodItem/serving workflow established by Phase 12.9A.
+
 ## Phase 13 — Custom Food Library And Saved Foods
 
 - save adjusted logs as reusable custom foods when safe

@@ -39,6 +39,8 @@ The locked MVP Prisma schema includes:
 - `UserGoal`
 - `TrackingPreference`
 - `FoodLog`
+- `Recipe`
+- `RecipeIngredient`
 - `FoodItem`
 - `FoodBarcode`
 - `SavedFoodItem`
@@ -274,6 +276,7 @@ Relation:
 | `id` | `String`, UUID primary key |
 | `userId` | required `String`, UUID foreign key |
 | `foodItemId` | nullable `String`, UUID foreign key |
+| `recipeId` | nullable `String`, UUID foreign key |
 | `foodName` | `String` |
 | `mealType` | `MealType` enum |
 | `calories` | `Int` |
@@ -286,6 +289,7 @@ Relation:
 | `servingQuantity` | nullable `Decimal`, precision `8`, scale `2` |
 | `servingUnit` | nullable `String` |
 | `servingSnapshot` | nullable `Json`, immutable authoritative serving snapshot |
+| `recipeSnapshot` | nullable `Json`, immutable recipe provenance snapshot |
 | `notes` | nullable `String` |
 | `loggedAt` | `DateTime`, timestamp with timezone |
 | `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
@@ -295,11 +299,14 @@ Relation:
 - belongs to `User`; delete cascades from `User`
 - optionally belongs to `FoodItem`; deleting the `FoodItem` sets
   `FoodLog.foodItemId` to `null`
+- optionally belongs to `Recipe`; deleting the `Recipe` sets
+  `FoodLog.recipeId` to `null`
 - many `FoodLogNutrient`; delete cascades from `FoodLog`
 
 Indexes:
 - index on `userId`
 - index on `foodItemId`
+- index on `recipeId`
 - index on `loggedAt`
 - compound index on `userId`, `loggedAt`
 - compound index on `userId`, `mealType`
@@ -344,6 +351,8 @@ Relations:
 - many `SavedFoodItem`
 - many `FoodLog`
 - many `FoodItemNutrient`
+- many `RecipeIngredient`; deleting a FoodItem sets the optional ingredient
+  source reference to `null`
 
 Indexes:
 - index on `userId`
@@ -359,6 +368,44 @@ unit-bearing compatibility metadata. Phase 9 extended nutrients belong in
 `FoodItemNutrient`. The `NutrientKey` enum includes column-backed keys for the
 shared catalog and daily totals contract, but API validation rejects those keys
 inside normalized food item nutrient input to prevent duplicate storage.
+
+### Recipe
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `userId` | required `String`, UUID foreign key |
+| `name` | `String` |
+| `description` | nullable `String` |
+| `portionCount` | `Int` |
+| `finalCookedWeightGrams` | nullable `Decimal`, precision `8`, scale `2` |
+| `archivedAt` | nullable `DateTime`, timestamp with timezone |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relations and indexes:
+- belongs to `User`; delete cascades from User
+- has many `RecipeIngredient`; delete cascades to ingredients
+- has many `FoodLog`; deleting a Recipe sets `FoodLog.recipeId` to `null`
+- indexes on `userId`, `archivedAt`, and `[userId, archivedAt]`
+
+### RecipeIngredient
+
+| Field | Prisma/PostgreSQL Decision |
+| --- | --- |
+| `id` | `String`, UUID primary key |
+| `recipeId` | required `String`, UUID foreign key |
+| `foodItemId` | nullable `String`, UUID foreign key |
+| `position` | `Int` |
+| `ingredientSnapshot` | required `Json`, versioned frozen provenance |
+| `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
+| `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
+
+Relations and constraints:
+- belongs to `Recipe`; delete cascades from Recipe
+- optionally belongs to `FoodItem`; delete sets `foodItemId` to `null`
+- unique compound constraint on `[recipeId, position]`
+- indexes on `recipeId` and `foodItemId`
 
 ### FoodItemNutrient
 

@@ -68,6 +68,87 @@ describe('food items API', () => {
     delete process.env.USDA_FDC_RATE_LIMIT_WINDOW;
   });
 
+  it('returns the authoritative persisted FoodItem for a USDA recipe candidate without creating a FoodLog', async () => {
+    const food = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Rice, cooked',
+        normalizedName: 'rice cooked',
+        searchText: 'rice cooked',
+        sourceType: 'cached_external',
+        sourceProvider: 'usda_fdc',
+        sourceId: '2708402',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 129,
+        protein: 2.7,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({ sourceProvider: 'usda_fdc', sourceId: '2708402' })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      id: food.id,
+      name: 'Rice, cooked',
+      sourceProvider: 'usda_fdc',
+      sourceId: '2708402',
+      servingQuantity: 100,
+      servingUnit: 'g',
+    });
+    expect(await prisma.foodLog.count()).toBe(0);
+    expect(
+      await prisma.foodItem.count({
+        where: { sourceProvider: 'usda_fdc', sourceId: '2708402' },
+      }),
+    ).toBe(1);
+  });
+
+  it('normalizes a new USDA candidate once and returns serving options and nutrients', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            fdcId: 173944,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            publicationDate: '2019-04-01',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+              {
+                amount: 358,
+                nutrient: { name: 'Potassium, K', unitName: 'MG' },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const response = await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({ sourceProvider: 'usda_fdc', sourceId: '173944' })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      name: 'Bananas, raw',
+      sourceProvider: 'usda_fdc',
+      sourceId: '173944',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      nutrients: { potassium: { amount: 358, unit: 'mg' } },
+    });
+    expect(await prisma.foodLog.count()).toBe(0);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {
     expect(COLUMN_BACKED_NUTRIENT_KEYS).toEqual([
       'calories',

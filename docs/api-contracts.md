@@ -377,6 +377,27 @@ Request:
 }
 ```
 
+### `POST /api/v1/food-items/from-external-candidate`
+
+Persists a selectable USDA candidate through the same authoritative
+normalization and cache path used by `POST /api/v1/food-logs/from-candidates`.
+It creates no FoodLog. Repeated requests for the same USDA identity reuse the
+cached global FoodItem when available.
+
+Request contains provider identity only; clients must not submit nutrition,
+serving multipliers, or serving calculations:
+
+```json
+{
+  "sourceProvider": "usda_fdc",
+  "sourceId": "2708402"
+}
+```
+
+Success `data` is the authoritative persisted `FoodItem`, including its
+normalized nutrients and serving options. Recipe builders use this response as
+the sole source for a newly selected ingredient's initial serving controls.
+
 Rules:
 
 - unknown fields are rejected
@@ -608,6 +629,136 @@ Success `data`:
   "saved": false
 }
 ```
+
+## Recipes
+
+Phase 12.9A adds reusable, current-user recipe definitions. Recipes are not
+FoodLogs: this slice does not create recipe logging endpoints. A recipe has at
+least one visible persisted FoodItem ingredient. Every accepted ingredient is
+resolved by the authoritative serving system and frozen as a versioned snapshot;
+all totals are derived from those frozen snapshots, never from mutable FoodItem
+rows. Archived recipes are hidden and return `NOT_FOUND` for every detail or
+mutation endpoint.
+
+Recipe create and ingredient mutation requests use:
+
+```json
+{
+  "foodItemId": "food-item-id",
+  "serving": { "quantity": 100, "unit": "g" }
+}
+```
+
+`servingOptionId` is optional inside `serving`. Invalid requests return
+`INVALID_SERVING_REQUEST`; unresolved household/ambiguous requests return
+`SERVING_NEEDS_REVIEW`. FoodItems must be visible to the current user and have
+a valid authoritative serving basis. External candidates, manual ingredients,
+and AI nutrition are not recipe ingredients.
+
+A recipe response includes ordered ingredients (`position` ascending), each
+ingredient's immutable `snapshot`, `total`, `perPortion`, and `perGram` (only
+when `finalCookedWeightGrams` exists). Nutrition summaries provide canonical
+decimal-string `fullPrecision` values and intentionally rounded `materialized`
+values. `gramLoggingAvailable` is true exactly when a final cooked weight is
+present.
+
+### `GET /api/v1/recipes`
+
+Lists non-archived recipes owned by the current user. Success `data` is:
+
+```json
+{ "recipes": [] }
+```
+
+### `POST /api/v1/recipes`
+
+Creates one recipe and one or more ordered frozen ingredients atomically.
+
+```json
+{
+  "name": "Turkey chili",
+  "description": "Weeknight batch",
+  "portionCount": 4,
+  "finalCookedWeightGrams": 1200,
+  "ingredients": [
+    {
+      "foodItemId": "food-item-id",
+      "serving": { "quantity": 500, "unit": "g" }
+    }
+  ]
+}
+```
+
+If any ingredient is invalid or unavailable, the recipe and every ingredient
+write roll back. Success `data` is the recipe response object.
+
+### `GET /api/v1/recipes/:id`
+
+Returns one non-archived recipe owned by the current user, including frozen
+ingredients and derived totals. Source FoodItem edits, archival, or deletion do
+not change this response's snapshots or nutrition.
+
+### `PUT /api/v1/recipes/:id`
+
+Updates one or more metadata fields: `name`, `description`, `portionCount`, or
+`finalCookedWeightGrams`. Metadata updates do not recalculate or replace any
+ingredient snapshot. The response contains the recipe with totals recalculated
+only from the retained frozen snapshots; changing portions or cooked weight
+therefore changes only the corresponding derived views.
+
+### `DELETE /api/v1/recipes/:id`
+
+Archives a current-user recipe. Success `data` is `{ "id": "recipe-id",
+"archived": true }`.
+
+### `POST /api/v1/recipes/:id/log`
+
+Materializes exactly one current-user FoodLog from the recipe's frozen
+ingredient snapshots. It never reads current FoodItem nutrition. The complete
+read, calculation, FoodLog write, normalized `FoodLogNutrient` writes, and
+recipe snapshot write occur in one transaction; a failure leaves no writes.
+
+```json
+{
+  "amount": 1.5,
+  "unit": "portion",
+  "mealType": "dinner",
+  "loggedAt": "2026-07-12T18:00:00.000Z",
+  "notes": "Leftovers"
+}
+```
+
+`unit` is `portion` or `g`. Portion scale is `amount / portionCount`; gram
+scale is `amount / finalCookedWeightGrams`. Gram logging without a final cooked
+weight returns `422 RECIPE_FINAL_WEIGHT_REQUIRED`. Archived, unowned, and
+missing recipes return `NOT_FOUND`.
+
+The created FoodLog has `recipeId`, no `foodItemId`, aggregated normalized
+nutrient rows, and a strict `recipeSnapshot` version 2. Its snapshot captures
+the recipe metadata at log time, every frozen ingredient snapshot,
+full-precision recipe totals, canonical-string rounded logged nutrition, each
+ingredient's full-precision contribution, the logged amount/unit, and
+`calculationSchemaVersion: 1`. FoodLog columns and normalized nutrient rows are
+rounded only once from the full-precision calculation. Later recipe/FoodItem
+edits, archival, or deletion do not alter the historical FoodLog snapshot.
+
+### `POST /api/v1/recipes/:id/ingredients`
+
+Adds one frozen ingredient transactionally. Its position is after all existing
+ingredients, and the response is the full updated recipe.
+
+### `PUT /api/v1/recipes/:id/ingredients/:ingredientId`
+
+Replaces only the identified ingredient's source reference and frozen snapshot
+using a new authoritative serving resolution. It retains the ingredient's
+position and every other ingredient snapshot. The response is the full updated
+recipe.
+
+### `DELETE /api/v1/recipes/:id/ingredients/:ingredientId`
+
+Deletes one ingredient transactionally and returns the full updated recipe. A
+request to delete the sole remaining ingredient returns `409`
+`RECIPE_LAST_INGREDIENT`.
 
 ## Food Logs
 
@@ -914,6 +1065,13 @@ Success `data` is the normal FoodLog response shape.
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
+
+A recipe-origin FoodLog (identified by its immutable `recipeSnapshot`) is the
+exception: it accepts omitted immutable fields and may update only `mealType`,
+`loggedAt`, and `notes`. Explicit attempts to update food identity, recipe
+identity/snapshot, serving fields/snapshot, nutrition columns, normalized
+nutrients, or provenance return `409 RECIPE_LOG_IMMUTABLE`. Ordinary manual and
+FoodItem-backed FoodLogs retain their existing update behavior.
 
 If `foodItemId` is omitted on update, the existing relation is preserved. If
 `foodItemId` is explicitly `null`, the relation is cleared. If a new

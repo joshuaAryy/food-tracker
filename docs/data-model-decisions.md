@@ -67,6 +67,45 @@ used by authoritative trusted creates and snapshot-backed updates. Legacy rows
 remain NULL; no existing records were backfilled or given fabricated
 provenance. Malformed JSON is ignored safely at serialization/read boundaries.
 
+## Reusable Recipe Persistence
+
+`Recipe` is user-owned and has a name, optional description, positive integer
+portion count, optional final cooked weight, archive state, and ordered
+`RecipeIngredient` records. Every ingredient holds a versioned JSON snapshot;
+there is intentionally no normalized recipe-ingredient nutrient table.
+
+Recipe snapshots retain FoodItem identity/name, basis, requested serving,
+resolution, provenance, and resolved nutrition. Every decimal in a recipe
+ingredient or recipe-log snapshot is a canonical decimal string, never a JSON
+number. Recipe totals are summed from frozen ingredient snapshots with
+server-side decimal arithmetic, then materialized as whole calories/sodium,
+one-decimal column macros, and four-decimal normalized nutrients. Per-portion
+values divide totals by portion count; per-gram values exist only when final
+cooked weight exists.
+
+Changing recipe metadata must not recalculate ingredient snapshots. A future
+ingredient mutation may replace only that ingredient snapshot. Nullable source
+FoodItem and Recipe links on historical records preserve snapshots if either
+source is deleted.
+
+## Recipe-to-FoodLog Snapshot Materialization
+
+Recipe logging writes exactly one FoodLog with nullable `foodItemId`, nullable
+`servingSnapshot`, a live `recipeId` relation when available, and a strict
+version-2 `recipeSnapshot`. The snapshot includes frozen recipe metadata,
+ordered ingredient snapshots, full-precision aggregate totals, the logged
+amount/unit, canonical-string rounded stored nutrition, and full-precision
+per-ingredient contributions. It is calculated solely from recipe snapshots;
+no live FoodItem nutrition is consulted.
+
+Recipe amount scaling is `amount / portionCount` for portions or `amount /
+finalCookedWeightGrams` for grams. Decimal arithmetic remains full precision
+until the one FoodLog persistence round: calories/sodium whole, macro columns
+one decimal, normalized nutrients four decimals. All values stored inside
+recipe JSON snapshots remain canonical decimal strings. A recipe-origin FoodLog
+may later change only meal metadata (`mealType`, `loggedAt`, and `notes`);
+nutrition, source, servings, and provenance are immutable.
+
 ## MealType Enum
 
 The MVP `mealType` values are:

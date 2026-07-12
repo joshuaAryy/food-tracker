@@ -19,6 +19,7 @@ interface AppScreenProps extends PropsWithChildren {
   contentClassName?: string;
   contentStyle?: StyleProp<ViewStyle>;
   backgroundColor?: string;
+  keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
 }
 
 export function AppScreen({
@@ -30,6 +31,7 @@ export function AppScreen({
   contentClassName = '',
   contentStyle,
   backgroundColor = colors.light.canvas,
+  keyboardShouldPersistTaps = 'handled',
 }: AppScreenProps) {
   const content = (
     <View
@@ -55,7 +57,7 @@ export function AppScreen({
             className="flex-1"
             style={{ backgroundColor }}
             contentInsetAdjustmentBehavior="automatic"
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps={keyboardShouldPersistTaps}
             refreshControl={
               onRefresh === undefined ? undefined : (
                 <RefreshControl

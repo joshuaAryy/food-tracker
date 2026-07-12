@@ -62,6 +62,8 @@ Fields:
 - userId
 - foodItemId (optional reference to a reusable `FoodItem`; set to `null` if
   the food item is deleted)
+- recipeId (optional reference to a reusable `Recipe`; set to `null` if the
+  recipe is deleted)
 - foodName
 - mealType (`breakfast`, `lunch`, `dinner`, `snack`, or `other`)
 - calories (integer kcal)
@@ -75,6 +77,7 @@ Fields:
 - normalized extended nutrients are stored in `FoodLogNutrient`
 - servingQuantity (optional decimal)
 - servingUnit (optional)
+- recipeSnapshot (optional immutable recipe provenance JSONB)
 - notes (optional)
 - createdAt
 - updatedAt
@@ -138,6 +141,23 @@ unit-bearing compatibility metadata, for example:
 ```
 
 Phase 9 does not add full micronutrient reporting UI.
+
+---
+
+### Recipe
+
+User-owned reusable recipe definition. It stores `name`, optional
+`description`, integer `portionCount`, optional decimal `finalCookedWeightGrams`,
+archive and timestamp fields. Recipe nutrition is derived from frozen
+`RecipeIngredient.ingredientSnapshot` JSON rather than mutable FoodItem rows.
+
+### RecipeIngredient
+
+An ordered frozen ingredient for one Recipe. It stores `recipeId`, optional
+`foodItemId` (set to `null` if its source food is deleted), integer `position`,
+and a versioned `ingredientSnapshot` JSONB. `[recipeId, position]` is unique;
+the schema deliberately does not add a normalized recipe-ingredient nutrient
+table.
 
 ---
 
@@ -247,6 +267,8 @@ future-only.
 - `FoodItemNutrient` requires `foodItemId`, `nutrientKey`, `amount`, and
   `unit`.
 - `FoodLogNutrient` requires `foodLogId`, `nutrientKey`, `amount`, and `unit`.
+- `Recipe` requires `userId`, `name`, and `portionCount`; `RecipeIngredient`
+  requires `recipeId`, `position`, and `ingredientSnapshot`.
 - `FoodLog` and `WeightLog` have no unique timestamp constraints.
 - `FoodBarcode` is unique by `[barcode, regionCode]`.
 - `SavedFoodItem` is unique by `[userId, foodItemId]`.
@@ -254,7 +276,10 @@ future-only.
 - `FoodLogNutrient` is unique by `[foodLogId, nutrientKey]`.
 - Deleting a `User` cascades to every user-owned MVP record.
 - Deleting a `FoodItem` cascades barcode and saved-food relationships and sets
-  related `FoodLog.foodItemId` values to `null`.
+  related `FoodLog.foodItemId` and `RecipeIngredient.foodItemId` values to
+  `null`.
+- Deleting a `Recipe` sets related `FoodLog.recipeId` values to `null` and
+  cascades its ingredients.
 - Required indexes are locked in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 
 ## Future Tables And Fields
@@ -351,3 +376,11 @@ basis, requested serving, resolution, provenance, and effective override; final
 scaled values remain in FoodLog columns and FoodLogNutrient rows. Legacy rows
 remain NULL and retain their legacy behavior, and malformed stored JSON is
 treated safely rather than fabricated into a basis.
+
+## Phase 12.9A Recipe Foundation
+
+The additive recipe migration creates `Recipe` and `RecipeIngredient` and adds
+nullable `FoodLog.recipeId` and `FoodLog.recipeSnapshot` JSONB columns without
+a backfill. Recipe and recipe-log snapshot decimals are canonical strings;
+their frozen ingredient values remain authoritative when source FoodItems later
+change, archive, or are deleted.

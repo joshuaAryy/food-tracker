@@ -4,6 +4,7 @@ import {
   foodBarcodeLookupInputSchema,
   foodBarcodeQuerySchema,
   foodItemServingOptionsSchema,
+  foodItemExternalCandidateInputSchema,
   foodItemInputSchema,
   foodItemSearchCandidatesInputSchema,
   foodItemsQuerySchema,
@@ -35,6 +36,7 @@ import {
   enrichUsdaFoods,
   defaultWholeItemServingFromOptions,
   USDA_ENRICHMENT_POLICIES,
+  findOrCreateUsdaFoodItem,
   usdaFdcConfig,
   type NormalizedUsdaFood,
 } from './usda-fdc.js';
@@ -49,6 +51,9 @@ type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 type FoodItemsQuery = z.infer<typeof foodItemsQuerySchema>;
 type FoodItemSearchCandidatesInput = z.infer<
   typeof foodItemSearchCandidatesInputSchema
+>;
+type FoodItemExternalCandidateInput = z.infer<
+  typeof foodItemExternalCandidateInputSchema
 >;
 type FoodBarcodeLookupInput = z.infer<typeof foodBarcodeLookupInputSchema>;
 type FoodBarcodeParams = z.infer<typeof foodBarcodeParamsSchema>;
@@ -440,6 +445,27 @@ foodItemsRouter.post(
     candidates = rankParseCandidates(normalizedQuery, candidates);
 
     sendSuccess(response, { candidates: candidates.slice(0, input.limit) });
+  },
+);
+
+foodItemsRouter.post(
+  '/from-external-candidate',
+  validateBody(foodItemExternalCandidateInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<FoodItemExternalCandidateInput>(response);
+    const foodItem = await prisma.$transaction(async (transaction) => {
+      const persisted = await findOrCreateUsdaFoodItem({
+        sourceId: input.sourceId,
+        config: usdaFdcConfig(),
+        transaction,
+      });
+      return transaction.foodItem.findUniqueOrThrow({
+        where: { id: persisted.id },
+        include: foodItemInclude(userId),
+      });
+    });
+    sendSuccess(response, serializeFoodItem(foodItem));
   },
 );
 

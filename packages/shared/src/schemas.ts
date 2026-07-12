@@ -453,6 +453,220 @@ export type FoodLogServingSnapshot = z.infer<
   typeof foodLogServingSnapshotSchema
 >;
 
+const canonicalDecimalStringSchema = z
+  .string()
+  .regex(/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/, {
+    message: 'value must be a canonical non-negative decimal string',
+  });
+
+const recipeSnapshotServingOptionSchema = z.strictObject({
+  id: z.string().trim().min(1),
+  label: z.string().trim().min(1),
+  quantity: canonicalDecimalStringSchema,
+  unit: persistedServingUnitSchema,
+  unitFamily: persistedServingUnitFamilySchema,
+  equivalentWeightGrams: canonicalDecimalStringSchema.nullable(),
+  equivalentVolumeMl: canonicalDecimalStringSchema.nullable(),
+  source: z.enum(['provider', 'manual']),
+  trust: z.literal('trusted'),
+  provider: foodSourceProviderSchema.nullable(),
+  providerDescription: z.string().trim().min(1).nullable(),
+});
+
+const recipeNutritionSnapshotSchema = z.strictObject({
+  calories: canonicalDecimalStringSchema,
+  protein: canonicalDecimalStringSchema,
+  carbs: canonicalDecimalStringSchema.nullable(),
+  fat: canonicalDecimalStringSchema.nullable(),
+  fiber: canonicalDecimalStringSchema.nullable(),
+  sugar: canonicalDecimalStringSchema.nullable(),
+  sodium: canonicalDecimalStringSchema.nullable(),
+  nutrients: z.partialRecord(
+    normalizedNutrientKeySchema,
+    z.strictObject({
+      amount: canonicalDecimalStringSchema,
+      unit: nutrientUnitSchema,
+    }),
+  ),
+});
+
+const recipeMaterializedNutritionSchema = z.strictObject({
+  calories: persistedNutritionNumberSchema.int(),
+  protein: persistedNutritionNumberSchema,
+  carbs: persistedNutritionNumberSchema.nullable(),
+  fat: persistedNutritionNumberSchema.nullable(),
+  fiber: persistedNutritionNumberSchema.nullable(),
+  sugar: persistedNutritionNumberSchema.nullable(),
+  sodium: persistedNutritionNumberSchema.int().nullable(),
+  nutrients: normalizedNutrientsInputSchema,
+});
+
+export const recipeIngredientSnapshotSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  foodItem: z.strictObject({
+    id: z.uuid(),
+    name: z.string().trim().min(1),
+  }),
+  nutritionBasis: z.strictObject({
+    quantity: canonicalDecimalStringSchema,
+    unit: persistedServingUnitSchema,
+    unitFamily: persistedServingUnitFamilySchema,
+    displayText: z.string().trim().min(1).nullable(),
+    equivalentWeightGrams: canonicalDecimalStringSchema.nullable(),
+    equivalentVolumeMl: canonicalDecimalStringSchema.nullable(),
+  }),
+  requestedServing: z.strictObject({
+    quantity: canonicalDecimalStringSchema,
+    unit: persistedServingUnitSchema,
+    unitFamily: persistedServingUnitFamilySchema,
+    servingOptionId: z.string().trim().min(1).nullable(),
+    selectedServingOption: recipeSnapshotServingOptionSchema.nullable(),
+  }),
+  resolution: z.strictObject({
+    status: z.enum(['exact', 'converted']),
+    reason: z.enum([
+      'same_basis',
+      'direct_count_basis',
+      'standard_mass_conversion',
+      'standard_volume_conversion',
+      'trusted_serving_weight',
+      'trusted_serving_volume',
+    ]),
+    multiplier: canonicalDecimalStringSchema,
+    resolvedWeightGrams: canonicalDecimalStringSchema.nullable(),
+    resolvedVolumeMl: canonicalDecimalStringSchema.nullable(),
+  }),
+  resolvedNutrition: recipeNutritionSnapshotSchema,
+  provenance: snapshotProvenanceSchema,
+});
+
+export const recipeNutritionSummarySnapshotSchema = z.strictObject({
+  fullPrecision: recipeNutritionSnapshotSchema,
+  materialized: recipeMaterializedNutritionSchema,
+});
+
+export const recipeSnapshotSchema = z.strictObject({
+  schemaVersion: z.literal(2),
+  calculationSchemaVersion: z.literal(1),
+  recipe: z.strictObject({
+    id: z.uuid(),
+    name: z.string().trim().min(1),
+    description: z.string().nullable(),
+    portionCount: z.number().int().positive(),
+    finalCookedWeightGrams: canonicalDecimalStringSchema.nullable(),
+  }),
+  ingredients: z.array(recipeIngredientSnapshotSchema).min(1),
+  recipeTotals: recipeNutritionSnapshotSchema,
+  loggedNutrition: recipeNutritionSnapshotSchema,
+  ingredientContributions: z
+    .array(
+      z.strictObject({
+        recipeIngredientId: z.uuid(),
+        position: z.number().int().nonnegative(),
+        nutrition: recipeNutritionSnapshotSchema,
+      }),
+    )
+    .min(1),
+  loggedAmount: canonicalDecimalStringSchema,
+  loggedUnit: z.enum(['portion', 'g']),
+});
+
+export type CanonicalDecimalString = z.infer<
+  typeof canonicalDecimalStringSchema
+>;
+export type RecipeIngredientSnapshot = z.infer<
+  typeof recipeIngredientSnapshotSchema
+>;
+export type RecipeNutritionSnapshot = z.infer<
+  typeof recipeNutritionSnapshotSchema
+>;
+export type RecipeMaterializedNutrition = z.infer<
+  typeof recipeMaterializedNutritionSchema
+>;
+export type RecipeNutritionSummarySnapshot = z.infer<
+  typeof recipeNutritionSummarySnapshotSchema
+>;
+export type RecipeSnapshot = z.infer<typeof recipeSnapshotSchema>;
+
+export const recipeServingInputSchema = z.strictObject({
+  quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.string().trim().min(1),
+  servingOptionId: z.string().trim().min(1).nullable().optional(),
+});
+
+export const recipeIngredientInputSchema = z.strictObject({
+  foodItemId: z.uuid(),
+  serving: recipeServingInputSchema,
+});
+
+const recipeMetadataInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2_000).nullable().optional(),
+  portionCount: z.number().int().positive().max(10_000),
+  finalCookedWeightGrams: z
+    .number()
+    .finite()
+    .positive()
+    .max(MAX_SERVING_QUANTITY)
+    .nullable()
+    .optional(),
+});
+
+export const recipeCreateInputSchema = recipeMetadataInputSchema.extend({
+  ingredients: z.array(recipeIngredientInputSchema).min(1).max(100),
+});
+
+export const recipeUpdateInputSchema = recipeMetadataInputSchema
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, {
+    message: 'Provide at least one recipe field to update.',
+  });
+
+export const recipeIngredientSchema = z.strictObject({
+  id: z.uuid(),
+  foodItemId: z.uuid().nullable(),
+  position: z.number().int().nonnegative(),
+  snapshot: recipeIngredientSnapshotSchema,
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const recipeSchema = z.strictObject({
+  id: z.uuid(),
+  name: z.string().trim().min(1),
+  description: z.string().nullable(),
+  portionCount: z.number().int().positive(),
+  finalCookedWeightGrams: z.number().positive().nullable(),
+  gramLoggingAvailable: z.boolean(),
+  ingredients: z.array(recipeIngredientSchema).min(1),
+  total: recipeNutritionSummarySnapshotSchema,
+  perPortion: recipeNutritionSummarySnapshotSchema,
+  perGram: recipeNutritionSummarySnapshotSchema.nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const recipesResponseSchema = z.strictObject({
+  recipes: z.array(recipeSchema),
+});
+
+export type RecipeServingInput = z.infer<typeof recipeServingInputSchema>;
+export type RecipeIngredientInput = z.infer<typeof recipeIngredientInputSchema>;
+export type RecipeCreateInput = z.infer<typeof recipeCreateInputSchema>;
+export type RecipeUpdateInput = z.infer<typeof recipeUpdateInputSchema>;
+export type RecipeIngredient = z.infer<typeof recipeIngredientSchema>;
+export type Recipe = z.infer<typeof recipeSchema>;
+
+export const recipeLogInputSchema = z.strictObject({
+  amount: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.enum(['portion', 'g']),
+  mealType: mealTypeSchema,
+  loggedAt: z.iso.datetime(),
+  notes: z.string().nullable().optional(),
+});
+
+export type RecipeLogInput = z.infer<typeof recipeLogInputSchema>;
+
 export const foodLogInputSchema = z.strictObject({
   foodItemId: z.uuid().nullable().optional(),
   foodName: z.string().min(1),
@@ -544,6 +758,14 @@ export const foodLogUpdateInputSchema = z.strictObject({
   serving: servingRequestInputSchema.optional(),
   clearNutritionOverride: z.boolean().optional(),
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+  recipeId: z.unknown().optional(),
+  recipeSnapshot: z.unknown().optional(),
+  servingSnapshot: z.unknown().optional(),
+  source: z.unknown().optional(),
+  sourceType: z.unknown().optional(),
+  sourceProvider: z.unknown().optional(),
+  sourceId: z.unknown().optional(),
+  provenance: z.unknown().optional(),
 });
 
 export const foodLogsFromFoodItemsInputSchema = z
@@ -702,6 +924,11 @@ export const foodItemSearchCandidatesInputSchema = z.strictObject({
   limit: z.number().int().min(1).max(10).default(8),
 });
 
+export const foodItemExternalCandidateInputSchema = z.strictObject({
+  sourceProvider: z.literal('usda_fdc'),
+  sourceId: z.string().trim().regex(/^\d+$/),
+});
+
 export const foodBarcodeParamsSchema = z.strictObject({
   barcode: z.string().trim().min(1),
 });
@@ -749,6 +976,9 @@ export type AiNutritionEstimateInput = z.infer<
 export type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 export type FoodItemSearchCandidatesInput = z.infer<
   typeof foodItemSearchCandidatesInputSchema
+>;
+export type FoodItemExternalCandidateInput = z.infer<
+  typeof foodItemExternalCandidateInputSchema
 >;
 export type FoodBarcodeLookupInput = z.infer<
   typeof foodBarcodeLookupInputSchema

@@ -40,15 +40,19 @@ export function FoodItemChoiceRow({
   mode,
   selected = false,
   onPress,
+  onPressIn,
   onToggleSave,
   saving = false,
+  disabled = false,
 }: {
   foodItem: FoodItem;
   mode: TrackingMode;
   selected?: boolean;
   onPress: () => void;
+  onPressIn?: () => void;
   onToggleSave?: () => void;
   saving?: boolean;
+  disabled?: boolean;
 }) {
   const serving = servingLabel(foodItem);
   const saved = foodItem.isSaved;
@@ -58,11 +62,13 @@ export function FoodItemChoiceRow({
     <Pressable
       accessibilityLabel={`Choose ${foodItem.name}`}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
       className={`flex-row items-center gap-3 py-3.5 active:bg-[#F6F6F6] ${
         selected ? 'bg-[#F4F4F4]' : ''
       }`}
       onPress={onPress}
+      onPressIn={onPressIn}
+      disabled={disabled}
     >
       <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F4F4F4]">
         <AppText variant="label" className="text-ink">

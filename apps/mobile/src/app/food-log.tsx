@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Camera, Sparkles } from 'lucide-react-native';
+import { BookOpen, Camera, Sparkles } from 'lucide-react-native';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
@@ -396,6 +396,7 @@ export default function FoodLogScreen() {
   const [snapshotServingLog, setSnapshotServingLog] = useState<FoodLog | null>(
     null,
   );
+  const [recipeOriginLog, setRecipeOriginLog] = useState<FoodLog | null>(null);
   const [currentEditServingOptions, setCurrentEditServingOptions] =
     useState<FoodItemServingOptions | null>(null);
   const [clearNutritionOverride, setClearNutritionOverride] = useState(false);
@@ -510,6 +511,7 @@ export default function FoodLogScreen() {
       setServingUnit('');
       setSelectedServingOptionId(null);
       setSnapshotServingLog(null);
+      setRecipeOriginLog(null);
       setCurrentEditServingOptions(null);
       setClearNutritionOverride(false);
       setNutritionEdited(false);
@@ -519,6 +521,9 @@ export default function FoodLogScreen() {
 
     try {
       const foodLog = await api.foodLogs.getById(sourceId);
+      setRecipeOriginLog(
+        isEditing && foodLog.recipeSnapshot !== null ? foodLog : null,
+      );
       const timestamp = isEditing
         ? dateTimeFieldsInTimezone(foodLog.loggedAt, nextTimezone)
         : {
@@ -559,6 +564,7 @@ export default function FoodLogScreen() {
         setSelectedServingOptionId(null);
       }
     } catch (error) {
+      setRecipeOriginLog(null);
       setLoadError(errorMessage(error));
     } finally {
       setLoadingRecord(false);
@@ -903,6 +909,13 @@ export default function FoodLogScreen() {
         } else {
           await api.foodLogs.create(manualInput);
         }
+      } else if (recipeOriginLog !== null) {
+        const input: FoodLogUpdateInput = {
+          mealType: values.mealType,
+          loggedAt,
+          notes: values.notes.trim() === '' ? null : values.notes.trim(),
+        };
+        await api.foodLogs.update(editId, input);
       } else if (snapshotServingLog !== null) {
         if (overrideActionRequired) {
           setSubmitError(
@@ -1191,6 +1204,164 @@ export default function FoodLogScreen() {
       ? 'Log food again'
       : 'Log food';
 
+  if (isEditing && recipeOriginLog !== null) {
+    return (
+      <AppScreen
+        contentClassName="gap-6 pb-8"
+        footer={
+          <View className="gap-2">
+            <AppButton
+              loading={isSubmitting}
+              disabled={deleting}
+              onPress={() => void submit()}
+            >
+              Save changes
+            </AppButton>
+            <AppButton
+              variant="danger"
+              loading={deleting}
+              disabled={isSubmitting}
+              onPress={confirmDelete}
+            >
+              Delete recipe entry
+            </AppButton>
+          </View>
+        }
+      >
+        <ScreenHeader
+          title="Edit recipe entry"
+          subtitle="Only meal, time, and notes can change for a logged recipe."
+          action={
+            <Pressable
+              accessibilityRole="button"
+              className="rounded-full bg-surface px-3.5 py-2"
+              onPress={() => router.back()}
+            >
+              <AppText variant="label" className="text-sage-dark">
+                Close
+              </AppText>
+            </Pressable>
+          }
+        />
+        {submitError === null ? null : (
+          <ErrorState
+            title="Couldn’t update recipe entry"
+            message={submitError}
+          />
+        )}
+        <View className="gap-2 rounded-[28px] bg-module p-4">
+          <AppText variant="heading">{recipeOriginLog.foodName}</AppText>
+          <AppText variant="caption" muted>
+            {recipeOriginLog.calories} kcal ·{' '}
+            {recipeOriginLog.protein.toFixed(1)} g protein
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            Quantity and nutrition corrections require deleting this entry and
+            logging the recipe again.
+          </AppText>
+        </View>
+        <FormSection title="Meal details" variant="open">
+          <Controller
+            control={control}
+            name="mealType"
+            render={({ field }) => (
+              <View className="gap-1.5">
+                <AppText variant="label">Meal</AppText>
+                <View className="flex-row flex-wrap gap-2">
+                  {MEAL_TYPES.map((meal) => {
+                    const selected = meal === field.value;
+                    return (
+                      <Pressable
+                        key={meal}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        className={`min-h-10 rounded-full px-3.5 py-2 ${
+                          selected ? 'bg-primary' : 'bg-module'
+                        }`}
+                        onPress={() => field.onChange(meal)}
+                      >
+                        <AppText
+                          variant="label"
+                          className={selected ? 'text-white' : 'text-muted'}
+                        >
+                          {meal[0]?.toUpperCase().concat(meal.slice(1))}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          />
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field }) => (
+              <AppInput
+                label="Notes"
+                multiline
+                numberOfLines={3}
+                placeholder="Optional context"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+              />
+            )}
+          />
+        </FormSection>
+        <FormSection
+          title="Date and time"
+          description={`Use the time you ate in ${timezone}.`}
+          variant="open"
+        >
+          <Controller
+            control={control}
+            name="loggedDate"
+            rules={{
+              required: 'Date is required.',
+              validate: (value) =>
+                isValidLocalDate(value) ? true : 'Use YYYY-MM-DD.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Date"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="numbers-and-punctuation"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.loggedDate?.message}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="loggedTime"
+            rules={{
+              required: 'Time is required.',
+              validate: (value) =>
+                isValidLocalTime(value) ? true : 'Use 24-hour HH:mm.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Time"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="numbers-and-punctuation"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.loggedTime?.message}
+                hint="24-hour format"
+              />
+            )}
+          />
+        </FormSection>
+      </AppScreen>
+    );
+  }
+
   return (
     <AppScreen
       contentClassName="gap-6 pb-8"
@@ -1289,6 +1460,28 @@ export default function FoodLogScreen() {
                   <AppText variant="label">Describe meal</AppText>
                   <AppText variant="caption" muted>
                     Parse a messy meal note before logging.
+                  </AppText>
+                </View>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Open recipes"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/recipes' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <BookOpen
+                    color={colors.light.ink}
+                    size={18}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Recipes</AppText>
+                  <AppText variant="caption" muted>
+                    Build or log a saved meal from trusted foods.
                   </AppText>
                 </View>
               </View>

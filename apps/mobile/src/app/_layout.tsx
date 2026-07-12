@@ -29,6 +29,26 @@ export default function RootLayout() {
           name="weight-log"
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
+        <Stack.Screen
+          name="recipes/index"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="recipes/[id]"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="recipes/editor"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="recipes/log"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="recipes/ingredient-serving"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
       </Stack>
       <StatusBar style="dark" />
     </>

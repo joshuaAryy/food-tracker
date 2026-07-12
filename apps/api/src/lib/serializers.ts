@@ -23,6 +23,7 @@ import type {
 import {
   foodItemServingOptionsSchema,
   foodLogServingSnapshotSchema,
+  recipeSnapshotSchema,
 } from '@food-tracker/shared';
 
 export const roundTo = (value: number, decimalPlaces: number): number => {
@@ -93,6 +94,7 @@ export function serializeFoodLog(foodLog: SerializableFoodLog): FoodLog {
   return {
     id: foodLog.id,
     foodItemId: foodLog.foodItemId,
+    recipeId: foodLog.recipeId,
     foodName: foodLog.foodName,
     mealType: foodLog.mealType,
     calories: foodLog.calories,
@@ -108,6 +110,10 @@ export function serializeFoodLog(foodLog: SerializableFoodLog): FoodLog {
     servingSnapshot: parsedJsonOrNull(
       foodLog.servingSnapshot,
       foodLogServingSnapshotSchema,
+    ),
+    recipeSnapshot: parsedJsonOrNull(
+      foodLog.recipeSnapshot,
+      recipeSnapshotSchema,
     ),
     nutrients: serializeNutrients(foodLog.nutrients),
     loggedAt: foodLog.loggedAt.toISOString(),

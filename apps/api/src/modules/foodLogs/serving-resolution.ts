@@ -46,6 +46,7 @@ export type AuthoritativeServingCalculationFailure = {
 
 export type AuthoritativeServingCalculationSuccess = {
   ok: true;
+  fullPrecisionNutrition: ScalableNutrition;
   finalNutrition: ScalableNutrition;
   finalNutrients: Array<{
     nutrientKey: NormalizedNutrientKey;
@@ -259,12 +260,11 @@ export function calculateAuthoritativeServing(
     return failureForResolution(servingResolution);
   }
 
-  const scaled = roundServingNutritionForStorage(
-    scaleNutritionAtFullPrecision(
-      input.basisNutrition,
-      servingResolution.multiplier,
-    ),
+  const fullPrecisionNutrition = scaleNutritionAtFullPrecision(
+    input.basisNutrition,
+    servingResolution.multiplier,
   );
+  const scaled = roundServingNutritionForStorage(fullPrecisionNutrition);
   const overridden = roundOverrideNutrition(scaled, input.nutritionOverride);
   const selectedServingOption =
     servingResolution.servingOptionId === null
@@ -308,6 +308,7 @@ export function calculateAuthoritativeServing(
 
   return {
     ok: true,
+    fullPrecisionNutrition,
     finalNutrition: overridden.nutrition,
     finalNutrients: Object.entries(overridden.nutrition.nutrients).map(
       ([nutrientKey, nutrient]) => ({

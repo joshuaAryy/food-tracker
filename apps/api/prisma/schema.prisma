@@ -168,6 +168,7 @@ model User {
   goal               UserGoal?
   trackingPreference TrackingPreference?
   foodLogs           FoodLog[]
+  recipes            Recipe[]
   foodItems          FoodItem[]
   savedFoodItems     SavedFoodItem[]
   weightLogs         WeightLog[]
@@ -175,29 +176,29 @@ model User {
 }
 
 model UserProfile {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @unique @db.Uuid
+  id               String         @id @default(uuid()) @db.Uuid
+  userId           String         @unique @db.Uuid
   name             String?
   age              Int?
-  birthDate        DateTime? @db.Date
+  birthDate        DateTime?      @db.Date
   sex              String?
   heightInches     Int?
-  timezone         String   @default("America/Toronto")
-  startingWeightLb Decimal? @db.Decimal(5, 1)
+  timezone         String         @default("America/Toronto")
+  startingWeightLb Decimal?       @db.Decimal(5, 1)
   activityLevel    ActivityLevel?
   trainingStyle    TrainingStyle?
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserGoal {
-  id                 String   @id @default(uuid()) @db.Uuid
-  userId             String   @unique @db.Uuid
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @unique @db.Uuid
   goalType           GoalType
   goalPace           GoalPace?
-  targetWeightLb     Decimal? @db.Decimal(5, 1)
+  targetWeightLb     Decimal?  @db.Decimal(5, 1)
   targetCalories     Int?
-  targetProteinGrams Decimal? @db.Decimal(5, 1)
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetProteinGrams Decimal?  @db.Decimal(5, 1)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TrackingPreference {
@@ -209,31 +210,35 @@ model TrackingPreference {
 }
 
 model FoodLog {
-  id              String   @id @default(uuid()) @db.Uuid
-  userId          String   @db.Uuid
-  foodItemId      String?  @db.Uuid
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @db.Uuid
+  foodItemId      String?           @db.Uuid
+  recipeId        String?           @db.Uuid
   foodName        String
   mealType        MealType
   calories        Int
-  protein         Decimal  @db.Decimal(6, 1)
-  carbs           Decimal? @db.Decimal(6, 1)
-  fat             Decimal? @db.Decimal(6, 1)
-  fiber           Decimal? @db.Decimal(6, 1)
-  sugar           Decimal? @db.Decimal(6, 1)
+  protein         Decimal           @db.Decimal(6, 1)
+  carbs           Decimal?          @db.Decimal(6, 1)
+  fat             Decimal?          @db.Decimal(6, 1)
+  fiber           Decimal?          @db.Decimal(6, 1)
+  sugar           Decimal?          @db.Decimal(6, 1)
   sodium          Int?
-  servingQuantity Decimal? @db.Decimal(8, 2)
+  servingQuantity Decimal?          @db.Decimal(8, 2)
   servingUnit     String?
   servingSnapshot Json?
+  recipeSnapshot  Json?
   notes           String?
-  loggedAt        DateTime @db.Timestamptz
-  createdAt       DateTime @default(now()) @db.Timestamptz
-  updatedAt       DateTime @updatedAt @db.Timestamptz
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  foodItem        FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  loggedAt        DateTime          @db.Timestamptz
+  createdAt       DateTime          @default(now()) @db.Timestamptz
+  updatedAt       DateTime          @updatedAt @db.Timestamptz
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem        FoodItem?         @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  recipe          Recipe?           @relation(fields: [recipeId], references: [id], onDelete: SetNull)
   nutrients       FoodLogNutrient[]
 
   @@index([userId])
   @@index([foodItemId])
+  @@index([recipeId])
   @@index([loggedAt])
   @@index([userId, loggedAt])
   @@index([userId, mealType])
@@ -271,6 +276,7 @@ model FoodItem {
   barcodes            FoodBarcode[]
   savedByUsers        SavedFoodItem[]
   foodLogs            FoodLog[]
+  recipeIngredients   RecipeIngredient[]
   nutrients           FoodItemNutrient[]
 
   @@index([userId])
@@ -279,6 +285,41 @@ model FoodItem {
   @@index([archivedAt])
   @@index([normalizedName])
   @@index([normalizedBrandName])
+}
+
+model Recipe {
+  id                     String             @id @default(uuid()) @db.Uuid
+  userId                 String             @db.Uuid
+  name                   String
+  description            String?
+  portionCount           Int
+  finalCookedWeightGrams Decimal?           @db.Decimal(8, 2)
+  archivedAt             DateTime?          @db.Timestamptz
+  createdAt              DateTime           @default(now()) @db.Timestamptz
+  updatedAt              DateTime           @updatedAt @db.Timestamptz
+  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredients            RecipeIngredient[]
+  foodLogs               FoodLog[]
+
+  @@index([userId])
+  @@index([archivedAt])
+  @@index([userId, archivedAt])
+}
+
+model RecipeIngredient {
+  id                 String    @id @default(uuid()) @db.Uuid
+  recipeId           String    @db.Uuid
+  foodItemId         String?   @db.Uuid
+  position           Int
+  ingredientSnapshot Json
+  createdAt          DateTime  @default(now()) @db.Timestamptz
+  updatedAt          DateTime  @updatedAt @db.Timestamptz
+  recipe             Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodItem           FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+
+  @@unique([recipeId, position])
+  @@index([recipeId])
+  @@index([foodItemId])
 }
 
 model FoodItemNutrient {
@@ -312,14 +353,14 @@ model FoodLogNutrient {
 }
 
 model FoodBarcode {
-  id          String   @id @default(uuid()) @db.Uuid
-  foodItemId  String   @db.Uuid
-  barcode     String
+  id            String   @id @default(uuid()) @db.Uuid
+  foodItemId    String   @db.Uuid
+  barcode       String
   barcodeFormat String?
-  regionCode  String   @default("GLOBAL")
-  createdAt   DateTime @default(now()) @db.Timestamptz
-  updatedAt   DateTime @updatedAt @db.Timestamptz
-  foodItem    FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+  regionCode    String   @default("GLOBAL")
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+  foodItem      FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
 
   @@unique([barcode, regionCode])
   @@index([barcode])

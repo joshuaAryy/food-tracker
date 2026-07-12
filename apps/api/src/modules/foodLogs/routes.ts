@@ -282,6 +282,48 @@ function snapshotMetadataUpdateData(input: FoodLogUpdateInput) {
   };
 }
 
+function recipeLogMetadataUpdateData(input: FoodLogUpdateInput) {
+  const immutableFields = new Set([
+    'foodItemId',
+    'foodName',
+    'calories',
+    'protein',
+    'carbs',
+    'fat',
+    'fiber',
+    'sugar',
+    'sodium',
+    'nutrients',
+    'servingQuantity',
+    'servingUnit',
+    'serving',
+    'clearNutritionOverride',
+    'nutritionOverride',
+    'servingSnapshot',
+    'recipeId',
+    'recipeSnapshot',
+    'source',
+    'sourceType',
+    'sourceProvider',
+    'sourceId',
+    'provenance',
+  ]);
+  if (Object.keys(input).some((key) => immutableFields.has(key))) {
+    throw new AppError(
+      409,
+      'RECIPE_LOG_IMMUTABLE',
+      'Recipe-origin FoodLogs can only update meal type, logged time, and notes.',
+    );
+  }
+  return {
+    ...(input.mealType === undefined ? {} : { mealType: input.mealType }),
+    ...(input.notes === undefined ? {} : { notes: input.notes }),
+    ...(input.loggedAt === undefined
+      ? {}
+      : { loggedAt: new Date(input.loggedAt) }),
+  };
+}
+
 function foodItemNutritionBasis(foodItem: VisibleFoodItem):
   | (AuthoritativeServingCalculationInput['basisNutrition'] & {
       calories: number;
@@ -1005,6 +1047,16 @@ foodLogsRouter.put(
     }
 
     const input = validatedBody<FoodLogUpdateInput>(response);
+
+    if (existing.recipeSnapshot !== null) {
+      const foodLog = await prisma.foodLog.update({
+        where: { id },
+        data: recipeLogMetadataUpdateData(input),
+        include: foodLogInclude,
+      });
+      sendSuccess(response, serializeFoodLog(foodLog));
+      return;
+    }
 
     if (existing.servingSnapshot === null) {
       if (

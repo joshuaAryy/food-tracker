@@ -22,6 +22,8 @@ import type {
 import type {
   FoodItemServingOptions,
   FoodLogServingSnapshot,
+  Recipe,
+  RecipeSnapshot,
 } from './schemas.js';
 import type { ParsedServingSuggestion } from './serving-text.js';
 
@@ -110,11 +112,15 @@ export interface FoodLog {
   servingQuantity: number | null;
   servingUnit: string | null;
   servingSnapshot: FoodLogServingSnapshot | null;
+  recipeId: string | null;
+  recipeSnapshot: RecipeSnapshot | null;
   nutrients: NormalizedNutrientMap;
   loggedAt: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type { Recipe };
 
 export interface AdditionalNutrient {
   amount: number;
