@@ -12,6 +12,32 @@ Prisma ORM
 PostgreSQL database
 ```
 
+## Phase 12.8 Serving Intelligence
+
+Trusted FoodItems and candidates follow one path: canonical nutrition basis ->
+requested amount/unit or trusted serving option -> deterministic serving
+resolution -> authoritative backend scaling and storage rounding -> immutable
+FoodLog serving snapshot. Mobile calculations are provisional previews only;
+the API response is authoritative. AI preserves raw serving intent and may not
+calculate nutrition, multipliers, density, or household conversions. Bare
+household units require food-specific trusted relationships, while regional
+unit aliases remain internal.
+
+USDA portions are normalized only when their gram/volume equivalent, quantity,
+canonical identity, label, and stable provider ID are validated. Portion
+identity may come from the measure name or a safe portion description, which
+supports common egg, slice, bar, serving/container, and whole-item records
+without inventing food weights. A physical nutrition basis remains usable with
+physical units when no alternate portions exist. Candidate responses expose
+validated default whole-item metadata when exactly one safe default exists;
+ambiguous options remain review-required.
+
+AI count rows retain parsed quantity and trusted provenance internally, convert
+to physical grams or millilitres for editing and saving, hide the internal
+source option from physical selectors, and recalculate on candidate changes.
+The same candidate-specific state feeds preview readiness and the trusted save
+request, while raw parser review status remains auditable separately.
+
 The project currently uses PostgreSQL as the SQL database. In local
 development, PostgreSQL runs inside Docker; the Docker container is mainly the
 local database server. The API itself is normally run locally through pnpm

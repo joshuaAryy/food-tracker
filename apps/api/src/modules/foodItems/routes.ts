@@ -3,6 +3,7 @@ import {
   foodBarcodeParamsSchema,
   foodBarcodeLookupInputSchema,
   foodBarcodeQuerySchema,
+  foodItemServingOptionsSchema,
   foodItemInputSchema,
   foodItemSearchCandidatesInputSchema,
   foodItemsQuerySchema,
@@ -32,6 +33,7 @@ import {
 } from './open-food-facts.js';
 import {
   enrichUsdaFoods,
+  defaultWholeItemServingFromOptions,
   USDA_ENRICHMENT_POLICIES,
   usdaFdcConfig,
   type NormalizedUsdaFood,
@@ -173,6 +175,11 @@ function usdaExternalCandidate(
   food: NormalizedUsdaFood,
   rank: number,
 ): AiFoodParseCandidate {
+  const servingOptions = foodItemServingOptionsSchema.safeParse(
+    food.servingOptions,
+  ).success
+    ? foodItemServingOptionsSchema.parse(food.servingOptions)
+    : null;
   return {
     candidateType: 'external_food',
     foodItem: null,
@@ -186,6 +193,9 @@ function usdaExternalCandidate(
       servingQuantity: food.servingQuantity,
       servingUnit: food.servingUnit,
       servingWeightGrams: food.servingWeightGrams,
+      servingOptions,
+      defaultWholeItemServing:
+        defaultWholeItemServingFromOptions(servingOptions),
       calories: food.calories,
       protein: food.protein,
       carbs: food.carbs,
@@ -382,10 +392,16 @@ foodItemsRouter.post(
 
     for (const foodItem of localFoods) {
       const serialized = serializeFoodItem(foodItem);
+      const candidateFoodItem = {
+        ...serialized,
+        defaultWholeItemServing: defaultWholeItemServingFromOptions(
+          serialized.servingOptions,
+        ),
+      };
       seen.add(serialized.id);
       candidates.push({
         candidateType: 'food_item',
-        foodItem: serialized,
+        foodItem: candidateFoodItem,
         externalFood: null,
         rank: candidates.length + 1,
         matchReason: candidateReason(

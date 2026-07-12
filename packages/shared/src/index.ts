@@ -2,4 +2,7 @@ export * from './constants.js';
 export * from './enums.js';
 export * from './nutrients.js';
 export * from './schemas.js';
+export * from './serving-resolution.js';
+export * from './serving-text.js';
+export * from './servings.js';
 export * from './types.js';

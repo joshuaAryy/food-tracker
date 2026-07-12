@@ -290,9 +290,9 @@ Phase 12.7 is complete and commit-ready. It passed automated validation, API
 terminal smoke testing, mixed regression/out-of-sample testing,
 compound-identity holdout testing, and physical-phone smoke testing. Final
 validation used Node `v22.23.0`, pnpm `10.34.3`, PostgreSQL database
-`food_tracker_test`, and 13 test files with 326 passing tests. The next
-defined project step is Phase 12.8 serving intelligence / household unit
-conversion; no new roadmap phase is introduced here.
+`food_tracker_test`, and 13 test files with 326 passing tests. Phase 12.8
+serving intelligence / household-unit conversion followed this foundation;
+no new roadmap phase is introduced here.
 
 Known non-blocking limitations remain targeted follow-up work: USDA secondary
 ordering and naming can be imperfect; generic banana can still show dessert
@@ -303,12 +303,34 @@ small deterministic profile set primarily use lexical ranking; and semantic
 typo handling, embeddings, vector search, recipes, and additional providers
 remain out of scope.
 
-## Phase 12.8 — Serving Intelligence / Household Unit Conversion
+## Phase 12.8 — Serving Intelligence / Household Unit Conversion — Complete
 
-- safer conversions for `1 egg`, `2 eggs`, `1 slice`, `1 cup`, `100 g`, and
-  similar serving language
-- preserve honest `needs_review` state when conversion is uncertain
-- do not imply precise gram conversion unless the backend has a safe basis
+12.8A through 12.8F are complete. The shared engine resolves exact, standard,
+or trusted food-specific relationships; the backend authoritatively persists
+trusted creates and snapshot-backed updates; and Food Log and AI rows provide
+provisional amount/unit previews that are replaced by authoritative API results
+on save. Serving quantities obey the existing two-decimal persistence contract,
+including safe refusal of conversions that would round to zero.
+
+Trusted USDA serving options are normalized conservatively from `amount`,
+`gramWeight`, `measureUnit.name`, `modifier`, and `portionDescription`.
+Validated egg, slice, bar, serving/container, and whole-item options preserve
+stable IDs and provider weights. Missing or invalid portions are discarded;
+ambiguous provider options do not become defaults. Foods with a physical basis
+remain usable through g/kg/oz/lb or mL/L even when no alternate serving exists.
+
+AI quantity-only counts use candidate-specific trusted metadata internally to
+convert into grams or millilitres. The editable row exposes physical units and
+hides the internal whole-item source option. Candidate changes preserve the
+parsed count, clear old provenance, and recalculate from the replacement
+candidate. Raw parser status remains separate from the resolved preview and
+save gate. No universal apple, egg, banana, or other food weight is inferred.
+
+The backend remains authoritative for serving resolution, nutrient scaling,
+rounding, and immutable FoodLog snapshots. Legacy NULL serving snapshots retain
+their compatibility edit path, snapshot-backed edits recalculate from the
+stored basis, and Simple and Complex totals use the same authoritative stored
+values. Automated validation and final physical-device smoke testing passed.
 
 ## Phase 12.9 — Recipes And Mixed Meals
 

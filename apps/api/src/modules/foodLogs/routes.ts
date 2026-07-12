@@ -1,15 +1,20 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import {
   DEFAULT_TIMEZONE,
   foodLogFromAiEstimateInputSchema,
-  type FoodLogNutritionOverride,
   type FoodLogFromAiEstimateInput,
+  foodLogServingSnapshotSchema,
+  type NormalizedNutrientMap,
+  foodItemServingOptionsSchema,
   foodLogsFromCandidatesInputSchema,
   foodLogFromFoodItemInputSchema,
   foodLogsFromFoodItemsInputSchema,
   foodLogInputSchema,
+  foodLogUpdateInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
+  validateServingQuantity,
+  type FoodLogServingSnapshot,
 } from '@food-tracker/shared';
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import type { z } from 'zod';
@@ -24,6 +29,12 @@ import {
   usdaFdcConfig,
 } from '../foodItems/usda-fdc.js';
 import {
+  AuthoritativeServingInvariantError,
+  calculateAuthoritativeServing,
+  type AuthoritativeServingCalculationFailure,
+  type AuthoritativeServingCalculationInput,
+} from './serving-resolution.js';
+import {
   validateBody,
   validateParams,
   validateQuery,
@@ -33,6 +44,7 @@ import {
 } from '../../middleware/validate.js';
 
 type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+type FoodLogUpdateInput = z.infer<typeof foodLogUpdateInputSchema>;
 type FoodLogFromFoodItemInput = z.infer<typeof foodLogFromFoodItemInputSchema>;
 type FoodLogsFromFoodItemsInput = z.infer<
   typeof foodLogsFromFoodItemsInputSchema
@@ -42,6 +54,11 @@ type FoodLogsFromCandidatesInput = z.infer<
 >;
 type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
+type VisibleFoodItem = NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>;
+type FoodItemServingRequest = Pick<
+  FoodLogFromFoodItemInput,
+  'serving' | 'servingMultiplier' | 'nutritionOverride'
+>;
 
 export const foodLogsRouter = Router();
 
@@ -102,6 +119,101 @@ async function visibleFoodItem(id: string, userId: string) {
   });
 }
 
+type ServingValidationIssue = {
+  code: 'SERVING_CONFLICT' | 'INVALID_SERVING_REQUEST';
+  itemIndex?: number;
+};
+
+function servingValidationIssue(issue: {
+  path: readonly PropertyKey[];
+  params?: Record<string, unknown> | undefined;
+}): ServingValidationIssue | null {
+  const itemIndex =
+    issue.path[0] === 'items' && typeof issue.path[1] === 'number'
+      ? issue.path[1]
+      : undefined;
+  if (issue.params?.code === 'SERVING_CONFLICT') {
+    return {
+      code: 'SERVING_CONFLICT',
+      ...(itemIndex === undefined ? {} : { itemIndex }),
+    };
+  }
+  return issue.path.some(
+    (segment) => segment === 'serving' || segment === 'servingMultiplier',
+  )
+    ? {
+        code: 'INVALID_SERVING_REQUEST',
+        ...(itemIndex === undefined ? {} : { itemIndex }),
+      }
+    : null;
+}
+
+function validateAuthoritativeServingBody(schema: z.ZodType): RequestHandler {
+  return (request, response, next) => {
+    const result = schema.safeParse(request.body);
+    if (!result.success) {
+      const issue = result.error.issues
+        .map(servingValidationIssue)
+        .find(
+          (candidate): candidate is ServingValidationIssue =>
+            candidate !== null,
+        );
+      const details =
+        issue?.itemIndex === undefined ? {} : { itemIndex: issue.itemIndex };
+      if (issue?.code === 'SERVING_CONFLICT') {
+        next(
+          new AppError(
+            400,
+            'SERVING_CONFLICT',
+            'Provide either serving or servingMultiplier, not both.',
+            details,
+          ),
+        );
+        return;
+      }
+      if (issue?.code === 'INVALID_SERVING_REQUEST') {
+        next(
+          new AppError(
+            400,
+            'INVALID_SERVING_REQUEST',
+            'The requested serving is invalid.',
+            details,
+          ),
+        );
+        return;
+      }
+      next(
+        new AppError(
+          400,
+          'VALIDATION_ERROR',
+          result.error.issues[0]?.message ?? 'Request validation failed',
+          { issues: result.error.issues },
+        ),
+      );
+      return;
+    }
+
+    response.locals.validated = {
+      ...(response.locals.validated as Record<string, unknown> | undefined),
+      body: result.data,
+    };
+    next();
+  };
+}
+
+const validateDirectFoodItemBody = validateAuthoritativeServingBody(
+  foodLogFromFoodItemInputSchema,
+);
+const validateCandidatesBody = validateAuthoritativeServingBody(
+  foodLogsFromCandidatesInputSchema,
+);
+const validateFoodItemsBody = validateAuthoritativeServingBody(
+  foodLogsFromFoodItemsInputSchema,
+);
+const validateFoodLogUpdateBody = validateAuthoritativeServingBody(
+  foodLogUpdateInputSchema,
+);
+
 async function verifiedFoodItemId(
   foodItemId: string | null | undefined,
   userId: string,
@@ -118,7 +230,9 @@ async function verifiedFoodItemId(
   return foodItem.id;
 }
 
-function nutrientRows(input: FoodLogInput['nutrients']) {
+function nutrientRows(
+  input: FoodLogInput['nutrients'] | FoodLogUpdateInput['nutrients'],
+) {
   return Object.entries(input ?? {}).map(([nutrientKey, nutrient]) => ({
     nutrientKey: nutrientKey as NutrientKey,
     amount: roundTo(nutrient.amount, 4),
@@ -126,91 +240,79 @@ function nutrientRows(input: FoodLogInput['nutrients']) {
   }));
 }
 
-function hasNutrientInput(input: FoodLogInput): boolean {
+function hasNutrientInput(input: object): boolean {
   return Object.prototype.hasOwnProperty.call(input, 'nutrients');
 }
 
-function hasFoodItemInput(input: FoodLogInput): boolean {
+function hasFoodItemInput(input: object): boolean {
   return Object.prototype.hasOwnProperty.call(input, 'foodItemId');
 }
 
-function scaledOptionalDecimal(
-  value: { toNumber(): number } | null,
-  multiplier: number,
-  places: number,
-): number | null {
-  return value === null ? null : roundTo(value.toNumber() * multiplier, places);
+function hasOwnInput(input: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(input, key);
 }
 
-function scaledOptionalInteger(
-  value: number | null,
-  multiplier: number,
-): number | null {
-  return value === null ? null : Math.round(value * multiplier);
+function hasDirectNutritionInput(input: FoodLogUpdateInput): boolean {
+  return [
+    'calories',
+    'protein',
+    'carbs',
+    'fat',
+    'fiber',
+    'sugar',
+    'sodium',
+    'nutrients',
+  ].some((key) => hasOwnInput(input, key));
 }
 
-type FoodLogCreateData = ReturnType<typeof logFromFoodItemData>;
-
-function applyNutritionOverride(
-  data: FoodLogCreateData,
-  override: FoodLogNutritionOverride | undefined,
-): FoodLogCreateData {
-  if (override === undefined) return data;
-
-  const next = { ...data };
-  if (override.calories !== undefined && override.calories !== null) {
-    next.calories = Math.round(override.calories);
-  }
-  if (override.protein !== undefined && override.protein !== null) {
-    next.protein = roundTo(override.protein, 1);
-  }
-  if (override.carbs !== undefined) {
-    next.carbs = override.carbs === null ? null : roundTo(override.carbs, 1);
-  }
-  if (override.fat !== undefined) {
-    next.fat = override.fat === null ? null : roundTo(override.fat, 1);
-  }
-  if (override.fiber !== undefined) {
-    next.fiber = override.fiber === null ? null : roundTo(override.fiber, 1);
-  }
-  if (override.sugar !== undefined) {
-    next.sugar = override.sugar === null ? null : roundTo(override.sugar, 1);
-  }
-  if (override.sodium !== undefined) {
-    next.sodium = override.sodium === null ? null : Math.round(override.sodium);
-  }
-
-  if (override.nutrients !== undefined) {
-    if (override.nutrients === null) {
-      next.nutrients = { create: [] };
-      return next;
-    }
-
-    const nutrientRows = new Map(
-      next.nutrients.create.map((nutrient) => [nutrient.nutrientKey, nutrient]),
-    );
-
-    for (const [nutrientKey, nutrient] of Object.entries(override.nutrients)) {
-      nutrientRows.set(nutrientKey as NutrientKey, {
-        nutrientKey: nutrientKey as NutrientKey,
-        amount: roundTo(nutrient.amount, 4),
-        unit: nutrient.unit as NutrientUnit,
-      });
-    }
-
-    next.nutrients = { create: [...nutrientRows.values()] };
-  }
-
-  return next;
+function hasDirectServingInput(input: FoodLogUpdateInput): boolean {
+  return ['servingQuantity', 'servingUnit'].some((key) =>
+    hasOwnInput(input, key),
+  );
 }
 
-function logFromFoodItemData(
-  foodItem: NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>,
-  input: FoodLogFromFoodItemInput,
-) {
-  const servingMultiplier = input.servingMultiplier;
+function snapshotMetadataUpdateData(input: FoodLogUpdateInput) {
+  return {
+    ...(input.foodName === undefined ? {} : { foodName: input.foodName }),
+    ...(input.mealType === undefined ? {} : { mealType: input.mealType }),
+    ...(input.notes === undefined ? {} : { notes: input.notes }),
+    ...(input.loggedAt === undefined
+      ? {}
+      : { loggedAt: new Date(input.loggedAt) }),
+  };
+}
 
-  if (foodItem.calories === null || foodItem.protein === null) {
+function foodItemNutritionBasis(foodItem: VisibleFoodItem):
+  | (AuthoritativeServingCalculationInput['basisNutrition'] & {
+      calories: number;
+      protein: number;
+    })
+  | null {
+  if (foodItem.calories === null || foodItem.protein === null) return null;
+
+  return {
+    calories: foodItem.calories,
+    protein: foodItem.protein.toNumber(),
+    carbs: foodItem.carbs?.toNumber() ?? null,
+    fat: foodItem.fat?.toNumber() ?? null,
+    fiber: foodItem.fiber?.toNumber() ?? null,
+    sugar: foodItem.sugar?.toNumber() ?? null,
+    sodium: foodItem.sodium,
+    nutrients: Object.fromEntries(
+      foodItem.nutrients.map((nutrient) => [
+        nutrient.nutrientKey,
+        { amount: nutrient.amount.toNumber(), unit: nutrient.unit },
+      ]),
+    ) as NormalizedNutrientMap,
+  };
+}
+
+function foodItemServingInput(
+  foodItem: VisibleFoodItem,
+  input: FoodItemServingRequest,
+): AuthoritativeServingCalculationInput {
+  const basisNutrition = foodItemNutritionBasis(foodItem);
+  if (basisNutrition === null) {
     throw new AppError(
       400,
       'VALIDATION_ERROR',
@@ -227,32 +329,405 @@ function logFromFoodItemData(
     );
   }
 
+  if (foodItem.servingQuantity === null || foodItem.servingUnit === null) {
+    throw new AppError(
+      422,
+      'INVALID_SERVING_BASIS',
+      'This food item cannot be used for authoritative serving resolution.',
+    );
+  }
+
+  const servingWeightGrams = foodItem.servingWeightGrams?.toNumber() ?? null;
+  const equivalentWeightGrams =
+    servingWeightGrams !== null &&
+    validateServingQuantity(servingWeightGrams).success
+      ? servingWeightGrams
+      : null;
+  const basisQuantity = foodItem.servingQuantity.toNumber();
+
+  return {
+    basis: {
+      quantity: basisQuantity,
+      unit: foodItem.servingUnit,
+      displayText: `per ${basisQuantity} ${foodItem.servingUnit}`,
+      equivalentWeightGrams,
+      equivalentVolumeMl: null,
+    },
+    basisNutrition,
+    servingOptions: foodItem.servingOptions,
+    ...(input.serving === undefined
+      ? {}
+      : {
+          serving: {
+            quantity: input.serving.quantity,
+            unit: input.serving.unit,
+            ...(input.serving.servingOptionId === undefined
+              ? {}
+              : { servingOptionId: input.serving.servingOptionId }),
+          },
+        }),
+    ...(input.servingMultiplier === undefined
+      ? {}
+      : { servingMultiplier: input.servingMultiplier }),
+    ...(input.nutritionOverride === undefined
+      ? {}
+      : { nutritionOverride: input.nutritionOverride }),
+    provenance: {
+      basisOrigin: 'food_item',
+      foodItemId: foodItem.id,
+      sourceType: foodItem.sourceType,
+      sourceProvider: foodItem.sourceProvider,
+      sourceId: foodItem.sourceId,
+      trustLevel: 'trusted',
+    },
+  };
+}
+
+function authoritativeServingFailureError(
+  failure: AuthoritativeServingCalculationFailure,
+): AppError {
+  switch (failure.code) {
+    case 'SERVING_CONFLICT':
+      return new AppError(
+        400,
+        'SERVING_CONFLICT',
+        'Provide either serving or servingMultiplier, not both.',
+      );
+    case 'INVALID_SERVING_REQUEST':
+      return new AppError(
+        400,
+        'INVALID_SERVING_REQUEST',
+        'The requested serving is invalid.',
+        { reason: failure.reason },
+      );
+    case 'SERVING_NEEDS_REVIEW':
+      return new AppError(
+        422,
+        'SERVING_NEEDS_REVIEW',
+        'This serving needs review before it can be logged.',
+        { status: 'needs_review', reason: failure.reason },
+      );
+    case 'SERVING_RESOLUTION_INVALID':
+      return new AppError(
+        400,
+        'SERVING_RESOLUTION_INVALID',
+        'The serving could not be resolved.',
+        { reason: failure.reason },
+      );
+    case 'INVALID_SERVING_BASIS':
+      return new AppError(
+        422,
+        'INVALID_SERVING_BASIS',
+        'This food item cannot be used for authoritative serving resolution.',
+      );
+  }
+}
+
+function calculateFoodItemServing(
+  foodItem: VisibleFoodItem,
+  input: FoodItemServingRequest,
+) {
+  try {
+    const result = calculateAuthoritativeServing(
+      foodItemServingInput(foodItem, input),
+    );
+    if (!result.ok) throw authoritativeServingFailureError(result);
+    return result;
+  } catch (error) {
+    if (error instanceof AuthoritativeServingInvariantError) {
+      console.error('Authoritative serving snapshot invariant failed', {
+        foodItemId: foodItem.id,
+      });
+      throw new AppError(
+        500,
+        'INTERNAL_SERVER_ERROR',
+        'An unexpected error occurred',
+      );
+    }
+    throw error;
+  }
+}
+
+function isExactlyStorableServingQuantity(quantity: number): boolean {
+  return Math.abs(quantity - roundTo(quantity, 2)) < 1e-9;
+}
+
+function parsedServingSnapshotOrThrow(
+  foodLogId: string,
+  value: unknown,
+): FoodLogServingSnapshot {
+  const parsed = foodLogServingSnapshotSchema.safeParse(value);
+  if (parsed.success) return parsed.data;
+
+  console.error('Stored FoodLog serving snapshot failed validation', {
+    foodLogId,
+  });
+  throw new AppError(
+    500,
+    'INTERNAL_SERVER_ERROR',
+    'An unexpected error occurred',
+  );
+}
+
+function requestedServingForSnapshotUpdate(
+  snapshot: FoodLogServingSnapshot,
+  input: FoodLogUpdateInput,
+) {
+  if (input.serving !== undefined) {
+    return {
+      quantity: input.serving.quantity,
+      unit: input.serving.unit,
+      ...(input.serving.servingOptionId === undefined
+        ? {}
+        : { servingOptionId: input.serving.servingOptionId }),
+    };
+  }
+
+  const requestedServing = snapshot.requestedServing;
+  return {
+    quantity: requestedServing.quantity,
+    unit: requestedServing.unit,
+    ...(requestedServing.servingOptionId === null
+      ? {}
+      : { servingOptionId: requestedServing.servingOptionId }),
+  };
+}
+
+function servingOptionUnavailableError(): AppError {
+  return new AppError(
+    422,
+    'SERVING_OPTION_UNAVAILABLE',
+    'The requested serving option is no longer available.',
+  );
+}
+
+async function servingOptionsForSnapshotUpdate(
+  snapshot: FoodLogServingSnapshot,
+  serving: ReturnType<typeof requestedServingForSnapshotUpdate>,
+  userId: string,
+): Promise<AuthoritativeServingCalculationInput['servingOptions']> {
+  const requestedOptionId = serving.servingOptionId;
+  const frozenOption = snapshot.requestedServing.selectedServingOption;
+
+  if (
+    requestedOptionId !== undefined &&
+    requestedOptionId !== null &&
+    frozenOption !== null &&
+    requestedOptionId === frozenOption.id
+  ) {
+    return { schemaVersion: 1, options: [frozenOption] };
+  }
+
+  if (requestedOptionId !== undefined && requestedOptionId !== null) {
+    if (snapshot.provenance.basisOrigin !== 'food_item') {
+      throw servingOptionUnavailableError();
+    }
+
+    const foodItem = await visibleFoodItem(
+      snapshot.provenance.foodItemId,
+      userId,
+    );
+    if (foodItem === null) throw servingOptionUnavailableError();
+
+    const parsed = foodItemServingOptionsSchema.safeParse(
+      foodItem.servingOptions,
+    );
+    const option = parsed.success
+      ? parsed.data.options.find(
+          (candidate) => candidate.id === requestedOptionId,
+        )
+      : undefined;
+    if (option === undefined) throw servingOptionUnavailableError();
+
+    return { schemaVersion: 1, options: [option] };
+  }
+
+  if (snapshot.provenance.basisOrigin !== 'food_item') return null;
+
+  const foodItem = await visibleFoodItem(
+    snapshot.provenance.foodItemId,
+    userId,
+  );
+  return foodItem?.servingOptions ?? null;
+}
+
+function snapshotServingInput(
+  snapshot: FoodLogServingSnapshot,
+  serving: ReturnType<typeof requestedServingForSnapshotUpdate>,
+  servingOptions: AuthoritativeServingCalculationInput['servingOptions'],
+  nutritionOverride: FoodLogUpdateInput['nutritionOverride'],
+): AuthoritativeServingCalculationInput {
+  return {
+    basis: {
+      quantity: snapshot.nutritionBasis.quantity,
+      unit: snapshot.nutritionBasis.unit,
+      displayText: snapshot.nutritionBasis.displayText,
+      equivalentWeightGrams: snapshot.nutritionBasis.equivalentWeightGrams,
+      equivalentVolumeMl: snapshot.nutritionBasis.equivalentVolumeMl,
+    },
+    basisNutrition: snapshot.basisNutrition,
+    servingOptions,
+    serving,
+    ...(nutritionOverride === undefined ? {} : { nutritionOverride }),
+    provenance: snapshot.provenance,
+  };
+}
+
+async function calculateSnapshotServing(input: {
+  foodLogId: string;
+  snapshot: FoodLogServingSnapshot;
+  request: FoodLogUpdateInput;
+  userId: string;
+  nutritionOverride: FoodLogUpdateInput['nutritionOverride'];
+}) {
+  const serving = requestedServingForSnapshotUpdate(
+    input.snapshot,
+    input.request,
+  );
+  const servingOptions = await servingOptionsForSnapshotUpdate(
+    input.snapshot,
+    serving,
+    input.userId,
+  );
+
+  try {
+    const result = calculateAuthoritativeServing(
+      snapshotServingInput(
+        input.snapshot,
+        serving,
+        servingOptions,
+        input.nutritionOverride,
+      ),
+    );
+    if (!result.ok) throw authoritativeServingFailureError(result);
+    return result;
+  } catch (error) {
+    if (error instanceof AuthoritativeServingInvariantError) {
+      console.error('Authoritative serving snapshot invariant failed', {
+        foodLogId: input.foodLogId,
+      });
+      throw new AppError(
+        500,
+        'INTERNAL_SERVER_ERROR',
+        'An unexpected error occurred',
+      );
+    }
+    throw error;
+  }
+}
+
+function authoritativeFoodLogUpdateData(
+  result: Awaited<ReturnType<typeof calculateSnapshotServing>>,
+  foodLogId: string,
+) {
+  const requestedServing = result.servingSnapshot.requestedServing;
+  if (!isExactlyStorableServingQuantity(requestedServing.quantity)) {
+    throw new AppError(
+      400,
+      'INVALID_SERVING_REQUEST',
+      'The requested serving cannot be stored precisely.',
+      { reason: 'invalid_quantity' },
+    );
+  }
+
+  const finalNutrition = result.finalNutrition;
+  if (finalNutrition.calories === null || finalNutrition.protein === null) {
+    console.error('Authoritative serving result omitted required nutrition', {
+      foodLogId,
+    });
+    throw new AppError(
+      500,
+      'INTERNAL_SERVER_ERROR',
+      'An unexpected error occurred',
+    );
+  }
+
+  return {
+    calories: finalNutrition.calories,
+    protein: finalNutrition.protein,
+    carbs: finalNutrition.carbs,
+    fat: finalNutrition.fat,
+    fiber: finalNutrition.fiber,
+    sugar: finalNutrition.sugar,
+    sodium: finalNutrition.sodium,
+    servingQuantity: requestedServing.quantity,
+    servingUnit: requestedServing.unit,
+    servingSnapshot: result.servingSnapshot,
+    nutrients: {
+      deleteMany: {},
+      create: result.finalNutrients,
+    },
+  };
+}
+
+function authoritativeFoodLogData(
+  foodItem: VisibleFoodItem,
+  input: FoodItemServingRequest & {
+    mealType: FoodLogFromFoodItemInput['mealType'];
+    loggedAt: string;
+    notes?: string | null | undefined;
+  },
+) {
+  const result = calculateFoodItemServing(foodItem, input);
+  const requestedServing = result.servingSnapshot.requestedServing;
+  if (!isExactlyStorableServingQuantity(requestedServing.quantity)) {
+    throw new AppError(
+      400,
+      'INVALID_SERVING_REQUEST',
+      'The requested serving cannot be stored precisely.',
+      { reason: 'invalid_quantity' },
+    );
+  }
+
+  const finalNutrition = result.finalNutrition;
+  const finalCalories = finalNutrition.calories;
+  const finalProtein = finalNutrition.protein;
+  if (finalCalories === null || finalProtein === null) {
+    console.error('Authoritative serving result omitted required nutrition', {
+      foodItemId: foodItem.id,
+    });
+    throw new AppError(
+      500,
+      'INTERNAL_SERVER_ERROR',
+      'An unexpected error occurred',
+    );
+  }
+
   return {
     foodItemId: foodItem.id,
     foodName: foodItem.name,
     mealType: input.mealType,
-    calories: Math.round(foodItem.calories * servingMultiplier),
-    protein: roundTo(foodItem.protein.toNumber() * servingMultiplier, 1),
-    carbs: scaledOptionalDecimal(foodItem.carbs, servingMultiplier, 1),
-    fat: scaledOptionalDecimal(foodItem.fat, servingMultiplier, 1),
-    fiber: scaledOptionalDecimal(foodItem.fiber, servingMultiplier, 1),
-    sugar: scaledOptionalDecimal(foodItem.sugar, servingMultiplier, 1),
-    sodium: scaledOptionalInteger(foodItem.sodium, servingMultiplier),
+    calories: finalCalories,
+    protein: finalProtein,
+    carbs: finalNutrition.carbs,
+    fat: finalNutrition.fat,
+    fiber: finalNutrition.fiber,
+    sugar: finalNutrition.sugar,
+    sodium: finalNutrition.sodium,
     notes: input.notes ?? null,
-    servingQuantity:
-      foodItem.servingQuantity === null
-        ? roundTo(servingMultiplier, 2)
-        : roundTo(foodItem.servingQuantity.toNumber() * servingMultiplier, 2),
-    servingUnit: foodItem.servingUnit,
+    servingQuantity: requestedServing.quantity,
+    servingUnit: requestedServing.unit,
+    servingSnapshot: result.servingSnapshot,
     loggedAt: new Date(input.loggedAt),
-    nutrients: {
-      create: foodItem.nutrients.map((nutrient) => ({
-        nutrientKey: nutrient.nutrientKey,
-        amount: roundTo(nutrient.amount.toNumber() * servingMultiplier, 4),
-        unit: nutrient.unit,
-      })),
-    },
+    nutrients: { create: result.finalNutrients },
   };
+}
+
+function withServingItemIndex(error: unknown, itemIndex: number): unknown {
+  if (
+    error instanceof AppError &&
+    (error.code === 'SERVING_CONFLICT' ||
+      error.code === 'INVALID_SERVING_REQUEST' ||
+      error.code === 'SERVING_NEEDS_REVIEW' ||
+      error.code === 'SERVING_RESOLUTION_INVALID' ||
+      error.code === 'INVALID_SERVING_BASIS')
+  ) {
+    return new AppError(error.status, error.code, error.message, {
+      ...error.details,
+      itemIndex,
+    });
+  }
+  return error;
 }
 
 const foodLogInclude = {
@@ -302,7 +777,7 @@ foodLogsRouter.get(
 
 foodLogsRouter.post(
   '/from-food-item',
-  validateBody(foodLogFromFoodItemInputSchema),
+  validateDirectFoodItemBody,
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<FoodLogFromFoodItemInput>(response);
@@ -312,16 +787,16 @@ foodLogsRouter.post(
       throw notFoundError('Food item');
     }
 
-    const foodLog = await prisma.foodLog.create({
-      data: {
-        userId,
-        ...applyNutritionOverride(
-          logFromFoodItemData(foodItem, input),
-          input.nutritionOverride,
-        ),
-      },
-      include: foodLogInclude,
-    });
+    const data = authoritativeFoodLogData(foodItem, input);
+    const foodLog = await prisma.$transaction((tx) =>
+      tx.foodLog.create({
+        data: {
+          userId,
+          ...data,
+        },
+        include: foodLogInclude,
+      }),
+    );
 
     sendSuccess(response, serializeFoodLog(foodLog));
   },
@@ -329,15 +804,15 @@ foodLogsRouter.post(
 
 foodLogsRouter.post(
   '/from-food-items',
-  validateBody(foodLogsFromFoodItemsInputSchema),
+  validateFoodItemsBody,
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<FoodLogsFromFoodItemsInput>(response);
 
     const foodLogs = await prisma.$transaction(async (tx) => {
-      const createdFoodLogs = [];
+      const foodLogData = [];
 
-      for (const item of input.items) {
+      for (const [itemIndex, item] of input.items.entries()) {
         const foodItem = await visibleFoodItemInTransaction(
           tx,
           item.foodItemId,
@@ -348,26 +823,29 @@ foodLogsRouter.post(
           throw notFoundError('Food item');
         }
 
-        const foodLog = await tx.foodLog.create({
-          data: {
-            userId,
-            ...applyNutritionOverride(
-              logFromFoodItemData(foodItem, {
-                foodItemId: item.foodItemId,
-                mealType: input.mealType,
-                loggedAt: input.loggedAt,
-                servingMultiplier: item.servingMultiplier,
-                notes: input.notes,
-              }),
-              item.nutritionOverride,
-            ),
-          },
-          include: foodLogInclude,
-        });
-
-        createdFoodLogs.push(foodLog);
+        try {
+          foodLogData.push(
+            authoritativeFoodLogData(foodItem, {
+              ...item,
+              mealType: input.mealType,
+              loggedAt: input.loggedAt,
+              notes: input.notes,
+            }),
+          );
+        } catch (error) {
+          throw withServingItemIndex(error, itemIndex);
+        }
       }
 
+      const createdFoodLogs = [];
+      for (const data of foodLogData) {
+        createdFoodLogs.push(
+          await tx.foodLog.create({
+            data: { userId, ...data },
+            include: foodLogInclude,
+          }),
+        );
+      }
       return createdFoodLogs;
     });
 
@@ -377,16 +855,16 @@ foodLogsRouter.post(
 
 foodLogsRouter.post(
   '/from-candidates',
-  validateBody(foodLogsFromCandidatesInputSchema),
+  validateCandidatesBody,
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<FoodLogsFromCandidatesInput>(response);
     const usdaConfig = usdaFdcConfig();
 
     const foodLogs = await prisma.$transaction(async (tx) => {
-      const createdFoodLogs = [];
+      const foodLogData = [];
 
-      for (const item of input.items) {
+      for (const [itemIndex, item] of input.items.entries()) {
         const foodItem =
           item.candidateType === 'food_item'
             ? await visibleFoodItemInTransaction(tx, item.foodItemId, userId)
@@ -400,26 +878,29 @@ foodLogsRouter.post(
           throw notFoundError('Food item');
         }
 
-        const foodLog = await tx.foodLog.create({
-          data: {
-            userId,
-            ...applyNutritionOverride(
-              logFromFoodItemData(foodItem, {
-                foodItemId: foodItem.id,
-                mealType: input.mealType,
-                loggedAt: input.loggedAt,
-                servingMultiplier: item.servingMultiplier,
-                notes: input.notes,
-              }),
-              item.nutritionOverride,
-            ),
-          },
-          include: foodLogInclude,
-        });
-
-        createdFoodLogs.push(foodLog);
+        try {
+          foodLogData.push(
+            authoritativeFoodLogData(foodItem, {
+              ...item,
+              mealType: input.mealType,
+              loggedAt: input.loggedAt,
+              notes: input.notes,
+            }),
+          );
+        } catch (error) {
+          throw withServingItemIndex(error, itemIndex);
+        }
       }
 
+      const createdFoodLogs = [];
+      for (const data of foodLogData) {
+        createdFoodLogs.push(
+          await tx.foodLog.create({
+            data: { userId, ...data },
+            include: foodLogInclude,
+          }),
+        );
+      }
       return createdFoodLogs;
     });
 
@@ -513,7 +994,7 @@ foodLogsRouter.post(
 foodLogsRouter.put(
   '/:id',
   validateParams(idParamsSchema),
-  validateBody(foodLogInputSchema),
+  validateFoodLogUpdateBody,
   async (_request, response) => {
     const userId = currentUserId(response);
     const { id } = validatedParams<IdParams>(response);
@@ -523,26 +1004,165 @@ foodLogsRouter.put(
       throw notFoundError('Food log');
     }
 
-    const input = validatedBody<FoodLogInput>(response);
+    const input = validatedBody<FoodLogUpdateInput>(response);
+
+    if (existing.servingSnapshot === null) {
+      if (
+        input.serving !== undefined ||
+        input.nutritionOverride !== undefined ||
+        input.clearNutritionOverride === true
+      ) {
+        throw new AppError(
+          422,
+          'SERVING_UPDATE_UNAVAILABLE',
+          'This historical log has no serving basis for recalculation.',
+        );
+      }
+
+      const legacyInput = foodLogInputSchema.safeParse(_request.body);
+      if (!legacyInput.success) {
+        throw new AppError(
+          400,
+          'VALIDATION_ERROR',
+          legacyInput.error.issues[0]?.message ?? 'Request validation failed',
+          { issues: legacyInput.error.issues },
+        );
+      }
+      const foodItemId = hasFoodItemInput(legacyInput.data)
+        ? await verifiedFoodItemId(legacyInput.data.foodItemId, userId)
+        : undefined;
+
+      const foodLog = await prisma.foodLog.update({
+        where: { id },
+        data: {
+          ...normalizedFoodLog(legacyInput.data),
+          ...(foodItemId === undefined ? {} : { foodItemId }),
+          ...(hasNutrientInput(legacyInput.data)
+            ? {
+                nutrients: {
+                  deleteMany: {},
+                  create: nutrientRows(legacyInput.data.nutrients),
+                },
+              }
+            : {}),
+        },
+        include: foodLogInclude,
+      });
+      sendSuccess(response, serializeFoodLog(foodLog));
+      return;
+    }
+
+    const snapshot = parsedServingSnapshotOrThrow(
+      existing.id,
+      existing.servingSnapshot,
+    );
     const foodItemId = hasFoodItemInput(input)
       ? await verifiedFoodItemId(input.foodItemId, userId)
       : undefined;
-    const foodLog = await prisma.foodLog.update({
-      where: { id },
-      data: {
-        ...normalizedFoodLog(input),
-        ...(foodItemId === undefined ? {} : { foodItemId }),
-        ...(hasNutrientInput(input)
-          ? {
-              nutrients: {
-                deleteMany: {},
-                create: nutrientRows(input.nutrients),
-              },
-            }
-          : {}),
-      },
-      include: foodLogInclude,
+    const hasServingUpdate = input.serving !== undefined;
+    const hasReplacementOverride = input.nutritionOverride !== undefined;
+    const clearNutritionOverride = input.clearNutritionOverride === true;
+
+    if (clearNutritionOverride && hasReplacementOverride) {
+      throw new AppError(
+        400,
+        'SERVING_UPDATE_CONFLICT',
+        'Provide either a replacement nutrition override or clear it, not both.',
+      );
+    }
+
+    if (hasServingUpdate && hasDirectNutritionInput(input)) {
+      throw new AppError(
+        400,
+        'SERVING_UPDATE_CONFLICT',
+        'Serving updates cannot include direct nutrient totals.',
+      );
+    }
+
+    if (hasServingUpdate && hasDirectServingInput(input)) {
+      throw new AppError(
+        400,
+        'SERVING_UPDATE_CONFLICT',
+        'Serving updates cannot include legacy serving fields.',
+      );
+    }
+
+    if (!hasServingUpdate && hasDirectNutritionInput(input)) {
+      throw new AppError(
+        409,
+        'SNAPSHOT_NUTRITION_EDIT_REQUIRES_OVERRIDE',
+        'Snapshot-backed nutrition must be changed with nutritionOverride.',
+      );
+    }
+
+    if (!hasServingUpdate && hasDirectServingInput(input)) {
+      throw new AppError(
+        400,
+        'SERVING_UPDATE_CONFLICT',
+        'Snapshot-backed serving must be changed with serving.',
+      );
+    }
+
+    if (clearNutritionOverride && snapshot.nutritionOverride === null) {
+      throw new AppError(
+        400,
+        'SERVING_UPDATE_CONFLICT',
+        'There is no nutrition override to clear.',
+      );
+    }
+
+    if (
+      hasServingUpdate &&
+      snapshot.nutritionOverride !== null &&
+      !clearNutritionOverride &&
+      !hasReplacementOverride
+    ) {
+      throw new AppError(
+        409,
+        'SERVING_OVERRIDE_ACTION_REQUIRED',
+        'Changing this serving requires clearing or replacing its nutrition override.',
+      );
+    }
+
+    const requiresRecalculation =
+      hasServingUpdate || hasReplacementOverride || clearNutritionOverride;
+    if (!requiresRecalculation) {
+      const foodLog = await prisma.foodLog.update({
+        where: { id },
+        data: {
+          ...snapshotMetadataUpdateData(input),
+          ...(foodItemId === undefined ? {} : { foodItemId }),
+        },
+        include: foodLogInclude,
+      });
+      sendSuccess(response, serializeFoodLog(foodLog));
+      return;
+    }
+
+    const result = await calculateSnapshotServing({
+      foodLogId: existing.id,
+      snapshot,
+      request: input,
+      userId,
+      nutritionOverride: clearNutritionOverride
+        ? undefined
+        : input.nutritionOverride,
     });
+    const authoritativeData = authoritativeFoodLogUpdateData(
+      result,
+      existing.id,
+    );
+    const foodLog = await prisma.$transaction((tx) =>
+      tx.foodLog.update({
+        where: { id },
+        data: {
+          ...snapshotMetadataUpdateData(input),
+          ...(foodItemId === undefined ? {} : { foodItemId }),
+          ...authoritativeData,
+        },
+        include: foodLogInclude,
+      }),
+    );
     sendSuccess(response, serializeFoodLog(foodLog));
   },
 );

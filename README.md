@@ -19,6 +19,10 @@ The implemented baseline includes:
 - Food database powered logging with saved, recent, and reusable foods
 - Barcode scanning with backend-owned Open Food Facts packaged food lookup
 - AI-assisted text meal parsing with user review before saving
+- Authoritative serving amount/unit resolution with trusted options, provisional
+  mobile previews, and immutable FoodLog serving snapshots
+- Conservative USDA portion normalization with physical-unit fallback when no
+  alternate serving exists, plus candidate-aware AI count serving review
 - USDA FoodData Central generic food lookup for AI review and normal search
 - User-triggered low-trust AI nutrition estimates for unresolved text-logging
   rows

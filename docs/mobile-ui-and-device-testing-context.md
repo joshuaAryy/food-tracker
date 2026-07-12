@@ -332,7 +332,7 @@ Barcode scanner native smoke testing should cover:
   `069000013762` and `0069000013762`
 - close-range usability: hold the barcode inside the frame, move back slightly
   if the preview looks blurry, and use good lighting or the scanner light
-- serving multiplier, save/unsave, meal type, notes, and save using the
+- serving amount/unit, save/unsave, meal type, notes, and save using the
   existing selected-food flow
 - no-match copy: `No barcode match yet` and
   `You can still save this as a reusable food.`
@@ -410,11 +410,19 @@ needed before treating the visual system as settled.
 
 ## Next-Phase Priorities
 
-1. Continue with the already-defined Phase 12.8 serving intelligence /
-   household unit conversion work.
-2. Preserve Phase 12.7 trusted-search behavior when adding serving review and
-   conversion states; do not make AI nutrition authoritative.
+1. Preserve the completed Phase 12.8A–F serving behavior during Phase 12.9
+   recipe and mixed-meal work.
+2. Preserve Phase 12.7 trusted-search behavior; do not make AI nutrition
+   authoritative.
 3. Keep generated native folders ignored unless explicitly approved later.
+
+Phase 12.8 final automated validation passed with Node `v22.23.0`, pnpm
+`10.34.3`, 26 test files, and 598 tests. Final physical-device smoke testing
+also passed for compatible-unit conversion, quantity-only trusted USDA foods,
+candidate switching, physical-unit fallback, hidden internal whole-item
+selectors, and authoritative serving saves. Physical devices use the Mac LAN
+API URL through `EXPO_PUBLIC_API_URL`; Expo must be restarted after changing
+that value.
 
 ## Phase 12 AI Text Logging Context
 
@@ -438,7 +446,7 @@ were perfectly converted unless the backend supplies a safe conversion.
 Normal food search also needs USDA/generic candidates after local results.
 Search results should still feel like Food Tracker rows, not a USDA browser:
 local/saved/custom rows first, then source copy such as `Generic food match`.
-Changing the selected candidate or serving multiplier must update visible
+Changing the selected candidate or serving amount/unit must update visible
 calories/macros before save. Simple mode nutrient editing stays limited to
 calories, protein, carbs, fat, fiber, sugar, and sodium. Complex mode can show
 the supported normalized nutrient catalog. Any user-edited nutrition is a
@@ -480,7 +488,7 @@ errors, and cold/warm cache behavior remained stable. Explicit forms such as
 oat milk, steak sauce, banana pudding, peanut butter cookies, egg white, and
 raw salmon remain distinct from their plain/default queries.
 
-The next defined project step is Phase 12.8 serving intelligence. Public
+Phase 12.8 serving intelligence is implemented. Public
 expanded search/show-more, typo semantics, embeddings/vector search, recipes,
 and additional providers remain future backlog, not mobile requirements for
 Phase 12.7.
@@ -549,5 +557,55 @@ Manual smoke test for implementation:
 4. Use `apps/mobile/.env.local` with the Mac LAN IP for physical iPhone API
    access.
 5. Keep Phase 7 skeleton standards intact while adding richer food-data flows.
+
+## Phase 12.8E Mobile Serving Intelligence
+
+The standard Food Log screen now treats trusted servings as an amount plus a
+safe unit or trusted listed serving, rather than a raw multiplier. Search,
+saved/reusable FoodItems, barcode-resolved FoodItems, and trusted external
+candidates share the same control. The preview is deliberately provisional:
+it uses the shared deterministic resolver and scaler, while the API response is
+the persisted source of truth after saving.
+
+- Show the stored nutrition basis plainly (for example, `per 100 g`), not as a
+  recommendation.
+- Offer only g/kg/oz/lb for mass bases, mL/L for volume bases, the exact count
+  identity for count bases, and trusted provider/manual labels. Never expose
+  internal regional unit codes or raw option IDs.
+- A bare cup, bowl, plate, handful, or another untrusted household amount must
+  show review guidance with no fabricated nutrition preview. Keep the entered
+  amount so the user can choose a safe alternative.
+- Snapshot-backed edits can recalculate from the saved basis. A frozen option
+  remains usable when its FoodItem is deleted or changed; a different option
+  requires the current FoodItem option. Legacy logs with no snapshot keep the
+  existing manual editing behavior and must not claim recalculation support.
+- If a snapshot has a nutrition adjustment, changing its serving must explicitly
+  remove or replace that adjustment. Do not silently multiply or preserve it.
+- The current screen and `AppScreen` layout continue to use the existing
+  keyboard-safe scroll/footer pattern; validate long labels, small phones, and
+  open keyboards on a device before declaring the flow smoke-tested.
+
+An Expo web server smoke successfully started and served the app on a temporary
+alternate port; no interactive browser, device, or simulator smoke was
+performed as part of this handoff. Phase 12.8F AI quantity interpretation
+is documented separately below; no device smoke has been completed for it.
+
+## Phase 12.8F AI Quantity And Serving Review
+
+The Describe meal review now preserves AI quantity and serving text while using
+the shared deterministic parser and provisional serving engine. Each parsed row
+owns its amount, unit, selected trusted option, preview, and error state.
+
+- Parsed servings initialize from the parser; missing servings initialize from
+  the selected candidate basis with explicit basis-default copy.
+- Bare cup, bowl, plate, handful, and size text never receive a universal
+  conversion. They remain review-required unless the candidate's validated
+  serving options resolve them.
+- Candidate changes preserve amount/unit where possible, clear unavailable
+  options, and re-run the preview without changing another row.
+- Trusted saves send `serving` per row to the authoritative candidate API. The
+  low-trust AI-estimate fallback remains separate and unchanged.
+
+No interactive device or simulator smoke has been performed for this flow.
 6. Preserve backend/API/schema approval gates before Phase 8 data-model or
    migration work.

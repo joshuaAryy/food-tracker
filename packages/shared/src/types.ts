@@ -19,6 +19,11 @@ import type {
   NutrientKey,
   NutrientUnit,
 } from './nutrients.js';
+import type {
+  FoodItemServingOptions,
+  FoodLogServingSnapshot,
+} from './schemas.js';
+import type { ParsedServingSuggestion } from './serving-text.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -104,6 +109,7 @@ export interface FoodLog {
   notes: string | null;
   servingQuantity: number | null;
   servingUnit: string | null;
+  servingSnapshot: FoodLogServingSnapshot | null;
   nutrients: NormalizedNutrientMap;
   loggedAt: string;
   createdAt: string;
@@ -144,6 +150,8 @@ export interface FoodItem {
   servingQuantity: number | null;
   servingUnit: string | null;
   servingWeightGrams: number | null;
+  servingOptions: FoodItemServingOptions | null;
+  defaultWholeItemServing?: DefaultWholeItemServing | null;
   calories: number | null;
   protein: number | null;
   carbs: number | null;
@@ -156,6 +164,15 @@ export interface FoodItem {
   barcodes: FoodBarcode[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DefaultWholeItemServing {
+  optionId: string;
+  label: string;
+  quantity: number;
+  unit: string;
+  equivalentWeightGrams: number | null;
+  equivalentVolumeMl: number | null;
 }
 
 export type AiFoodCandidateMatchReason =
@@ -181,6 +198,8 @@ export interface AiFoodParseExternalFood {
   servingQuantity: number | null;
   servingUnit: string | null;
   servingWeightGrams: number | null;
+  servingOptions: FoodItemServingOptions | null;
+  defaultWholeItemServing?: DefaultWholeItemServing | null;
   calories: number | null;
   protein: number | null;
   carbs: number | null;
@@ -220,6 +239,7 @@ export interface AiFoodParsedItem {
   parsedName: string;
   quantityText: string | null;
   servingText: string | null;
+  servingSuggestion: ParsedServingSuggestion;
   reviewStatus: AiFoodReviewStatus;
   loggable: boolean;
   selectedCandidateId: string | null;

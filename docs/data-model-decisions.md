@@ -55,7 +55,17 @@ Optional fields:
 
 Nutrient fields use the units, precision, and rounding rules defined above.
 
-`userId` is required in persisted records but is supplied by backend auth context, not by client request bodies. Serving quantity and serving unit are optional descriptive metadata and do not trigger nutrition calculations in the MVP.
+`userId` is required in persisted records but is supplied by backend auth context, not by client request bodies. Serving quantity and serving unit remain optional for raw manual logs; trusted create and snapshot-backed update paths resolve them authoritatively through the shared serving engine.
+
+## Serving Intelligence Persistence
+
+FoodItem has nullable `servingOptions` JSON for alternate trusted provider or
+manual relationships only; its canonical nutrition basis remains the existing
+serving and nutrient fields. FoodLog has nullable `servingSnapshot` JSON for the
+immutable basis, requested serving, resolution, provenance, and override state
+used by authoritative trusted creates and snapshot-backed updates. Legacy rows
+remain NULL; no existing records were backfilled or given fabricated
+provenance. Malformed JSON is ignored safely at serialization/read boundaries.
 
 ## MealType Enum
 

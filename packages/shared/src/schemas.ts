@@ -19,6 +19,12 @@ import {
   NUTRIENT_UNITS,
   type NormalizedNutrientKey,
 } from './nutrients.js';
+import {
+  MAX_SERVING_QUANTITY,
+  SERVING_UNIT_FAMILIES,
+  SERVING_UNITS,
+  classifyServingUnit,
+} from './servings.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -208,6 +214,245 @@ export const normalizedNutrientsInputSchema = z
     }
   });
 
+const persistedServingNumberSchema = z
+  .number()
+  .finite()
+  .positive()
+  .max(MAX_SERVING_QUANTITY);
+const persistedNutritionNumberSchema = z.number().finite().nonnegative();
+const persistedServingUnitSchema = z.enum(SERVING_UNITS);
+const persistedServingUnitFamilySchema = z.enum(SERVING_UNIT_FAMILIES);
+
+const persistedServingOptionSchema = z
+  .strictObject({
+    id: z.string().trim().min(1),
+    label: z.string().trim().min(1),
+    quantity: persistedServingNumberSchema,
+    unit: persistedServingUnitSchema,
+    unitFamily: persistedServingUnitFamilySchema,
+    equivalentWeightGrams: persistedServingNumberSchema.nullable(),
+    equivalentVolumeMl: persistedServingNumberSchema.nullable(),
+    source: z.enum(['provider', 'manual']),
+    trust: z.literal('trusted'),
+    provider: foodSourceProviderSchema.nullable(),
+    providerDescription: z.string().trim().min(1).nullable(),
+  })
+  .superRefine((option, context) => {
+    const classification = classifyServingUnit(option.unit);
+    if (classification?.family !== option.unitFamily) {
+      context.addIssue({
+        code: 'custom',
+        message: 'unitFamily must match the canonical serving unit',
+        path: ['unitFamily'],
+      });
+    }
+    if (
+      option.equivalentWeightGrams === null &&
+      option.equivalentVolumeMl === null
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'an alternate serving option needs a physical equivalent',
+        path: ['equivalentWeightGrams'],
+      });
+    }
+    if (option.source === 'provider' && option.provider === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'provider options require a provider',
+        path: ['provider'],
+      });
+    }
+    if (
+      option.source === 'manual' &&
+      (option.provider !== null || option.providerDescription !== null)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'manual options cannot claim provider metadata',
+        path: ['provider'],
+      });
+    }
+  });
+
+export const foodItemServingOptionsSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    options: z.array(persistedServingOptionSchema).min(1),
+  })
+  .superRefine((value, context) => {
+    const ids = new Set<string>();
+    const fingerprints = new Set<string>();
+    for (const [index, option] of value.options.entries()) {
+      const fingerprint = [
+        option.unit,
+        option.quantity,
+        option.equivalentWeightGrams,
+        option.equivalentVolumeMl,
+        option.source,
+        option.provider,
+      ].join('|');
+      if (ids.has(option.id) || fingerprints.has(fingerprint)) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'serving option IDs and semantic relationships must be unique',
+          path: ['options', index],
+        });
+      }
+      ids.add(option.id);
+      fingerprints.add(fingerprint);
+    }
+  });
+
+const snapshotBasisSchema = z
+  .strictObject({
+    quantity: persistedServingNumberSchema,
+    unit: persistedServingUnitSchema,
+    unitFamily: persistedServingUnitFamilySchema,
+    displayText: z.string().trim().min(1).nullable(),
+    equivalentWeightGrams: persistedServingNumberSchema.nullable(),
+    equivalentVolumeMl: persistedServingNumberSchema.nullable(),
+  })
+  .superRefine((basis, context) => {
+    if (classifyServingUnit(basis.unit)?.family !== basis.unitFamily) {
+      context.addIssue({
+        code: 'custom',
+        message: 'basis unit family mismatch',
+        path: ['unitFamily'],
+      });
+    }
+  });
+
+const exactResolutionSchema = z.strictObject({
+  status: z.literal('exact'),
+  reason: z.enum(['same_basis', 'direct_count_basis']),
+  multiplier: z.number().finite().positive(),
+  resolvedWeightGrams: persistedServingNumberSchema.nullable(),
+  resolvedVolumeMl: persistedServingNumberSchema.nullable(),
+});
+const convertedResolutionSchema = z.strictObject({
+  status: z.literal('converted'),
+  reason: z.enum([
+    'standard_mass_conversion',
+    'standard_volume_conversion',
+    'trusted_serving_weight',
+    'trusted_serving_volume',
+  ]),
+  multiplier: z.number().finite().positive(),
+  resolvedWeightGrams: persistedServingNumberSchema.nullable(),
+  resolvedVolumeMl: persistedServingNumberSchema.nullable(),
+});
+
+const noOverrideFieldSchema = z.strictObject({
+  applied: z.literal(false),
+  value: z.null(),
+});
+const overrideField = <T extends z.ZodType>(value: T) =>
+  z.discriminatedUnion('applied', [
+    noOverrideFieldSchema,
+    z.strictObject({ applied: z.literal(true), value }),
+  ]);
+
+const nutritionOverrideSnapshotSchema = z.strictObject({
+  semantics: z.literal('post_scale_absolute_v1'),
+  mode: trackingModeSchema,
+  calories: overrideField(persistedNutritionNumberSchema.int()),
+  protein: overrideField(persistedNutritionNumberSchema),
+  carbs: overrideField(persistedNutritionNumberSchema.nullable()),
+  fat: overrideField(persistedNutritionNumberSchema.nullable()),
+  fiber: overrideField(persistedNutritionNumberSchema.nullable()),
+  sugar: overrideField(persistedNutritionNumberSchema.nullable()),
+  sodium: overrideField(persistedNutritionNumberSchema.int().nullable()),
+  nutrients: overrideField(normalizedNutrientsInputSchema.nullable()),
+});
+
+const snapshotProvenanceSchema = z.discriminatedUnion('basisOrigin', [
+  z.strictObject({
+    basisOrigin: z.literal('food_item'),
+    foodItemId: z.uuid(),
+    sourceType: foodItemSourceTypeSchema,
+    sourceProvider: foodSourceProviderSchema.nullable(),
+    sourceId: z.string().trim().min(1).nullable(),
+    trustLevel: z.literal('trusted'),
+  }),
+  z.strictObject({
+    basisOrigin: z.literal('manual_basis'),
+    foodItemId: z.null(),
+    sourceType: z.null(),
+    sourceProvider: z.null(),
+    sourceId: z.null(),
+    trustLevel: z.literal('user_entered'),
+  }),
+  z.strictObject({
+    basisOrigin: z.literal('ai_estimate'),
+    foodItemId: z.null(),
+    sourceType: z.null(),
+    sourceProvider: z.null(),
+    sourceId: z.null(),
+    trustLevel: z.literal('low'),
+  }),
+]);
+
+export const foodLogServingSnapshotSchema = z
+  .strictObject({
+    schemaVersion: z.literal(1),
+    nutritionBasis: snapshotBasisSchema,
+    requestedServing: z.strictObject({
+      quantity: persistedServingNumberSchema,
+      unit: persistedServingUnitSchema,
+      unitFamily: persistedServingUnitFamilySchema,
+      servingOptionId: z.string().trim().min(1).nullable(),
+      selectedServingOption: persistedServingOptionSchema.nullable(),
+    }),
+    resolution: z.discriminatedUnion('status', [
+      exactResolutionSchema,
+      convertedResolutionSchema,
+    ]),
+    basisNutrition: z.strictObject({
+      calories: persistedNutritionNumberSchema.int(),
+      protein: persistedNutritionNumberSchema,
+      carbs: persistedNutritionNumberSchema.nullable(),
+      fat: persistedNutritionNumberSchema.nullable(),
+      fiber: persistedNutritionNumberSchema.nullable(),
+      sugar: persistedNutritionNumberSchema.nullable(),
+      sodium: persistedNutritionNumberSchema.int().nullable(),
+      nutrients: normalizedNutrientsInputSchema,
+    }),
+    nutritionOverride: nutritionOverrideSnapshotSchema.nullable(),
+    provenance: snapshotProvenanceSchema,
+  })
+  .superRefine((snapshot, context) => {
+    const requested = classifyServingUnit(snapshot.requestedServing.unit);
+    if (requested?.family !== snapshot.requestedServing.unitFamily) {
+      context.addIssue({
+        code: 'custom',
+        message: 'requested unit family mismatch',
+        path: ['requestedServing', 'unitFamily'],
+      });
+    }
+    const option = snapshot.requestedServing.selectedServingOption;
+    if (
+      (option === null) !==
+        (snapshot.requestedServing.servingOptionId === null) ||
+      (option !== null &&
+        option.id !== snapshot.requestedServing.servingOptionId)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'selected option ID mismatch',
+        path: ['requestedServing', 'servingOptionId'],
+      });
+    }
+  });
+
+export type FoodItemServingOptions = z.infer<
+  typeof foodItemServingOptionsSchema
+>;
+export type FoodLogServingSnapshot = z.infer<
+  typeof foodLogServingSnapshotSchema
+>;
+
 export const foodLogInputSchema = z.strictObject({
   foodItemId: z.uuid().nullable().optional(),
   foodName: z.string().min(1),
@@ -226,64 +471,115 @@ export const foodLogInputSchema = z.strictObject({
   nutrients: normalizedNutrientsInputSchema.nullable().optional(),
 });
 
-export const foodLogFromFoodItemInputSchema = z.strictObject({
-  foodItemId: z.uuid(),
-  mealType: mealTypeSchema,
-  loggedAt: z.iso.datetime(),
-  servingMultiplier: z.number().positive().default(1),
+const servingRequestInputSchema = z.strictObject({
+  quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.string().trim().min(1),
+  servingOptionId: z.string().trim().min(1).nullable().optional(),
+});
+
+const foodLogNutritionOverrideSchema = z
+  .strictObject({
+    mode: trackingModeSchema,
+    calories: z.number().int().nonnegative().nullable().optional(),
+    protein: optionalNonNegativeDecimal,
+    carbs: optionalNonNegativeDecimal,
+    fat: optionalNonNegativeDecimal,
+    fiber: optionalNonNegativeDecimal,
+    sugar: optionalNonNegativeDecimal,
+    sodium: z.number().int().nonnegative().nullable().optional(),
+    nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+  })
+  .superRefine((override, context) => {
+    if (
+      override.mode === 'simple' &&
+      override.nutrients !== undefined &&
+      override.nutrients !== null &&
+      Object.keys(override.nutrients).length > 0
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Simple mode can only override main nutrients',
+        path: ['nutrients'],
+      });
+    }
+  });
+
+export const foodLogFromFoodItemInputSchema = z
+  .strictObject({
+    foodItemId: z.uuid(),
+    mealType: mealTypeSchema,
+    loggedAt: z.iso.datetime(),
+    servingMultiplier: z.number().finite().positive().optional(),
+    serving: servingRequestInputSchema.optional(),
+    notes: z.string().nullable().optional(),
+    nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+  })
+  .superRefine((input, context) => {
+    if (input.serving !== undefined && input.servingMultiplier !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        message: 'serving and servingMultiplier cannot be combined',
+        path: ['serving'],
+        params: { code: 'SERVING_CONFLICT' },
+      });
+    }
+  });
+
+export const foodLogUpdateInputSchema = z.strictObject({
+  foodItemId: z.uuid().nullable().optional(),
+  foodName: z.string().min(1).optional(),
+  mealType: mealTypeSchema.optional(),
+  calories: z.number().int().nonnegative().optional(),
+  protein: z.number().nonnegative().optional(),
+  carbs: optionalNonNegativeDecimal,
+  fat: optionalNonNegativeDecimal,
+  fiber: optionalNonNegativeDecimal,
+  sugar: optionalNonNegativeDecimal,
+  sodium: z.number().int().nonnegative().nullable().optional(),
   notes: z.string().nullable().optional(),
-  nutritionOverride: z
-    .strictObject({
-      mode: trackingModeSchema,
-      calories: z.number().int().nonnegative().nullable().optional(),
-      protein: optionalNonNegativeDecimal,
-      carbs: optionalNonNegativeDecimal,
-      fat: optionalNonNegativeDecimal,
-      fiber: optionalNonNegativeDecimal,
-      sugar: optionalNonNegativeDecimal,
-      sodium: z.number().int().nonnegative().nullable().optional(),
-      nutrients: normalizedNutrientsInputSchema.nullable().optional(),
-    })
-    .superRefine((override, context) => {
-      if (
-        override.mode === 'simple' &&
-        override.nutrients !== undefined &&
-        override.nutrients !== null &&
-        Object.keys(override.nutrients).length > 0
-      ) {
+  servingQuantity: z.number().positive().nullable().optional(),
+  servingUnit: z.string().min(1).nullable().optional(),
+  loggedAt: z.iso.datetime().optional(),
+  nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+  serving: servingRequestInputSchema.optional(),
+  clearNutritionOverride: z.boolean().optional(),
+  nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+});
+
+export const foodLogsFromFoodItemsInputSchema = z
+  .strictObject({
+    mealType: mealTypeSchema,
+    loggedAt: z.iso.datetime(),
+    notes: z.string().trim().min(1).nullable().optional(),
+    items: z
+      .array(
+        z.strictObject({
+          foodItemId: z.uuid(),
+          servingMultiplier: z.number().finite().positive().optional(),
+          serving: servingRequestInputSchema.optional(),
+          nutritionOverride: foodLogNutritionOverrideSchema.optional(),
+        }),
+      )
+      .min(1)
+      .max(12),
+  })
+  .superRefine((input, context) => {
+    for (const [index, item] of input.items.entries()) {
+      if (item.serving !== undefined && item.servingMultiplier !== undefined)
         context.addIssue({
           code: 'custom',
-          message: 'Simple mode can only override main nutrients',
-          path: ['nutrients'],
+          message: 'serving and servingMultiplier cannot be combined',
+          path: ['items', index, 'serving'],
+          params: { code: 'SERVING_CONFLICT' },
         });
-      }
-    })
-    .optional(),
-});
-
-const foodLogNutritionOverrideSchema =
-  foodLogFromFoodItemInputSchema.shape.nutritionOverride.unwrap();
-
-export const foodLogsFromFoodItemsInputSchema = z.strictObject({
-  mealType: mealTypeSchema,
-  loggedAt: z.iso.datetime(),
-  notes: z.string().trim().min(1).nullable().optional(),
-  items: z
-    .array(
-      z.strictObject({
-        foodItemId: z.uuid(),
-        servingMultiplier: z.number().positive().default(1),
-        nutritionOverride: foodLogNutritionOverrideSchema.optional(),
-      }),
-    )
-    .min(1)
-    .max(12),
-});
+    }
+  });
 
 const foodLogFoodItemCandidateInputSchema = z.strictObject({
   candidateType: z.literal('food_item'),
   foodItemId: z.uuid(),
-  servingMultiplier: z.number().positive().default(1),
+  servingMultiplier: z.number().finite().positive().optional(),
+  serving: servingRequestInputSchema.optional(),
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
 });
 
@@ -291,24 +587,38 @@ const foodLogExternalCandidateInputSchema = z.strictObject({
   candidateType: z.literal('external_food'),
   sourceProvider: z.literal('usda_fdc'),
   sourceId: z.string().trim().regex(/^\d+$/),
-  servingMultiplier: z.number().positive().default(1),
+  servingMultiplier: z.number().finite().positive().optional(),
+  serving: servingRequestInputSchema.optional(),
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
 });
 
-export const foodLogsFromCandidatesInputSchema = z.strictObject({
-  mealType: mealTypeSchema,
-  loggedAt: z.iso.datetime(),
-  notes: z.string().trim().min(1).nullable().optional(),
-  items: z
-    .array(
-      z.discriminatedUnion('candidateType', [
-        foodLogFoodItemCandidateInputSchema,
-        foodLogExternalCandidateInputSchema,
-      ]),
-    )
-    .min(1)
-    .max(12),
-});
+export const foodLogsFromCandidatesInputSchema = z
+  .strictObject({
+    mealType: mealTypeSchema,
+    loggedAt: z.iso.datetime(),
+    notes: z.string().trim().min(1).nullable().optional(),
+    items: z
+      .array(
+        z.discriminatedUnion('candidateType', [
+          foodLogFoodItemCandidateInputSchema,
+          foodLogExternalCandidateInputSchema,
+        ]),
+      )
+      .min(1)
+      .max(12),
+  })
+  .superRefine((input, context) => {
+    for (const [index, item] of input.items.entries()) {
+      if (item.serving !== undefined && item.servingMultiplier !== undefined) {
+        context.addIssue({
+          code: 'custom',
+          message: 'serving and servingMultiplier cannot be combined',
+          path: ['items', index, 'serving'],
+          params: { code: 'SERVING_CONFLICT' },
+        });
+      }
+    }
+  });
 
 export const foodLogFromAiEstimateInputSchema = z.strictObject({
   source: z.literal('ai_estimate'),
@@ -416,6 +726,7 @@ export const weightLogInputSchema = z.strictObject({
 });
 
 export type FoodLogInput = z.infer<typeof foodLogInputSchema>;
+export type FoodLogUpdateInput = z.infer<typeof foodLogUpdateInputSchema>;
 export type FoodLogFromFoodItemInput = z.infer<
   typeof foodLogFromFoodItemInputSchema
 >;

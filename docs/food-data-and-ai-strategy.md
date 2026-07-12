@@ -801,6 +801,26 @@ nutrition remains available only after trusted retrieval finds no
 selection-eligible candidate. AI estimates are unlinked FoodLog snapshots and
 never populate trusted FoodItem or USDA caches.
 
+### Phase 12.8F AI Quantity And Serving Integration
+
+AI parse output preserves `quantityText` and `servingText` and adds a
+deterministic `servingSuggestion`. The shared parser accepts only explicit,
+bounded quantity forms and canonical unit aliases; it does not calculate a
+multiplier, infer density, or assign universal household sizes. Missing serving
+text remains distinct from understandable-but-unresolved and invalid text.
+
+The meal review screen keeps independent amount, unit, trusted-option, preview,
+and error state for every parsed row. A missing suggestion starts at the
+selected candidate's basis as a visible UI default, not as an AI inference.
+Parsed or corrected servings resolve only against the candidate's actual basis
+and validated options. Candidate changes preserve quantity/unit where possible,
+clear options unavailable to the new candidate, and re-run resolution.
+
+Trusted multi-item saves send only canonical `serving` requests to the
+authoritative candidate-create API. Low-trust AI estimates remain a separate
+reviewable fallback and never enter the trusted serving path. Broad candidate
+`reviewStatus` remains separate from serving resolution status.
+
 Phase 12.7 final validation passed with Node `v22.23.0`, pnpm `10.34.3`, and
 PostgreSQL database `food_tracker_test`: format check, lint, typecheck, build,
 and the full suite (13 test files, 326 tests). `git diff --check` passed and
@@ -827,10 +847,20 @@ of Phase 12.7.
 
 ### Phase 12.8 Serving Intelligence
 
-Phase 12.8 should add safer serving and household-unit conversion for entries
-such as `1 egg`, `2 eggs`, `1 slice`, `1 cup`, and `100 g`. The app must
-preserve honest review states when conversion is uncertain and must not imply a
+Phase 12.8 is complete. It adds safer serving and household-unit conversion for
+entries such as `1 egg`, `2 eggs`, `1 slice`, `1 cup`, and `100 g`. The backend
+preserves honest review states when conversion is uncertain and never implies a
 precise gram conversion without a trusted basis.
+
+USDA normalization accepts safe quantity and identity data from measure names
+and portion descriptions, requires positive trusted gram/volume equivalents,
+and keeps ambiguous options review-required. Physical fallback remains
+available for foods with a `100 g` or volume basis even when USDA has no usable
+alternate portions. AI count rows use candidate-specific whole-item metadata
+internally, edit in grams or millilitres, hide the source option beside
+physical units, and recalculate when candidates change. Nutrition remains
+backend-authoritative for both Simple and Complex totals and snapshot-backed
+history.
 
 ### Phase 12.9 Recipes And Mixed Meals
 

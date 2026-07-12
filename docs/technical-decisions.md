@@ -333,7 +333,8 @@ USDA candidates must expose the nutrient basis clearly, such as `per 100 g`.
 The app must not pretend parsed quantities such as `2 eggs` were perfectly
 converted unless the backend has a safe gram/serving conversion. When quantity
 conversion is uncertain, USDA candidates may be loggable but should remain
-review items with adjustable multipliers.
+review items until the user selects a supported amount/unit or trusted serving
+option; a client multiplier is never the authoritative fallback.
 
 Selected USDA references are refetched server-side, normalized into existing
 FoodItem columns and FoodItemNutrient rows, cached as global
@@ -442,7 +443,8 @@ never populate trusted FoodItem or USDA caches.
 Phase 12.7 is commit-ready after automated validation, API terminal smoke,
 mixed regression/out-of-sample testing, compound-identity holdout testing,
 and physical-phone smoke testing. The next defined project step is Phase 12.8
-serving intelligence / household unit conversion. Remaining USDA secondary
+serving intelligence / household-unit conversion is implemented; final
+interactive smoke remains the next validation step. Remaining USDA secondary
 ordering, dessert/omelet/meatless-product polish, typo semantics, embeddings,
 vector search, recipes, and additional providers are future targeted work.
 
@@ -458,6 +460,20 @@ detail review.
 
 Do not prioritize photo logging before trusted food search, barcode lookup,
 cached food data, and candidate review exist.
+
+## TD-017: Phase 12.8 Serving Intelligence
+
+Status: Implemented and validated in Phase 12.8
+
+Serving resolution is deterministic and backend-authoritative. Trusted USDA
+portions require validated quantity, canonical identity, stable ID, and a
+positive physical equivalent; ambiguous or incomplete portions remain
+review-required. Physical nutrition bases remain usable without alternate
+portions. AI count rows use candidate-specific whole-item metadata internally,
+edit and save as grams or millilitres, hide the internal source option from
+physical selectors, and recalculate on candidate changes. Simple and Complex
+totals share the same stored authoritative values, and legacy snapshot-null
+FoodLogs retain their compatibility behavior.
 
 ## TD-015: Skeleton Loading
 

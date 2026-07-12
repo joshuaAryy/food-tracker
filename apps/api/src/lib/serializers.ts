@@ -20,6 +20,10 @@ import type {
   RecommendationType,
   WeightLog,
 } from '@food-tracker/shared';
+import {
+  foodItemServingOptionsSchema,
+  foodLogServingSnapshotSchema,
+} from '@food-tracker/shared';
 
 export const roundTo = (value: number, decimalPlaces: number): number => {
   const factor = 10 ** decimalPlaces;
@@ -51,6 +55,14 @@ function serializeNutrients(
       },
     ]),
   );
+}
+
+function parsedJsonOrNull<T>(
+  value: unknown,
+  schema: { safeParse: (input: unknown) => { success: boolean; data?: T } },
+): T | null {
+  const parsed = schema.safeParse(value);
+  return parsed.success && parsed.data !== undefined ? parsed.data : null;
 }
 
 export function serializeProfile(profile: UserProfile): Profile {
@@ -93,6 +105,10 @@ export function serializeFoodLog(foodLog: SerializableFoodLog): FoodLog {
     notes: foodLog.notes,
     servingQuantity: decimalToNumber(foodLog.servingQuantity),
     servingUnit: foodLog.servingUnit,
+    servingSnapshot: parsedJsonOrNull(
+      foodLog.servingSnapshot,
+      foodLogServingSnapshotSchema,
+    ),
     nutrients: serializeNutrients(foodLog.nutrients),
     loggedAt: foodLog.loggedAt.toISOString(),
     createdAt: foodLog.createdAt.toISOString(),
@@ -114,6 +130,10 @@ export function serializeFoodItem(foodItem: SerializableFoodItem): FoodItem {
     servingQuantity: decimalToNumber(foodItem.servingQuantity),
     servingUnit: foodItem.servingUnit,
     servingWeightGrams: decimalToNumber(foodItem.servingWeightGrams),
+    servingOptions: parsedJsonOrNull(
+      foodItem.servingOptions,
+      foodItemServingOptionsSchema,
+    ),
     calories: foodItem.calories,
     protein: decimalToNumber(foodItem.protein),
     carbs: decimalToNumber(foodItem.carbs),

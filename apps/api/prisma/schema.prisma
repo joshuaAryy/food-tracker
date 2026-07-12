@@ -223,6 +223,7 @@ model FoodLog {
   sodium          Int?
   servingQuantity Decimal? @db.Decimal(8, 2)
   servingUnit     String?
+  servingSnapshot Json?
   notes           String?
   loggedAt        DateTime @db.Timestamptz
   createdAt       DateTime @default(now()) @db.Timestamptz
@@ -251,6 +252,7 @@ model FoodItem {
   servingQuantity     Decimal?            @db.Decimal(8, 2)
   servingUnit         String?
   servingWeightGrams  Decimal?            @db.Decimal(8, 2)
+  servingOptions      Json?
   calories            Int?
   protein             Decimal?            @db.Decimal(6, 1)
   carbs               Decimal?            @db.Decimal(6, 1)

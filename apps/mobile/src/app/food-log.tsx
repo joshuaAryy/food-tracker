@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -15,7 +15,9 @@ import {
   type FoodLog,
   type FoodLogFromFoodItemInput,
   type FoodLogNutritionOverride,
+  type FoodLogUpdateInput,
   type FoodLogInput,
+  type FoodItemServingOptions,
   type MealType,
   type NormalizedNutrientKey,
   type NormalizedNutrientMap,
@@ -29,13 +31,13 @@ import { ErrorState } from '@/components/error-state';
 import { FoodItemChoiceRow } from '@/components/food-item-choice-row';
 import { FormSection } from '@/components/form-section';
 import { ScreenHeader } from '@/components/screen-header';
-import { ServingMultiplierControl } from '@/components/serving-multiplier-control';
+import { ServingAmountControl } from '@/components/serving-amount-control';
 import {
   SkeletonLine,
   SkeletonPill,
   SkeletonRail,
 } from '@/components/skeleton';
-import { api, errorMessage } from '@/lib/api-client';
+import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import {
   dateTimeFieldsInTimezone,
   isValidLocalDate,
@@ -44,6 +46,15 @@ import {
 } from '@/lib/date-time';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
+import {
+  availableServingChoices,
+  backendServingMessage,
+  convertServingAmountForUnitChange,
+  nutritionBasisLabel,
+  provisionalServingPreview,
+  type ServingChoice,
+  type ServingPreviewBasis,
+} from '@/lib/serving-preview';
 
 interface FoodForm {
   foodName: string;
@@ -65,6 +76,90 @@ interface FoodForm {
 type SearchCandidate = AiFoodParseCandidate;
 type NutritionSource = FoodItem | AiFoodParseExternalFood;
 
+function servingBasisFromSource(source: NutritionSource): ServingPreviewBasis {
+  return {
+    name: source.name,
+    servingQuantity: source.servingQuantity,
+    servingUnit: source.servingUnit,
+    nutrition: {
+      calories: source.calories,
+      protein: source.protein,
+      carbs: source.carbs,
+      fat: source.fat,
+      fiber: source.fiber,
+      sugar: source.sugar,
+      sodium: source.sodium,
+      nutrients: source.nutrients,
+    },
+    servingOptions: 'servingOptions' in source ? source.servingOptions : null,
+  };
+}
+
+function snapshotServingOptions(
+  foodLog: FoodLog,
+  currentOptions: FoodItemServingOptions | null,
+): FoodItemServingOptions | null {
+  const snapshot = foodLog.servingSnapshot;
+  if (snapshot === null) return currentOptions;
+
+  const frozen = snapshot.requestedServing.selectedServingOption;
+  if (frozen === null) return currentOptions;
+
+  return {
+    schemaVersion: 1,
+    options: [
+      frozen,
+      ...(currentOptions?.options ?? []).filter(
+        (option) => option.id !== frozen.id,
+      ),
+    ],
+  };
+}
+
+function servingBasisFromSnapshot(
+  foodLog: FoodLog,
+  currentOptions: FoodItemServingOptions | null,
+): ServingPreviewBasis | null {
+  const snapshot = foodLog.servingSnapshot;
+  if (snapshot === null) return null;
+
+  return {
+    name: foodLog.foodName,
+    servingQuantity: snapshot.nutritionBasis.quantity,
+    servingUnit: snapshot.nutritionBasis.unit,
+    nutrition: snapshot.basisNutrition,
+    servingOptions: snapshotServingOptions(foodLog, currentOptions),
+  };
+}
+
+function previewNutrientValues(
+  nutrition: ServingPreviewBasis['nutrition'],
+): Record<NormalizedNutrientKey, string> {
+  return Object.fromEntries(
+    NORMALIZED_NUTRIENT_KEYS.map((key) => {
+      const nutrient = nutrition.nutrients[key];
+      return [key, nutrient === undefined ? '' : String(nutrient.amount)];
+    }),
+  ) as Record<NormalizedNutrientKey, string>;
+}
+
+function snapshotServingMatches(
+  foodLog: FoodLog,
+  quantity: number,
+  unit: string,
+  servingOptionId: string | null,
+): boolean {
+  const snapshot = foodLog.servingSnapshot;
+  if (snapshot === null) return false;
+
+  const requested = snapshot.requestedServing;
+  return (
+    requested.quantity === quantity &&
+    requested.unit === unit &&
+    requested.servingOptionId === servingOptionId
+  );
+}
+
 function nullableNumber(value: string): number | null {
   return value.trim() === '' ? null : Number(value);
 }
@@ -75,26 +170,6 @@ function nullableInteger(value: string): number | null {
 
 function optionalNumber(value: number | null): string {
   return value === null ? '' : String(value);
-}
-
-function roundTo(value: number, decimalPlaces: number): number {
-  const factor = 10 ** decimalPlaces;
-  return Math.round((value + Number.EPSILON) * factor) / factor;
-}
-
-function scaledNumber(
-  value: number | null,
-  multiplier: number,
-  decimalPlaces: number,
-): number | null {
-  return value === null ? null : roundTo(value * multiplier, decimalPlaces);
-}
-
-function scaledInteger(
-  value: number | null,
-  multiplier: number,
-): number | null {
-  return value === null ? null : Math.round(value * multiplier);
 }
 
 function formValuesFromFood(
@@ -170,21 +245,18 @@ function dedupeRecentFoods(foodLogs: FoodLog[], limit = 6): FoodLog[] {
 function formValuesFromFoodItem(
   foodItem: NutritionSource,
   current: FoodForm,
-  multiplier = 1,
 ): FoodForm {
   return {
     ...current,
     foodName: foodItem.name,
-    calories: optionalNumber(scaledInteger(foodItem.calories, multiplier)),
-    protein: optionalNumber(scaledNumber(foodItem.protein, multiplier, 1)),
-    carbs: optionalNumber(scaledNumber(foodItem.carbs, multiplier, 1)),
-    fat: optionalNumber(scaledNumber(foodItem.fat, multiplier, 1)),
-    fiber: optionalNumber(scaledNumber(foodItem.fiber, multiplier, 1)),
-    sugar: optionalNumber(scaledNumber(foodItem.sugar, multiplier, 1)),
-    sodium: optionalNumber(scaledInteger(foodItem.sodium, multiplier)),
-    servingQuantity: optionalNumber(
-      scaledNumber(foodItem.servingQuantity, multiplier, 2),
-    ),
+    calories: optionalNumber(foodItem.calories),
+    protein: optionalNumber(foodItem.protein),
+    carbs: optionalNumber(foodItem.carbs),
+    fat: optionalNumber(foodItem.fat),
+    fiber: optionalNumber(foodItem.fiber),
+    sugar: optionalNumber(foodItem.sugar),
+    sodium: optionalNumber(foodItem.sodium),
+    servingQuantity: optionalNumber(foodItem.servingQuantity),
     servingUnit: foodItem.servingUnit ?? '',
   };
 }
@@ -223,37 +295,6 @@ function candidateSourceCopy(candidate: SearchCandidate): string {
     return 'Custom food';
   }
   return 'Saved food';
-}
-
-function sourceNutrientValues(
-  source: NutritionSource,
-  multiplier: number,
-): Record<NormalizedNutrientKey, string> {
-  return Object.fromEntries(
-    NORMALIZED_NUTRIENT_KEYS.map((key) => {
-      const nutrient = source.nutrients[key];
-      const amount =
-        nutrient === undefined
-          ? ''
-          : String(roundTo(nutrient.amount * multiplier, 4));
-      return [key, amount];
-    }),
-  ) as Record<NormalizedNutrientKey, string>;
-}
-
-function inferMultiplier(foodLog: FoodLog, foodItem: FoodItem): string {
-  if (
-    foodLog.servingQuantity === null ||
-    foodItem.servingQuantity === null ||
-    foodItem.servingQuantity <= 0 ||
-    foodLog.servingUnit !== foodItem.servingUnit
-  ) {
-    return '1';
-  }
-
-  return String(
-    Math.max(0.25, foodLog.servingQuantity / foodItem.servingQuantity),
-  );
 }
 
 function FoodLogSkeleton({
@@ -347,7 +388,17 @@ export default function FoodLogScreen() {
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [selectedExternalFood, setSelectedExternalFood] =
     useState<AiFoodParseExternalFood | null>(null);
-  const [servingMultiplier, setServingMultiplier] = useState('1');
+  const [servingAmount, setServingAmount] = useState('');
+  const [servingUnit, setServingUnit] = useState('');
+  const [selectedServingOptionId, setSelectedServingOptionId] = useState<
+    string | null
+  >(null);
+  const [snapshotServingLog, setSnapshotServingLog] = useState<FoodLog | null>(
+    null,
+  );
+  const [currentEditServingOptions, setCurrentEditServingOptions] =
+    useState<FoodItemServingOptions | null>(null);
+  const [clearNutritionOverride, setClearNutritionOverride] = useState(false);
   const [nutritionEdited, setNutritionEdited] = useState(false);
   const [complexNutrients, setComplexNutrients] = useState<
     Record<NormalizedNutrientKey, string>
@@ -455,7 +506,12 @@ export default function FoodLogScreen() {
         setSelectedFood(null);
         setSelectedExternalFood(null);
       }
-      setServingMultiplier('1');
+      setServingAmount('');
+      setServingUnit('');
+      setSelectedServingOptionId(null);
+      setSnapshotServingLog(null);
+      setCurrentEditServingOptions(null);
+      setClearNutritionOverride(false);
       setNutritionEdited(false);
       setLoadingRecord(false);
       return;
@@ -478,8 +534,30 @@ export default function FoodLogScreen() {
       );
       setSelectedFood(null);
       setSelectedExternalFood(null);
-      setServingMultiplier('1');
+      setClearNutritionOverride(false);
       setNutritionEdited(false);
+      if (isEditing && foodLog.servingSnapshot !== null) {
+        const requested = foodLog.servingSnapshot.requestedServing;
+        setSnapshotServingLog(foodLog);
+        setServingAmount(String(requested.quantity));
+        setServingUnit(requested.unit);
+        setSelectedServingOptionId(requested.servingOptionId);
+        setCurrentEditServingOptions(null);
+        if (foodLog.foodItemId !== null) {
+          try {
+            const foodItem = await api.foodItems.getById(foodLog.foodItemId);
+            setCurrentEditServingOptions(foodItem.servingOptions);
+          } catch {
+            // A frozen option and standard conversions remain available.
+          }
+        }
+      } else {
+        setSnapshotServingLog(null);
+        setCurrentEditServingOptions(null);
+        setServingAmount('');
+        setServingUnit('');
+        setSelectedServingOptionId(null);
+      }
     } catch (error) {
       setLoadError(errorMessage(error));
     } finally {
@@ -541,6 +619,103 @@ export default function FoodLogScreen() {
   };
 
   const selectedNutritionSource = selectedFood ?? selectedExternalFood;
+  const servingBasis = useMemo(() => {
+    if (selectedNutritionSource !== null) {
+      return servingBasisFromSource(selectedNutritionSource);
+    }
+
+    return snapshotServingLog === null
+      ? null
+      : servingBasisFromSnapshot(snapshotServingLog, currentEditServingOptions);
+  }, [currentEditServingOptions, selectedNutritionSource, snapshotServingLog]);
+  const servingPreview = useMemo(() => {
+    if (servingBasis === null) return null;
+
+    return provisionalServingPreview({
+      basis: servingBasis,
+      request: {
+        quantityText: servingAmount,
+        unit: servingUnit,
+        ...(selectedServingOptionId === null
+          ? {}
+          : { servingOptionId: selectedServingOptionId }),
+      },
+    });
+  }, [selectedServingOptionId, servingAmount, servingBasis, servingUnit]);
+  const servingChoices = useMemo(
+    () => (servingBasis === null ? [] : availableServingChoices(servingBasis)),
+    [servingBasis],
+  );
+  const selectedServingChoiceId =
+    selectedServingOptionId === null
+      ? servingUnit === ''
+        ? null
+        : 'unit:' + servingUnit
+      : 'option:' + selectedServingOptionId;
+  const snapshotHasOverride =
+    snapshotServingLog !== null &&
+    snapshotServingLog.servingSnapshot?.nutritionOverride !== null;
+  const snapshotServingChanged =
+    snapshotServingLog !== null &&
+    servingPreview !== null &&
+    servingPreview.requestedServing !== null &&
+    !snapshotServingMatches(
+      snapshotServingLog,
+      servingPreview.requestedServing.quantity,
+      servingPreview.requestedServing.unit,
+      servingPreview.requestedServing.servingOptionId,
+    );
+  const overrideActionRequired =
+    snapshotHasOverride &&
+    snapshotServingChanged &&
+    !clearNutritionOverride &&
+    !nutritionEdited;
+  const servingSaveBlocked =
+    servingPreview !== null &&
+    (servingPreview.status === 'needs_review' ||
+      servingPreview.status === 'invalid' ||
+      overrideActionRequired);
+  const servingControlPreview =
+    servingPreview === null
+      ? null
+      : overrideActionRequired
+        ? {
+            status: 'needs_review' as const,
+            message:
+              'Remove or replace the nutrition adjustment before changing this serving.',
+            multiplier: null,
+            requestedServing: null,
+            nutrition: null,
+            resolvedWeightGrams: null,
+            resolvedVolumeMl: null,
+          }
+        : servingPreview;
+
+  useEffect(() => {
+    if (
+      servingBasis === null ||
+      servingPreview === null ||
+      servingPreview.nutrition === null ||
+      nutritionEdited
+    ) {
+      return;
+    }
+
+    const current = getValues();
+    reset({
+      ...current,
+      calories: optionalNumber(servingPreview.nutrition.calories),
+      protein: optionalNumber(servingPreview.nutrition.protein),
+      carbs: optionalNumber(servingPreview.nutrition.carbs),
+      fat: optionalNumber(servingPreview.nutrition.fat),
+      fiber: optionalNumber(servingPreview.nutrition.fiber),
+      sugar: optionalNumber(servingPreview.nutrition.sugar),
+      sodium: optionalNumber(servingPreview.nutrition.sodium),
+      servingQuantity: String(servingPreview.requestedServing?.quantity ?? ''),
+      servingUnit: servingPreview.requestedServing?.unit ?? '',
+    });
+    setComplexNutrients(previewNutrientValues(servingPreview.nutrition));
+  }, [getValues, nutritionEdited, reset, servingBasis, servingPreview]);
 
   const nutritionOverrideFromValues = (
     values: FoodForm,
@@ -583,6 +758,30 @@ export default function FoodLogScreen() {
     return override;
   };
 
+  const markNutritionEdited = () => {
+    if (selectedNutritionSource !== null || snapshotServingLog !== null) {
+      setNutritionEdited(true);
+      setClearNutritionOverride(false);
+    }
+  };
+
+  const requestedServingForSave = () => {
+    if (
+      servingPreview === null ||
+      servingPreview.requestedServing === null ||
+      (servingPreview.status !== 'exact' &&
+        servingPreview.status !== 'converted')
+    ) {
+      setSubmitError(
+        servingPreview?.message ??
+          'Choose a valid amount and unit before saving this food.',
+      );
+      return null;
+    }
+
+    return servingPreview.requestedServing;
+  };
+
   const submit = handleSubmit(async (values) => {
     setSubmitError(null);
     const loggedAt = zonedDateTimeToIso(
@@ -621,17 +820,14 @@ export default function FoodLogScreen() {
     try {
       if (editId === null) {
         if (selectedFood !== null) {
-          const multiplier = Number(servingMultiplier);
-          if (!Number.isFinite(multiplier) || multiplier <= 0) {
-            setSubmitError('Amount must be greater than 0.');
-            return;
-          }
+          const serving = requestedServingForSave();
+          if (serving === null) return;
 
           const input: FoodLogFromFoodItemInput = {
             foodItemId: selectedFood.id,
             mealType: values.mealType,
             loggedAt,
-            servingMultiplier: multiplier,
+            serving,
             nutritionOverride: nutritionOverrideFromValues(values),
             ...(values.notes.trim() === ''
               ? {}
@@ -639,11 +835,8 @@ export default function FoodLogScreen() {
           };
           await api.foodLogs.createFromFoodItem(input);
         } else if (selectedExternalFood !== null) {
-          const multiplier = Number(servingMultiplier);
-          if (!Number.isFinite(multiplier) || multiplier <= 0) {
-            setSubmitError('Amount must be greater than 0.');
-            return;
-          }
+          const serving = requestedServingForSave();
+          if (serving === null) return;
 
           await api.foodLogs.createFromCandidates({
             mealType: values.mealType,
@@ -656,7 +849,7 @@ export default function FoodLogScreen() {
                 candidateType: 'external_food',
                 sourceProvider: selectedExternalFood.sourceProvider,
                 sourceId: selectedExternalFood.sourceId,
-                servingMultiplier: multiplier,
+                serving,
                 nutritionOverride: nutritionOverrideFromValues(values),
               },
             ],
@@ -679,11 +872,30 @@ export default function FoodLogScreen() {
             sodium: nullableInteger(values.sodium),
           };
           const foodItem = await api.foodItems.create(foodItemInput);
+          const createdPreview = provisionalServingPreview({
+            basis: servingBasisFromSource(foodItem),
+            request: {
+              quantity:
+                foodItem.servingQuantity ?? Number(values.servingQuantity),
+              unit: foodItem.servingUnit ?? values.servingUnit,
+            },
+          });
+          if (
+            createdPreview.requestedServing === null ||
+            (createdPreview.status !== 'exact' &&
+              createdPreview.status !== 'converted')
+          ) {
+            setSubmitError(
+              createdPreview.message ??
+                'This reusable food needs a valid nutrition basis before it can be logged.',
+            );
+            return;
+          }
           await api.foodLogs.createFromFoodItem({
             foodItemId: foodItem.id,
             mealType: values.mealType,
             loggedAt,
-            servingMultiplier: 1,
+            serving: createdPreview.requestedServing,
             ...(values.notes.trim() === ''
               ? {}
               : { notes: values.notes.trim() }),
@@ -691,12 +903,41 @@ export default function FoodLogScreen() {
         } else {
           await api.foodLogs.create(manualInput);
         }
+      } else if (snapshotServingLog !== null) {
+        if (overrideActionRequired) {
+          setSubmitError(
+            'Remove or replace the nutrition adjustment before changing this serving.',
+          );
+          return;
+        }
+
+        const serving = snapshotServingChanged
+          ? requestedServingForSave()
+          : null;
+        if (snapshotServingChanged && serving === null) return;
+
+        const input: FoodLogUpdateInput = {
+          foodName: values.foodName.trim(),
+          mealType: values.mealType,
+          loggedAt,
+          ...(values.notes.trim() === '' ? {} : { notes: values.notes.trim() }),
+          ...(serving === null ? {} : { serving }),
+          ...(clearNutritionOverride ? { clearNutritionOverride: true } : {}),
+          ...(nutritionEdited
+            ? { nutritionOverride: nutritionOverrideFromValues(values) }
+            : {}),
+        };
+        await api.foodLogs.update(editId, input);
       } else {
         await api.foodLogs.update(editId, manualInput);
       }
       returnToHistory();
     } catch (error) {
-      setSubmitError(errorMessage(error));
+      const servingError =
+        error instanceof ApiClientError
+          ? backendServingMessage(error.code)
+          : null;
+      setSubmitError(servingError ?? errorMessage(error));
     }
   });
 
@@ -760,26 +1001,30 @@ export default function FoodLogScreen() {
     );
   };
 
-  const selectNutritionSource = (source: NutritionSource, multiplier = '1') => {
+  const selectNutritionSource = (source: NutritionSource) => {
     const current = getValues();
-    const parsedMultiplier = Number(multiplier);
-    const amount =
-      Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
-        ? parsedMultiplier
-        : 1;
-    reset(formValuesFromFoodItem(source, current, amount));
-    setServingMultiplier(multiplier);
-    setComplexNutrients(sourceNutrientValues(source, amount));
+    reset(formValuesFromFoodItem(source, current));
+    setServingAmount(
+      source.servingQuantity === null ? '' : String(source.servingQuantity),
+    );
+    setServingUnit(source.servingUnit ?? '');
+    setSelectedServingOptionId(null);
+    setSnapshotServingLog(null);
+    setCurrentEditServingOptions(null);
+    setClearNutritionOverride(false);
+    setComplexNutrients(
+      previewNutrientValues(servingBasisFromSource(source).nutrition),
+    );
     setNutritionEdited(false);
     setSaveAsReusableFood(false);
     setShowMore(trackingMode === 'complex' || hasSourceOptionalDetails(source));
     setSubmitError(null);
   };
 
-  const selectFoodItem = (foodItem: FoodItem, multiplier = '1') => {
+  const selectFoodItem = (foodItem: FoodItem) => {
     setSelectedFood(foodItem);
     setSelectedExternalFood(null);
-    selectNutritionSource(foodItem, multiplier);
+    selectNutritionSource(foodItem);
   };
 
   const selectExternalFood = (food: AiFoodParseExternalFood) => {
@@ -788,25 +1033,15 @@ export default function FoodLogScreen() {
     selectNutritionSource(food);
   };
 
-  const updateServingMultiplier = (value: string) => {
-    setServingMultiplier(value);
-    const source = selectedFood ?? selectedExternalFood;
-    if (source === null) return;
-
-    const parsedMultiplier = Number(value);
-    const amount =
-      Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
-        ? parsedMultiplier
-        : 1;
-    reset(formValuesFromFoodItem(source, getValues(), amount));
-    setComplexNutrients(sourceNutrientValues(source, amount));
-    setNutritionEdited(false);
-  };
-
   const clearSelectedFood = () => {
     setSelectedFood(null);
     setSelectedExternalFood(null);
-    setServingMultiplier('1');
+    setServingAmount('');
+    setServingUnit('');
+    setSelectedServingOptionId(null);
+    setSnapshotServingLog(null);
+    setCurrentEditServingOptions(null);
+    setClearNutritionOverride(false);
     setNutritionEdited(false);
     setScannedFoodError(null);
     setSubmitError(null);
@@ -868,7 +1103,7 @@ export default function FoodLogScreen() {
     if (foodLog.foodItemId !== null) {
       try {
         const foodItem = await api.foodItems.getById(foodLog.foodItemId);
-        selectFoodItem(foodItem, inferMultiplier(foodLog, foodItem));
+        selectFoodItem(foodItem);
         return;
       } catch {
         // Fall back to the stored snapshot if the reusable food is gone.
@@ -884,7 +1119,12 @@ export default function FoodLogScreen() {
     );
     setSelectedFood(null);
     setSelectedExternalFood(null);
-    setServingMultiplier('1');
+    setServingAmount('');
+    setServingUnit('');
+    setSelectedServingOptionId(null);
+    setSnapshotServingLog(null);
+    setCurrentEditServingOptions(null);
+    setClearNutritionOverride(false);
     setNutritionEdited(false);
     setSaveAsReusableFood(false);
     setShowMore(trackingMode === 'complex' || hasOptionalDetails(foodLog));
@@ -958,7 +1198,7 @@ export default function FoodLogScreen() {
         <View className="gap-2">
           <AppButton
             loading={isSubmitting}
-            disabled={deleting}
+            disabled={deleting || servingSaveBlocked}
             onPress={() => void submit()}
           >
             {isEditing ? 'Save changes' : 'Save food'}
@@ -1127,10 +1367,39 @@ export default function FoodLogScreen() {
                   </AppText>
                 </Pressable>
               </View>
-              <ServingMultiplierControl
-                value={servingMultiplier}
-                onChange={updateServingMultiplier}
-              />
+              {servingBasis === null ||
+              servingControlPreview === null ? null : (
+                <ServingAmountControl
+                  amount={servingAmount}
+                  basisLabel={nutritionBasisLabel(servingBasis)}
+                  choices={servingChoices}
+                  disabled={isSubmitting || deleting}
+                  onAmountChange={setServingAmount}
+                  onReset={() => {
+                    setServingAmount(
+                      String(servingBasis.servingQuantity ?? ''),
+                    );
+                    setServingUnit(servingBasis.servingUnit ?? '');
+                    setSelectedServingOptionId(null);
+                    setClearNutritionOverride(false);
+                    setNutritionEdited(false);
+                  }}
+                  onSelectChoice={(choice: ServingChoice) => {
+                    const converted = convertServingAmountForUnitChange({
+                      amount: Number(servingAmount),
+                      fromUnit: servingUnit,
+                      toUnit: choice.unit,
+                    });
+                    if (converted.kind === 'converted') {
+                      setServingAmount(converted.displayText);
+                      setServingUnit(choice.unit);
+                      setSelectedServingOptionId(choice.servingOptionId);
+                    }
+                  }}
+                  preview={servingControlPreview}
+                  selectedChoiceId={selectedServingChoiceId}
+                />
+              )}
               {Object.keys(selectedNutritionSource.nutrients).length === 0 ||
               trackingMode !== 'complex' ? null : (
                 <AppText variant="caption" className="text-muted">
@@ -1315,6 +1584,78 @@ export default function FoodLogScreen() {
         />
       ) : null}
 
+      {isEditing && servingBasis !== null && servingControlPreview !== null ? (
+        <View className="gap-3 border-y border-line py-4">
+          <View className="gap-0.5">
+            <AppText variant="heading">Serving</AppText>
+            <AppText variant="caption" muted>
+              This entry can recalculate from its saved nutrition basis.
+            </AppText>
+          </View>
+          <ServingAmountControl
+            amount={servingAmount}
+            basisLabel={nutritionBasisLabel(servingBasis)}
+            choices={servingChoices}
+            disabled={isSubmitting || deleting}
+            onAmountChange={setServingAmount}
+            onReset={() => {
+              setServingAmount(String(servingBasis.servingQuantity ?? ''));
+              setServingUnit(servingBasis.servingUnit ?? '');
+              setSelectedServingOptionId(null);
+              setClearNutritionOverride(false);
+              setNutritionEdited(false);
+            }}
+            onSelectChoice={(choice: ServingChoice) => {
+              const converted = convertServingAmountForUnitChange({
+                amount: Number(servingAmount),
+                fromUnit: servingUnit,
+                toUnit: choice.unit,
+              });
+              if (converted.kind === 'converted') {
+                setServingAmount(converted.displayText);
+                setServingUnit(choice.unit);
+                setSelectedServingOptionId(choice.servingOptionId);
+              }
+            }}
+            preview={servingControlPreview}
+            selectedChoiceId={selectedServingChoiceId}
+          />
+          {snapshotHasOverride ? (
+            <View className="gap-2 rounded-control bg-primary-soft px-3 py-3">
+              <AppText variant="label">Nutrition adjustment saved</AppText>
+              <AppText variant="caption" muted>
+                {clearNutritionOverride
+                  ? 'The adjustment will be removed and this serving will recalculate from its saved basis.'
+                  : nutritionEdited
+                    ? 'Your nutrition edits will replace the saved adjustment.'
+                    : 'Remove it or edit the nutrition fields below before changing the serving.'}
+              </AppText>
+              <Pressable
+                accessibilityRole="button"
+                className="self-start rounded-full bg-[#F4F4F4] px-3 py-2 active:bg-module-muted"
+                onPress={() => {
+                  setClearNutritionOverride((current) => !current);
+                  setNutritionEdited(false);
+                }}
+              >
+                <AppText variant="label" className="text-ink">
+                  {clearNutritionOverride
+                    ? 'Keep adjustment'
+                    : 'Remove adjustment'}
+                </AppText>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {isEditing && snapshotServingLog === null ? (
+        <AppText variant="caption" className="text-muted">
+          This older entry keeps its saved nutrition details and cannot
+          recalculate its serving.
+        </AppText>
+      ) : null}
+
       <FormSection title="Food details" variant="open">
         <Controller
           control={control}
@@ -1384,9 +1725,7 @@ export default function FoodLogScreen() {
               value={field.value}
               onBlur={field.onBlur}
               onChangeText={(value) => {
-                if (selectedNutritionSource !== null) {
-                  setNutritionEdited(true);
-                }
+                markNutritionEdited();
                 field.onChange(value);
               }}
               error={errors.calories?.message}
@@ -1409,9 +1748,7 @@ export default function FoodLogScreen() {
               value={field.value}
               onBlur={field.onBlur}
               onChangeText={(value) => {
-                if (selectedNutritionSource !== null) {
-                  setNutritionEdited(true);
-                }
+                markNutritionEdited();
                 field.onChange(value);
               }}
               error={errors.protein?.message}
@@ -1469,9 +1806,7 @@ export default function FoodLogScreen() {
                     value={field.value}
                     onBlur={field.onBlur}
                     onChangeText={(value) => {
-                      if (selectedNutritionSource !== null) {
-                        setNutritionEdited(true);
-                      }
+                      markNutritionEdited();
                       field.onChange(value);
                     }}
                     error={errors[name]?.message}
@@ -1496,9 +1831,7 @@ export default function FoodLogScreen() {
                   value={field.value}
                   onBlur={field.onBlur}
                   onChangeText={(value) => {
-                    if (selectedNutritionSource !== null) {
-                      setNutritionEdited(true);
-                    }
+                    markNutritionEdited();
                     field.onChange(value);
                   }}
                   error={errors.sodium?.message}
@@ -1524,48 +1857,50 @@ export default function FoodLogScreen() {
                         ...current,
                         [key]: value,
                       }));
-                      if (selectedNutritionSource !== null) {
-                        setNutritionEdited(true);
-                      }
+                      markNutritionEdited();
                     }}
                   />
                 ))}
               </View>
             ) : null}
-            <Controller
-              control={control}
-              name="servingQuantity"
-              rules={{
-                validate: (value) =>
-                  value === '' || Number(value) > 0
-                    ? true
-                    : 'Serving quantity must be greater than 0.',
-              }}
-              render={({ field }) => (
-                <AppInput
-                  label="Serving quantity"
-                  keyboardType="decimal-pad"
-                  placeholder="1"
-                  value={field.value}
-                  onBlur={field.onBlur}
-                  onChangeText={field.onChange}
-                  error={errors.servingQuantity?.message}
+            {selectedNutritionSource === null && snapshotServingLog === null ? (
+              <>
+                <Controller
+                  control={control}
+                  name="servingQuantity"
+                  rules={{
+                    validate: (value) =>
+                      value === '' || Number(value) > 0
+                        ? true
+                        : 'Serving quantity must be greater than 0.',
+                  }}
+                  render={({ field }) => (
+                    <AppInput
+                      label="Serving quantity"
+                      keyboardType="decimal-pad"
+                      placeholder="1"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                      error={errors.servingQuantity?.message}
+                    />
+                  )}
                 />
-              )}
-            />
-            <Controller
-              control={control}
-              name="servingUnit"
-              render={({ field }) => (
-                <AppInput
-                  label="Serving unit"
-                  placeholder="bowl"
-                  value={field.value}
-                  onBlur={field.onBlur}
-                  onChangeText={field.onChange}
+                <Controller
+                  control={control}
+                  name="servingUnit"
+                  render={({ field }) => (
+                    <AppInput
+                      label="Serving unit"
+                      placeholder="bowl"
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChangeText={field.onChange}
+                    />
+                  )}
                 />
-              )}
-            />
+              </>
+            ) : null}
             <Controller
               control={control}
               name="notes"

@@ -1,3 +1,7 @@
+import {
+  foodItemServingOptionsSchema,
+  parseServingText,
+} from '@food-tracker/shared';
 import type {
   AiFoodCandidateMatchReason,
   AiFoodParsedItem,
@@ -8,6 +12,7 @@ import { prisma } from '../../lib/prisma.js';
 import { serializeFoodItem } from '../../lib/serializers.js';
 import {
   enrichUsdaFoods,
+  defaultWholeItemServingFromOptions,
   USDA_ENRICHMENT_POLICIES,
   usdaFdcConfig,
 } from '../foodItems/usda-fdc.js';
@@ -100,7 +105,12 @@ export async function retrieveParsedFoodItems(input: {
       seen.add(foodItem.id);
       candidates.push({
         candidateType: 'food_item',
-        foodItem,
+        foodItem: {
+          ...foodItem,
+          defaultWholeItemServing: defaultWholeItemServingFromOptions(
+            foodItem.servingOptions,
+          ),
+        },
         externalFood: null,
         rank: candidates.length + 1,
         matchReason,
@@ -228,6 +238,17 @@ export async function retrieveParsedFoodItems(input: {
               servingQuantity: food.servingQuantity,
               servingUnit: food.servingUnit,
               servingWeightGrams: food.servingWeightGrams,
+              servingOptions: foodItemServingOptionsSchema.safeParse(
+                food.servingOptions,
+              ).success
+                ? foodItemServingOptionsSchema.parse(food.servingOptions)
+                : null,
+              defaultWholeItemServing: defaultWholeItemServingFromOptions(
+                foodItemServingOptionsSchema.safeParse(food.servingOptions)
+                  .success
+                  ? foodItemServingOptionsSchema.parse(food.servingOptions)
+                  : null,
+              ),
               calories: food.calories,
               protein: food.protein,
               carbs: food.carbs,
@@ -268,6 +289,10 @@ export async function retrieveParsedFoodItems(input: {
       parsedName: normalizedQuery,
       quantityText: parsedItem.quantityText,
       servingText: parsedItem.servingText,
+      servingSuggestion: parseServingText({
+        quantityText: parsedItem.quantityText,
+        servingText: parsedItem.servingText,
+      }),
       reviewStatus:
         candidates.length === 0
           ? 'unmatched'

@@ -340,3 +340,14 @@ micronutrient UI.
 
 ### Other Future Models
 `CustomFood`, `WaterLog`, `SupplementLog`, and `MicronutrientLog` are not part of the MVP schema.
+
+## Phase 12.8 Serving Fields
+
+The additive serving-intelligence migration adds nullable FoodItem.servingOptions
+and nullable FoodLog.servingSnapshot JSONB fields, with no backfill or
+destructive changes. Serving options contain only validated trusted alternate
+relationships. A FoodLog snapshot preserves the original unscaled nutrition
+basis, requested serving, resolution, provenance, and effective override; final
+scaled values remain in FoodLog columns and FoodLogNutrient rows. Legacy rows
+remain NULL and retain their legacy behavior, and malformed stored JSON is
+treated safely rather than fabricated into a basis.

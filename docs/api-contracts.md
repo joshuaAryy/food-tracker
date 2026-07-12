@@ -1143,6 +1143,13 @@ Rules:
   candidate groups
 - other users' custom foods are never returned
 - USDA candidates include an explicit nutrient basis such as `per 100 g`
+- USDA candidates expose `defaultWholeItemServing` only when exactly one safe,
+  validated whole-item option exists. The metadata includes the stable option
+  ID, label, quantity, canonical unit, and trusted physical equivalent; raw
+  provider payloads are never exposed.
+- each parsed item includes a deterministic `servingSuggestion` derived from
+  the raw quantity and serving fields; it contains no multiplier or nutrition
+  calculation
 - AI/Gemini never supplies calories, macros, or micronutrients
 
 Success `data`:
@@ -1155,7 +1162,14 @@ Success `data`:
       "id": "item-1",
       "parsedName": "eggs",
       "quantityText": "2",
-      "servingText": "2",
+      "servingText": "2 eggs",
+      "servingSuggestion": {
+        "status": "parsed",
+        "quantity": 2,
+        "unit": "egg",
+        "rawQuantityText": "2",
+        "rawServingText": "2 eggs"
+      },
       "reviewStatus": "matched",
       "loggable": true,
       "selectedCandidateId": "food-item-id",
@@ -1185,6 +1199,7 @@ Success `data`:
             "servingQuantity": 100,
             "servingUnit": "g",
             "servingWeightGrams": 100,
+            "servingOptions": null,
             "calories": 89,
             "protein": 1.1,
             "carbs": 22.8,
@@ -1213,6 +1228,20 @@ external reference and nutrition preview; clients must confirm the reference
 through `POST /api/v1/food-logs/from-candidates` rather than submitting raw
 nutrition. Unmatched items return `reviewStatus: "unmatched"`,
 `loggable: false`, no selected candidate, and an empty candidate list.
+
+`servingSuggestion` has four statuses: `parsed`, `missing`, `needs_review`, and
+`invalid`. It always preserves `rawQuantityText` and `rawServingText`. A
+`missing` suggestion means the AI supplied no explicit serving; mobile may show
+the selected candidate's basis as a clearly labelled UI default. `needs_review`
+and `invalid` suggestions never authorize a trusted save. Parsed units use the
+canonical shared serving vocabulary; household units such as `cup` and `bowl`
+remain subject to candidate-specific trusted-option resolution. External USDA
+candidates expose validated `servingOptions` when normalization produced them;
+clients must never construct options from raw provider metadata. Missing
+alternate options do not make a physical `g`/`kg`/`oz`/`lb` or `mL`/`L` basis
+unusable. A quantity-only AI count may use the candidate's one safe
+`defaultWholeItemServing` internally, but the editable serving request uses
+the resulting physical amount and unit.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

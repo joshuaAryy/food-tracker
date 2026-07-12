@@ -285,6 +285,7 @@ Relation:
 | `sodium` | nullable `Int` |
 | `servingQuantity` | nullable `Decimal`, precision `8`, scale `2` |
 | `servingUnit` | nullable `String` |
+| `servingSnapshot` | nullable `Json`, immutable authoritative serving snapshot |
 | `notes` | nullable `String` |
 | `loggedAt` | `DateTime`, timestamp with timezone |
 | `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
@@ -321,6 +322,7 @@ There is no unique constraint on `FoodLog`. Users may log multiple foods at the 
 | `servingQuantity` | nullable `Decimal`, precision `8`, scale `2` |
 | `servingUnit` | nullable `String` |
 | `servingWeightGrams` | nullable `Decimal`, precision `8`, scale `2` |
+| `servingOptions` | nullable `Json`, validated trusted alternate serving options |
 | `calories` | nullable `Int` |
 | `protein` | nullable `Decimal`, precision `6`, scale `1` |
 | `carbs` | nullable `Decimal`, precision `6`, scale `1` |
@@ -521,6 +523,19 @@ Indexes:
 - No orphaned user-owned records are allowed.
 
 ## Daily Summary
+
+## Phase 12.8 Serving Fields
+
+- `FoodItem.servingOptions` is nullable PostgreSQL JSONB for validated
+  alternate trusted serving options.
+- `FoodLog.servingSnapshot` is nullable PostgreSQL JSONB for immutable
+  authoritative serving-resolution snapshots. It stores original unscaled
+  basis nutrition and provenance, never final scaled totals as a duplicate.
+- The additive migration contains no backfill. Database NULL means absent;
+  application reads use safe parsing and ignore malformed legacy JSON.
+- Snapshot-backed updates recalculate from the stored basis and replace final
+  FoodLog and FoodLogNutrient values atomically. Legacy NULL snapshots retain
+  their prior manual update behavior.
 
 - `DailySummary` is not part of the MVP schema.
 - Dashboard summaries are calculated on demand from `FoodLog` and `WeightLog`.

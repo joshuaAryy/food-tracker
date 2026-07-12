@@ -319,13 +319,13 @@ function mockParse(
 ): ProviderParsedFoodItem[] {
   return description
     .split(/\s*,\s*|\s+\band\b\s+/i)
-    .map((part) => cleanParsedName(part))
+    .map((part) => ({ ...cleanParsedName(part), rawText: part.trim() }))
     .filter((item) => item.name.length > 0)
     .slice(0, maxItems)
     .map((item) => ({
       name: item.name,
       quantityText: item.quantityText,
-      servingText: item.quantityText,
+      servingText: item.quantityText === null ? null : item.rawText,
     }));
 }
 
@@ -400,6 +400,7 @@ class GeminiFoodParseProvider implements FoodParseProvider {
                       'Parse this meal description into food items.',
                       'Return only foods the user appears to have eaten.',
                       'Do not include calories, macros, micronutrients, or database IDs.',
+                      'For each item, preserve raw quantity and serving wording. Put the numeric or fraction quantity in quantityText when explicit, and the complete serving phrase including its unit in servingText. Leave both null when no serving was stated. Never convert or calculate.',
                       `Maximum items: ${this.config.maxItems}.`,
                       `Meal description: ${description}`,
                     ].join('\n'),

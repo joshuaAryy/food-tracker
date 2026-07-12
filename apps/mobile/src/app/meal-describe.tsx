@@ -14,15 +14,33 @@ import type {
   MealType,
   TrackingMode,
 } from '@food-tracker/shared';
-import { MEAL_TYPES } from '@food-tracker/shared';
+import {
+  MEAL_TYPES,
+  NORMALIZED_NUTRIENT_KEYS,
+  NUTRIENT_CATALOG,
+} from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
-import { ServingMultiplierControl } from '@/components/serving-multiplier-control';
-import { api, errorMessage } from '@/lib/api-client';
+import { ServingAmountControl } from '@/components/serving-amount-control';
+import {
+  aiServingPreview,
+  aiServingBasis,
+  availableAiServingChoices,
+  changeAiCandidateServing,
+  initialAiServingState,
+  type AiServingCandidate,
+  type AiServingState,
+} from '@/lib/ai-serving';
+import { api, ApiClientError, errorMessage } from '@/lib/api-client';
+import {
+  backendServingMessage,
+  convertServingAmountForUnitChange,
+  nutritionBasisLabel,
+} from '@/lib/serving-preview';
 import { colors } from '@/theme/tokens';
 
 const examples = [
@@ -85,27 +103,6 @@ function estimateWasEdited(
   });
 }
 
-function nutrientPreview(
-  food: FoodItem | AiFoodParseExternalFood,
-  multiplier: string,
-): string {
-  const parsedMultiplier = Number(multiplier);
-  const amount =
-    Number.isFinite(parsedMultiplier) && parsedMultiplier > 0
-      ? parsedMultiplier
-      : 1;
-  const parts = [
-    food.calories === null
-      ? null
-      : `${Math.round(food.calories * amount)} kcal`,
-    food.protein === null
-      ? null
-      : `${(food.protein * amount).toFixed(1)}g protein`,
-  ].filter((part): part is string => part !== null);
-
-  return parts.length === 0 ? 'Nutrition unknown' : parts.join(' / ');
-}
-
 function candidateId(candidate: AiFoodParseCandidate): string {
   return candidate.candidateType === 'food_item'
     ? candidate.foodItem.id
@@ -158,6 +155,68 @@ function isCandidateLoggable(candidate: AiFoodParseCandidate | null): boolean {
   return food !== null && food.calories !== null && food.protein !== null;
 }
 
+function isServingPreviewReady(
+  candidate: AiServingCandidate | null,
+  state: AiServingState | undefined,
+): boolean {
+  if (candidate === null || state === undefined) return false;
+  const preview = aiServingPreview(candidate, state);
+  return (
+    preview !== null &&
+    (preview.status === 'exact' || preview.status === 'converted') &&
+    preview.requestedServing !== null
+  );
+}
+
+function servingSuggestionMessage(item: AiFoodParsedItem): string | null {
+  if (
+    item.servingSuggestion.status === 'parsed' ||
+    item.servingSuggestion.status === 'missing'
+  ) {
+    return null;
+  }
+
+  switch (item.servingSuggestion.reason) {
+    case 'missing_quantity':
+      return 'Enter how many or how much you ate, then choose a unit.';
+    case 'missing_unit':
+      return 'Choose a safe unit or one of this food’s listed servings.';
+    case 'ambiguous_unit':
+      return 'Choose which serving unit you meant.';
+    case 'ambiguous_size':
+      return 'Choose grams, a count, or a listed size with a trusted relationship.';
+    case 'unsupported_serving_text':
+      return 'That serving text needs a safe unit before it can be saved.';
+    case 'invalid_quantity':
+      return 'Enter an amount greater than 0 and no more than 10,000.';
+    case 'quantity_out_of_range':
+      return 'Enter an amount no greater than 10,000.';
+    case 'unsupported_unit':
+      return 'Choose a supported unit or a listed serving.';
+    default:
+      return null;
+  }
+}
+
+function normalizedPreviewText(
+  candidate: AiServingCandidate | null,
+  preview: ReturnType<typeof aiServingPreview>,
+): string | null {
+  if (candidate === null || preview === null || preview.nutrition === null) {
+    return null;
+  }
+
+  const values = NORMALIZED_NUTRIENT_KEYS.flatMap((key) => {
+    const nutrient = preview.nutrition?.nutrients[key];
+    if (nutrient === undefined) return [];
+    return [
+      `${NUTRIENT_CATALOG[key].displayName}: ${nutrient.amount} ${nutrient.unit}`,
+    ];
+  }).slice(0, 4);
+
+  return values.length === 0 ? null : `Known nutrients · ${values.join(' · ')}`;
+}
+
 function MealTypePill({
   value,
   selected,
@@ -198,7 +257,10 @@ export default function MealDescribeScreen() {
     Record<string, string>
   >({});
   const [removedRows, setRemovedRows] = useState<string[]>([]);
-  const [multipliers, setMultipliers] = useState<Record<string, string>>({});
+  const [servingStates, setServingStates] = useState<
+    Record<string, AiServingState>
+  >({});
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [estimates, setEstimates] = useState<
     Record<string, AiNutritionEstimateResult>
   >({});
@@ -240,12 +302,17 @@ export default function MealDescribeScreen() {
         : result.items.filter((item) => !removedRows.includes(item.id)),
     [removedRows, result],
   );
-  const selectedLoggableCount = visibleItems.filter(
-    (item) =>
-      (isCandidateLoggable(selectedCandidate(item, selectedCandidateIds)) ||
-        isEstimateFormLoggable(estimateForms[item.id])) &&
-      selectedRows.includes(item.id),
-  ).length;
+  const selectedLoggableCount = visibleItems.filter((item) => {
+    if (!selectedRows.includes(item.id)) return false;
+    const candidate = selectedCandidate(item, selectedCandidateIds);
+    const food = candidateFood(candidate);
+    const servingState = servingStates[item.id];
+    return (
+      (isCandidateLoggable(candidate) &&
+        isServingPreviewReady(food, servingState)) ||
+      isEstimateFormLoggable(estimateForms[item.id])
+    );
+  }).length;
 
   const parseMeal = async () => {
     const trimmed = description.trim();
@@ -276,14 +343,25 @@ export default function MealDescribeScreen() {
           ),
         ),
       );
-      setMultipliers(
+      const nextCandidateIds = Object.fromEntries(
+        parsed.items.flatMap((item) =>
+          item.selectedCandidateId === null
+            ? []
+            : [[item.id, item.selectedCandidateId]],
+        ),
+      );
+      setServingStates(
         Object.fromEntries(
           parsed.items.map((item) => [
             item.id,
-            String(item.candidates[0]?.defaultServingMultiplier ?? 1),
+            initialAiServingState(
+              item,
+              candidateFood(selectedCandidate(item, nextCandidateIds)),
+            ),
           ]),
         ),
       );
+      setRowErrors({});
     } catch (parseError) {
       setError(errorMessage(parseError));
     } finally {
@@ -294,8 +372,34 @@ export default function MealDescribeScreen() {
   const logSelected = async () => {
     if (result === null || selectedLoggableCount === 0) return;
 
+    const selectedTrustedItems = visibleItems.filter((item) => {
+      const candidate = selectedCandidate(item, selectedCandidateIds);
+      return selectedRows.includes(item.id) && isCandidateLoggable(candidate);
+    });
+    const blockedTrustedItems = selectedTrustedItems.filter((item) => {
+      const candidate = candidateFood(
+        selectedCandidate(item, selectedCandidateIds),
+      );
+      return !isServingPreviewReady(candidate, servingStates[item.id]);
+    });
+    if (blockedTrustedItems.length > 0) {
+      setRowErrors(
+        Object.fromEntries(
+          blockedTrustedItems.map((item) => [
+            item.id,
+            'Choose a valid amount and unit before saving this food.',
+          ]),
+        ),
+      );
+      setError(
+        'Review the highlighted serving before saving. Nothing was saved.',
+      );
+      return;
+    }
+
     setSaving(true);
     setError(null);
+    setRowErrors({});
     try {
       const trustedItems = visibleItems.reduce<
         FoodLogsFromCandidatesInput['items']
@@ -311,11 +415,30 @@ export default function MealDescribeScreen() {
 
         if (candidate === null) return selectedItems;
 
+        const food = candidateFood(candidate);
+        const state = servingStates[item.id];
+        const preview = aiServingPreview(
+          food,
+          state ?? {
+            amount: '',
+            unit: '',
+            servingOptionId: null,
+            initialization: 'invalid',
+          },
+        );
+        if (
+          preview === null ||
+          preview.requestedServing === null ||
+          (preview.status !== 'exact' && preview.status !== 'converted')
+        ) {
+          return selectedItems;
+        }
+
         if (candidate.candidateType === 'food_item') {
           selectedItems.push({
             candidateType: 'food_item',
             foodItemId: candidate.foodItem.id,
-            servingMultiplier: Number(multipliers[item.id] ?? 1),
+            serving: preview.requestedServing,
           });
           return selectedItems;
         }
@@ -324,7 +447,7 @@ export default function MealDescribeScreen() {
           candidateType: 'external_food',
           sourceProvider: candidate.externalFood.sourceProvider,
           sourceId: candidate.externalFood.sourceId,
-          servingMultiplier: Number(multipliers[item.id] ?? 1),
+          serving: preview.requestedServing,
         });
         return selectedItems;
       }, []);
@@ -378,7 +501,25 @@ export default function MealDescribeScreen() {
       }
       router.back();
     } catch (saveError) {
-      setError(errorMessage(saveError));
+      if (saveError instanceof ApiClientError) {
+        const itemIndex = saveError.details.itemIndex;
+        const target =
+          typeof itemIndex === 'number'
+            ? selectedTrustedItems[itemIndex]
+            : null;
+        const message =
+          backendServingMessage(saveError.code) ?? errorMessage(saveError);
+        if (target !== null && target !== undefined) {
+          setRowErrors({ [target.id]: message });
+          setError(
+            'Nothing was saved. Correct the highlighted serving and try again.',
+          );
+        } else {
+          setError(message);
+        }
+      } else {
+        setError(errorMessage(saveError));
+      }
     } finally {
       setSaving(false);
     }
@@ -431,6 +572,14 @@ export default function MealDescribeScreen() {
     } finally {
       setEstimatingRows((current) => current.filter((id) => id !== item.id));
     }
+  };
+
+  const clearRowError = (rowId: string) => {
+    setRowErrors((current) => {
+      const next = { ...current };
+      delete next[rowId];
+      return next;
+    });
   };
 
   const updateEstimateForm = (
@@ -576,6 +725,13 @@ export default function MealDescribeScreen() {
               {visibleItems.map((item, index) => {
                 const candidate = selectedCandidate(item, selectedCandidateIds);
                 const food = candidateFood(candidate);
+                const servingState =
+                  servingStates[item.id] ?? initialAiServingState(item, food);
+                const servingPreview = aiServingPreview(food, servingState);
+                const effectiveServingOptionId =
+                  servingState.servingOptionId ??
+                  servingPreview?.requestedServing?.servingOptionId ??
+                  null;
                 const estimate = estimates[item.id];
                 const estimateForm = estimateForms[item.id];
                 const estimating = estimatingRows.includes(item.id);
@@ -584,6 +740,7 @@ export default function MealDescribeScreen() {
                 const loggable =
                   isCandidateLoggable(candidate) ||
                   isEstimateFormLoggable(estimateForm);
+                const rowError = rowErrors[item.id];
 
                 return (
                   <View
@@ -830,21 +987,107 @@ export default function MealDescribeScreen() {
                                 ? 'Matched food'
                                 : candidateMatchCopy(candidate)}
                             </AppText>
-                            <AppText variant="caption" className="text-ink">
-                              {nutrientPreview(
-                                food,
-                                multipliers[item.id] ?? '1',
-                              )}
-                            </AppText>
-                            <ServingMultiplierControl
-                              value={multipliers[item.id] ?? '1'}
-                              onChange={(value) =>
-                                setMultipliers((current) => ({
+                            <ServingAmountControl
+                              amount={servingState.amount}
+                              basisLabel={
+                                servingPreview === null
+                                  ? 'Choose a candidate to see its nutrition basis.'
+                                  : nutritionBasisLabel(aiServingBasis(food))
+                              }
+                              choices={
+                                food === null
+                                  ? []
+                                  : availableAiServingChoices(
+                                      food,
+                                      servingState,
+                                    )
+                              }
+                              compact
+                              disabled={saving}
+                              onAmountChange={(amount) => {
+                                setServingStates((current) => ({
                                   ...current,
-                                  [item.id]: value,
-                                }))
+                                  [item.id]: { ...servingState, amount },
+                                }));
+                                clearRowError(item.id);
+                              }}
+                              onReset={() => {
+                                setServingStates((current) => ({
+                                  ...current,
+                                  [item.id]: initialAiServingState(item, food),
+                                }));
+                                clearRowError(item.id);
+                              }}
+                              onSelectChoice={(choice) => {
+                                const converted =
+                                  convertServingAmountForUnitChange({
+                                    amount: Number(servingState.amount),
+                                    fromUnit: servingState.unit,
+                                    toUnit: choice.unit,
+                                  });
+                                if (converted.kind === 'converted') {
+                                  clearRowError(item.id);
+                                  setServingStates((current) => ({
+                                    ...current,
+                                    [item.id]: {
+                                      ...servingState,
+                                      amount: converted.displayText,
+                                      unit: choice.unit,
+                                      servingOptionId: choice.servingOptionId,
+                                    },
+                                  }));
+                                } else if (converted.kind === 'too_small') {
+                                  setRowErrors((current) => ({
+                                    ...current,
+                                    [item.id]: converted.reason,
+                                  }));
+                                }
+                              }}
+                              preview={
+                                servingPreview ?? {
+                                  status: 'invalid',
+                                  message: 'Choose a trusted candidate first.',
+                                  multiplier: null,
+                                  requestedServing: null,
+                                  nutrition: null,
+                                  resolvedWeightGrams: null,
+                                  resolvedVolumeMl: null,
+                                }
+                              }
+                              selectedChoiceId={
+                                effectiveServingOptionId === null
+                                  ? servingState.unit === ''
+                                    ? null
+                                    : `unit:${servingState.unit}`
+                                  : `option:${effectiveServingOptionId}`
                               }
                             />
+                            {item.servingSuggestion.status === 'missing' ? (
+                              <AppText variant="caption" muted>
+                                No serving was parsed; this starts at the
+                                candidate’s basis. Confirm the amount before
+                                saving.
+                              </AppText>
+                            ) : null}
+                            {servingPreview !== null &&
+                            servingPreview.status !== 'exact' &&
+                            servingPreview.status !== 'converted' ? (
+                              <AppText variant="caption" className="text-error">
+                                {servingSuggestionMessage(item) ??
+                                  servingPreview.message}
+                              </AppText>
+                            ) : null}
+                            {rowError === undefined ? null : (
+                              <AppText variant="caption" className="text-error">
+                                {rowError}
+                              </AppText>
+                            )}
+                            {trackingMode === 'complex' ? (
+                              <AppText variant="caption" muted>
+                                {normalizedPreviewText(food, servingPreview) ??
+                                  'No additional nutrients are available for this candidate.'}
+                              </AppText>
+                            ) : null}
                             {item.candidates.length > 1 ? (
                               <View className="flex-row flex-wrap gap-2">
                                 {item.candidates.map((candidateOption) => {
@@ -872,6 +1115,16 @@ export default function MealDescribeScreen() {
                                           ...current,
                                           [item.id]: optionId,
                                         }));
+                                        if (optionFood !== null) {
+                                          setServingStates((current) => ({
+                                            ...current,
+                                            [item.id]: changeAiCandidateServing(
+                                              servingState,
+                                              optionFood as AiServingCandidate,
+                                            ),
+                                          }));
+                                          clearRowError(item.id);
+                                        }
                                         if (
                                           isCandidateLoggable(candidateOption)
                                         ) {

@@ -17,6 +17,7 @@ import type {
   FoodLogFromFoodItemInput,
   FoodLogsFromFoodItemsInput,
   FoodLogInput,
+  FoodLogUpdateInput,
   Goals,
   Profile,
   Recommendation,
@@ -346,7 +347,7 @@ export const api = {
         method: 'POST',
         body: input,
       }),
-    update: (id: string, input: FoodLogInput) =>
+    update: (id: string, input: FoodLogUpdateInput) =>
       request<FoodLog>(`/food-logs/${id}`, { method: 'PUT', body: input }),
     delete: (id: string) =>
       request<{ id: string; deleted: true }>(`/food-logs/${id}`, {

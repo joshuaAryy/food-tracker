@@ -1,6 +1,7 @@
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import {
   NUTRIENT_CATALOG,
+  foodItemServingOptionsSchema,
   type NormalizedNutrientKey,
 } from '@food-tracker/shared';
 import { roundTo } from '../../lib/serializers.js';
@@ -22,6 +23,7 @@ export interface NormalizedOpenFoodFactsFood {
   servingQuantity: number | null;
   servingUnit: string | null;
   servingWeightGrams: number | null;
+  servingOptions: Prisma.JsonValue | null;
   calories: number | null;
   protein: number | null;
   carbs: number | null;
@@ -144,6 +146,34 @@ function parseServing(product: Record<string, unknown>): {
     servingUnit: null,
     servingWeightGrams: null,
   };
+}
+
+function providerServingOptions(
+  product: Record<string, unknown>,
+  sourceId: string,
+): Prisma.JsonValue | null {
+  const parsed = parseQuantity(product.serving_size);
+  if (parsed === null || (parsed.unit !== 'g' && parsed.unit !== 'ml'))
+    return null;
+  const option = {
+    schemaVersion: 1,
+    options: [
+      {
+        id: `provider:open_food_facts:${sourceId}:serving:${parsed.unit}:${parsed.amount}`,
+        label: `1 serving (${parsed.amount} ${parsed.unit})`,
+        quantity: 1,
+        unit: 'serving',
+        unitFamily: 'count',
+        equivalentWeightGrams: parsed.unit === 'g' ? parsed.amount : null,
+        equivalentVolumeMl: parsed.unit === 'ml' ? parsed.amount : null,
+        source: 'provider',
+        trust: 'trusted',
+        provider: 'open_food_facts',
+        providerDescription: stringValue(product.serving_size),
+      },
+    ],
+  };
+  return foodItemServingOptionsSchema.safeParse(option).success ? option : null;
 }
 
 function nutrientAmount(
@@ -297,6 +327,7 @@ export function normalizeOpenFoodFactsProduct(
     sourceUpdatedAt:
       sourceUpdatedAt === null ? null : new Date(sourceUpdatedAt * 1000),
     ...parseServing(product),
+    servingOptions: providerServingOptions(product, sourceId),
     calories:
       nutrientAmount(nutriments, 'energy-kcal', suffix) === null
         ? null
@@ -373,6 +404,8 @@ export function openFoodFactsData(
     servingQuantity: food.servingQuantity,
     servingUnit: food.servingUnit,
     servingWeightGrams: food.servingWeightGrams,
+    servingOptions:
+      food.servingOptions === null ? Prisma.DbNull : food.servingOptions,
     calories: food.calories,
     protein: food.protein,
     carbs: food.carbs,

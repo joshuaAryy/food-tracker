@@ -1,6 +1,10 @@
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
 import {
   NUTRIENT_CATALOG,
+  classifyServingUnit,
+  foodItemServingOptionsSchema,
+  type DefaultWholeItemServing,
+  type FoodItemServingOptions,
   type NormalizedNutrientKey,
 } from '@food-tracker/shared';
 import { AppError } from '../../lib/errors.js';
@@ -120,6 +124,7 @@ export interface NormalizedUsdaFood {
   servingQuantity: number;
   servingUnit: string;
   servingWeightGrams: number;
+  servingOptions: Prisma.JsonValue | null;
   calories: number | null;
   protein: number | null;
   carbs: number | null;
@@ -719,6 +724,148 @@ function mappedNutrient(entry: Record<string, unknown>): {
   return null;
 }
 
+function usdaServingOptions(
+  payload: Record<string, unknown>,
+  sourceId: string,
+): Prisma.JsonValue | null {
+  const portions = Array.isArray(payload.foodPortions)
+    ? payload.foodPortions
+    : [];
+  const options = new Map<string, Prisma.JsonObject>();
+  for (const portion of portions) {
+    if (!isRecord(portion)) continue;
+    const portionDescription = stringValue(portion.portionDescription);
+    const describedQuantityMatch = portionDescription?.match(
+      /^\s*(\d+(?:\.\d+)?)\s+/,
+    );
+    const describedQuantity =
+      describedQuantityMatch === null || describedQuantityMatch === undefined
+        ? null
+        : Number(describedQuantityMatch[1]);
+    const quantity = numericValue(portion.amount) ?? describedQuantity;
+    const grams = numericValue(portion.gramWeight);
+    const measureName = isRecord(portion.measureUnit)
+      ? stringValue(portion.measureUnit.name)
+      : null;
+    const modifier = stringValue(portion.modifier);
+    const normalizedMeasureName = measureName?.trim().toLocaleLowerCase();
+    const foodName = stringValue(payload.description)?.split(',')[0]?.trim();
+    const describedBody = portionDescription
+      ?.replace(/^\s*\d+(?:\.\d+)?\s+/, '')
+      .trim();
+    const describedIdentity = describedBody?.match(
+      /(?:^|\s)(egg|eggs|slice|slices|bar|bars|serving|servings|container|containers|item|items)(?:$|\s)/i,
+    )?.[1];
+    const describedUnit =
+      describedIdentity === undefined
+        ? null
+        : describedIdentity.toLocaleLowerCase().startsWith('egg')
+          ? 'egg'
+          : describedIdentity.toLocaleLowerCase().startsWith('slice')
+            ? 'slice'
+            : describedIdentity.toLocaleLowerCase().startsWith('bar')
+              ? 'bar'
+              : describedIdentity.toLocaleLowerCase().startsWith('container')
+                ? 'serving'
+                : describedIdentity.toLocaleLowerCase().startsWith('item')
+                  ? 'item'
+                  : 'serving';
+    const isDescribedMediumItem =
+      foodName !== null && /^1\s+medium$/i.test(portionDescription ?? '');
+    const isNamedMediumItem =
+      normalizedMeasureName === 'medium' && modifier !== null;
+    const measure =
+      isDescribedMediumItem || isNamedMediumItem
+        ? 'medium_item'
+        : (describedUnit ??
+          (normalizedMeasureName === 'container' ? 'serving' : measureName));
+    const displayMeasure = isDescribedMediumItem
+      ? `medium ${foodName}`
+      : (describedBody ??
+        (isNamedMediumItem ? `${measureName} ${modifier}` : measureName));
+    const classified = measure === null ? null : classifyServingUnit(measure);
+    if (
+      quantity === null ||
+      quantity <= 0 ||
+      grams === null ||
+      grams <= 0 ||
+      classified === null
+    )
+      continue;
+    if (classified.unit === 'g' && grams === 100) continue;
+    const fingerprint = [classified.unit, quantity, grams].join(':');
+    const option = {
+      id: `provider:usda_fdc:${sourceId}:${fingerprint}`,
+      label: `${quantity} ${displayMeasure}`,
+      quantity,
+      unit: classified.unit,
+      unitFamily: classified.family,
+      equivalentWeightGrams: grams,
+      equivalentVolumeMl: null,
+      source: 'provider',
+      trust: 'trusted',
+      provider: 'usda_fdc',
+      providerDescription: `${quantity} ${displayMeasure}`,
+    };
+    if (
+      foodItemServingOptionsSchema.safeParse({
+        schemaVersion: 1,
+        options: [option],
+      }).success
+    ) {
+      options.set(fingerprint, option);
+    }
+  }
+  if (options.size === 0) return null;
+  const value = { schemaVersion: 1, options: [...options.values()] };
+  return foodItemServingOptionsSchema.safeParse(value).success ? value : null;
+}
+
+export function defaultWholeItemServingFromOptions(
+  options: FoodItemServingOptions | null,
+): DefaultWholeItemServing | null {
+  const eligible = (options?.options ?? []).filter(
+    (option) =>
+      (option.unit === 'item' ||
+        option.unit === 'medium_item' ||
+        option.unit === 'egg' ||
+        option.unit === 'bar') &&
+      (option.equivalentWeightGrams !== null ||
+        option.equivalentVolumeMl !== null),
+  );
+  const generic = eligible.filter((option) => option.unit === 'item');
+  const medium = eligible.filter((option) => option.unit === 'medium_item');
+  const eggs = eligible.filter((option) => option.unit === 'egg');
+  const bars = eligible.filter((option) => option.unit === 'bar');
+  const preferred =
+    generic.length === 1
+      ? generic
+      : generic.length > 1
+        ? []
+        : medium.length === 1
+          ? medium
+          : medium.length > 1
+            ? []
+            : eggs.length === 1
+              ? eggs
+              : eggs.length > 1
+                ? []
+                : bars.length === 1
+                  ? bars
+                  : [];
+  const selected = preferred.length === 1 ? preferred[0] : null;
+  return selected === null || selected === undefined
+    ? null
+    : {
+        optionId: selected.id,
+        label: selected.label,
+        quantity: selected.quantity,
+        unit: selected.unit,
+        equivalentWeightGrams: selected.equivalentWeightGrams,
+        equivalentVolumeMl: selected.equivalentVolumeMl,
+      };
+}
+
 export function normalizeUsdaFood(payload: unknown): NormalizedUsdaFood | null {
   if (!isRecord(payload)) return null;
 
@@ -752,6 +899,7 @@ export function normalizeUsdaFood(payload: unknown): NormalizedUsdaFood | null {
     servingQuantity: 100,
     servingUnit: 'g',
     servingWeightGrams: 100,
+    servingOptions: usdaServingOptions(payload, String(Math.trunc(fdcId))),
     calories: calories === null ? null : Math.round(calories),
     protein: decimalColumn(entries, ['protein']),
     carbs: decimalColumn(entries, ['carbohydrate, by difference']),
@@ -791,6 +939,8 @@ export function usdaFoodItemData(
     servingQuantity: food.servingQuantity,
     servingUnit: food.servingUnit,
     servingWeightGrams: food.servingWeightGrams,
+    servingOptions:
+      food.servingOptions === null ? Prisma.DbNull : food.servingOptions,
     calories: food.calories,
     protein: food.protein,
     carbs: food.carbs,
