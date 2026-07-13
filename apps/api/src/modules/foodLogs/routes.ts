@@ -13,6 +13,7 @@ import {
   foodLogUpdateInputSchema,
   mixedMealCreateInputSchema,
   mixedMealPreviewInputSchema,
+  foodLogSaveAsManualFoodInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
   validateServingQuantity,
@@ -25,7 +26,11 @@ import { localDateRange } from '../../lib/dates.js';
 import { AppError, notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
-import { roundTo, serializeFoodLog } from '../../lib/serializers.js';
+import {
+  roundTo,
+  serializeFoodItem,
+  serializeFoodLog,
+} from '../../lib/serializers.js';
 import {
   findOrCreateUsdaFoodItem,
   usdaFdcConfig,
@@ -57,6 +62,9 @@ type FoodLogsFromCandidatesInput = z.infer<
 >;
 type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
+type FoodLogSaveAsManualFoodInput = z.infer<
+  typeof foodLogSaveAsManualFoodInputSchema
+>;
 type VisibleFoodItem = NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>;
 type FoodItemServingRequest = Pick<
   FoodLogFromFoodItemInput,
@@ -844,6 +852,175 @@ function withServingItemIndex(error: unknown, itemIndex: number): unknown {
 const foodLogInclude = {
   nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] },
 };
+
+function reusableFoodLogError(reason: string) {
+  return new AppError(
+    422,
+    'FOOD_LOG_NOT_REUSABLE',
+    'This FoodLog cannot be saved as a manual food.',
+    { reason },
+  );
+}
+
+function reusableServingSnapshot(foodLog: {
+  servingSnapshot: Prisma.JsonValue | null;
+}) {
+  const parsed = foodLogServingSnapshotSchema.safeParse(
+    foodLog.servingSnapshot,
+  );
+  if (!parsed.success) throw reusableFoodLogError('unsupported_serving');
+  return parsed.data;
+}
+
+function manuallyDerivedFoodData(
+  foodLog: {
+    foodName: string;
+    calories: number;
+    protein: Prisma.Decimal;
+    carbs: Prisma.Decimal | null;
+    fat: Prisma.Decimal | null;
+    fiber: Prisma.Decimal | null;
+    sugar: Prisma.Decimal | null;
+    sodium: number | null;
+  },
+  snapshot: FoodLogServingSnapshot,
+  input: FoodLogSaveAsManualFoodInput,
+) {
+  if (foodLog.carbs === null || foodLog.fat === null)
+    throw reusableFoodLogError('incomplete_nutrition');
+  const quantity = snapshot.requestedServing.quantity;
+  const unit = snapshot.requestedServing.unit;
+  const name = input.name ?? foodLog.foodName;
+  const normalizedName = name.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+  const option = snapshot.requestedServing.selectedServingOption;
+  const servingOptions =
+    option === null ? Prisma.JsonNull : { schemaVersion: 1, options: [option] };
+  return {
+    name,
+    description: input.description ?? null,
+    normalizedName,
+    normalizedBrandName: null,
+    searchText: normalizedName,
+    sourceType: 'user_custom' as const,
+    sourceProvider: 'manual' as const,
+    foodType: 'generic' as const,
+    servingQuantity: quantity,
+    servingUnit: unit,
+    servingWeightGrams:
+      snapshot.resolution.resolvedWeightGrams ??
+      snapshot.nutritionBasis.equivalentWeightGrams,
+    servingOptions: servingOptions as Prisma.InputJsonValue,
+    calories: foodLog.calories,
+    protein: foodLog.protein,
+    carbs: foodLog.carbs,
+    fat: foodLog.fat,
+    fiber: foodLog.fiber,
+    sugar: foodLog.sugar,
+    sodium: foodLog.sodium,
+  };
+}
+
+foodLogsRouter.post(
+  '/:id/save-as-manual-food',
+  validateParams(idParamsSchema),
+  validateBody(foodLogSaveAsManualFoodInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const input = validatedBody<FoodLogSaveAsManualFoodInput>(response);
+    const foodItem = await prisma.$transaction(async (tx) => {
+      const existing = await tx.foodItem.findUnique({
+        where: { derivedFromFoodLogId: id },
+        include: {
+          nutrients: { orderBy: { nutrientKey: 'asc' } },
+          barcodes: true,
+          savedByUsers: { where: { userId }, select: { id: true } },
+          servingPreferences: {
+            where: { userId },
+            select: {
+              defaultServingQuantity: true,
+              defaultServingUnit: true,
+              defaultServingOptionId: true,
+            },
+          },
+        },
+      });
+      if (existing !== null) return existing;
+      const foodLog = await tx.foodLog.findFirst({
+        where: { id, userId },
+        include: { nutrients: { orderBy: { nutrientKey: 'asc' } } },
+      });
+      if (foodLog === null) throw notFoundError('Food log');
+      if (foodLog.recipeSnapshot !== null)
+        throw reusableFoodLogError('recipe_origin');
+      if (foodLog.mixedMealSnapshot !== null)
+        throw reusableFoodLogError('mixed_meal_origin');
+      const snapshot = reusableServingSnapshot(foodLog);
+      if (snapshot.provenance.basisOrigin === 'ai_estimate')
+        throw reusableFoodLogError('ai_estimated');
+      if (
+        snapshot.provenance.basisOrigin === 'food_item' &&
+        snapshot.provenance.sourceType !== 'user_custom' &&
+        snapshot.nutritionOverride === null
+      )
+        throw reusableFoodLogError('missing_persisted_override');
+      const data = manuallyDerivedFoodData(foodLog, snapshot, input);
+      try {
+        return await tx.foodItem.create({
+          data: {
+            userId,
+            derivedFromFoodLogId: id,
+            ...data,
+            nutrients: {
+              create: foodLog.nutrients.map((nutrient) => ({
+                nutrientKey: nutrient.nutrientKey,
+                amount: nutrient.amount,
+                unit: nutrient.unit,
+              })),
+            },
+          },
+          include: {
+            nutrients: { orderBy: { nutrientKey: 'asc' } },
+            barcodes: true,
+            savedByUsers: { where: { userId }, select: { id: true } },
+            servingPreferences: {
+              where: { userId },
+              select: {
+                defaultServingQuantity: true,
+                defaultServingUnit: true,
+                defaultServingOptionId: true,
+              },
+            },
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          return tx.foodItem.findUniqueOrThrow({
+            where: { derivedFromFoodLogId: id },
+            include: {
+              nutrients: { orderBy: { nutrientKey: 'asc' } },
+              barcodes: true,
+              savedByUsers: { where: { userId }, select: { id: true } },
+              servingPreferences: {
+                where: { userId },
+                select: {
+                  defaultServingQuantity: true,
+                  defaultServingUnit: true,
+                  defaultServingOptionId: true,
+                },
+              },
+            },
+          });
+        }
+        throw error;
+      }
+    });
+    sendSuccess(response, serializeFoodItem(foodItem));
+  },
+);
 
 type FoodLogTransaction = Omit<
   typeof prisma,

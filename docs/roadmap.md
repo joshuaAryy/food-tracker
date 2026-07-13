@@ -371,11 +371,17 @@ and manual ingredients both passed automated and physical-device validation.
 
 ## Phase 13 — Custom Food Library And Saved Foods
 
-- save adjusted logs as reusable custom foods when safe
-- improve saved and recent food reuse
-- default serving preferences
-- personal food library behavior
-- clearer distinction between trusted global foods and user-custom foods
+- **Complete**
+- Slice 1 backend library and safe reuse — **Complete**
+- Slice 2 mobile library, consumer integration, and physical-device validation — **Complete**
+- Saved Foods, My Foods, Recent Foods, Archived Foods, default-serving
+  preferences, safe FoodLog conversion, archive/restore, and consumer
+  prefills are implemented.
+- Automated validation passed.
+- Physical-device validation passed.
+- The deferred multi-method Food Log selector redesign remains future work.
+
+The next roadmap phase is Phase 14 — Photo Food Logging.
 
 ## Phase 14 — Photo Food Logging
 

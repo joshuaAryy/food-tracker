@@ -10,6 +10,8 @@ import {
   manualFoodItemUpdateInputSchema,
   foodItemSearchCandidatesInputSchema,
   foodItemsQuerySchema,
+  foodLibraryQuerySchema,
+  foodItemDefaultServingInputSchema,
   idParamsSchema,
   classifyServingUnit,
   type ServingUnit,
@@ -50,6 +52,7 @@ import {
   queryVariants,
   rankParseCandidates,
 } from './candidate-ranking.js';
+import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 type ManualFoodItemCreateInput = z.infer<
@@ -76,6 +79,8 @@ type FoodBarcodeLookupInput = z.infer<typeof foodBarcodeLookupInputSchema>;
 type FoodBarcodeParams = z.infer<typeof foodBarcodeParamsSchema>;
 type FoodBarcodeQuery = z.infer<typeof foodBarcodeQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
+type FoodLibraryQuery = z.infer<typeof foodLibraryQuerySchema>;
+type DefaultServingInput = z.infer<typeof foodItemDefaultServingInputSchema>;
 
 export const foodItemsRouter = Router();
 
@@ -347,6 +352,20 @@ function foodItemInclude(userId: string) {
       where: { userId },
       select: { id: true },
     },
+    servingPreferences: {
+      where: { userId },
+      select: {
+        defaultServingQuantity: true,
+        defaultServingUnit: true,
+        defaultServingOptionId: true,
+      },
+    },
+    foodLogs: {
+      where: { userId },
+      select: { loggedAt: true },
+      orderBy: { loggedAt: 'desc' as const },
+      take: 1,
+    },
   };
 }
 
@@ -361,7 +380,9 @@ function candidateReason(
   sourceType: string,
   hasBarcode: boolean,
   isSaved = false,
+  isRecent = false,
 ): AiFoodCandidateMatchReason {
+  if (isRecent) return 'recent';
   if (isSaved) return 'saved';
   if (sourceType === 'user_custom') return 'custom';
   if (sourceType === 'app_owned') return 'app';
@@ -637,6 +658,7 @@ foodItemsRouter.post(
           foodItem.sourceType,
           foodItem.barcodes.length > 0,
           serialized.isSaved,
+          foodItem.foodLogs.length > 0,
         ),
         confidence: 'low',
         defaultServingMultiplier: 1,
@@ -810,6 +832,259 @@ foodItemsRouter.post(
     }
 
     sendSuccess(response, serializeFoodItem(racedFoodItem));
+  },
+);
+
+function libraryFoodItem(
+  foodItem: Awaited<ReturnType<typeof visibleFoodItem>>,
+  lastUsedAt: Date | null = null,
+) {
+  if (foodItem === null) return null;
+  return {
+    ...serializeFoodItem(foodItem),
+    archivedAt: foodItem.archivedAt?.toISOString() ?? null,
+    lastUsedAt: lastUsedAt?.toISOString() ?? null,
+  };
+}
+
+function defaultServingError() {
+  return new AppError(
+    422,
+    'SERVING_NEEDS_REVIEW',
+    'This serving needs review before it can be used as a default.',
+  );
+}
+
+async function validateDefaultServing(
+  foodItem: NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>,
+  input: DefaultServingInput,
+) {
+  if (
+    foodItem.servingQuantity === null ||
+    foodItem.servingUnit === null ||
+    foodItem.calories === null ||
+    foodItem.protein === null
+  ) {
+    throw defaultServingError();
+  }
+  const result = calculateAuthoritativeServing({
+    basis: {
+      quantity: foodItem.servingQuantity.toNumber(),
+      unit: foodItem.servingUnit,
+      displayText: null,
+      equivalentWeightGrams: foodItem.servingWeightGrams?.toNumber() ?? null,
+      equivalentVolumeMl: null,
+    },
+    basisNutrition: {
+      calories: foodItem.calories,
+      protein: foodItem.protein.toNumber(),
+      carbs: foodItem.carbs?.toNumber() ?? null,
+      fat: foodItem.fat?.toNumber() ?? null,
+      fiber: foodItem.fiber?.toNumber() ?? null,
+      sugar: foodItem.sugar?.toNumber() ?? null,
+      sodium: foodItem.sodium,
+      nutrients: Object.fromEntries(
+        foodItem.nutrients.map((nutrient) => [
+          nutrient.nutrientKey,
+          { amount: nutrient.amount.toNumber(), unit: nutrient.unit },
+        ]),
+      ),
+    },
+    servingOptions: foodItem.servingOptions,
+    serving: {
+      quantity: input.quantity,
+      unit: input.unit,
+      ...(input.servingOptionId === undefined
+        ? {}
+        : { servingOptionId: input.servingOptionId }),
+    },
+    provenance: {
+      basisOrigin: 'food_item',
+      foodItemId: foodItem.id,
+      sourceType: foodItem.sourceType,
+      sourceProvider: foodItem.sourceProvider,
+      sourceId: foodItem.sourceId,
+      trustLevel: 'trusted',
+    },
+  });
+  if (!result.ok) throw defaultServingError();
+}
+
+foodItemsRouter.get(
+  '/library',
+  validateQuery(foodLibraryQuerySchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedQuery<FoodLibraryQuery>(response);
+    const query =
+      input.query === undefined ? undefined : normalizeText(input.query);
+    const active = { archivedAt: null };
+    const baseSearch = query === undefined ? {} : searchTextWhere(query);
+    let foodItems: Array<{
+      item: Awaited<ReturnType<typeof visibleFoodItem>>;
+      lastUsedAt: Date | null;
+    }> = [];
+    if (input.section === 'recent') {
+      const logs = await prisma.foodLog.findMany({
+        where: {
+          userId,
+          foodItemId: { not: null },
+          foodItem: { is: { ...visibleFoodWhere(userId), ...baseSearch } },
+        },
+        distinct: ['foodItemId'],
+        orderBy: [{ foodItemId: 'asc' }, { loggedAt: 'desc' }],
+        select: { foodItemId: true, loggedAt: true },
+        take: input.limit,
+      });
+      foodItems = await Promise.all(
+        logs.map(async (log) => ({
+          item: await visibleFoodItem(log.foodItemId!, userId),
+          lastUsedAt: log.loggedAt,
+        })),
+      );
+    } else {
+      const where: Prisma.FoodItemWhereInput =
+        input.section === 'saved'
+          ? {
+              ...visibleFoodWhere(userId),
+              ...baseSearch,
+              savedByUsers: { some: { userId } },
+            }
+          : input.section === 'my_foods'
+            ? {
+                userId,
+                sourceType: 'user_custom',
+                sourceProvider: 'manual',
+                ...active,
+                ...baseSearch,
+              }
+            : {
+                userId,
+                sourceType: 'user_custom',
+                sourceProvider: 'manual',
+                archivedAt: { not: null },
+                ...baseSearch,
+              };
+      const records = await prisma.foodItem.findMany({
+        where,
+        include: foodItemInclude(userId),
+        orderBy:
+          input.section === 'archived'
+            ? [{ archivedAt: 'desc' }, { name: 'asc' }]
+            : [{ updatedAt: 'desc' }, { name: 'asc' }],
+        take: input.limit,
+      });
+      foodItems = records.map((item) => ({ item, lastUsedAt: null }));
+    }
+    const items = foodItems
+      .map(({ item, lastUsedAt }) => libraryFoodItem(item, lastUsedAt))
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+    items.sort((left, right) =>
+      input.sort === 'name'
+        ? left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+        : (right.lastUsedAt ?? right.updatedAt).localeCompare(
+            left.lastUsedAt ?? left.updatedAt,
+          ) || left.name.localeCompare(right.name),
+    );
+    sendSuccess(response, { section: input.section, foodItems: items });
+  },
+);
+
+foodItemsRouter.get(
+  '/library/:id',
+  validateParams(idParamsSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const item = await prisma.foodItem.findFirst({
+      where: {
+        id,
+        OR: [
+          { archivedAt: null, OR: [{ userId }, { userId: null }] },
+          { userId, sourceType: 'user_custom', sourceProvider: 'manual' },
+        ],
+      },
+      include: foodItemInclude(userId),
+    });
+    if (item === null) throw notFoundError('Food item');
+    sendSuccess(response, libraryFoodItem(item));
+  },
+);
+
+foodItemsRouter.put(
+  '/:id/default-serving',
+  validateParams(idParamsSchema),
+  validateBody(foodItemDefaultServingInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const foodItem = await visibleFoodItem(id, userId);
+    if (foodItem === null) throw notFoundError('Food item');
+    const input = validatedBody<DefaultServingInput>(response);
+    await validateDefaultServing(foodItem, input);
+    await prisma.foodItemServingPreference.upsert({
+      where: { userId_foodItemId: { userId, foodItemId: id } },
+      update: {
+        defaultServingQuantity: input.quantity,
+        defaultServingUnit: input.unit,
+        defaultServingOptionId: input.servingOptionId ?? null,
+      },
+      create: {
+        userId,
+        foodItemId: id,
+        defaultServingQuantity: input.quantity,
+        defaultServingUnit: input.unit,
+        defaultServingOptionId: input.servingOptionId ?? null,
+      },
+    });
+    sendSuccess(response, {
+      foodItemId: id,
+      defaultServing: {
+        quantity: input.quantity,
+        unit: input.unit,
+        servingOptionId: input.servingOptionId ?? null,
+      },
+    });
+  },
+);
+
+foodItemsRouter.delete(
+  '/:id/default-serving',
+  validateParams(idParamsSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    if ((await visibleFoodItem(id, userId)) === null)
+      throw notFoundError('Food item');
+    await prisma.foodItemServingPreference.deleteMany({
+      where: { userId, foodItemId: id },
+    });
+    sendSuccess(response, { foodItemId: id, defaultServing: null });
+  },
+);
+
+foodItemsRouter.post(
+  '/:id/restore',
+  validateParams(idParamsSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const item = await prisma.foodItem.findFirst({
+      where: {
+        id,
+        userId,
+        sourceType: 'user_custom',
+        sourceProvider: 'manual',
+        archivedAt: { not: null },
+      },
+    });
+    if (item === null) throw notFoundError('Food item');
+    const restored = await prisma.foodItem.update({
+      where: { id },
+      data: { archivedAt: null },
+      include: foodItemInclude(userId),
+    });
+    sendSuccess(response, serializeFoodItem(restored));
   },
 );
 

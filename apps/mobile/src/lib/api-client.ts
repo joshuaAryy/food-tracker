@@ -12,6 +12,10 @@ import type {
   FoodItemExternalCandidateInput,
   FoodItemInput,
   FoodItemSearchCandidatesInput,
+  FoodLibraryQuery,
+  FoodLibraryResponse,
+  FoodItemDefaultServingInput,
+  FoodLogSaveAsManualFoodInput,
   FoodLog,
   FoodLogFromAiEstimateInput,
   FoodLogsFromCandidatesInput,
@@ -245,6 +249,15 @@ function foodItemsQueryString(query: FoodItemsQuery): string {
   return value === '' ? '' : `?${value}`;
 }
 
+function foodLibraryQueryString(query: FoodLibraryQuery): string {
+  const params = new URLSearchParams();
+  params.set('section', query.section);
+  if (query.query !== undefined) params.set('query', query.query);
+  if (query.sort !== undefined) params.set('sort', query.sort);
+  if (query.limit !== undefined) params.set('limit', String(query.limit));
+  return `?${params.toString()}`;
+}
+
 function barcodeLookupQueryString(query: BarcodeLookupQuery): string {
   const params = new URLSearchParams();
   if (query.regionCode !== undefined) {
@@ -291,6 +304,12 @@ export const api = {
     summary: () => request<DashboardSummary>('/dashboard/summary'),
   },
   foodItems: {
+    library: (query: FoodLibraryQuery) =>
+      request<FoodLibraryResponse>(
+        `/food-items/library${foodLibraryQueryString(query)}`,
+      ),
+    libraryDetail: (id: string) =>
+      request<FoodItem>(`/food-items/library/${id}`),
     list: (query: FoodItemsQuery = {}) =>
       request<{ foodItems: FoodItem[] }>(
         `/food-items${foodItemsQueryString(query)}`,
@@ -332,6 +351,18 @@ export const api = {
       request<{ id: string; saved: false }>(`/food-items/${id}/save`, {
         method: 'DELETE',
       }),
+    setDefaultServing: (id: string, input: FoodItemDefaultServingInput) =>
+      request<{
+        foodItemId: string;
+        defaultServing: FoodItem['defaultServing'];
+      }>(`/food-items/${id}/default-serving`, { method: 'PUT', body: input }),
+    removeDefaultServing: (id: string) =>
+      request<{ foodItemId: string; defaultServing: null }>(
+        `/food-items/${id}/default-serving`,
+        { method: 'DELETE' },
+      ),
+    restore: (id: string) =>
+      request<FoodItem>(`/food-items/${id}/restore`, { method: 'POST' }),
     lookupBarcode: (barcode: string, query: BarcodeLookupQuery = {}) =>
       request<FoodItem>(
         `/food-items/barcode/${encodeURIComponent(barcode)}${barcodeLookupQueryString(query)}`,
@@ -343,6 +374,11 @@ export const api = {
       }),
   },
   foodLogs: {
+    saveAsManualFood: (id: string, input: FoodLogSaveAsManualFoodInput = {}) =>
+      request<FoodItem>(`/food-logs/${id}/save-as-manual-food`, {
+        method: 'POST',
+        body: input,
+      }),
     list: (query: FoodLogsQuery = {}) =>
       request<{ foodLogs: FoodLog[] }>(
         `/food-logs${foodLogsQueryString(query)}`,

@@ -277,3 +277,14 @@ food-tracker/
 ├── package.json
 └── pnpm-workspace.yaml
 ```
+# Food library boundary (Phase 13 complete)
+
+The library is a query view over `SavedFoodItem`, current-user manual
+`FoodItem`s, and FoodLog-derived recency; it has no recent-food table.
+Default servings are per-user preferences validated by the existing serving
+resolver. FoodLog conversion copies frozen persisted values and never reads a
+live source FoodItem, preserving snapshot history.
+
+The mobile library uses the existing Food Log modal stack and shared serving
+session. It renders backend library sections and nutrition rather than storing
+or calculating recent-food or serving facts locally.

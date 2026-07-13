@@ -22,6 +22,7 @@ export default function ManualFoodScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = typeof params.id === 'string' ? params.id : null;
   const setResult = useAppStore((state) => state.setMixedMealManualResult);
+  const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loaded, setLoaded] = useState<FoodItem | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -142,6 +143,7 @@ export default function ManualFoodScreen() {
           ? await api.foodItems.createManual(input)
           : await api.foodItems.updateManual(id, input);
       if (id === null) setResult(food);
+      markDataChanged();
       router.back();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -161,7 +163,10 @@ export default function ManualFoodScreen() {
           onPress: () =>
             void api.foodItems
               .archive(id)
-              .then(() => router.back())
+              .then(() => {
+                markDataChanged();
+                router.back();
+              })
               .catch((cause) => setError(errorMessage(cause))),
         },
       ],

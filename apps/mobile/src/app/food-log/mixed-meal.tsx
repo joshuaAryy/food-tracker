@@ -31,6 +31,7 @@ import {
   type MixedMealDraft,
 } from '@/lib/mixed-meal-ui';
 import { refreshAfterMixedMeal } from '@/lib/mixed-meal-ui';
+import { defaultServingDraft } from '@/lib/food-library-ui';
 import { useAppStore } from '@/store/app-store';
 
 function initialDraft(): MixedMealDraft {
@@ -97,9 +98,7 @@ export default function MixedMealScreen() {
     const recipeDraft: RecipeEditorIngredientDraft = {
       key: `mixed-${Date.now()}`,
       foodItemId: manualResult.id,
-      amount: String(manualResult.servingQuantity ?? ''),
-      unit: manualResult.servingUnit ?? '',
-      servingOptionId: null,
+      ...defaultServingDraft(manualResult),
       servingStatus: 'invalid',
       food: manualResult,
       label: manualResult.name,
@@ -200,6 +199,7 @@ export default function MixedMealScreen() {
     index: number,
     operation: 'add' | 'edit',
   ) => {
+    const prefill = defaultServingDraft(food);
     const key = `mixed-serving-${Date.now()}-${index}`;
     const ingredient: RecipeEditorIngredientDraft = {
       key:
@@ -210,15 +210,15 @@ export default function MixedMealScreen() {
       amount:
         operation === 'edit'
           ? currentDraft.ingredients[index]!.amount
-          : String(food.servingQuantity ?? ''),
+          : prefill.amount,
       unit:
         operation === 'edit'
           ? currentDraft.ingredients[index]!.unit
-          : (food.servingUnit ?? ''),
+          : prefill.unit,
       servingOptionId:
         operation === 'edit'
           ? currentDraft.ingredients[index]!.servingOptionId
-          : null,
+          : prefill.servingOptionId,
       servingStatus: 'invalid',
       food,
       label: food.name,

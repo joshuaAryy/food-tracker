@@ -397,3 +397,9 @@ change, archive, or are deleted.
 Slice 2 also adds nullable `FoodItem.description` for user-owned manual foods.
 Manual foods continue to use the existing FoodItem row, normalized nutrient
 rows, serving basis, serving options, ownership, and archive lifecycle.
+# Food library additions
+
+`FoodItemServingPreference` stores a user-owned requested serving prefill,
+unique by user and FoodItem. `FoodItem.derivedFromFoodLogId` is nullable and
+unique so a source log can yield at most one derived manual FoodItem. Both are
+additive; SavedFoodItem remains the saved/favorite relation.

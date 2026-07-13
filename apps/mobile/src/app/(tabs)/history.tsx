@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Beef,
@@ -643,6 +643,7 @@ function HistorySkeleton() {
 export default function HistoryScreen() {
   const router = useRouter();
   const dataVersion = useAppStore((state) => state.dataVersion);
+  const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
@@ -783,6 +784,34 @@ export default function HistoryScreen() {
     });
   };
 
+  const canSaveToMyFoods = (food: FoodLog) =>
+    food.recipeSnapshot === null &&
+    food.mixedMealSnapshot === null &&
+    food.servingSnapshot?.provenance.basisOrigin !== 'ai_estimate';
+
+  const saveToMyFoods = (food: FoodLog) => {
+    Alert.alert(
+      'Save to My Foods?',
+      'This makes a reusable manual food from this frozen entry.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          onPress: () =>
+            void api.foodLogs
+              .saveAsManualFood(food.id)
+              .then(() => {
+                markDataChanged();
+                Alert.alert('Saved to My Foods');
+              })
+              .catch((cause) =>
+                Alert.alert('Could not save food', errorMessage(cause)),
+              ),
+        },
+      ],
+    );
+  };
+
   return (
     <AppScreen
       refreshing={refreshing}
@@ -911,44 +940,60 @@ export default function HistoryScreen() {
                 </View>
                 <View>
                   {group.foods.map((food) => (
-                    <Pressable
-                      key={food.id}
-                      accessibilityLabel={`Edit ${food.foodName}`}
-                      accessibilityRole="button"
-                      className="flex-row items-center gap-3 border-t border-line py-4 active:bg-[#F6F6F6]"
-                      onPress={() => openFood(food)}
-                    >
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F4F4F4]">
-                        <AppText variant="label" className="text-ink">
-                          {food.foodName.slice(0, 1).toUpperCase()}
-                        </AppText>
-                      </View>
-                      <View className="min-w-0 flex-1 gap-1">
-                        <AppText variant="label" numberOfLines={1}>
-                          {food.foodName}
-                        </AppText>
-                        <AppText variant="caption" muted>
-                          {time(food.loggedAt, timezone)} ·{' '}
-                          {food.protein.toFixed(1)} g protein
-                        </AppText>
-                        <OptionalMacroLine food={food} />
-                      </View>
-                      <View className="items-end">
-                        <AppText variant="heading" className="tabular-nums">
-                          {food.calories.toLocaleString()}
-                        </AppText>
-                        <View className="flex-row items-center gap-1">
-                          <Flame
-                            color={ringAccentColors[0]}
-                            size={12}
-                            strokeWidth={2.35}
-                          />
-                          <AppText variant="caption" muted>
-                            kcal
+                    <View key={food.id}>
+                      <Pressable
+                        accessibilityLabel={`Edit ${food.foodName}`}
+                        accessibilityRole="button"
+                        className="flex-row items-center gap-3 border-t border-line py-4 active:bg-[#F6F6F6]"
+                        onPress={() => openFood(food)}
+                      >
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-[#F4F4F4]">
+                          <AppText variant="label" className="text-ink">
+                            {food.foodName.slice(0, 1).toUpperCase()}
                           </AppText>
                         </View>
-                      </View>
-                    </Pressable>
+                        <View className="min-w-0 flex-1 gap-1">
+                          <AppText variant="label" numberOfLines={1}>
+                            {food.foodName}
+                          </AppText>
+                          <AppText variant="caption" muted>
+                            {time(food.loggedAt, timezone)} ·{' '}
+                            {food.protein.toFixed(1)} g protein
+                          </AppText>
+                          <OptionalMacroLine food={food} />
+                        </View>
+                        <View className="items-end">
+                          <AppText variant="heading" className="tabular-nums">
+                            {food.calories.toLocaleString()}
+                          </AppText>
+                          <View className="flex-row items-center gap-1">
+                            <Flame
+                              color={ringAccentColors[0]}
+                              size={12}
+                              strokeWidth={2.35}
+                            />
+                            <AppText variant="caption" muted>
+                              kcal
+                            </AppText>
+                          </View>
+                        </View>
+                      </Pressable>
+                      {canSaveToMyFoods(food) ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Save ${food.foodName} to My Foods`}
+                          className="self-end px-3 pb-2"
+                          onPress={() => saveToMyFoods(food)}
+                        >
+                          <AppText
+                            variant="caption"
+                            className="text-primary-dark"
+                          >
+                            Save to My Foods
+                          </AppText>
+                        </Pressable>
+                      ) : null}
+                    </View>
                   ))}
                 </View>
               </View>

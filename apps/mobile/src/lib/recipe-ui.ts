@@ -16,6 +16,7 @@ import {
   type ProvisionalServingPreview,
   type ServingPreviewBasis,
 } from './serving-preview';
+import { defaultServingDraft } from './food-library-ui';
 
 export type RecipeIngredientDraft = {
   key: string;
@@ -93,14 +94,15 @@ export function applyTrustedFoodSelection(
   index: number,
   food: FoodItem,
 ): RecipeEditorIngredientDraft[] {
+  const serving = defaultServingDraft(food);
   return drafts.map((draft, draftIndex) => {
     if (draftIndex !== index) return draft;
     return {
       ...draft,
       foodItemId: food.id,
-      amount: food.servingQuantity === null ? '' : String(food.servingQuantity),
-      unit: food.servingUnit ?? '',
-      servingOptionId: null,
+      amount: serving.amount,
+      unit: serving.unit,
+      servingOptionId: serving.servingOptionId,
       servingStatus: 'invalid',
       food,
       label: food.name,

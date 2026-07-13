@@ -55,6 +55,7 @@ import {
   type ServingChoice,
   type ServingPreviewBasis,
 } from '@/lib/serving-preview';
+import { defaultServingDraft } from '@/lib/food-library-ui';
 
 interface FoodForm {
   foodName: string;
@@ -1017,11 +1018,14 @@ export default function FoodLogScreen() {
   const selectNutritionSource = (source: NutritionSource) => {
     const current = getValues();
     reset(formValuesFromFoodItem(source, current));
+    const prefill =
+      'defaultServing' in source ? defaultServingDraft(source) : null;
     setServingAmount(
-      source.servingQuantity === null ? '' : String(source.servingQuantity),
+      prefill?.amount ??
+        (source.servingQuantity === null ? '' : String(source.servingQuantity)),
     );
-    setServingUnit(source.servingUnit ?? '');
-    setSelectedServingOptionId(null);
+    setServingUnit(prefill?.unit ?? source.servingUnit ?? '');
+    setSelectedServingOptionId(prefill?.servingOptionId ?? null);
     setSnapshotServingLog(null);
     setCurrentEditServingOptions(null);
     setClearNutritionOverride(false);
@@ -1460,6 +1464,28 @@ export default function FoodLogScreen() {
                   <AppText variant="label">Describe meal</AppText>
                   <AppText variant="caption" muted>
                     Parse a messy meal note before logging.
+                  </AppText>
+                </View>
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Open Food Library"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/food-log/library' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <BookOpen
+                    color={colors.light.ink}
+                    size={18}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Food Library</AppText>
+                  <AppText variant="caption" muted>
+                    Saved, personal, and recent foods.
                   </AppText>
                 </View>
               </View>

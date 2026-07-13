@@ -61,6 +61,18 @@ export default function RootLayout() {
           name="food-log/manual-food"
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
+        <Stack.Screen
+          name="food-log/library"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="food-log/library-detail"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="food-log/default-serving"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
       </Stack>
       <StatusBar style="dark" />
     </>

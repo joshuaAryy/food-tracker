@@ -499,3 +499,12 @@ Phase 7 should add skeleton loading where appropriate. Skeletons should match
 the page layout, preserve layout shape, reduce perceived loading time, avoid
 jarring layout jumps, follow the Phase 6 white/charcoal visual standard, use
 subtle neutral placeholder shapes, and avoid heavy animation.
+# Phase 13 — Custom Food Library and Saved Foods
+
+Default servings are validated prefills, not nutrition calculations. Candidate
+personalization may prioritize relevant recent, saved, and custom matches but
+must not bypass relevance scoring. FoodLog conversion is transactional and
+idempotent by its nullable unique source relation.
+
+The Food Library reuses the existing four-tab application and Food Log modal
+stack. The proposed interactive logging-method selector remains future work.

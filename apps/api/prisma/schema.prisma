@@ -160,19 +160,20 @@ enum NutrientUnit {
 }
 
 model User {
-  id                 String              @id @default(uuid()) @db.Uuid
-  email              String?
-  createdAt          DateTime            @default(now()) @db.Timestamptz
-  updatedAt          DateTime            @updatedAt @db.Timestamptz
-  profile            UserProfile?
-  goal               UserGoal?
-  trackingPreference TrackingPreference?
-  foodLogs           FoodLog[]
-  recipes            Recipe[]
-  foodItems          FoodItem[]
-  savedFoodItems     SavedFoodItem[]
-  weightLogs         WeightLog[]
-  recommendations    Recommendation[]
+  id                         String                      @id @default(uuid()) @db.Uuid
+  email                      String?
+  createdAt                  DateTime                    @default(now()) @db.Timestamptz
+  updatedAt                  DateTime                    @updatedAt @db.Timestamptz
+  profile                    UserProfile?
+  goal                       UserGoal?
+  trackingPreference         TrackingPreference?
+  foodLogs                   FoodLog[]
+  recipes                    Recipe[]
+  foodItems                  FoodItem[]
+  savedFoodItems             SavedFoodItem[]
+  foodItemServingPreferences FoodItemServingPreference[]
+  weightLogs                 WeightLog[]
+  recommendations            Recommendation[]
 }
 
 model UserProfile {
@@ -210,32 +211,33 @@ model TrackingPreference {
 }
 
 model FoodLog {
-  id              String            @id @default(uuid()) @db.Uuid
-  userId          String            @db.Uuid
-  foodItemId      String?           @db.Uuid
-  recipeId        String?           @db.Uuid
-  foodName        String
-  mealType        MealType
-  calories        Int
-  protein         Decimal           @db.Decimal(6, 1)
-  carbs           Decimal?          @db.Decimal(6, 1)
-  fat             Decimal?          @db.Decimal(6, 1)
-  fiber           Decimal?          @db.Decimal(6, 1)
-  sugar           Decimal?          @db.Decimal(6, 1)
-  sodium          Int?
-  servingQuantity Decimal?          @db.Decimal(8, 2)
-  servingUnit     String?
-  servingSnapshot Json?
-  recipeSnapshot  Json?
+  id                String            @id @default(uuid()) @db.Uuid
+  userId            String            @db.Uuid
+  foodItemId        String?           @db.Uuid
+  recipeId          String?           @db.Uuid
+  foodName          String
+  mealType          MealType
+  calories          Int
+  protein           Decimal           @db.Decimal(6, 1)
+  carbs             Decimal?          @db.Decimal(6, 1)
+  fat               Decimal?          @db.Decimal(6, 1)
+  fiber             Decimal?          @db.Decimal(6, 1)
+  sugar             Decimal?          @db.Decimal(6, 1)
+  sodium            Int?
+  servingQuantity   Decimal?          @db.Decimal(8, 2)
+  servingUnit       String?
+  servingSnapshot   Json?
+  recipeSnapshot    Json?
   mixedMealSnapshot Json?
-  notes           String?
-  loggedAt        DateTime          @db.Timestamptz
-  createdAt       DateTime          @default(now()) @db.Timestamptz
-  updatedAt       DateTime          @updatedAt @db.Timestamptz
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  foodItem        FoodItem?         @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
-  recipe          Recipe?           @relation(fields: [recipeId], references: [id], onDelete: SetNull)
-  nutrients       FoodLogNutrient[]
+  notes             String?
+  loggedAt          DateTime          @db.Timestamptz
+  createdAt         DateTime          @default(now()) @db.Timestamptz
+  updatedAt         DateTime          @updatedAt @db.Timestamptz
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem          FoodItem?         @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  derivedFoodItem   FoodItem?         @relation("DerivedFromFoodLog")
+  recipe            Recipe?           @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  nutrients         FoodLogNutrient[]
 
   @@index([userId])
   @@index([foodItemId])
@@ -246,40 +248,43 @@ model FoodLog {
 }
 
 model FoodItem {
-  id                  String              @id @default(uuid()) @db.Uuid
-  userId              String?             @db.Uuid
-  name                String
-  brandName           String?
-  description         String?
-  sourceType          FoodItemSourceType
-  foodType            FoodItemType
-  normalizedName      String
-  normalizedBrandName String?
-  searchText          String
-  servingQuantity     Decimal?            @db.Decimal(8, 2)
-  servingUnit         String?
-  servingWeightGrams  Decimal?            @db.Decimal(8, 2)
-  servingOptions      Json?
-  calories            Int?
-  protein             Decimal?            @db.Decimal(6, 1)
-  carbs               Decimal?            @db.Decimal(6, 1)
-  fat                 Decimal?            @db.Decimal(6, 1)
-  fiber               Decimal?            @db.Decimal(6, 1)
-  sugar               Decimal?            @db.Decimal(6, 1)
-  sodium              Int?
-  additionalNutrients Json?
-  sourceProvider      FoodSourceProvider?
-  sourceId            String?
-  sourceUpdatedAt     DateTime?           @db.Timestamptz
-  archivedAt          DateTime?           @db.Timestamptz
-  createdAt           DateTime            @default(now()) @db.Timestamptz
-  updatedAt           DateTime            @updatedAt @db.Timestamptz
-  user                User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  barcodes            FoodBarcode[]
-  savedByUsers        SavedFoodItem[]
-  foodLogs            FoodLog[]
-  recipeIngredients   RecipeIngredient[]
-  nutrients           FoodItemNutrient[]
+  id                   String                      @id @default(uuid()) @db.Uuid
+  userId               String?                     @db.Uuid
+  name                 String
+  brandName            String?
+  description          String?
+  sourceType           FoodItemSourceType
+  foodType             FoodItemType
+  normalizedName       String
+  normalizedBrandName  String?
+  searchText           String
+  servingQuantity      Decimal?                    @db.Decimal(8, 2)
+  servingUnit          String?
+  servingWeightGrams   Decimal?                    @db.Decimal(8, 2)
+  servingOptions       Json?
+  calories             Int?
+  protein              Decimal?                    @db.Decimal(6, 1)
+  carbs                Decimal?                    @db.Decimal(6, 1)
+  fat                  Decimal?                    @db.Decimal(6, 1)
+  fiber                Decimal?                    @db.Decimal(6, 1)
+  sugar                Decimal?                    @db.Decimal(6, 1)
+  sodium               Int?
+  additionalNutrients  Json?
+  sourceProvider       FoodSourceProvider?
+  sourceId             String?
+  sourceUpdatedAt      DateTime?                   @db.Timestamptz
+  archivedAt           DateTime?                   @db.Timestamptz
+  derivedFromFoodLogId String?                     @unique @db.Uuid
+  createdAt            DateTime                    @default(now()) @db.Timestamptz
+  updatedAt            DateTime                    @updatedAt @db.Timestamptz
+  user                 User?                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  barcodes             FoodBarcode[]
+  savedByUsers         SavedFoodItem[]
+  foodLogs             FoodLog[]
+  derivedFromFoodLog   FoodLog?                    @relation("DerivedFromFoodLog", fields: [derivedFromFoodLogId], references: [id], onDelete: SetNull)
+  servingPreferences   FoodItemServingPreference[]
+  recipeIngredients    RecipeIngredient[]
+  nutrients            FoodItemNutrient[]
 
   @@index([userId])
   @@index([sourceType])
@@ -287,6 +292,23 @@ model FoodItem {
   @@index([archivedAt])
   @@index([normalizedName])
   @@index([normalizedBrandName])
+}
+
+model FoodItemServingPreference {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @db.Uuid
+  foodItemId             String   @db.Uuid
+  defaultServingQuantity Decimal  @db.Decimal(8, 2)
+  defaultServingUnit     String
+  defaultServingOptionId String?
+  createdAt              DateTime @default(now()) @db.Timestamptz
+  updatedAt              DateTime @updatedAt @db.Timestamptz
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItem               FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, foodItemId])
+  @@index([userId])
+  @@index([foodItemId])
 }
 
 model Recipe {

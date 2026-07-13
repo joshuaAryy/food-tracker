@@ -167,6 +167,7 @@ export interface FoodItem {
   sourceId: string | null;
   sourceUpdatedAt: string | null;
   isSaved: boolean;
+  defaultServing?: FoodItemDefaultServing | null;
   servingQuantity: number | null;
   servingUnit: string | null;
   servingWeightGrams: number | null;
@@ -184,6 +185,24 @@ export interface FoodItem {
   barcodes: FoodBarcode[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FoodItemDefaultServing {
+  quantity: number;
+  unit: string;
+  servingOptionId: string | null;
+}
+
+export type FoodLibrarySection = 'saved' | 'my_foods' | 'recent' | 'archived';
+
+export interface FoodLibraryItem extends FoodItem {
+  archivedAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface FoodLibraryResponse {
+  section: FoodLibrarySection;
+  foodItems: FoodLibraryItem[];
 }
 
 export interface DefaultWholeItemServing {

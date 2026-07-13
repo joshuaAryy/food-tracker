@@ -1556,3 +1556,20 @@ Archive-only deletion continues through the existing FoodItem delete route.
 The mobile mixed-meal client uses the preview and creation contracts directly;
 it sends ordered `foodItemId` plus requested `serving` fields only. Nutrition,
 serving multipliers, and aggregate totals are never client-submitted.
+# Phase 13 food library (complete)
+
+`GET /food-items/library` accepts `section` (`saved`, `my_foods`, `recent`, or
+`archived`), optional normalized `query`, and deterministic `sort` (`recent`
+or `name`). Library items include saved state and any current-user default
+serving. `PUT`/`DELETE /food-items/:id/default-serving` manage a validated
+prefill only; they never change historical nutrition or imply a saved food.
+
+`POST /food-logs/:id/save-as-manual-food` accepts only optional `name` and
+`description`, copies frozen persisted FoodLog nutrition and normalized rows,
+and is idempotent by FoodLog. Ineligible provenance returns
+`FOOD_LOG_NOT_REUSABLE`. `POST /food-items/:id/restore` restores only an owned
+archived manual food.
+
+Mobile consumers use default servings only as requested-serving prefills; they
+do not send nutrition, multipliers, or totals when saving the preference or
+using it to create a FoodLog, recipe ingredient, or mixed-meal ingredient.

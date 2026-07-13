@@ -607,3 +607,8 @@ approved:
 - `SupplementLog`
 - `MicronutrientLog`
 - `DailySummary`
+# Phase 13 additive migration
+
+The food-library migration adds FoodItemServingPreference with cascading user
+and FoodItem deletion and a nullable unique FoodItem-derived FoodLog relation
+using `ON DELETE SET NULL`. It does not change SavedFoodItem or add recents.

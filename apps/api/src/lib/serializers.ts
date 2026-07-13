@@ -39,6 +39,11 @@ type SerializableFoodItem = PrismaFoodItem & {
   barcodes?: PrismaFoodBarcode[];
   savedByUsers?: { id: string }[];
   nutrients?: PrismaFoodItemNutrient[];
+  servingPreferences?: {
+    defaultServingQuantity: { toNumber(): number };
+    defaultServingUnit: string;
+    defaultServingOptionId: string | null;
+  }[];
 };
 
 type SerializableFoodLog = PrismaFoodLog & {
@@ -139,6 +144,16 @@ export function serializeFoodItem(foodItem: SerializableFoodItem): FoodItem {
     sourceId: foodItem.sourceId,
     sourceUpdatedAt: foodItem.sourceUpdatedAt?.toISOString() ?? null,
     isSaved: (foodItem.savedByUsers?.length ?? 0) > 0,
+    defaultServing:
+      foodItem.servingPreferences?.[0] === undefined
+        ? null
+        : {
+            quantity:
+              foodItem.servingPreferences[0].defaultServingQuantity.toNumber(),
+            unit: foodItem.servingPreferences[0].defaultServingUnit,
+            servingOptionId:
+              foodItem.servingPreferences[0].defaultServingOptionId,
+          },
     servingQuantity: decimalToNumber(foodItem.servingQuantity),
     servingUnit: foodItem.servingUnit,
     servingWeightGrams: decimalToNumber(foodItem.servingWeightGrams),

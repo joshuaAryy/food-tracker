@@ -1048,6 +1048,31 @@ export const foodItemsQuerySchema = z.strictObject({
   savedOnly: booleanQuerySchema.default(false),
 });
 
+export const foodLibrarySectionSchema = z.enum([
+  'saved',
+  'my_foods',
+  'recent',
+  'archived',
+]);
+
+export const foodLibraryQuerySchema = z.strictObject({
+  section: foodLibrarySectionSchema.default('saved'),
+  query: z.string().trim().min(1).optional(),
+  sort: z.enum(['recent', 'name']).default('recent'),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const foodItemDefaultServingInputSchema = z.strictObject({
+  quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.string().trim().min(1),
+  servingOptionId: z.string().trim().min(1).nullable().optional(),
+});
+
+export const foodLogSaveAsManualFoodInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().min(1).max(1000).nullable().optional(),
+});
+
 export const foodItemSearchCandidatesInputSchema = z.strictObject({
   query: z.string().trim().min(1),
   limit: z.number().int().min(1).max(10).default(8),
@@ -1108,6 +1133,13 @@ export type FoodItemSearchCandidatesInput = z.infer<
 >;
 export type FoodItemExternalCandidateInput = z.infer<
   typeof foodItemExternalCandidateInputSchema
+>;
+export type FoodLibraryQuery = z.infer<typeof foodLibraryQuerySchema>;
+export type FoodItemDefaultServingInput = z.infer<
+  typeof foodItemDefaultServingInputSchema
+>;
+export type FoodLogSaveAsManualFoodInput = z.infer<
+  typeof foodLogSaveAsManualFoodInputSchema
 >;
 export type FoodBarcodeLookupInput = z.infer<
   typeof foodBarcodeLookupInputSchema

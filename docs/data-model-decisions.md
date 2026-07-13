@@ -137,3 +137,12 @@ The MVP `mealType` values are:
 - Group food logs into tracking days by converting `loggedAt` into the user's stored IANA timezone and using the resulting local date.
 - Use `America/Toronto` as the default timezone for now.
 - Tracking-day analytics must not group records by UTC calendar date.
+# Phase 13 decisions
+
+Saved/favorite remains a SavedFoodItem relation, independent from default
+servings. My Foods is current-user manual foods; Recent is derived from logs.
+Archiving a manual food hides it from future selection but restore retains its
+saved relation and serving preference. Historical snapshots never change.
+
+Mobile default-serving use is always cancellable and affects only future draft
+prefills; it is never applied retroactively to logs or snapshots.

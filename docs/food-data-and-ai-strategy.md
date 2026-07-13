@@ -876,10 +876,11 @@ manual nutrition or conversion facts.
 
 ### Phase 13 Custom Food Library
 
-Phase 13 should improve personal food-library behavior: saving adjusted logs as
+Phase 13 improves personal food-library behavior: saving adjusted logs as
 reusable custom foods when safe, improving saved/recent reuse, adding default
 serving preferences, and keeping trusted global foods separate from
-user-created custom foods.
+user-created custom foods. Backend and mobile implementation, automated
+validation, and physical-device validation are complete.
 
 ## Photo Food Logging
 
@@ -925,3 +926,11 @@ Future reporting should include:
 Reporting should follow the Phase 6 visual standard: calm, useful, readable,
 and not a generic dashboard-card stack. Complex mode gets deeper analytics.
 Simple mode gets simplified summaries.
+# Food library provenance
+
+Cached USDA foods remain searchable trusted records but do not enter a personal
+library merely by being cached. Save-from-log accepts no client nutrition or
+provider payload and creates manual provenance only from eligible frozen logs.
+
+Saving a USDA candidate is explicit: persistence for trusted selection does
+not create a SavedFoodItem.

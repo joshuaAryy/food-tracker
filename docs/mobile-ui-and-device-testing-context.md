@@ -678,3 +678,10 @@ existing curved or semi-circular bottom control, so users move between logging
 methods instead of seeing every method on one page. This redesign is outside
 Phase 12.9B; future logging methods may continue using the temporary entry
 layout until that redesign begins.
+# Phase 13 Food Library
+
+Food Log has a compact Food Library action, presented in the existing modal
+stack. It exposes Saved, My Foods, Recent, and Archived sections without a new
+tab or a cache-wide USDA browser. Default servings are editable prefills using
+the existing ServingAmountControl; every use still goes through serving
+validation. The multi-method Food Log selector redesign remains deferred.

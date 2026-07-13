@@ -19,6 +19,7 @@ export type ErrorCode =
   | 'RECIPE_FINAL_WEIGHT_REQUIRED'
   | 'RECIPE_LOG_IMMUTABLE'
   | 'MIXED_MEAL_LOG_IMMUTABLE'
+  | 'FOOD_LOG_NOT_REUSABLE'
   | 'INTERNAL_SERVER_ERROR';
 
 export class AppError extends Error {
