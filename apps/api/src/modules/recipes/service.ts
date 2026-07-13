@@ -94,7 +94,7 @@ function servingFailureError(
   }
 }
 
-function foodItemServingInput(
+export function foodItemServingInput(
   foodItem: VisibleFoodItem,
   ingredient: RecipeIngredientInput,
 ): AuthoritativeServingCalculationInput {
@@ -177,7 +177,7 @@ async function visibleFoodItem(
   return foodItem;
 }
 
-async function frozenIngredient(
+export async function frozenIngredient(
   client: Pick<RecipeTransaction, 'foodItem'>,
   userId: string,
   input: RecipeIngredientInput,

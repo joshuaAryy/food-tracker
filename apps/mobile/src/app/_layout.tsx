@@ -49,6 +49,18 @@ export default function RootLayout() {
           name="recipes/ingredient-serving"
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
+        <Stack.Screen
+          name="food-log/mixed-meal"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="food-log/manual-foods"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="food-log/manual-food"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
       </Stack>
       <StatusBar style="dark" />
     </>

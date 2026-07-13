@@ -366,6 +366,15 @@ micronutrient UI.
 ### Other Future Models
 `CustomFood`, `WaterLog`, `SupplementLog`, and `MicronutrientLog` are not part of the MVP schema.
 
+### Phase 12.9B Slice 1 Mixed Meals
+
+The additive mixed-meal migration adds nullable `FoodLog.mixedMealSnapshot`
+JSONB. A mixed-meal log remains one FoodLog with normalized FoodLogNutrient
+rows; the snapshot stores versioned frozen ingredient snapshots, full-precision
+totals, rounded logged nutrition, and ingredient contributions. There is no
+mixed-meal table. Historical mixed-meal logs are independent of later recipe,
+FoodItem, or source changes.
+
 ## Phase 12.8 Serving Fields
 
 The additive serving-intelligence migration adds nullable FoodItem.servingOptions
@@ -384,3 +393,7 @@ nullable `FoodLog.recipeId` and `FoodLog.recipeSnapshot` JSONB columns without
 a backfill. Recipe and recipe-log snapshot decimals are canonical strings;
 their frozen ingredient values remain authoritative when source FoodItems later
 change, archive, or are deleted.
+
+Slice 2 also adds nullable `FoodItem.description` for user-owned manual foods.
+Manual foods continue to use the existing FoodItem row, normalized nutrient
+rows, serving basis, serving options, ownership, and archive lifecycle.

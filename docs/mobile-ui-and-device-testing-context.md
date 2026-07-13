@@ -640,6 +640,41 @@ the white/charcoal open-row visual language.
   notes. It clearly directs nutrition or quantity corrections to delete and
   re-log from Recipes. Ordinary FoodLogs retain their existing screen.
 
-Physical-device validation is still required before Phase 12.9A is marked
-complete. Use the installed Expo development build and the LAN API URL; no
-native rebuild is needed because this slice changes only JavaScript/TypeScript.
+The Phase 12.9A recipe smoke test passed on the physical iPhone. Use the
+installed Expo development build and the LAN API URL for future regression
+checks; no native rebuild is needed because these slices change only
+JavaScript/TypeScript.
+
+## Phase 12.9B Slice 3 — Mixed Meals And Manual Foods
+
+Mixed meals open as a compact modal from Food Log and do not add a bottom tab.
+The builder stores meal metadata, ordered duplicate-capable ingredients, serving
+navigation state, and save-as-recipe metadata in a focused Zustand session.
+Trusted persisted foods, USDA candidates persisted through the existing backend
+flow, and manual foods all return through the shared ingredient serving-details
+screen. Preview totals are backend-returned; the mobile client sends only FoodItem
+IDs and requested serving fields.
+
+Manual foods use dedicated create/edit/archive modals. They are user-owned and
+searchable but are not automatically saved. Validate all required nutrition and
+basis fields, explicit zero values, unsupported-unit errors, archive behavior,
+keyboard-safe navigation, retryable preview failures, and duplicate-submit
+protection on a small physical device as part of the Phase 12.9B smoke suite.
+
+### Phase 12.9B Physical-Device Validation — Complete
+
+All 18 Slice 3/4 physical-device checks passed on the iPhone, including trusted
+FoodItem selection, USDA persistence, manual-food creation/edit/archive,
+serving-details cancellation and edits, mixed-meal preview, Simple/Detailed
+nutrition display, save-as-recipe, error recovery, refresh propagation, and
+rapid repeated taps creating exactly one FoodLog. Phase 12.9B is complete.
+
+### Deferred Logging-Selector Redesign
+
+The current Food Log screen may continue listing available logging methods in
+one place. A later frontend redesign may replace that temporary layout with a
+multi-screen interactive logging selector, potentially integrated into the
+existing curved or semi-circular bottom control, so users move between logging
+methods instead of seeing every method on one page. This redesign is outside
+Phase 12.9B; future logging methods may continue using the temporary entry
+layout until that redesign begins.

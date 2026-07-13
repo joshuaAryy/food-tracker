@@ -24,6 +24,9 @@ import type {
   FoodLogServingSnapshot,
   Recipe,
   RecipeSnapshot,
+  MixedMealSnapshot,
+  RecipeIngredientSnapshot,
+  RecipeNutritionSummarySnapshot,
 } from './schemas.js';
 import type { ParsedServingSuggestion } from './serving-text.js';
 
@@ -114,10 +117,20 @@ export interface FoodLog {
   servingSnapshot: FoodLogServingSnapshot | null;
   recipeId: string | null;
   recipeSnapshot: RecipeSnapshot | null;
+  mixedMealSnapshot: MixedMealSnapshot | null;
   nutrients: NormalizedNutrientMap;
   loggedAt: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MixedMealPreviewResult {
+  name: string;
+  description: string | null;
+  ingredients: RecipeIngredientSnapshot[];
+  total: RecipeNutritionSummarySnapshot;
+  perPortion: RecipeNutritionSummarySnapshot;
+  perGram: RecipeNutritionSummarySnapshot | null;
 }
 
 export type { Recipe };
@@ -147,6 +160,7 @@ export interface FoodItem {
   id: string;
   name: string;
   brandName: string | null;
+  description?: string | null;
   sourceType: FoodItemSourceType;
   foodType: FoodItemType;
   sourceProvider: FoodSourceProvider | null;

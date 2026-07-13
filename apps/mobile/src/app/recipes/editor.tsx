@@ -218,6 +218,7 @@ export default function RecipeEditorScreen() {
     const key = `recipe-serving-${Date.now()}-${index}`;
     beginRecipeServing({
       key,
+      context: 'recipe',
       operation: draft.existingIngredientId === undefined ? 'add' : 'edit',
       ingredientIndex: index,
       draft,

@@ -346,14 +346,28 @@ recipe CRUD, and immutable recipe-to-FoodLog materialization. Slice 4 adds the
 mobile list, builder, detail, logging, archive, and recipe-origin History edit
 surfaces using the existing Food Log modal stack and trusted serving controls.
 
-Automated Slice 4 validation is complete. Phase 12.9A is not fully complete
-until the documented physical-device recipe smoke test passes.
+Automated validation and the documented physical-device recipe smoke test are
+complete. Phase 12.9A is complete.
 
-### Phase 12.9B — One-Off Mixed Meals (Deferred)
+### Phase 12.9B Slice 3 — Mobile Mixed Meals And Manual Foods Implemented
+
+Slices 1–2 establish mixed-meal persistence and reusable manual FoodItems.
+Slice 3 adds the Food Log mixed-meal builder, shared serving-details navigation,
+USDA/manual ingredient selection, backend preview/logging, optional atomic
+save-as-recipe, and manual-food management UI. Automated validation and all 18
+physical-device checks are complete.
+
+### Phase 12.9B — One-Off Mixed Meals And Manual Ingredients Complete
 
 Phase 12.9B combines one-off mixed meals and manual ingredients. It must not
 blur the reusable-recipe boundary, make AI nutrition authoritative, or weaken
 the trusted FoodItem/serving workflow established by Phase 12.9A.
+
+Phase 12.9B is complete. The next roadmap phase is Phase 13 — Custom Food
+Library And Saved Foods.
+
+Phase 12.9 is fully complete: 12.9A reusable recipes and 12.9B mixed meals
+and manual ingredients both passed automated and physical-device validation.
 
 ## Phase 13 — Custom Food Library And Saved Foods
 

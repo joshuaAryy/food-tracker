@@ -1487,6 +1487,26 @@ export default function FoodLogScreen() {
               </View>
             </Pressable>
             <Pressable
+              accessibilityLabel="Create mixed meal"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/food-log/mixed-meal' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <AppText variant="label" className="text-ink">
+                    +
+                  </AppText>
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Mixed meal</AppText>
+                  <AppText variant="caption" muted>
+                    Combine trusted and manual foods into one log.
+                  </AppText>
+                </View>
+              </View>
+            </Pressable>
+            <Pressable
               accessibilityLabel="Scan barcode"
               accessibilityRole="button"
               className="flex-row items-center justify-between border-y border-line py-3 active:bg-[#F6F6F6]"

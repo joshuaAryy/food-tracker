@@ -868,6 +868,12 @@ Phase 12.9 should address homemade meals, ingredient-based logging, reusable
 recipes, and mixed-meal review. Recipes should reuse trusted ingredient data
 and should not let AI become the nutrition source of truth.
 
+Slice 2 adds reusable manual foods as user-owned `user_custom` FoodItems with
+`sourceProvider: manual`. They require explicit nutrition bases and preserve
+unknown optional nutrients as unknown. Physical conversions are permitted only
+through declared trusted gram or millilitre equivalences; AI never supplies
+manual nutrition or conversion facts.
+
 ### Phase 13 Custom Food Library
 
 Phase 13 should improve personal food-library behavior: saving adjusted logs as

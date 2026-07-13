@@ -584,6 +584,13 @@ Indexes:
   FoodLog and FoodLogNutrient values atomically. Legacy NULL snapshots retain
   their prior manual update behavior.
 
+## Phase 12.9B Additive Fields
+
+`FoodLog.mixedMealSnapshot` and `FoodItem.description` are nullable additive
+JSON/text fields. Mixed-meal history does not require a mixed-meal table.
+FoodItem archive behavior remains non-destructive, and nullable FoodLog/Recipe
+relations cannot invalidate frozen recipe or mixed-meal snapshots.
+
 - `DailySummary` is not part of the MVP schema.
 - Dashboard summaries are calculated on demand from `FoodLog` and `WeightLog`.
 - `DailySummary` may be introduced later only as a cached analytics optimization.

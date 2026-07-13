@@ -594,6 +594,67 @@ export const recipeServingInputSchema = z.strictObject({
   servingOptionId: z.string().trim().min(1).nullable().optional(),
 });
 
+export const mixedMealSnapshotSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  calculationSchemaVersion: z.literal(1),
+  mixedMeal: z.strictObject({
+    name: z.string().trim().min(1),
+    description: z.string().nullable(),
+  }),
+  ingredients: z.array(recipeIngredientSnapshotSchema).min(1),
+  mealTotals: recipeNutritionSnapshotSchema,
+  ingredientContributions: z
+    .array(
+      z.strictObject({
+        position: z.number().int().nonnegative(),
+        nutrition: recipeNutritionSnapshotSchema,
+      }),
+    )
+    .min(1),
+  loggedNutrition: recipeNutritionSnapshotSchema,
+});
+
+export type MixedMealSnapshot = z.infer<typeof mixedMealSnapshotSchema>;
+
+export const mixedMealIngredientInputSchema = z.strictObject({
+  foodItemId: z.uuid(),
+  serving: recipeServingInputSchema,
+});
+
+export const mixedMealSaveAsRecipeInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(2_000).nullable().optional(),
+  portionCount: z.number().int().positive().max(10_000).optional(),
+  finalCookedWeightGrams: z
+    .number()
+    .finite()
+    .positive()
+    .max(MAX_SERVING_QUANTITY)
+    .nullable()
+    .optional(),
+});
+
+export const mixedMealPreviewInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(2_000).nullable().optional(),
+  items: z.array(mixedMealIngredientInputSchema).min(1).max(100),
+});
+
+export const mixedMealCreateInputSchema = mixedMealPreviewInputSchema.extend({
+  mealType: mealTypeSchema,
+  loggedAt: z.iso.datetime(),
+  notes: z.string().trim().min(1).nullable().optional(),
+  saveAsRecipe: z
+    .union([z.literal(true), mixedMealSaveAsRecipeInputSchema])
+    .optional(),
+});
+
+export type MixedMealIngredientInput = z.infer<
+  typeof mixedMealIngredientInputSchema
+>;
+export type MixedMealPreviewInput = z.infer<typeof mixedMealPreviewInputSchema>;
+export type MixedMealCreateInput = z.infer<typeof mixedMealCreateInputSchema>;
+
 export const recipeIngredientInputSchema = z.strictObject({
   foodItemId: z.uuid(),
   serving: recipeServingInputSchema,
@@ -760,6 +821,7 @@ export const foodLogUpdateInputSchema = z.strictObject({
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
   recipeId: z.unknown().optional(),
   recipeSnapshot: z.unknown().optional(),
+  mixedMealSnapshot: z.unknown().optional(),
   servingSnapshot: z.unknown().optional(),
   source: z.unknown().optional(),
   sourceType: z.unknown().optional(),
@@ -905,6 +967,73 @@ export const foodItemInputSchema = z.strictObject({
     .optional(),
   nutrients: normalizedNutrientsInputSchema.nullable().optional(),
 });
+
+const manualNutritionSchema = z.strictObject({
+  calories: z.number().finite().nonnegative(),
+  protein: z.number().finite().nonnegative(),
+  carbs: z.number().finite().nonnegative(),
+  fat: z.number().finite().nonnegative(),
+  fiber: z.number().finite().nonnegative().nullable().optional(),
+  sugar: z.number().finite().nonnegative().nullable().optional(),
+  sodium: z.number().finite().nonnegative().int().nullable().optional(),
+  nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+});
+
+const manualBasisSchema = z.discriminatedUnion('mode', [
+  z.strictObject({ mode: z.literal('per_100g') }),
+  z
+    .strictObject({
+      mode: z.literal('per_serving'),
+      quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+      unit: persistedServingUnitSchema,
+      equivalentWeightGrams: z
+        .number()
+        .finite()
+        .positive()
+        .max(MAX_SERVING_QUANTITY)
+        .nullable()
+        .optional(),
+      equivalentVolumeMl: z
+        .number()
+        .finite()
+        .positive()
+        .max(MAX_SERVING_QUANTITY)
+        .nullable()
+        .optional(),
+    })
+    .superRefine((basis, context) => {
+      if (
+        basis.equivalentWeightGrams !== undefined &&
+        basis.equivalentVolumeMl !== undefined &&
+        basis.equivalentWeightGrams !== null &&
+        basis.equivalentVolumeMl !== null
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Declare at most one physical equivalence.',
+        });
+      }
+    }),
+]);
+
+export const manualFoodItemCreateInputSchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  brandName: z.string().trim().min(1).max(200).nullable().optional(),
+  description: z.string().trim().max(2_000).nullable().optional(),
+  basis: manualBasisSchema,
+  nutrition: manualNutritionSchema,
+  servingOptions: foodItemServingOptionsSchema.nullable().optional(),
+});
+
+export const manualFoodItemUpdateInputSchema =
+  manualFoodItemCreateInputSchema.partial();
+
+export type ManualFoodItemCreateInput = z.infer<
+  typeof manualFoodItemCreateInputSchema
+>;
+export type ManualFoodItemUpdateInput = z.infer<
+  typeof manualFoodItemUpdateInputSchema
+>;
 
 const booleanQuerySchema = z.preprocess((value) => {
   if (value === undefined) return false;

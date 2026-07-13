@@ -475,6 +475,22 @@ physical selectors, and recalculate on candidate changes. Simple and Complex
 totals share the same stored authoritative values, and legacy snapshot-null
 FoodLogs retain their compatibility behavior.
 
+## TD-018: Phase 12.9 Recipes, Mixed Meals, And Manual Foods
+
+Status: Implemented and physically validated
+
+Reusable recipes and one-off mixed meals share frozen ingredient snapshots and
+backend-authoritative serving resolution. A mixed meal logs as exactly one
+FoodLog and may atomically create a Recipe only when explicitly enabled.
+Manual foods are user-owned reusable FoodItems, not SavedFoodItems; explicit
+nutrition bases and declared physical equivalences are required, and future
+edits never rewrite historical snapshots. Recipe-origin and mixed-meal-origin
+History entries expose metadata-only editing.
+
+The Food Log's current one-page logging-method list remains intentionally
+temporary. A future interactive multi-screen or curved-control selector is
+deferred and is not part of Phase 12.9.
+
 ## TD-015: Skeleton Loading
 
 Status: Planned

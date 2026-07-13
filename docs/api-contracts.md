@@ -1523,3 +1523,36 @@ Success `data`:
 Marks a current-user recommendation as dismissed. The request has no body.
 
 Success `data` is the updated recommendation response object with `status` set to `dismissed`.
+
+## Mixed meals (Phase 12.9B Slice 1)
+
+`POST /api/v1/food-logs/mixed-meals/preview` accepts a name, optional
+description, and ordered persisted FoodItem serving requests. It performs no
+writes and returns authoritative frozen ingredient snapshots and nutrition
+summaries.
+
+`POST /api/v1/food-logs/mixed-meals` accepts the same ingredients plus
+`mealType`, `loggedAt`, optional notes, and optional `saveAsRecipe` metadata.
+It resolves inputs again and atomically creates one FoodLog, normalized
+nutrient rows, and (when requested) a Recipe. The FoodLog contains a strict
+version-1 `mixedMealSnapshot` whose Decimal values are canonical strings.
+Mixed-meal logs allow only meal type, logged time, and notes updates;
+nutrition/provenance edits return `MIXED_MEAL_LOG_IMMUTABLE`.
+
+## Manual FoodItems (Phase 12.9B Slice 2)
+
+`POST /api/v1/food-items/manual` creates a current-user `user_custom` FoodItem
+with `sourceProvider: manual`. Its strict request contains a nutrition basis
+(`per_100g` or `per_serving`) and explicit required calories, protein,
+carbohydrates, and fat. Optional normalized nutrients remain absent when not
+provided. `PUT /api/v1/food-items/:id/manual` updates only an owned, active
+manual FoodItem. Manual foods are searchable but are not automatically saved.
+
+Per-serving bases accept only catalog serving units. Gram or millilitre
+conversion is available only when the request declares that exact trusted
+equivalence; count/household servings without one remain non-convertible.
+Archive-only deletion continues through the existing FoodItem delete route.
+
+The mobile mixed-meal client uses the preview and creation contracts directly;
+it sends ordered `foodItemId` plus requested `serving` fields only. Nutrition,
+serving multipliers, and aggregate totals are never client-submitted.

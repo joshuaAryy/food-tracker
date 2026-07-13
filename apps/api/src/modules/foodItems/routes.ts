@@ -3,12 +3,16 @@ import {
   foodBarcodeParamsSchema,
   foodBarcodeLookupInputSchema,
   foodBarcodeQuerySchema,
-  foodItemServingOptionsSchema,
   foodItemExternalCandidateInputSchema,
   foodItemInputSchema,
+  foodItemServingOptionsSchema,
+  manualFoodItemCreateInputSchema,
+  manualFoodItemUpdateInputSchema,
   foodItemSearchCandidatesInputSchema,
   foodItemsQuerySchema,
   idParamsSchema,
+  classifyServingUnit,
+  type ServingUnit,
   type AiFoodCandidateMatchReason,
   type AiFoodParseCandidate,
 } from '@food-tracker/shared';
@@ -48,6 +52,19 @@ import {
 } from './candidate-ranking.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
+type ManualFoodItemCreateInput = z.infer<
+  typeof manualFoodItemCreateInputSchema
+>;
+type ManualFoodItemUpdateInput = z.infer<
+  typeof manualFoodItemUpdateInputSchema
+>;
+type ManualPerServingBasis = {
+  mode: 'per_serving';
+  quantity: number;
+  unit: ServingUnit;
+  equivalentWeightGrams?: number | null;
+  equivalentVolumeMl?: number | null;
+};
 type FoodItemsQuery = z.infer<typeof foodItemsQuerySchema>;
 type FoodItemSearchCandidatesInput = z.infer<
   typeof foodItemSearchCandidatesInputSchema
@@ -134,6 +151,181 @@ function nutrientRows(input: FoodItemInput['nutrients']) {
     amount: roundTo(nutrient.amount, 4),
     unit: nutrient.unit as NutrientUnit,
   }));
+}
+
+function manualNutrientRows(
+  input: ManualFoodItemCreateInput['nutrition']['nutrients'],
+) {
+  return Object.entries(input ?? {}).map(([nutrientKey, nutrient]) => ({
+    nutrientKey: nutrientKey as NutrientKey,
+    amount: roundTo(nutrient.amount, 4),
+    unit: nutrient.unit as NutrientUnit,
+  }));
+}
+
+function manualServingOptions(input: ManualFoodItemCreateInput) {
+  const options = input.servingOptions?.options ?? [];
+  const basis = input.basis;
+  const perServingBasis =
+    basis.mode === 'per_serving' ? (basis as ManualPerServingBasis) : null;
+  const equivalence =
+    perServingBasis !== null
+      ? (perServingBasis.equivalentWeightGrams ??
+        perServingBasis.equivalentVolumeMl ??
+        null)
+      : null;
+  const generated =
+    equivalence === null || perServingBasis === null
+      ? []
+      : [
+          {
+            id: 'manual-basis-equivalence',
+            label: `1 ${perServingBasis.unit}`,
+            quantity: perServingBasis.quantity,
+            unit: perServingBasis.unit,
+            unitFamily: classifyServingUnit(perServingBasis.unit)!.family,
+            equivalentWeightGrams:
+              perServingBasis.equivalentWeightGrams ?? null,
+            equivalentVolumeMl: perServingBasis.equivalentVolumeMl ?? null,
+            source: 'manual' as const,
+            trust: 'trusted' as const,
+            provider: null,
+            providerDescription: null,
+          },
+        ];
+  if (generated.length === 0 && options.length === 0) return null;
+  const parsed = foodItemServingOptionsSchema.safeParse({
+    schemaVersion: 1,
+    options: [...generated, ...options],
+  });
+  if (!parsed.success) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Serving options are invalid.',
+      {
+        issues: parsed.error.issues,
+      },
+    );
+  }
+  if (
+    parsed.data.options.some(
+      (option) => option.source !== 'manual' || option.provider !== null,
+    )
+  ) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Manual foods may only use user-entered trusted serving options.',
+    );
+  }
+  return parsed.data;
+}
+
+function manualFoodItemData(input: ManualFoodItemCreateInput) {
+  const per100g = input.basis.mode === 'per_100g';
+  const perServingBasis = per100g
+    ? null
+    : (input.basis as ManualPerServingBasis);
+  const servingQuantity = per100g ? 100 : perServingBasis!.quantity;
+  const servingUnit = per100g ? 'g' : perServingBasis!.unit;
+  const servingWeightGrams = per100g
+    ? 100
+    : (perServingBasis!.equivalentWeightGrams ?? null);
+  return {
+    name: input.name.trim(),
+    brandName: input.brandName?.trim() ?? null,
+    description: input.description?.trim() ?? null,
+    foodType: 'generic' as const,
+    ...searchText({ name: input.name, brandName: input.brandName }),
+    servingQuantity,
+    servingUnit,
+    servingWeightGrams,
+    servingOptions: (manualServingOptions(input) ??
+      Prisma.JsonNull) as Prisma.InputJsonValue,
+    calories: Math.round(input.nutrition.calories),
+    protein: roundTo(input.nutrition.protein, 1),
+    carbs: roundTo(input.nutrition.carbs, 1),
+    fat: roundTo(input.nutrition.fat, 1),
+    fiber:
+      input.nutrition.fiber == null ? null : roundTo(input.nutrition.fiber, 1),
+    sugar:
+      input.nutrition.sugar == null ? null : roundTo(input.nutrition.sugar, 1),
+    sodium:
+      input.nutrition.sodium == null
+        ? null
+        : Math.round(input.nutrition.sodium),
+  };
+}
+
+function manualRecordInput(
+  foodItem: Awaited<ReturnType<typeof editableManualFoodItem>> & {},
+): ManualFoodItemCreateInput {
+  const servingQuantityDecimal = foodItem?.servingQuantity;
+  if (
+    foodItem === null ||
+    servingQuantityDecimal === null ||
+    foodItem.servingUnit === null ||
+    foodItem.calories === null ||
+    foodItem.protein === null ||
+    foodItem.carbs === null ||
+    foodItem.fat === null
+  ) {
+    throw new AppError(
+      422,
+      'INVALID_SERVING_BASIS',
+      'This manual food is missing a valid nutrition basis.',
+    );
+  }
+  const options = foodItemServingOptionsSchema.safeParse(
+    foodItem.servingOptions,
+  );
+  const servingQuantity = servingQuantityDecimal.toNumber();
+  const basisOption = options.success
+    ? options.data.options.find(
+        (option) =>
+          option.unit === foodItem.servingUnit &&
+          option.quantity === servingQuantity,
+      )
+    : undefined;
+  const basis =
+    servingQuantity === 100 && foodItem.servingUnit === 'g'
+      ? { mode: 'per_100g' as const }
+      : {
+          mode: 'per_serving' as const,
+          quantity: servingQuantity,
+          unit: foodItem.servingUnit as ServingUnit,
+          ...(basisOption?.equivalentWeightGrams === null ||
+          basisOption?.equivalentWeightGrams === undefined
+            ? {}
+            : { equivalentWeightGrams: basisOption.equivalentWeightGrams }),
+          ...(basisOption?.equivalentVolumeMl === null ||
+          basisOption?.equivalentVolumeMl === undefined
+            ? {}
+            : { equivalentVolumeMl: basisOption.equivalentVolumeMl }),
+        };
+  return {
+    name: foodItem.name,
+    brandName: foodItem.brandName,
+    description: foodItem.description,
+    basis,
+    nutrition: {
+      calories: foodItem.calories,
+      protein: foodItem.protein.toNumber(),
+      carbs: foodItem.carbs.toNumber(),
+      fat: foodItem.fat.toNumber(),
+      fiber: foodItem.fiber?.toNumber() ?? null,
+      sugar: foodItem.sugar?.toNumber() ?? null,
+      sodium: foodItem.sodium,
+      nutrients: Object.fromEntries(
+        foodItem.nutrients.map((nutrient) => [
+          nutrient.nutrientKey,
+          { amount: nutrient.amount.toNumber(), unit: nutrient.unit },
+        ]),
+      ),
+    },
+    servingOptions: options.success ? options.data : null,
+  } as ManualFoodItemCreateInput;
 }
 
 function hasNutrientInput(input: FoodItemInput): boolean {
@@ -230,6 +422,19 @@ async function editableCustomFoodItem(id: string, userId: string) {
       sourceType: 'user_custom',
       archivedAt: null,
     },
+  });
+}
+
+async function editableManualFoodItem(id: string, userId: string) {
+  return prisma.foodItem.findFirst({
+    where: {
+      id,
+      userId,
+      sourceType: 'user_custom',
+      sourceProvider: 'manual',
+      archivedAt: null,
+    },
+    include: { nutrients: { orderBy: { nutrientKey: 'asc' } } },
   });
 }
 
@@ -349,6 +554,25 @@ function isUniqueConstraintError(error: unknown): boolean {
     error.code === 'P2002'
   );
 }
+
+foodItemsRouter.post(
+  '/manual',
+  validateBody(manualFoodItemCreateInputSchema),
+  async (_request, response) => {
+    const input = validatedBody<ManualFoodItemCreateInput>(response);
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: currentUserId(response),
+        sourceType: 'user_custom',
+        sourceProvider: 'manual',
+        ...manualFoodItemData(input),
+        nutrients: { create: manualNutrientRows(input.nutrition.nutrients) },
+      },
+      include: foodItemInclude(currentUserId(response)),
+    });
+    sendSuccess(response, serializeFoodItem(foodItem));
+  },
+);
 
 foodItemsRouter.get(
   '/',
@@ -621,6 +845,39 @@ foodItemsRouter.post(
       include: foodItemInclude(currentUserId(response)),
     });
 
+    sendSuccess(response, serializeFoodItem(foodItem));
+  },
+);
+
+foodItemsRouter.put(
+  '/:id/manual',
+  validateParams(idParamsSchema),
+  validateBody(manualFoodItemUpdateInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const { id } = validatedParams<IdParams>(response);
+    const existing = await editableManualFoodItem(id, userId);
+    if (existing === null) throw notFoundError('Food item');
+    const input = validatedBody<ManualFoodItemUpdateInput>(response);
+    const merged = {
+      ...manualRecordInput(existing),
+      ...input,
+    } as ManualFoodItemCreateInput;
+    const foodItem = await prisma.foodItem.update({
+      where: { id },
+      data: {
+        ...manualFoodItemData(merged),
+        ...(input.nutrition === undefined
+          ? {}
+          : {
+              nutrients: {
+                deleteMany: {},
+                create: manualNutrientRows(merged.nutrition.nutrients),
+              },
+            }),
+      },
+      include: foodItemInclude(userId),
+    });
     sendSuccess(response, serializeFoodItem(foodItem));
   },
 );

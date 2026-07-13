@@ -113,9 +113,17 @@ export default function RecipeIngredientServingScreen() {
   return (
     <AppScreen contentClassName="gap-6 pb-8">
       <ScreenHeader
-        eyebrow="Recipe ingredient"
+        eyebrow={
+          session.context === 'mixedMeal'
+            ? 'Mixed meal ingredient'
+            : 'Recipe ingredient'
+        }
         title={draft.food.name}
-        subtitle="Choose the amount used in this recipe."
+        subtitle={
+          session.context === 'mixedMeal'
+            ? 'Choose the amount used in this meal.'
+            : 'Choose the amount used in this recipe.'
+        }
         action={
           <Pressable
             accessibilityRole="button"
@@ -130,7 +138,11 @@ export default function RecipeIngredientServingScreen() {
         }
       />
       <View className="gap-1">
-        <AppText variant="heading">How much is in this recipe?</AppText>
+        <AppText variant="heading">
+          {session.context === 'mixedMeal'
+            ? 'How much is in this meal?'
+            : 'How much is in this recipe?'}
+        </AppText>
         <AppText variant="caption" muted>
           {nutritionBasisLabel(basis)}
         </AppText>

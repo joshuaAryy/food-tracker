@@ -17,6 +17,11 @@ import type {
   FoodLogsFromCandidatesInput,
   FoodLogFromFoodItemInput,
   FoodLogsFromFoodItemsInput,
+  ManualFoodItemCreateInput,
+  ManualFoodItemUpdateInput,
+  MixedMealCreateInput,
+  MixedMealPreviewInput,
+  MixedMealPreviewResult,
   FoodLogInput,
   FoodLogUpdateInput,
   Goals,
@@ -306,6 +311,13 @@ export const api = {
     getById: (id: string) => request<FoodItem>(`/food-items/${id}`),
     create: (input: FoodItemInput) =>
       request<FoodItem>('/food-items', { method: 'POST', body: input }),
+    createManual: (input: ManualFoodItemCreateInput) =>
+      request<FoodItem>('/food-items/manual', { method: 'POST', body: input }),
+    updateManual: (id: string, input: ManualFoodItemUpdateInput) =>
+      request<FoodItem>(`/food-items/${id}/manual`, {
+        method: 'PUT',
+        body: input,
+      }),
     update: (id: string, input: FoodItemInput) =>
       request<FoodItem>(`/food-items/${id}`, { method: 'PUT', body: input }),
     archive: (id: string) =>
@@ -355,6 +367,16 @@ export const api = {
       }).then(({ foodLogs }) => foodLogs),
     createFromAiEstimate: (input: FoodLogFromAiEstimateInput) =>
       request<FoodLog>('/food-logs/from-ai-estimate', {
+        method: 'POST',
+        body: input,
+      }),
+    previewMixedMeal: (input: MixedMealPreviewInput) =>
+      request<MixedMealPreviewResult>('/food-logs/mixed-meals/preview', {
+        method: 'POST',
+        body: input,
+      }),
+    createMixedMeal: (input: MixedMealCreateInput) =>
+      request<FoodLog>('/food-logs/mixed-meals', {
         method: 'POST',
         body: input,
       }),

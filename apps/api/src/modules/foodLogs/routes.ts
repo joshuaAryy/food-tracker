@@ -11,6 +11,8 @@ import {
   foodLogsFromFoodItemsInputSchema,
   foodLogInputSchema,
   foodLogUpdateInputSchema,
+  mixedMealCreateInputSchema,
+  mixedMealPreviewInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
   validateServingQuantity,
@@ -42,6 +44,7 @@ import {
   validatedParams,
   validatedQuery,
 } from '../../middleware/validate.js';
+import { createMixedMeal, previewMixedMeal } from './mixed-meals.js';
 
 type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 type FoodLogUpdateInput = z.infer<typeof foodLogUpdateInputSchema>;
@@ -61,6 +64,28 @@ type FoodItemServingRequest = Pick<
 >;
 
 export const foodLogsRouter = Router();
+
+foodLogsRouter.post(
+  '/mixed-meals/preview',
+  validateBody(mixedMealPreviewInputSchema),
+  async (_request, response) => {
+    sendSuccess(
+      response,
+      await previewMixedMeal(validatedBody(response), currentUserId(response)),
+    );
+  },
+);
+
+foodLogsRouter.post(
+  '/mixed-meals',
+  validateBody(mixedMealCreateInputSchema),
+  async (_request, response) => {
+    sendSuccess(
+      response,
+      await createMixedMeal(validatedBody(response), currentUserId(response)),
+    );
+  },
+);
 
 async function userTimezone(userId: string): Promise<string> {
   const profile = await prisma.userProfile.findUnique({
@@ -302,6 +327,7 @@ function recipeLogMetadataUpdateData(input: FoodLogUpdateInput) {
     'servingSnapshot',
     'recipeId',
     'recipeSnapshot',
+    'mixedMealSnapshot',
     'source',
     'sourceType',
     'sourceProvider',
@@ -313,6 +339,49 @@ function recipeLogMetadataUpdateData(input: FoodLogUpdateInput) {
       409,
       'RECIPE_LOG_IMMUTABLE',
       'Recipe-origin FoodLogs can only update meal type, logged time, and notes.',
+    );
+  }
+  return {
+    ...(input.mealType === undefined ? {} : { mealType: input.mealType }),
+    ...(input.notes === undefined ? {} : { notes: input.notes }),
+    ...(input.loggedAt === undefined
+      ? {}
+      : { loggedAt: new Date(input.loggedAt) }),
+  };
+}
+
+function mixedMealLogMetadataUpdateData(input: FoodLogUpdateInput) {
+  const immutableFields = new Set([
+    'foodItemId',
+    'foodName',
+    'calories',
+    'protein',
+    'carbs',
+    'fat',
+    'fiber',
+    'sugar',
+    'sodium',
+    'nutrients',
+    'servingQuantity',
+    'servingUnit',
+    'serving',
+    'clearNutritionOverride',
+    'nutritionOverride',
+    'servingSnapshot',
+    'recipeId',
+    'recipeSnapshot',
+    'mixedMealSnapshot',
+    'source',
+    'sourceType',
+    'sourceProvider',
+    'sourceId',
+    'provenance',
+  ]);
+  if (Object.keys(input).some((key) => immutableFields.has(key))) {
+    throw new AppError(
+      409,
+      'MIXED_MEAL_LOG_IMMUTABLE',
+      'Mixed-meal FoodLogs can only update meal type, logged time, and notes.',
     );
   }
   return {
@@ -1047,6 +1116,16 @@ foodLogsRouter.put(
     }
 
     const input = validatedBody<FoodLogUpdateInput>(response);
+
+    if (existing.mixedMealSnapshot !== null) {
+      const foodLog = await prisma.foodLog.update({
+        where: { id },
+        data: mixedMealLogMetadataUpdateData(input),
+        include: foodLogInclude,
+      });
+      sendSuccess(response, serializeFoodLog(foodLog));
+      return;
+    }
 
     if (existing.recipeSnapshot !== null) {
       const foodLog = await prisma.foodLog.update({

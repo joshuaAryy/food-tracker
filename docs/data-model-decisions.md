@@ -106,6 +106,21 @@ recipe JSON snapshots remain canonical decimal strings. A recipe-origin FoodLog
 may later change only meal metadata (`mealType`, `loggedAt`, and `notes`);
 nutrition, source, servings, and provenance are immutable.
 
+## Phase 12.9B Mixed Meals And Manual Foods
+
+Mixed meals are represented by one FoodLog plus nullable versioned
+`mixedMealSnapshot` JSONB; no mixed-meal table is a source of truth. The
+snapshot freezes ordered ingredient snapshots, full-precision totals, rounded
+logged nutrition, and contributions. Optional save-as-recipe creation is
+atomic with FoodLog creation.
+
+Manual foods reuse FoodItem with current-user ownership, `user_custom` source
+type, and `manual` provider. Their nutrition basis is per 100 g or a supported
+per-serving unit, with physical conversion only from explicitly declared gram
+or millilitre equivalence. Archive-only deletion hides future selection while
+preserving historical snapshots. Missing optional nutrients remain unknown;
+explicit all-zero nutrition is valid.
+
 ## MealType Enum
 
 The MVP `mealType` values are:

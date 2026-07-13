@@ -4,8 +4,11 @@ import type {
   RecipeServingOperation,
   RecipeServingResult,
 } from '@/lib/recipe-ui';
+import type { MixedMealDraft } from '@/lib/mixed-meal-ui';
+import type { FoodItem } from '@food-tracker/shared';
 
 export interface RecipeServingSession {
+  context: 'recipe' | 'mixedMeal';
   key: string;
   operation: RecipeServingOperation;
   ingredientIndex: number;
@@ -20,6 +23,12 @@ interface AppState {
   beginRecipeServing: (session: RecipeServingSession) => void;
   finishRecipeServing: (key: string, result: RecipeServingResult) => void;
   clearRecipeServingResult: (key: string) => void;
+  mixedMealDraft: MixedMealDraft | null;
+  setMixedMealDraft: (draft: MixedMealDraft) => void;
+  clearMixedMealDraft: () => void;
+  mixedMealManualResult: FoodItem | null;
+  setMixedMealManualResult: (food: FoodItem) => void;
+  clearMixedMealManualResult: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -41,4 +50,10 @@ export const useAppStore = create<AppState>((set) => ({
         ? { recipeServingResult: null }
         : state,
     ),
+  mixedMealDraft: null,
+  setMixedMealDraft: (draft) => set({ mixedMealDraft: draft }),
+  clearMixedMealDraft: () => set({ mixedMealDraft: null }),
+  mixedMealManualResult: null,
+  setMixedMealManualResult: (food) => set({ mixedMealManualResult: food }),
+  clearMixedMealManualResult: () => set({ mixedMealManualResult: null }),
 }));

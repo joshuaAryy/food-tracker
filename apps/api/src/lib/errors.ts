@@ -18,6 +18,7 @@ export type ErrorCode =
   | 'RECIPE_LAST_INGREDIENT'
   | 'RECIPE_FINAL_WEIGHT_REQUIRED'
   | 'RECIPE_LOG_IMMUTABLE'
+  | 'MIXED_MEAL_LOG_IMMUTABLE'
   | 'INTERNAL_SERVER_ERROR';
 
 export class AppError extends Error {

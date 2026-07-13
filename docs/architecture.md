@@ -222,6 +222,23 @@ Example:
 }
 ```
 
+### Phase 12.9B Slice 1 Mixed Meals
+
+Mixed-meal preview is read-only and uses the same authoritative serving
+resolution and frozen ingredient aggregation as creation. Creation resolves
+all FoodItems again in one serializable transaction, writes one FoodLog and
+normalized nutrient rows, and may create a Recipe in that same transaction.
+`FoodLog.mixedMealSnapshot` is immutable provenance; only meal metadata can be
+edited after logging.
+
+Mixed meals use no permanent mixed-meal table. Creation writes one FoodLog and
+normalized nutrient rows, with optional atomic Recipe creation. Manual foods
+are user-owned `user_custom` FoodItems with `sourceProvider: manual`; they are
+searchable and reusable without automatic SavedFoodItem creation. Manual-food
+edits affect future uses only, while recipe, mixed-meal, and historical
+FoodLog snapshots remain frozen. Recipe-origin and mixed-meal-origin logs are
+metadata-only editable in History.
+
 ## Timezone And Tracking Days
 
 - Store timestamps in UTC.
