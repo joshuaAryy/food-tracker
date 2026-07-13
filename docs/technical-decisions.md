@@ -450,7 +450,7 @@ vector search, recipes, and additional providers are future targeted work.
 
 ## TD-015: Photo Logging Sequencing
 
-Status: Planned
+Status: Implemented for backend Slice 1; mobile Slice 2 pending
 
 Photo food logging should come after food database and RAG foundations. It
 should eventually support image capture/upload, food recognition, portion
@@ -460,6 +460,27 @@ detail review.
 
 Do not prioritize photo logging before trusted food search, barcode lookup,
 cached food data, and candidate review exist.
+
+Slice 1 locks the following implementation details:
+
+- Photo analysis uses a separate provider abstraction; text parsing is not
+  widened to accept image input.
+- The endpoint accepts only an in-memory raw JPEG body up to exactly 5 MiB and
+  never stores image bytes or provider payloads.
+- Gemini, mock, and disabled provider modes share `AI_PROVIDER` and
+  `GEMINI_API_KEY`; photo model, item, timeout, and rate limits are separate
+  backend environment settings.
+- Provider output is strict JSON containing identity, optional preparation,
+  optional raw portion wording, separate confidence values, and optional
+  normalized region metadata. Nutrition fields, database references, and
+  automatic actions are rejected.
+- One image may produce up to eight independent rows. Duplicate or ambiguous
+  recognition remains review-required; no segmentation editor is implied.
+- Existing deterministic retrieval/ranking and serving resolution remain the
+  only trusted candidate and portion authorities. Vision portions are
+  provisional and never infer density or universal household weights.
+- Analysis is no-write. Final saving remains the existing transactional
+  `/food-logs/from-candidates` contract.
 
 ## TD-017: Phase 12.8 Serving Intelligence
 

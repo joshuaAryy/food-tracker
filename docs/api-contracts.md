@@ -10,7 +10,8 @@ Persisted model types, relations, indexes, and constraints are locked in [prisma
 
 - Use REST-style endpoints.
 - Use `/api/v1` as the base path.
-- Use JSON request and response bodies.
+- Use JSON request and response bodies, except the raw JPEG body documented for
+  `POST /api/v1/ai/photo-analysis`.
 - Use ISO 8601 UTC timestamps for timestamp fields.
 - Use local calendar dates in `YYYY-MM-DD` format for date filters.
 - Authenticated endpoints operate only on the current user's records.
@@ -1400,6 +1401,38 @@ alternate options do not make a physical `g`/`kg`/`oz`/`lb` or `mL`/`L` basis
 unusable. A quantity-only AI count may use the candidate's one safe
 `defaultWholeItemServing` internally, but the editable serving request uses
 the resulting physical amount and unit.
+
+### `POST /api/v1/ai/photo-analysis` (Phase 14 Slice 1)
+
+This is a read-only backend analysis route. It accepts a normalized JPEG as
+raw request bytes, not JSON, multipart form data, a URL, or a file-system path.
+
+Request requirements:
+
+- `Content-Type` must be exactly `image/jpeg`.
+- The body must be non-empty and begin with JPEG magic bytes.
+- The maximum body size is exactly `5 MiB` (`5 * 1024 * 1024` bytes).
+- A route-local raw-body parser handles this media type; the global JSON parser
+  does not consume `image/jpeg` requests.
+- The image remains in request memory only and is never persisted.
+
+Stable upload errors are `UNSUPPORTED_IMAGE_TYPE` (415), `IMAGE_TOO_LARGE`
+(413), and `INVALID_IMAGE` (400). Provider failures use `AI_UNAVAILABLE`, and
+application/provider throttling uses `RATE_LIMITED`.
+
+Success `data` is either `recognized` with zero to eight ordered rows or
+`no_food_detected` with an empty array. Each row contains a request-scoped ID,
+recognized name, optional preparation form, separate identity and portion
+confidence, optional normalized region metadata, a provisional parsed serving,
+existing ranked `AiFoodParseCandidate[]`, a review status, and an explicit
+`loggable`/unresolved state. Provisional portions are checked against the
+selected candidate's existing serving basis and trusted options; density and
+unsupported household conversions are never inferred.
+
+The route never returns raw provider payloads, prompts, internal reasoning,
+credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
+records, USDA cache rows, or review sessions. Slice 2 must save only reviewed
+candidate references and servings through `POST /api/v1/food-logs/from-candidates`.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

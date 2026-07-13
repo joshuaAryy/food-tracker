@@ -25,6 +25,12 @@ import {
   SERVING_UNITS,
   classifyServingUnit,
 } from './servings.js';
+import {
+  PHOTO_ANALYSIS_MAX_ITEMS,
+  PHOTO_CONFIDENCE_LEVELS,
+} from './constants.js';
+import { parsedServingSuggestionSchema } from './serving-text.js';
+import type { AiFoodParseCandidate } from './types.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -933,6 +939,106 @@ export const aiNutritionEstimateInputSchema = z.strictObject({
   quantityText: z.string().trim().min(1).max(80).nullable().optional(),
   servingText: z.string().trim().min(1).max(120).nullable().optional(),
   description: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+export const photoConfidenceLevelSchema = z.enum(PHOTO_CONFIDENCE_LEVELS);
+
+export const photoNormalizedRegionSchema = z
+  .strictObject({
+    x: z.number().finite().min(0).max(1),
+    y: z.number().finite().min(0).max(1),
+    width: z.number().finite().min(0).max(1),
+    height: z.number().finite().min(0).max(1),
+  })
+  .superRefine((region, context) => {
+    if (region.x + region.width > 1) {
+      context.addIssue({
+        code: 'custom',
+        message: 'region must remain within the normalized image width',
+        path: ['width'],
+      });
+    }
+    if (region.y + region.height > 1) {
+      context.addIssue({
+        code: 'custom',
+        message: 'region must remain within the normalized image height',
+        path: ['height'],
+      });
+    }
+  });
+
+export const photoServingResolutionSchema = z.enum([
+  'not_attempted',
+  'supported',
+  'needs_review',
+]);
+
+export const photoUnresolvedReasonSchema = z.enum([
+  'low_identity_confidence',
+  'ambiguous_identity',
+  'no_trusted_candidate',
+  'low_candidate_confidence',
+  'portion_needs_review',
+]);
+
+export const photoProvisionalPortionSchema = z.strictObject({
+  rawQuantityText: z.string().trim().min(1).max(80).nullable(),
+  rawServingText: z.string().trim().min(1).max(120).nullable(),
+  confidence: photoConfidenceLevelSchema,
+  parsed: parsedServingSuggestionSchema,
+  servingResolution: photoServingResolutionSchema,
+});
+
+function isPhotoCandidate(value: unknown): value is AiFoodParseCandidate {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  if (
+    (candidate.candidateType !== 'food_item' &&
+      candidate.candidateType !== 'external_food') ||
+    typeof candidate.rank !== 'number' ||
+    !Number.isInteger(candidate.rank) ||
+    candidate.rank < 1 ||
+    typeof candidate.defaultServingMultiplier !== 'number' ||
+    !Number.isFinite(candidate.defaultServingMultiplier) ||
+    !['high', 'medium', 'low'].includes(String(candidate.confidence))
+  ) {
+    return false;
+  }
+
+  if (candidate.candidateType === 'food_item') {
+    return (
+      typeof candidate.foodItem === 'object' && candidate.foodItem !== null
+    );
+  }
+
+  return (
+    candidate.externalFood !== null &&
+    typeof candidate.externalFood === 'object'
+  );
+}
+
+const photoCandidateSchema = z.custom<AiFoodParseCandidate>(isPhotoCandidate, {
+  message: 'candidate must use the existing trusted candidate contract',
+});
+
+export const photoRecognizedItemSchema = z.strictObject({
+  id: z.string().regex(/^photo-item-[1-8]$/),
+  recognizedName: z.string().trim().min(1).max(120),
+  preparationForm: z.string().trim().min(1).max(80).nullable(),
+  identityConfidence: photoConfidenceLevelSchema,
+  portionConfidence: photoConfidenceLevelSchema.nullable(),
+  region: photoNormalizedRegionSchema.nullable(),
+  provisionalPortion: photoProvisionalPortionSchema.nullable(),
+  reviewStatus: z.enum(['matched', 'needs_review', 'unmatched']),
+  selectedCandidateId: z.string().trim().min(1).nullable(),
+  loggable: z.boolean(),
+  candidates: z.array(photoCandidateSchema),
+  unresolvedReason: photoUnresolvedReasonSchema.nullable(),
+});
+
+export const photoAnalysisResultSchema = z.strictObject({
+  status: z.enum(['recognized', 'no_food_detected']),
+  items: z.array(photoRecognizedItemSchema).max(PHOTO_ANALYSIS_MAX_ITEMS),
 });
 
 const optionalNonNegativeInteger = z

@@ -29,6 +29,7 @@ import type {
   RecipeNutritionSummarySnapshot,
 } from './schemas.js';
 import type { ParsedServingSuggestion } from './serving-text.js';
+import type { PHOTO_CONFIDENCE_LEVELS } from './constants.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -303,6 +304,55 @@ export interface AiNutritionEstimateResult {
   sugar: number | null;
   sodium: number | null;
   nutrients: Record<string, never>;
+}
+
+export type PhotoConfidenceLevel = (typeof PHOTO_CONFIDENCE_LEVELS)[number];
+
+export type PhotoServingResolution =
+  | 'not_attempted'
+  | 'supported'
+  | 'needs_review';
+
+export type PhotoUnresolvedReason =
+  | 'low_identity_confidence'
+  | 'ambiguous_identity'
+  | 'no_trusted_candidate'
+  | 'low_candidate_confidence'
+  | 'portion_needs_review';
+
+export interface PhotoNormalizedRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PhotoProvisionalPortion {
+  rawQuantityText: string | null;
+  rawServingText: string | null;
+  confidence: PhotoConfidenceLevel;
+  parsed: ParsedServingSuggestion;
+  servingResolution: PhotoServingResolution;
+}
+
+export interface PhotoRecognizedItem {
+  id: `photo-item-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
+  recognizedName: string;
+  preparationForm: string | null;
+  identityConfidence: PhotoConfidenceLevel;
+  portionConfidence: PhotoConfidenceLevel | null;
+  region: PhotoNormalizedRegion | null;
+  provisionalPortion: PhotoProvisionalPortion | null;
+  reviewStatus: AiFoodReviewStatus;
+  selectedCandidateId: string | null;
+  loggable: boolean;
+  candidates: AiFoodParseCandidate[];
+  unresolvedReason: PhotoUnresolvedReason | null;
+}
+
+export interface PhotoAnalysisResult {
+  status: 'recognized' | 'no_food_detected';
+  items: PhotoRecognizedItem[];
 }
 
 export interface WeightLog {

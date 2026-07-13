@@ -20,6 +20,7 @@ export function assertAiFoodParseLimit(input: {
   windowMax: number;
   dailyMax: number;
   now?: Date;
+  message?: string;
 }): void {
   const configKey = `${input.windowMs}:${input.windowMax}:${input.dailyMax}`;
   if (configKey !== lastConfigKey) {
@@ -59,7 +60,8 @@ export function assertAiFoodParseLimit(input: {
     throw new AppError(
       429,
       'RATE_LIMITED',
-      'Meal description parsing is temporarily limited. Try again later.',
+      input.message ??
+        'Meal description parsing is temporarily limited. Try again later.',
     );
   }
 

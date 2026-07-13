@@ -67,7 +67,8 @@ Frontend
 
 The implemented logging flow supports manual entry, reusable foods, saved and
 recent foods, barcode scanning with backend-owned Open Food Facts lookup, and
-AI-assisted text parsing. Photo recognition is not implemented.
+AI-assisted text parsing. Phase 14 Slice 1 adds a backend-only photo analysis
+and trusted-matching path; mobile capture and review remain Slice 2.
 `FoodLog` now has an optional `foodItemId` relation for future log-from-food
 flows, but the current food-log API remains snapshot-based and does not require
 or expose that relation.
@@ -131,6 +132,26 @@ snapshots are created.
 Photo logging belongs after the food database and retrieval foundations. See
 [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md) for the detailed
 direction.
+
+### Phase 14 Slice 1 Photo Analysis
+
+Photo analysis accepts only a route-local raw `image/jpeg` body up to exactly
+5 MiB. The image is validated in memory, passed through a separate
+`PhotoAnalysisProvider`, and never written to a file, database, cloud object,
+or retained review session. The provider can be disabled, mocked, or Gemini;
+credentials remain backend-only. Gemini receives inline image bytes internally
+and is instructed to return only food identity, optional preparation, and
+provisional portion wording. Nutrition, density, candidate IDs, and saving are
+explicitly prohibited.
+
+One photo may produce up to eight independent recognition rows. Each row is
+matched through the existing deterministic retrieval and candidate-ranking
+system, then its provisional serving is checked with the existing serving
+resolution system. Vision identity confidence, vision portion confidence, and
+trusted candidate confidence remain separate. Low-confidence, ambiguous, or
+unsupported results stay review-required. The endpoint performs no writes;
+Slice 2 will submit user-confirmed candidate references to the existing
+transactional `/food-logs/from-candidates` path.
 
 ---
 
