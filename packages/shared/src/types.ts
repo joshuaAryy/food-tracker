@@ -462,6 +462,7 @@ export interface PhotoNutritionEstimate {
   editable: true;
   linkedFoodItemId: null;
   label: string;
+  estimateProof?: string;
 }
 
 export interface PhotoAnalysisResult {

@@ -30,6 +30,9 @@ export interface PhotoAnalysisConfig {
     | 'no_decision'
     | 'unavailable';
   nutritionEstimationMock: 'valid' | 'invalid' | 'missing' | 'unavailable';
+  photoEstimateConfirmationEnabled: boolean;
+  photoEstimateProofSecret: string | null;
+  photoEstimateProofTtlSeconds: number;
 }
 
 function positiveIntegerEnv(name: string, fallback: number): number {
@@ -38,6 +41,17 @@ function positiveIntegerEnv(name: string, fallback: number): number {
 
   const parsed = Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function boundedProofTtlSeconds(): number {
+  const name = 'PHOTO_ESTIMATE_PROOF_TTL_SECONDS';
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return 900;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 300 || parsed > 1800) {
+    throw new Error(`${name} must be an integer between 300 and 1800.`);
+  }
+  return parsed;
 }
 
 function boundedPhotoOutputTokens(): number {
@@ -103,6 +117,21 @@ function mockNutritionEstimation(): PhotoAnalysisConfig['nutritionEstimationMock
 export function photoAnalysisConfig(): PhotoAnalysisConfig {
   const textConfig = aiFoodParseConfig();
   const timeoutMs = positiveIntegerEnv('PHOTO_ANALYSIS_TIMEOUT_MS', 15_000);
+  const photoEstimateConfirmationEnabled = booleanEnv(
+    'PHOTO_ESTIMATE_CONFIRMATION_ENABLED',
+    false,
+  );
+  const photoEstimateProofSecret =
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET?.trim() || null;
+  if (
+    photoEstimateConfirmationEnabled &&
+    (photoEstimateProofSecret === null ||
+      Buffer.byteLength(photoEstimateProofSecret, 'utf8') < 32)
+  ) {
+    throw new Error(
+      'PHOTO_ESTIMATE_PROOF_SECRET must contain at least 32 bytes when photo estimate confirmation is enabled.',
+    );
+  }
 
   return {
     provider: textConfig.provider,
@@ -152,5 +181,8 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
       boundedCandidateAdjudicationOutputTokens(),
     candidateAdjudicationMockDecision: mockAdjudicationDecision(),
     nutritionEstimationMock: mockNutritionEstimation(),
+    photoEstimateConfirmationEnabled,
+    photoEstimateProofSecret,
+    photoEstimateProofTtlSeconds: boundedProofTtlSeconds(),
   };
 }

@@ -937,6 +937,94 @@ export const foodLogFromAiEstimateInputSchema = z.strictObject({
   loggedAt: z.iso.datetime(),
 });
 
+const photoConfirmationRowRefSchema = z.string().trim().min(1).max(80);
+const photoConfirmationServingSchema = z.strictObject({
+  quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.string().trim().min(1),
+  servingOptionId: z.string().trim().min(1).nullable().optional(),
+});
+const photoConfirmationNutritionSchema = z.strictObject({
+  calories: z.number().finite().positive(),
+  proteinGrams: z.number().finite().nonnegative(),
+  carbohydrateGrams: z.number().finite().nonnegative(),
+  fatGrams: z.number().finite().nonnegative(),
+});
+
+const photoTrustedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('trusted'),
+  candidateId: z.uuid(),
+  servingMultiplier: z.number().finite().positive().optional(),
+  serving: photoConfirmationServingSchema.optional(),
+  notes: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+const photoEstimatedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('estimated'),
+  estimateProof: z.string().trim().min(1).max(4096),
+  confirmedFoodName: z.string().trim().min(1).max(120).optional(),
+  userAdjustedNutrition: photoConfirmationNutritionSchema.optional(),
+  notes: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+const photoExcludedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('excluded'),
+});
+
+export const photoAnalysisConfirmationInputSchema = z
+  .strictObject({
+    mealType: mealTypeSchema,
+    loggedAt: z.iso.datetime(),
+    entries: z
+      .array(
+        z.discriminatedUnion('disposition', [
+          photoTrustedConfirmationEntrySchema,
+          photoEstimatedConfirmationEntrySchema,
+          photoExcludedConfirmationEntrySchema,
+        ]),
+      )
+      .min(1)
+      .max(PHOTO_ANALYSIS_MAX_ITEMS),
+  })
+  .superRefine((input, context) => {
+    if (input.entries.every((entry) => entry.disposition === 'excluded')) {
+      context.addIssue({
+        code: 'custom',
+        message: 'At least one entry must be persisted.',
+        path: ['entries'],
+      });
+    }
+    for (const [index, entry] of input.entries.entries()) {
+      if (
+        entry.disposition === 'trusted' &&
+        entry.serving !== undefined &&
+        entry.servingMultiplier !== undefined
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'serving and servingMultiplier cannot be combined',
+          path: ['entries', index, 'serving'],
+          params: { code: 'SERVING_CONFLICT' },
+        });
+      }
+    }
+  });
+
+export const photoAnalysisConfirmationResponseSchema = z.strictObject({
+  foodLogs: z.array(
+    z.strictObject({
+      rowRef: photoConfirmationRowRefSchema,
+      disposition: z.enum(['trusted', 'estimated']),
+      foodLog: z.unknown(),
+    }),
+  ),
+  createdTrustedCount: z.number().int().nonnegative(),
+  createdEstimatedCount: z.number().int().nonnegative(),
+  excludedCount: z.number().int().nonnegative(),
+});
+
 export const aiFoodParseInputSchema = z.strictObject({
   description: z.string().trim().min(1),
 });
@@ -1096,6 +1184,7 @@ export const photoNutritionEstimateSchema = z.strictObject({
   editable: z.literal(true),
   linkedFoodItemId: z.null(),
   label: z.string().trim().min(1).max(160),
+  estimateProof: z.string().trim().min(1).max(4096).optional(),
 });
 
 export const photoRepresentationItemSchema = z.strictObject({
@@ -1384,6 +1473,12 @@ export type FoodLogsFromCandidatesInput = z.infer<
 >;
 export type FoodLogFromAiEstimateInput = z.infer<
   typeof foodLogFromAiEstimateInputSchema
+>;
+export type PhotoAnalysisConfirmationInput = z.infer<
+  typeof photoAnalysisConfirmationInputSchema
+>;
+export type PhotoAnalysisConfirmationResponse = z.infer<
+  typeof photoAnalysisConfirmationResponseSchema
 >;
 export type FoodLogNutritionOverride = z.infer<
   typeof foodLogNutritionOverrideSchema

@@ -541,6 +541,26 @@ The shared assistance sub-budget is 2.5 seconds by default, capped below the
 overall photo-analysis timeout; the increase from 1.5 seconds was justified by
 measured three-row mixed-batch latency and remains within the mobile budget.
 
+## TD-020: Phase 14.2C1 Mixed Photo Confirmation
+
+Status: Implemented as an authenticated backend transaction
+
+`POST /api/v1/food-logs/from-photo-analysis` accepts trusted, estimated, and
+excluded photo-row dispositions. Trusted candidates are fetched again under
+the current user and their serving/nutrition snapshot is recomputed; client
+nutrition is never authoritative. Estimated rows require a short-lived,
+request-scoped HMAC-SHA-256 proof issued by B2 when
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED` is enabled. The proof is signed, not
+encrypted, and binds the user, row, recognized identity, quantity/basis, and
+original core macros. User corrections remain low-trust and unlinked.
+
+All persisted rows are prevalidated and created in one Prisma transaction;
+excluded rows create nothing. No FoodItems, provider calls, image records, or
+review-session records are created. The existing trusted-only confirmation
+route remains unchanged. Durable cross-request idempotency is not introduced;
+stateless proof replay remains possible until the proof expires and is tracked
+as a later schema-backed decision.
+
 ## TD-017: Phase 12.8 Serving Intelligence
 
 Status: Implemented and validated in Phase 12.8

@@ -40,6 +40,7 @@ import {
   buildPhotoNutritionEstimate,
   type PhotoNutritionEstimateValues,
 } from './photo-nutrition-estimate.js';
+import { issuePhotoEstimateProof } from './photo-estimate-proof.js';
 
 function candidateFood(candidate: AiFoodParseCandidate) {
   return candidate.candidateType === 'food_item'
@@ -560,6 +561,43 @@ function estimateMetadata(
   };
 }
 
+function attachEstimateProofs(input: {
+  rows: PhotoRecognizedItem[];
+  userId: string;
+  config: PhotoAnalysisConfig;
+}): PhotoRecognizedItem[] {
+  if (!input.config.photoEstimateConfirmationEnabled) return input.rows;
+  return input.rows.map((row) => {
+    const estimate = row.estimatedNutrition;
+    const quantity = row.provisionalPortion?.quantity;
+    if (estimate === undefined || quantity === undefined) return row;
+    return {
+      ...row,
+      estimatedNutrition: {
+        ...estimate,
+        estimateProof: issuePhotoEstimateProof({
+          secret: input.config.photoEstimateProofSecret,
+          userId: input.userId,
+          rowRef: row.id,
+          recognizedName: row.recognizedName,
+          preparationForm: row.preparationForm,
+          representationKind: row.representationKind,
+          estimateBasis: estimate.basis,
+          quantity,
+          estimate: {
+            calories: estimate.calories,
+            proteinGrams: estimate.proteinGrams,
+            carbohydrateGrams: estimate.carbohydrateGrams,
+            fatGrams: estimate.fatGrams,
+            confidence: estimate.confidence,
+          },
+          ttlSeconds: input.config.photoEstimateProofTtlSeconds,
+        }),
+      },
+    };
+  });
+}
+
 async function adjudicateRows(input: {
   rows: PhotoRecognizedItem[];
   config: PhotoAnalysisConfig;
@@ -647,10 +685,15 @@ export async function analyzePhotoFood(input: {
     });
   });
 
-  const items = await adjudicateRows({
+  const adjudicatedItems = await adjudicateRows({
     rows: initialItems,
     config: input.config,
     signal: input.signal,
+  });
+  const items = attachEstimateProofs({
+    rows: adjudicatedItems,
+    userId: input.userId,
+    config: input.config,
   });
 
   const result: PhotoAnalysisResult = {

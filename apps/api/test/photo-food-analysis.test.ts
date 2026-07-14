@@ -110,6 +110,9 @@ describe('photo food analysis API', () => {
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION;
     delete process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED;
     delete process.env.PHOTO_NUTRITION_ESTIMATION_MOCK;
+    delete process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED;
+    delete process.env.PHOTO_ESTIMATE_PROOF_SECRET;
+    delete process.env.PHOTO_ESTIMATE_PROOF_TTL_SECONDS;
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
@@ -1839,6 +1842,25 @@ describe('photo food analysis API', () => {
     expect(await prisma.foodLog.count()).toBe(0);
   });
 
+  it('issues a user-bound estimate proof only when confirmation is enabled', async () => {
+    process.env.AI_PROVIDER = 'mock';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_MOCK = 'valid';
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-analysis-proof-secret-with-at-least-32-bytes';
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(
+      response.body.data.items[0].estimatedNutrition.estimateProof,
+    ).toMatch(/^v1\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+  });
+
   it('bypasses adjudication for a strong deterministic match', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
@@ -2627,6 +2649,14 @@ describe('photo food analysis API', () => {
     expect(photoAnalysisConfig().nutritionEstimationEnabled).toBe(false);
     process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
     expect(photoAnalysisConfig().nutritionEstimationEnabled).toBe(true);
+  });
+
+  it('requires a dedicated strong proof secret when mixed confirmation is enabled', () => {
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    expect(() => photoAnalysisConfig()).toThrow(/PHOTO_ESTIMATE_PROOF_SECRET/);
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-proof-secret-with-at-least-32-bytes';
+    expect(photoAnalysisConfig().photoEstimateProofTtlSeconds).toBe(900);
   });
 
   it('keeps the expanded one-batch assistance budget within the photo timeout', () => {

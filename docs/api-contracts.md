@@ -1063,6 +1063,31 @@ Rules:
 
 Success `data` is the normal FoodLog response shape.
 
+### `POST /api/v1/food-logs/from-photo-analysis`
+
+Confirms a bounded set of reviewed photo rows as trusted candidates, low-trust
+AI estimates, or exclusions. The request is authenticated and validated in
+full before one transaction creates the persisted trusted and estimated logs.
+
+Trusted entries contain only a current candidate ID and serving selection; the
+server re-fetches the candidate and recomputes authoritative nutrition.
+For this no-FoodItem-write endpoint, the candidate ID must reference a current
+visible FoodItem; external USDA candidates continue through the existing
+trusted-only candidate route, which owns its cache behavior.
+Estimated entries require a server-issued `estimateProof` from photo analysis.
+Proofs are versioned HMAC-SHA-256 signatures (signed, not encrypted), bound to
+the authenticated user, row reference, estimate basis, quantity, identity, and
+original core nutrition, and expire after the configured short TTL. Optional
+user nutrition or food-name corrections remain low-trust and unlinked.
+
+Excluded entries create no FoodLog. All persisted entries are written
+atomically; no FoodItem, provider, image, or review-session writes occur.
+Estimated confirmation is disabled by default with
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED=false`; enabling it requires a dedicated
+`PHOTO_ESTIMATE_PROOF_SECRET` of at least 32 bytes. Durable cross-request
+idempotency is not added in this slice, so stateless proof replay remains
+possible until expiry.
+
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
