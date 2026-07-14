@@ -19,6 +19,7 @@ export interface PhotoAnalysisConfig {
   maxBytes: number;
   maxOutputTokens: number;
   candidateAdjudicationEnabled: boolean;
+  nutritionEstimationEnabled: boolean;
   candidateAdjudicationTimeoutMs: number;
   candidateAdjudicationMaxCandidates: number;
   candidateAdjudicationMaxRows: number;
@@ -28,6 +29,7 @@ export interface PhotoAnalysisConfig {
     | 'reject_all'
     | 'no_decision'
     | 'unavailable';
+  nutritionEstimationMock: 'valid' | 'invalid' | 'missing' | 'unavailable';
 }
 
 function positiveIntegerEnv(name: string, fallback: number): number {
@@ -85,6 +87,19 @@ function mockAdjudicationDecision(): PhotoAnalysisConfig['candidateAdjudicationM
   return 'no_decision';
 }
 
+function mockNutritionEstimation(): PhotoAnalysisConfig['nutritionEstimationMock'] {
+  const raw = process.env.PHOTO_NUTRITION_ESTIMATION_MOCK?.trim();
+  if (
+    raw === 'valid' ||
+    raw === 'invalid' ||
+    raw === 'missing' ||
+    raw === 'unavailable'
+  ) {
+    return raw;
+  }
+  return 'missing';
+}
+
 export function photoAnalysisConfig(): PhotoAnalysisConfig {
   const textConfig = aiFoodParseConfig();
   const timeoutMs = positiveIntegerEnv('PHOTO_ANALYSIS_TIMEOUT_MS', 15_000);
@@ -111,8 +126,12 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
       'PHOTO_CANDIDATE_ADJUDICATION_ENABLED',
       false,
     ),
+    nutritionEstimationEnabled: booleanEnv(
+      'PHOTO_NUTRITION_ESTIMATION_ENABLED',
+      false,
+    ),
     candidateAdjudicationTimeoutMs: Math.min(
-      positiveIntegerEnv('PHOTO_CANDIDATE_ADJUDICATION_TIMEOUT_MS', 1_500),
+      positiveIntegerEnv('PHOTO_CANDIDATE_ADJUDICATION_TIMEOUT_MS', 2_500),
       Math.max(250, timeoutMs - 1_000),
     ),
     candidateAdjudicationMaxCandidates: Math.min(
@@ -132,5 +151,6 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
     candidateAdjudicationMaxOutputTokens:
       boundedCandidateAdjudicationOutputTokens(),
     candidateAdjudicationMockDecision: mockAdjudicationDecision(),
+    nutritionEstimationMock: mockNutritionEstimation(),
   };
 }

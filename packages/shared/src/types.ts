@@ -443,6 +443,25 @@ export interface PhotoRecognizedItem {
   excludedCoverage: string[];
   visiblePortionDescription: string | null;
   adjudication?: PhotoAdjudicationMetadata;
+  estimatedNutrition?: PhotoNutritionEstimate;
+}
+
+export type PhotoNutritionEstimateBasis =
+  | 'structured_quantity'
+  | 'portion_shown';
+
+export interface PhotoNutritionEstimate {
+  calories: number;
+  proteinGrams: number;
+  carbohydrateGrams: number;
+  fatGrams: number;
+  confidence: 'low' | 'medium';
+  basis: PhotoNutritionEstimateBasis;
+  source: 'ai_estimate';
+  trust: 'low';
+  editable: true;
+  linkedFoodItemId: null;
+  label: string;
 }
 
 export interface PhotoAnalysisResult {

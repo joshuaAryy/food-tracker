@@ -108,6 +108,8 @@ describe('photo food analysis API', () => {
     delete process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED;
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION;
+    delete process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED;
+    delete process.env.PHOTO_NUTRITION_ESTIMATION_MOCK;
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
@@ -1804,6 +1806,39 @@ describe('photo food analysis API', () => {
     });
   });
 
+  it('adds a read-only portion-shown estimate for an unresolved active row', async () => {
+    process.env.AI_PROVIDER = 'mock';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_MOCK = 'valid';
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      selectedCandidateId: null,
+      loggable: false,
+      estimatedNutrition: {
+        basis: 'portion_shown',
+        source: 'ai_estimate',
+        trust: 'low',
+        editable: true,
+        linkedFoodItemId: null,
+        label: 'Estimated for portion shown',
+      },
+    });
+    expect(response.body.data.items[0].estimatedNutrition).not.toHaveProperty(
+      'fiber',
+    );
+    expect(response.body.data.items[0].estimatedNutrition).not.toHaveProperty(
+      'servingWeightGrams',
+    );
+    expect(await prisma.foodItem.count()).toBe(0);
+    expect(await prisma.foodLog.count()).toBe(0);
+  });
+
   it('bypasses adjudication for a strong deterministic match', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
@@ -1858,6 +1893,26 @@ describe('photo food analysis API', () => {
       },
       loggable: true,
     });
+  });
+
+  it('keeps trusted deterministic nutrition authoritative over an available estimate', async () => {
+    process.env.AI_PROVIDER = 'mock';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_MOCK = 'valid';
+    await createTrustedFood('chicken');
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      selectedCandidateId: expect.any(String),
+    });
+    expect(response.body.data.items[0]).not.toHaveProperty(
+      'estimatedNutrition',
+    );
   });
 
   it('keeps reject-all and no-decision rows unresolved without estimating nutrition', async () => {
@@ -2566,5 +2621,19 @@ describe('photo food analysis API', () => {
     expect(() => photoAnalysisConfig()).toThrow(
       /PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS/,
     );
+  });
+
+  it('keeps photo nutrition estimation disabled by default and explicitly configurable', () => {
+    expect(photoAnalysisConfig().nutritionEstimationEnabled).toBe(false);
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    expect(photoAnalysisConfig().nutritionEstimationEnabled).toBe(true);
+  });
+
+  it('keeps the expanded one-batch assistance budget within the photo timeout', () => {
+    delete process.env.PHOTO_CANDIDATE_ADJUDICATION_TIMEOUT_MS;
+    expect(photoAnalysisConfig().candidateAdjudicationTimeoutMs).toBe(2_500);
+    process.env.PHOTO_ANALYSIS_TIMEOUT_MS = '3000';
+    expect(photoAnalysisConfig().candidateAdjudicationTimeoutMs).toBe(2_000);
+    delete process.env.PHOTO_ANALYSIS_TIMEOUT_MS;
   });
 });

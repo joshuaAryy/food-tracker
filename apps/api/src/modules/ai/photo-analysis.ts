@@ -36,6 +36,10 @@ import {
   type PhotoAdjudicationRequest,
   type PhotoAdjudicationResult,
 } from './photo-candidate-adjudication.js';
+import {
+  buildPhotoNutritionEstimate,
+  type PhotoNutritionEstimateValues,
+} from './photo-nutrition-estimate.js';
 
 function candidateFood(candidate: AiFoodParseCandidate) {
   return candidate.candidateType === 'food_item'
@@ -357,31 +361,35 @@ function prepareAdjudication(
   const requestRows: PhotoAdjudicationRequest['rows'] = [];
 
   for (const row of rows) {
-    if (
-      row.selectedCandidateId !== null ||
-      row.identityConfidence === 'low' ||
-      row.unresolvedReason === 'ambiguous_identity'
-    ) {
-      continue;
-    }
+    if (row.selectedCandidateId !== null) continue;
+
+    const candidateAdjudicationEligible =
+      config.candidateAdjudicationEnabled &&
+      row.identityConfidence !== 'low' &&
+      row.unresolvedReason !== 'ambiguous_identity';
 
     const query = [row.recognizedName, row.preparationForm]
       .filter((value): value is string => value !== null)
       .join(' ');
-    const eligibleCandidates = row.candidates
-      .filter((candidate) => {
-        if (!hasRelevantTrustedCandidate({ parsedName: query, candidate })) {
-          return false;
-        }
-        return (
-          validatePortionAgainstCandidate(
-            candidate,
-            row.provisionalPortion?.parsed ?? null,
-          ) !== 'needs_review'
-        );
-      })
-      .slice(0, config.candidateAdjudicationMaxCandidates);
-    if (eligibleCandidates.length === 0) continue;
+    const eligibleCandidates = candidateAdjudicationEligible
+      ? row.candidates
+          .filter((candidate) => {
+            if (
+              !hasRelevantTrustedCandidate({ parsedName: query, candidate })
+            ) {
+              return false;
+            }
+            return (
+              validatePortionAgainstCandidate(
+                candidate,
+                row.provisionalPortion?.parsed ?? null,
+              ) !== 'needs_review'
+            );
+          })
+          .slice(0, config.candidateAdjudicationMaxCandidates)
+      : [];
+    const estimateEligible = config.nutritionEstimationEnabled;
+    if (!estimateEligible && eligibleCandidates.length === 0) continue;
 
     const candidateMap = new Map<string, AiFoodParseCandidate>();
     const candidates = eligibleCandidates.map((candidate, index) => {
@@ -397,6 +405,10 @@ function prepareAdjudication(
       quantity: row.provisionalPortion?.quantity ?? {
         state: 'no_responsible_estimate',
       },
+      estimateBasis:
+        row.provisionalPortion?.quantity.state === 'estimated'
+          ? 'structured_quantity'
+          : 'portion_shown',
       representationKind: row.representationKind,
       coverage: row.coverage,
       visiblePortionDescription: row.visiblePortionDescription,
@@ -474,6 +486,7 @@ function applyAdjudication(
       if (decision.confidence !== 'high') {
         return {
           ...row,
+          ...estimateMetadata(row, decision.nutritionEstimate),
           adjudication: adjudicationMetadata({
             status: 'selected',
             confidence: decision.confidence,
@@ -508,6 +521,7 @@ function applyAdjudication(
     if (decision.decision === 'reject_all') {
       return {
         ...row,
+        ...estimateMetadata(row, decision.nutritionEstimate),
         adjudication: adjudicationMetadata({
           status: 'rejected_all',
           confidence: decision.confidence,
@@ -521,6 +535,7 @@ function applyAdjudication(
 
     return {
       ...row,
+      ...estimateMetadata(row, decision.nutritionEstimate),
       adjudication: adjudicationMetadata({
         status: 'no_decision',
         reviewReason: 'adjudication_no_decision',
@@ -529,12 +544,33 @@ function applyAdjudication(
   });
 }
 
+function estimateMetadata(
+  row: PhotoRecognizedItem,
+  values: PhotoNutritionEstimateValues | undefined,
+): Pick<PhotoRecognizedItem, 'estimatedNutrition'> {
+  if (values === undefined) return {};
+  const quantity = row.provisionalPortion?.quantity;
+  const basis =
+    quantity?.state === 'estimated'
+      ? ('structured_quantity' as const)
+      : ('portion_shown' as const);
+  const label = quantity?.state === 'estimated' ? quantity.rawText : null;
+  return {
+    estimatedNutrition: buildPhotoNutritionEstimate(values, basis, label),
+  };
+}
+
 async function adjudicateRows(input: {
   rows: PhotoRecognizedItem[];
   config: PhotoAnalysisConfig;
   signal: AbortSignal;
 }): Promise<PhotoRecognizedItem[]> {
-  if (!input.config.candidateAdjudicationEnabled) return input.rows;
+  if (
+    !input.config.candidateAdjudicationEnabled &&
+    !input.config.nutritionEstimationEnabled
+  ) {
+    return input.rows;
+  }
   const prepared = prepareAdjudication(input.rows, input.config);
   if (prepared.request.rows.length === 0) return input.rows;
 
@@ -547,6 +583,8 @@ async function adjudicateRows(input: {
     maxRows: input.config.candidateAdjudicationMaxRows,
     maxOutputTokens: input.config.candidateAdjudicationMaxOutputTokens,
     mockDecision: input.config.candidateAdjudicationMockDecision,
+    nutritionEstimationEnabled: input.config.nutritionEstimationEnabled,
+    nutritionEstimationMock: input.config.nutritionEstimationMock,
   });
   const result = await provider.adjudicate({
     request: prepared.request,

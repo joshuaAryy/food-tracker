@@ -1473,9 +1473,25 @@ Medium/low selections, `reject_all`, `no_decision`, invalid output, timeout,
 429, 503, cancellation, or malformed output preserve deterministic review
 rows and require user review. Strong deterministic matches make zero
 adjudication calls. Optional row `adjudication` metadata reports source,
-status, confidence, and a safe review reason. This slice adds no estimated
+status, confidence, and a safe review reason. The B1 slice adds no estimated
 nutrition, persistence, or confirmation behavior; automatic AI nutrition
 fallback remains Slice 14.2B2.
+
+When `PHOTO_NUTRITION_ESTIMATION_ENABLED=true`, the same single bounded
+text-only batch may also return a low-trust core-macro estimate for unresolved
+active rows. No second estimate call or image resend is allowed. Estimates
+contain calories, protein, carbohydrates, and fat only, with low or medium
+confidence. The backend derives either a `structured_quantity` or
+`portion_shown` basis and user-facing label; the provider cannot invent
+serving weights, density, conversions, micronutrients, or food identities.
+Trusted selections always suppress estimates. Valid estimates are unlinked,
+editable, low-trust read-only metadata and never enter trusted confirmation,
+FoodItems, FoodLogs, caches, or search results. Invalid or unavailable
+estimates leave the recognition row and candidates unresolved. Mixed
+trusted/estimated review and save remain a later slice.
+The expanded assistance timeout defaults to 2.5 seconds (and remains capped
+below the overall photo-analysis timeout); this was measured against the
+three-row mixed estimate batch while preserving the mobile budget.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

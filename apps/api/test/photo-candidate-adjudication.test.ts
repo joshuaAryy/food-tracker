@@ -19,6 +19,7 @@ const request: PhotoAdjudicationRequest = {
         rawText: 'approximately 1.5 cups',
         confidence: 'medium',
       },
+      estimateBasis: 'structured_quantity',
       representationKind: 'component',
       coverage: ['pasta'],
       visiblePortionDescription: null,
@@ -55,6 +56,8 @@ const config: PhotoAdjudicationConfig = {
   maxRows: 8,
   maxOutputTokens: 1_024,
   mockDecision: 'no_decision',
+  nutritionEstimationEnabled: true,
+  nutritionEstimationMock: 'missing',
 };
 
 describe('photo candidate adjudication provider', () => {
@@ -118,7 +121,7 @@ describe('photo candidate adjudication provider', () => {
     ]);
     expect(JSON.stringify(body)).not.toContain('test-key');
     expect(JSON.stringify(body)).not.toContain('image');
-    expect(JSON.stringify(body)).not.toContain('calories');
+    expect(JSON.stringify(body)).not.toContain('candidateNutrition');
     expect(
       (body?.generationConfig as Record<string, unknown>).candidateCount,
     ).toBe(1);
@@ -179,6 +182,175 @@ describe('photo candidate adjudication provider', () => {
         },
       ],
     });
+  });
+
+  it('parses a core-macro estimate alongside a candidate decision', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              recognitionRef: 'photo-item-1',
+                              decision: 'no_decision',
+                              nutritionEstimate: {
+                                calories: 460,
+                                proteinGrams: 15.3,
+                                carbohydrateGrams: 76.1,
+                                fatGrams: 11,
+                                confidence: 'low',
+                              },
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const result = await photoCandidateAdjudicationProvider(config).adjudicate({
+      request,
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toMatchObject({
+      status: 'completed',
+      decisions: [
+        {
+          recognitionRef: 'photo-item-1',
+          decision: 'no_decision',
+          nutritionEstimate: {
+            calories: 460,
+            proteinGrams: 15.3,
+            carbohydrateGrams: 76.1,
+            fatGrams: 11,
+            confidence: 'low',
+          },
+        },
+      ],
+    });
+  });
+
+  it('supports estimate-only rows in the same bounded text batch', async () => {
+    let body = '';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        body = String(init?.body);
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: 'STOP',
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        decisions: [
+                          {
+                            recognitionRef: 'photo-item-2',
+                            decision: 'no_decision',
+                            nutritionEstimate: {
+                              calories: 300,
+                              proteinGrams: 12,
+                              carbohydrateGrams: 35,
+                              fatGrams: 10,
+                              confidence: 'low',
+                            },
+                          },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const result = await photoCandidateAdjudicationProvider(config).adjudicate({
+      request: {
+        rows: [
+          ...request.rows,
+          {
+            recognitionRef: 'photo-item-2',
+            recognizedName: 'mixed dish',
+            preparationForm: null,
+            quantity: { state: 'no_responsible_estimate' },
+            estimateBasis: 'portion_shown',
+            representationKind: 'composite',
+            coverage: ['mixed dish'],
+            visiblePortionDescription: 'portion shown',
+            candidates: [],
+          },
+        ],
+      },
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toMatchObject({
+      status: 'completed',
+      decisions: [
+        {
+          recognitionRef: 'photo-item-2',
+          decision: 'no_decision',
+          nutritionEstimate: { confidence: 'low' },
+        },
+      ],
+    });
+    expect(body).toContain('portion_shown');
+    expect(body).not.toContain('inlineData');
+    expect(body).not.toContain('candidateNutrition');
+  });
+
+  it('instructs the provider to complete every row with strict decision fields', async () => {
+    let body = '';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        body = String(init?.body);
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: 'STOP',
+                content: { parts: [{ text: '{"decisions":[]}' }] },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    await photoCandidateAdjudicationProvider(config).adjudicate({
+      request,
+      signal: new AbortController().signal,
+    });
+
+    expect(body).toContain(
+      'Every requested row must receive exactly one decision',
+    );
+    expect(body).toContain('candidate-less rows must use no_decision');
+    expect(body).toContain('reject_all requires confidence');
   });
 
   it('preserves a bounded reject-all and no-decision contract', async () => {
@@ -364,5 +536,104 @@ describe('photo candidate adjudication provider', () => {
       config,
     ).adjudicate({ request, signal: new AbortController().signal });
     expect(truncated.status).toBe('unavailable');
+  });
+
+  it('discards an inconsistent optional estimate without losing its decision', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              recognitionRef: 'photo-item-1',
+                              decision: 'no_decision',
+                              nutritionEstimate: {
+                                calories: 10,
+                                proteinGrams: 100,
+                                carbohydrateGrams: 100,
+                                fatGrams: 100,
+                                confidence: 'low',
+                              },
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const result = await photoCandidateAdjudicationProvider(config).adjudicate({
+      request,
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toEqual({
+      status: 'completed',
+      decisions: [{ recognitionRef: 'photo-item-1', decision: 'no_decision' }],
+    });
+  });
+
+  it('rejects estimates containing micronutrients or serving metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              recognitionRef: 'photo-item-1',
+                              decision: 'no_decision',
+                              nutritionEstimate: {
+                                calories: 300,
+                                proteinGrams: 12,
+                                carbohydrateGrams: 35,
+                                fatGrams: 10,
+                                confidence: 'low',
+                                fiber: 4,
+                                servingWeightGrams: 250,
+                              },
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const result = await photoCandidateAdjudicationProvider(config).adjudicate({
+      request,
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toEqual({ status: 'invalid_response', decisions: [] });
   });
 });

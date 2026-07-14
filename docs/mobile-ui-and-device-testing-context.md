@@ -726,13 +726,21 @@ unresolved candidates, unreviewed low-confidence matches, and pending rows
 block continuation. Bounded backend candidate adjudication may mark a trusted
 candidate as AI-adjudicated, but medium/low confidence, reject-all,
 no-decision, and unavailable outcomes remain editable review rows.
-Natural-serving defaults, AI-estimated nutrition fallback, and
-alternative-selection UI are later slices. Simple
+Natural-serving defaults and alternative-selection UI are later slices. Simple
 mode shows concise trusted calories/protein; Detailed/Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
 unknown, and provider nutrition is never displayed or used. Invalid optional
 provider regions are dropped before the mobile response because the review UI
 does not require region metadata.
+
+Phase 14.2B2 may attach optional `estimatedNutrition` metadata to an unresolved
+photo row. It is explicitly low-trust, editable metadata for calories and core
+macros only, labelled from a backend-derived structured quantity or
+`Estimated for portion shown` basis. The current mobile review continues to
+require a trusted candidate for confirmation and save; it does not render a
+new mixed trusted/estimated editor or submit estimates to the existing trusted
+confirmation endpoint. Candidate replacement and exclusion behavior remain
+unchanged, and unknown micronutrients stay unknown.
 
 Final confirmation calls `/food-logs/from-candidates` with only trusted
 candidate references, reviewed servings, meal metadata, and permitted notes.

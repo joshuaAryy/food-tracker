@@ -1084,6 +1084,20 @@ export const photoAdjudicationMetadataSchema = z.strictObject({
   reviewReason: z.string().trim().min(1).max(160).nullable(),
 });
 
+export const photoNutritionEstimateSchema = z.strictObject({
+  calories: z.number().int().positive(),
+  proteinGrams: z.number().finite().nonnegative(),
+  carbohydrateGrams: z.number().finite().nonnegative(),
+  fatGrams: z.number().finite().nonnegative(),
+  confidence: z.enum(['low', 'medium']),
+  basis: z.enum(['structured_quantity', 'portion_shown']),
+  source: z.literal('ai_estimate'),
+  trust: z.literal('low'),
+  editable: z.literal(true),
+  linkedFoodItemId: z.null(),
+  label: z.string().trim().min(1).max(160),
+});
+
 export const photoRepresentationItemSchema = z.strictObject({
   id: z.string().trim().min(1).max(80),
   representationGroupId: z.string().trim().min(1).max(80),
@@ -1175,6 +1189,7 @@ export const photoRecognizedItemSchema = z.strictObject({
   excludedCoverage: photoCoverageSchema,
   visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
   adjudication: photoAdjudicationMetadataSchema.optional(),
+  estimatedNutrition: photoNutritionEstimateSchema.optional(),
 });
 
 export const photoAnalysisResultSchema = z.strictObject({

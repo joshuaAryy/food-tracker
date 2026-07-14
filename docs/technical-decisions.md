@@ -518,6 +518,29 @@ Slice 1 locks the following implementation details:
   no persistence or AI nutrition estimation; fallback estimation remains Slice
   14.2B2.
 
+## TD-019: Phase 14.2B2 Photo Nutrition Estimate Fallback
+
+Status: Implemented in the read-only analysis response
+
+Photo nutrition fallback extends the existing Phase 14 bounded text-only
+adjudication batch; it never adds a second provider call or resends the image.
+Only unresolved active rows may receive an estimate after deterministic
+retrieval and candidate decisions. Strong deterministic and high-confidence
+adjudicated trusted selections remain authoritative and suppress estimates.
+
+The photo estimate reuses Phase 12.6's low-trust, unlinked, editable safety
+model, but is stricter and photo-specific: Gemini returns only calories,
+protein grams, carbohydrate grams, fat grams, and low/medium confidence. The
+backend validates finite bounded values and conservative macro-energy
+consistency, rounds them, derives a structured-quantity or portion-shown
+basis, and adds low-trust provenance metadata. Micronutrients, serving
+weights, density, conversions, rewritten identities, and database references
+are rejected. Estimates remain read-only photo metadata; FoodItem/FoodLog
+persistence and mixed trusted/estimated confirmation remain future work.
+The shared assistance sub-budget is 2.5 seconds by default, capped below the
+overall photo-analysis timeout; the increase from 1.5 seconds was justified by
+measured three-row mixed-batch latency and remains within the mobile budget.
+
 ## TD-017: Phase 12.8 Serving Intelligence
 
 Status: Implemented and validated in Phase 12.8

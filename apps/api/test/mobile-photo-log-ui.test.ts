@@ -492,6 +492,44 @@ describe('mobile photo review state and save boundary', () => {
     );
   });
 
+  it('keeps low-trust estimates visible as metadata but outside trusted save input', () => {
+    const estimated = {
+      ...result,
+      items: [
+        {
+          ...result.items[0]!,
+          selectedCandidateId: null,
+          candidates: [],
+          loggable: false,
+          estimatedNutrition: {
+            calories: 300,
+            proteinGrams: 12,
+            carbohydrateGrams: 35,
+            fatGrams: 10,
+            confidence: 'low' as const,
+            basis: 'portion_shown' as const,
+            source: 'ai_estimate' as const,
+            trust: 'low' as const,
+            editable: true as const,
+            linkedFoodItemId: null,
+            label: 'Estimated for portion shown',
+          },
+        },
+      ],
+    } satisfies PhotoAnalysisResult;
+
+    const row = photoRowsFromAnalysis(estimated)[0]!;
+    expect(row.recognizedItem.estimatedNutrition?.trust).toBe('low');
+    expect(photoRowsDisposition([row]).canContinue).toBe(false);
+    expect(() =>
+      photoRowsSaveRequest({
+        rows: [row],
+        mealType: 'lunch',
+        loggedAt: '2026-07-13T18:00:00.000Z',
+      }),
+    ).toThrow('Every included photo row must be confirmed');
+  });
+
   it('adds a missed food as a distinct user-added row', () => {
     const row = addPhotoRow(candidate, 1);
     expect(row.id).toBe('photo-item-2');

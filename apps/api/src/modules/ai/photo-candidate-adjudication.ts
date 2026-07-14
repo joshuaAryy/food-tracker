@@ -3,9 +3,14 @@ import {
   type PhotoConfidenceLevel,
   type PhotoProvisionalQuantity,
   type PhotoRepresentationKind,
+  type PhotoNutritionEstimateBasis,
 } from '@food-tracker/shared';
 import { z } from 'zod';
 import type { PhotoAnalysisConfig } from './photo-config.js';
+import {
+  validatePhotoNutritionEstimate,
+  type PhotoNutritionEstimateValues,
+} from './photo-nutrition-estimate.js';
 
 export interface PhotoAdjudicationCandidateSummary {
   candidateRef: string;
@@ -22,6 +27,7 @@ export interface PhotoAdjudicationRow {
   recognizedName: string;
   preparationForm: string | null;
   quantity: PhotoProvisionalQuantity;
+  estimateBasis: PhotoNutritionEstimateBasis;
   representationKind: PhotoRepresentationKind;
   coverage: string[];
   visiblePortionDescription: string | null;
@@ -38,15 +44,18 @@ export type PhotoAdjudicationDecision =
       decision: 'select_candidate';
       candidateRef: string;
       confidence: PhotoConfidenceLevel;
+      nutritionEstimate?: PhotoNutritionEstimateValues;
     }
   | {
       recognitionRef: string;
       decision: 'reject_all';
       confidence: PhotoConfidenceLevel;
+      nutritionEstimate?: PhotoNutritionEstimateValues;
     }
   | {
       recognitionRef: string;
       decision: 'no_decision';
+      nutritionEstimate?: PhotoNutritionEstimateValues;
     };
 
 export type PhotoAdjudicationResult =
@@ -66,6 +75,16 @@ const rawDecisionSchema = z.strictObject({
   decision: z.enum(['select_candidate', 'reject_all', 'no_decision']),
   candidateRef: z.string().trim().min(1).max(80).nullable().default(null),
   confidence: photoConfidenceLevelSchema.nullable().default(null),
+  nutritionEstimate: z
+    .strictObject({
+      calories: z.number().finite(),
+      proteinGrams: z.number().finite().nonnegative(),
+      carbohydrateGrams: z.number().finite().nonnegative(),
+      fatGrams: z.number().finite().nonnegative(),
+      confidence: z.enum(['low', 'medium']),
+    })
+    .nullable()
+    .default(null),
 });
 
 const rawOutputSchema = z.strictObject({
@@ -90,6 +109,23 @@ const geminiResponseSchema = {
             type: 'string',
             enum: ['high', 'medium', 'low'],
             nullable: true,
+          },
+          nutritionEstimate: {
+            type: 'object',
+            properties: {
+              calories: { type: 'number' },
+              proteinGrams: { type: 'number' },
+              carbohydrateGrams: { type: 'number' },
+              fatGrams: { type: 'number' },
+              confidence: { type: 'string', enum: ['low', 'medium'] },
+            },
+            required: [
+              'calories',
+              'proteinGrams',
+              'carbohydrateGrams',
+              'fatGrams',
+              'confidence',
+            ],
           },
         },
         required: ['recognitionRef', 'decision'],
@@ -135,6 +171,7 @@ function assembledText(payload: {
 function parseDecisions(
   text: string,
   request: PhotoAdjudicationRequest,
+  estimateRequired: boolean,
 ): PhotoAdjudicationDecision[] | null {
   let decoded: unknown;
   try {
@@ -161,6 +198,23 @@ function parseDecisions(
       return null;
     }
     seen.add(decision.recognitionRef);
+    const estimate =
+      decision.nutritionEstimate === null
+        ? undefined
+        : (validatePhotoNutritionEstimate(decision.nutritionEstimate) ??
+          undefined);
+    if (decision.nutritionEstimate !== null && estimate === undefined) {
+      logDiagnostic('provider_optional_nutrition_estimate_discarded', {
+        rowCount: request.rows.length,
+        recognitionRef: decision.recognitionRef,
+      });
+    }
+    if (estimateRequired && decision.nutritionEstimate === null) {
+      logDiagnostic('provider_nutrition_estimate_missing', {
+        rowCount: request.rows.length,
+        recognitionRef: decision.recognitionRef,
+      });
+    }
 
     if (decision.decision === 'select_candidate') {
       if (
@@ -175,6 +229,7 @@ function parseDecisions(
         decision: decision.decision,
         candidateRef: decision.candidateRef,
         confidence: decision.confidence,
+        ...(estimate === undefined ? {} : { nutritionEstimate: estimate }),
       });
       continue;
     }
@@ -187,6 +242,7 @@ function parseDecisions(
         recognitionRef: decision.recognitionRef,
         decision: decision.decision,
         confidence: decision.confidence,
+        ...(estimate === undefined ? {} : { nutritionEstimate: estimate }),
       });
       continue;
     }
@@ -197,6 +253,7 @@ function parseDecisions(
     decisions.push({
       recognitionRef: decision.recognitionRef,
       decision: decision.decision,
+      ...(estimate === undefined ? {} : { nutritionEstimate: estimate }),
     });
   }
 
@@ -205,9 +262,12 @@ function parseDecisions(
 
 function requestText(request: PhotoAdjudicationRequest): string {
   return [
-    'Select trusted food identities for ambiguous photo-recognition rows.',
+    'Resolve ambiguous photo-recognition rows and provide low-trust nutrition estimates only when requested context is sufficient.',
     'Use only the supplied candidateRef values. Do not create candidates.',
-    'Return JSON only. Do not include nutrition, serving conversions, reasoning, or database IDs.',
+    'Return JSON only. Nutrition estimates may contain only calories, proteinGrams, carbohydrateGrams, fatGrams, and low or medium confidence.',
+    'Do not include micronutrients, serving weights, serving conversions, rewritten food names, reasoning, or database IDs.',
+    'Every requested row must receive exactly one decision. select_candidate and reject_all require confidence; no_decision must omit candidateRef and confidence. reject_all requires confidence.',
+    'candidate-less rows must use no_decision, never reject_all. Every requested row must include nutritionEstimate with all five required fields; do not omit it when estimateBasis is present.',
     'Use select_candidate only with high confidence when one candidate clearly represents the recognition.',
     'Use reject_all when every supplied candidate is clearly unsuitable. Otherwise use no_decision.',
     JSON.stringify({ rows: request.rows }),
@@ -295,7 +355,11 @@ class GeminiPhotoCandidateAdjudicationProvider implements PhotoCandidateAdjudica
         return { status: 'unavailable', decisions: [] };
       }
 
-      const decisions = parseDecisions(completed.text, input.request);
+      const decisions = parseDecisions(
+        completed.text,
+        input.request,
+        this.config.nutritionEstimationEnabled,
+      );
       if (decisions === null) {
         logDiagnostic('invalid_decision_response', {
           rowCount: input.request.rows.length,
@@ -319,43 +383,84 @@ class GeminiPhotoCandidateAdjudicationProvider implements PhotoCandidateAdjudica
 }
 
 class MockPhotoCandidateAdjudicationProvider implements PhotoCandidateAdjudicationProvider {
-  constructor(
-    private readonly decision: PhotoAdjudicationConfig['mockDecision'],
-  ) {}
+  constructor(private readonly config: PhotoAdjudicationConfig) {}
+
+  private estimate() {
+    if (!this.config.nutritionEstimationEnabled) return undefined;
+    if (this.config.nutritionEstimationMock === 'missing') return undefined;
+    if (this.config.nutritionEstimationMock === 'invalid') {
+      return {
+        calories: 50,
+        proteinGrams: 100,
+        carbohydrateGrams: 100,
+        fatGrams: 100,
+        confidence: 'low' as const,
+      };
+    }
+    return {
+      calories: 460,
+      proteinGrams: 15.3,
+      carbohydrateGrams: 76.1,
+      fatGrams: 11,
+      confidence: 'low' as const,
+    };
+  }
 
   async adjudicate(input: {
     request: PhotoAdjudicationRequest;
   }): Promise<PhotoAdjudicationResult> {
-    if (this.decision === 'unavailable') {
+    if (
+      this.config.mockDecision === 'unavailable' ||
+      this.config.nutritionEstimationMock === 'unavailable'
+    ) {
       return { status: 'unavailable', decisions: [] };
     }
-    if (this.decision === 'no_decision') {
+    if (this.config.mockDecision === 'no_decision') {
       return {
         status: 'completed',
-        decisions: input.request.rows.map((row) => ({
-          recognitionRef: row.recognitionRef,
-          decision: 'no_decision' as const,
-        })),
+        decisions: input.request.rows.map((row) => {
+          const nutritionEstimate = this.estimate();
+          return {
+            recognitionRef: row.recognitionRef,
+            decision: 'no_decision' as const,
+            ...(nutritionEstimate === undefined ? {} : { nutritionEstimate }),
+          };
+        }),
       };
     }
-    if (this.decision === 'reject_all') {
+    if (this.config.mockDecision === 'reject_all') {
       return {
         status: 'completed',
-        decisions: input.request.rows.map((row) => ({
-          recognitionRef: row.recognitionRef,
-          decision: 'reject_all' as const,
-          confidence: 'high' as const,
-        })),
+        decisions: input.request.rows.map((row) => {
+          const nutritionEstimate = this.estimate();
+          return {
+            recognitionRef: row.recognitionRef,
+            decision: 'reject_all' as const,
+            confidence: 'high' as const,
+            ...(nutritionEstimate === undefined ? {} : { nutritionEstimate }),
+          };
+        }),
       };
     }
     return {
       status: 'completed',
-      decisions: input.request.rows.map((row) => ({
-        recognitionRef: row.recognitionRef,
-        decision: 'select_candidate' as const,
-        candidateRef: row.candidates[0]?.candidateRef ?? '',
-        confidence: 'high' as const,
-      })),
+      decisions: input.request.rows.map((row) => {
+        const nutritionEstimate = this.estimate();
+        if (row.candidates.length === 0) {
+          return {
+            recognitionRef: row.recognitionRef,
+            decision: 'no_decision' as const,
+            ...(nutritionEstimate === undefined ? {} : { nutritionEstimate }),
+          };
+        }
+        return {
+          recognitionRef: row.recognitionRef,
+          decision: 'select_candidate' as const,
+          candidateRef: row.candidates[0]?.candidateRef ?? '',
+          confidence: 'high' as const,
+          ...(nutritionEstimate === undefined ? {} : { nutritionEstimate }),
+        };
+      }),
     };
   }
 }
@@ -373,7 +478,7 @@ export function photoCandidateAdjudicationProvider(
     return new GeminiPhotoCandidateAdjudicationProvider(config);
   }
   if (config.provider === 'mock') {
-    return new MockPhotoCandidateAdjudicationProvider(config.mockDecision);
+    return new MockPhotoCandidateAdjudicationProvider(config);
   }
   return new DisabledPhotoCandidateAdjudicationProvider();
 }
@@ -387,4 +492,6 @@ export interface PhotoAdjudicationConfig {
   maxCandidates: number;
   maxRows: number;
   mockDecision: PhotoAnalysisConfig['candidateAdjudicationMockDecision'];
+  nutritionEstimationEnabled: boolean;
+  nutritionEstimationMock: PhotoAnalysisConfig['nutritionEstimationMock'];
 }
