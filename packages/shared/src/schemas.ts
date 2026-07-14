@@ -1070,6 +1070,20 @@ export const photoProvisionalPortionSchema = z.strictObject({
   servingResolution: photoServingResolutionSchema,
 });
 
+export const photoAdjudicationMetadataSchema = z.strictObject({
+  selectionSource: z.enum(['deterministic', 'ai_adjudicated', 'user_required']),
+  status: z.enum([
+    'not_needed',
+    'selected',
+    'rejected_all',
+    'no_decision',
+    'unavailable',
+    'invalid_response',
+  ]),
+  confidence: photoConfidenceLevelSchema.nullable(),
+  reviewReason: z.string().trim().min(1).max(160).nullable(),
+});
+
 export const photoRepresentationItemSchema = z.strictObject({
   id: z.string().trim().min(1).max(80),
   representationGroupId: z.string().trim().min(1).max(80),
@@ -1160,6 +1174,7 @@ export const photoRecognizedItemSchema = z.strictObject({
   coverage: photoCoverageSchema,
   excludedCoverage: photoCoverageSchema,
   visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
+  adjudication: photoAdjudicationMetadataSchema.optional(),
 });
 
 export const photoAnalysisResultSchema = z.strictObject({

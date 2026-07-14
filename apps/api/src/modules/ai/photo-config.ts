@@ -1,4 +1,7 @@
 import {
+  PHOTO_CANDIDATE_ADJUDICATION_MAX_CANDIDATES,
+  PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS,
+  PHOTO_CANDIDATE_ADJUDICATION_MAX_ROWS,
   PHOTO_ANALYSIS_MAX_ITEMS,
   PHOTO_ANALYSIS_MAX_BYTES,
 } from '@food-tracker/shared';
@@ -15,6 +18,16 @@ export interface PhotoAnalysisConfig {
   dailyLimit: number;
   maxBytes: number;
   maxOutputTokens: number;
+  candidateAdjudicationEnabled: boolean;
+  candidateAdjudicationTimeoutMs: number;
+  candidateAdjudicationMaxCandidates: number;
+  candidateAdjudicationMaxRows: number;
+  candidateAdjudicationMaxOutputTokens: number;
+  candidateAdjudicationMockDecision:
+    | 'select_candidate'
+    | 'reject_all'
+    | 'no_decision'
+    | 'unavailable';
 }
 
 function positiveIntegerEnv(name: string, fallback: number): number {
@@ -37,8 +50,44 @@ function boundedPhotoOutputTokens(): number {
   return parsed;
 }
 
+function boundedCandidateAdjudicationOutputTokens(): number {
+  const name = 'PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS';
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') {
+    return PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 512 || parsed > 2048) {
+    throw new Error(`${name} must be an integer between 512 and 2048.`);
+  }
+  return parsed;
+}
+
+function booleanEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  throw new Error(`${name} must be true or false.`);
+}
+
+function mockAdjudicationDecision(): PhotoAnalysisConfig['candidateAdjudicationMockDecision'] {
+  const raw = process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION?.trim();
+  if (
+    raw === 'select_candidate' ||
+    raw === 'reject_all' ||
+    raw === 'no_decision' ||
+    raw === 'unavailable'
+  ) {
+    return raw;
+  }
+  return 'no_decision';
+}
+
 export function photoAnalysisConfig(): PhotoAnalysisConfig {
   const textConfig = aiFoodParseConfig();
+  const timeoutMs = positiveIntegerEnv('PHOTO_ANALYSIS_TIMEOUT_MS', 15_000);
 
   return {
     provider: textConfig.provider,
@@ -49,7 +98,7 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
       positiveIntegerEnv('PHOTO_ANALYSIS_MAX_ITEMS', PHOTO_ANALYSIS_MAX_ITEMS),
       PHOTO_ANALYSIS_MAX_ITEMS,
     ),
-    timeoutMs: positiveIntegerEnv('PHOTO_ANALYSIS_TIMEOUT_MS', 15_000),
+    timeoutMs,
     rateLimitWindowMs: positiveIntegerEnv(
       'PHOTO_ANALYSIS_RATE_LIMIT_WINDOW_MS',
       600_000,
@@ -58,5 +107,30 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
     dailyLimit: positiveIntegerEnv('PHOTO_ANALYSIS_DAILY_LIMIT', 25),
     maxBytes: PHOTO_ANALYSIS_MAX_BYTES,
     maxOutputTokens: boundedPhotoOutputTokens(),
+    candidateAdjudicationEnabled: booleanEnv(
+      'PHOTO_CANDIDATE_ADJUDICATION_ENABLED',
+      false,
+    ),
+    candidateAdjudicationTimeoutMs: Math.min(
+      positiveIntegerEnv('PHOTO_CANDIDATE_ADJUDICATION_TIMEOUT_MS', 1_500),
+      Math.max(250, timeoutMs - 1_000),
+    ),
+    candidateAdjudicationMaxCandidates: Math.min(
+      positiveIntegerEnv(
+        'PHOTO_CANDIDATE_ADJUDICATION_MAX_CANDIDATES',
+        PHOTO_CANDIDATE_ADJUDICATION_MAX_CANDIDATES,
+      ),
+      PHOTO_CANDIDATE_ADJUDICATION_MAX_CANDIDATES,
+    ),
+    candidateAdjudicationMaxRows: Math.min(
+      positiveIntegerEnv(
+        'PHOTO_CANDIDATE_ADJUDICATION_MAX_ROWS',
+        PHOTO_CANDIDATE_ADJUDICATION_MAX_ROWS,
+      ),
+      PHOTO_CANDIDATE_ADJUDICATION_MAX_ROWS,
+    ),
+    candidateAdjudicationMaxOutputTokens:
+      boundedCandidateAdjudicationOutputTokens(),
+    candidateAdjudicationMockDecision: mockAdjudicationDecision(),
   };
 }

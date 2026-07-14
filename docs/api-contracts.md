@@ -1455,11 +1455,27 @@ groups are invalid, the response remains an AI-unavailable semantic error.
 
 The route never returns raw provider payloads, prompts, internal reasoning,
 credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
-records, USDA cache rows, or review sessions. Candidate adjudication,
-natural-serving defaults, AI-estimated nutrition fallback, and alternative
-selection UI remain later Phase 14 slices. The current Slice 2 save path still
+records, USDA cache rows, or review sessions. Natural-serving defaults,
+AI-estimated nutrition fallback, and alternative selection UI remain later
+Phase 14 slices. The current Slice 2 save path still
 saves only reviewed candidate references and servings through
 `POST /api/v1/food-logs/from-candidates`.
+
+When `PHOTO_CANDIDATE_ADJUDICATION_ENABLED=true`, deterministic retrieval
+completes before an optional bounded text-only adjudication step. Only active
+rows without a strong deterministic selection and with up to three
+selection-eligible candidates are included. At most one batch containing at
+most eight rows is sent; no image, user ID, permanent database ID, nutrition,
+or inactive alternative is sent. Candidates use request-scoped opaque
+references. Only validated high-confidence selections are applied
+automatically; trusted candidate nutrition and servings remain authoritative.
+Medium/low selections, `reject_all`, `no_decision`, invalid output, timeout,
+429, 503, cancellation, or malformed output preserve deterministic review
+rows and require user review. Strong deterministic matches make zero
+adjudication calls. Optional row `adjudication` metadata reports source,
+status, confidence, and a safe review reason. This slice adds no estimated
+nutrition, persistence, or confirmation behavior; automatic AI nutrition
+fallback remains Slice 14.2B2.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

@@ -723,9 +723,11 @@ authorize a candidate conversion. Representation groups may expose active
 component rows or one active composite row; inactive alternatives remain
 backend metadata and never render as active rows. Unsupported servings,
 unresolved candidates, unreviewed low-confidence matches, and pending rows
-block continuation. Candidate adjudication, natural-serving defaults,
-AI-estimated nutrition fallback, and alternative-selection UI are later
-slices. Simple
+block continuation. Bounded backend candidate adjudication may mark a trusted
+candidate as AI-adjudicated, but medium/low confidence, reject-all,
+no-decision, and unavailable outcomes remain editable review rows.
+Natural-serving defaults, AI-estimated nutrition fallback, and
+alternative-selection UI are later slices. Simple
 mode shows concise trusted calories/protein; Detailed/Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
 unknown, and provider nutrition is never displayed or used. Invalid optional

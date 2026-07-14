@@ -506,6 +506,17 @@ Slice 1 locks the following implementation details:
   provisional and never infer density or universal household weights.
 - Analysis is no-write. Final saving remains the existing transactional
   `/food-logs/from-candidates` contract.
+- Phase 14 Slice 14.2B1 adds optional bounded candidate adjudication after
+  deterministic retrieval. Only active ambiguous rows enter one text-only
+  batch, capped at three eligible candidates per row and eight rows per
+  request. Strong deterministic selections bypass the provider. Gemini sees
+  backend-controlled candidate summaries and request-scoped references only;
+  it cannot query data, create candidates, alter nutrition, or select inactive
+  alternatives. Only high-confidence valid references are applied; reject-all,
+  no-decision, medium/low confidence, invalid output, and provider failures
+  preserve deterministic review. The feature is disabled by default and adds
+  no persistence or AI nutrition estimation; fallback estimation remains Slice
+  14.2B2.
 
 ## TD-017: Phase 12.8 Serving Intelligence
 

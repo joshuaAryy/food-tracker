@@ -5,6 +5,7 @@ import {
   type AiFoodParsedItem,
   type FoodItemServingOptions,
   type PhotoAnalysisResult,
+  type PhotoAdjudicationMetadata,
   type PhotoRecognizedItem,
   type PhotoServingResolution,
   type PhotoUnresolvedReason,
@@ -12,6 +13,8 @@ import {
 } from '@food-tracker/shared';
 import {
   bestTrustedCandidate,
+  hasRelevantTrustedCandidate,
+  normalizeText,
   parseCandidateId,
 } from '../foodItems/candidate-ranking.js';
 import { retrieveParsedFoodItems } from './retrieval.js';
@@ -27,6 +30,12 @@ import {
   representationMetadataForRow,
   type AdaptedPhotoRepresentationItem,
 } from './photo-representation.js';
+import {
+  photoCandidateAdjudicationProvider,
+  type PhotoAdjudicationCandidateSummary,
+  type PhotoAdjudicationRequest,
+  type PhotoAdjudicationResult,
+} from './photo-candidate-adjudication.js';
 
 function candidateFood(candidate: AiFoodParseCandidate) {
   return candidate.candidateType === 'food_item'
@@ -93,6 +102,19 @@ function candidateIsAmbiguous(candidates: AiFoodParseCandidate[]): boolean {
     second !== undefined &&
     first.confidence === second.confidence &&
     first.confidence !== 'low'
+  );
+}
+
+function candidateIsStrongDeterministic(
+  query: string,
+  candidates: AiFoodParseCandidate[],
+): boolean {
+  const first = candidates[0];
+  if (first === undefined) return false;
+  const food = candidateFood(first);
+  return (
+    normalizeText(food.name) === normalizeText(query) &&
+    hasRelevantTrustedCandidate({ parsedName: query, candidate: first })
   );
 }
 
@@ -212,6 +234,7 @@ function buildRow(input: {
   retrieved: AiFoodParsedItem;
   duplicate: boolean;
   representation: AdaptedPhotoRepresentationItem;
+  adjudication?: PhotoAdjudicationMetadata;
 }): PhotoRecognizedItem {
   const quantityParsed = parsedServingForQuantity(input.suggestion.quantity);
   const trusted = bestTrustedCandidate(
@@ -219,10 +242,14 @@ function buildRow(input: {
     input.retrieved.candidates,
   );
   const ambiguous = candidateIsAmbiguous(input.retrieved.candidates);
+  const strongDeterministic = candidateIsStrongDeterministic(
+    input.retrieved.parsedName,
+    input.retrieved.candidates,
+  );
   const selectedCandidate =
     input.suggestion.identityConfidence === 'low' ||
     input.duplicate ||
-    ambiguous
+    (ambiguous && !strongDeterministic)
       ? undefined
       : trusted;
   const portionResolution = validatePortionAgainstCandidate(
@@ -288,7 +315,244 @@ function buildRow(input: {
     candidates: input.retrieved.candidates,
     unresolvedReason: reason,
     ...representationMetadataForRow(input.representation),
+    adjudication: input.adjudication ?? {
+      selectionSource:
+        selectedCandidateId !== null ? 'deterministic' : 'user_required',
+      status: 'not_needed',
+      confidence: null,
+      reviewReason: reason,
+    },
   };
+}
+
+function adjudicationCandidateSummary(
+  candidate: AiFoodParseCandidate,
+  candidateRef: string,
+): PhotoAdjudicationCandidateSummary {
+  const food = candidateFood(candidate);
+  return {
+    candidateRef,
+    displayName: food.name,
+    brandName: food.brandName,
+    preparationForm: null,
+    foodType: food.foodType,
+    source: candidate.matchReason,
+    servingLabels:
+      food.servingOptions?.options
+        .map((option) => option.providerDescription ?? option.label)
+        .slice(0, 6) ?? [],
+  };
+}
+
+interface PreparedAdjudication {
+  request: PhotoAdjudicationRequest;
+  candidateMaps: Map<string, Map<string, AiFoodParseCandidate>>;
+}
+
+function prepareAdjudication(
+  rows: PhotoRecognizedItem[],
+  config: PhotoAnalysisConfig,
+): PreparedAdjudication {
+  const candidateMaps = new Map<string, Map<string, AiFoodParseCandidate>>();
+  const requestRows: PhotoAdjudicationRequest['rows'] = [];
+
+  for (const row of rows) {
+    if (
+      row.selectedCandidateId !== null ||
+      row.identityConfidence === 'low' ||
+      row.unresolvedReason === 'ambiguous_identity'
+    ) {
+      continue;
+    }
+
+    const query = [row.recognizedName, row.preparationForm]
+      .filter((value): value is string => value !== null)
+      .join(' ');
+    const eligibleCandidates = row.candidates
+      .filter((candidate) => {
+        if (!hasRelevantTrustedCandidate({ parsedName: query, candidate })) {
+          return false;
+        }
+        return (
+          validatePortionAgainstCandidate(
+            candidate,
+            row.provisionalPortion?.parsed ?? null,
+          ) !== 'needs_review'
+        );
+      })
+      .slice(0, config.candidateAdjudicationMaxCandidates);
+    if (eligibleCandidates.length === 0) continue;
+
+    const candidateMap = new Map<string, AiFoodParseCandidate>();
+    const candidates = eligibleCandidates.map((candidate, index) => {
+      const candidateRef = `candidate-${row.id.replace('photo-item-', '')}-${index + 1}`;
+      candidateMap.set(candidateRef, candidate);
+      return adjudicationCandidateSummary(candidate, candidateRef);
+    });
+    candidateMaps.set(row.id, candidateMap);
+    requestRows.push({
+      recognitionRef: row.id,
+      recognizedName: row.recognizedName,
+      preparationForm: row.preparationForm,
+      quantity: row.provisionalPortion?.quantity ?? {
+        state: 'no_responsible_estimate',
+      },
+      representationKind: row.representationKind,
+      coverage: row.coverage,
+      visiblePortionDescription: row.visiblePortionDescription,
+      candidates,
+    });
+    if (requestRows.length >= config.candidateAdjudicationMaxRows) break;
+  }
+
+  return {
+    request: { rows: requestRows },
+    candidateMaps,
+  };
+}
+
+function adjudicationMetadata(input: {
+  status: PhotoAdjudicationMetadata['status'];
+  confidence?: PhotoAdjudicationMetadata['confidence'];
+  selectionSource?: PhotoAdjudicationMetadata['selectionSource'];
+  reviewReason?: string | null;
+}): PhotoAdjudicationMetadata {
+  return {
+    selectionSource: input.selectionSource ?? 'user_required',
+    status: input.status,
+    confidence: input.confidence ?? null,
+    reviewReason: input.reviewReason ?? null,
+  };
+}
+
+function applyAdjudication(
+  rows: PhotoRecognizedItem[],
+  prepared: PreparedAdjudication,
+  result: PhotoAdjudicationResult,
+): PhotoRecognizedItem[] {
+  const decisions =
+    result.status === 'completed'
+      ? new Map(
+          result.decisions.map((decision) => [
+            decision.recognitionRef,
+            decision,
+          ]),
+        )
+      : null;
+
+  return rows.map((row) => {
+    const candidateMap = prepared.candidateMaps.get(row.id);
+    if (candidateMap === undefined) return row;
+
+    if (result.status !== 'completed') {
+      return {
+        ...row,
+        adjudication: adjudicationMetadata({
+          status: result.status,
+          reviewReason:
+            result.status === 'unavailable'
+              ? 'adjudication_unavailable'
+              : 'adjudication_invalid_response',
+        }),
+      };
+    }
+
+    const decision = decisions?.get(row.id);
+    if (decision === undefined) {
+      return {
+        ...row,
+        adjudication: adjudicationMetadata({
+          status: 'no_decision',
+          reviewReason: 'adjudication_missing_decision',
+        }),
+      };
+    }
+
+    if (decision.decision === 'select_candidate') {
+      const candidate = candidateMap.get(decision.candidateRef);
+      if (candidate === undefined) return row;
+      if (decision.confidence !== 'high') {
+        return {
+          ...row,
+          adjudication: adjudicationMetadata({
+            status: 'selected',
+            confidence: decision.confidence,
+            reviewReason: 'adjudication_confidence_requires_review',
+          }),
+        };
+      }
+
+      const portionResolution = validatePortionAgainstCandidate(
+        candidate,
+        row.provisionalPortion?.parsed ?? null,
+      );
+      const selectedCandidateId = parseCandidateId(candidate);
+      const loggable = portionResolution === 'supported';
+      return {
+        ...row,
+        selectedCandidateId,
+        loggable,
+        reviewStatus: loggable
+          ? ('matched' as const)
+          : ('needs_review' as const),
+        unresolvedReason: loggable ? null : ('portion_needs_review' as const),
+        adjudication: adjudicationMetadata({
+          status: 'selected',
+          confidence: 'high',
+          selectionSource: 'ai_adjudicated',
+          reviewReason: loggable ? null : 'portion_needs_review',
+        }),
+      };
+    }
+
+    if (decision.decision === 'reject_all') {
+      return {
+        ...row,
+        adjudication: adjudicationMetadata({
+          status: 'rejected_all',
+          confidence: decision.confidence,
+          reviewReason:
+            decision.confidence === 'high'
+              ? 'adjudication_rejected_all'
+              : 'adjudication_rejection_requires_review',
+        }),
+      };
+    }
+
+    return {
+      ...row,
+      adjudication: adjudicationMetadata({
+        status: 'no_decision',
+        reviewReason: 'adjudication_no_decision',
+      }),
+    };
+  });
+}
+
+async function adjudicateRows(input: {
+  rows: PhotoRecognizedItem[];
+  config: PhotoAnalysisConfig;
+  signal: AbortSignal;
+}): Promise<PhotoRecognizedItem[]> {
+  if (!input.config.candidateAdjudicationEnabled) return input.rows;
+  const prepared = prepareAdjudication(input.rows, input.config);
+  if (prepared.request.rows.length === 0) return input.rows;
+
+  const provider = photoCandidateAdjudicationProvider({
+    provider: input.config.provider,
+    geminiApiKey: input.config.geminiApiKey,
+    geminiModel: input.config.geminiModel,
+    timeoutMs: input.config.candidateAdjudicationTimeoutMs,
+    maxCandidates: input.config.candidateAdjudicationMaxCandidates,
+    maxRows: input.config.candidateAdjudicationMaxRows,
+    maxOutputTokens: input.config.candidateAdjudicationMaxOutputTokens,
+    mockDecision: input.config.candidateAdjudicationMockDecision,
+  });
+  const result = await provider.adjudicate({
+    request: prepared.request,
+    signal: input.signal,
+  });
+  return applyAdjudication(input.rows, prepared, result);
 }
 
 export async function analyzePhotoFood(input: {
@@ -327,7 +591,7 @@ export async function analyzePhotoFood(input: {
   });
 
   const seen = new Set<string>();
-  const items = representations.active.map((representation, index) => {
+  const initialItems = representations.active.map((representation, index) => {
     const { suggestion } = representation;
     const key = duplicateKey(suggestion);
     const duplicate = seen.has(key);
@@ -343,6 +607,12 @@ export async function analyzePhotoFood(input: {
       duplicate,
       representation,
     });
+  });
+
+  const items = await adjudicateRows({
+    rows: initialItems,
+    config: input.config,
+    signal: input.signal,
   });
 
   const result: PhotoAnalysisResult = {

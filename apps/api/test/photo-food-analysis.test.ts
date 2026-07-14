@@ -106,6 +106,9 @@ describe('photo food analysis API', () => {
     vi.unstubAllGlobals();
     delete process.env.GEMINI_API_KEY;
     delete process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS;
+    delete process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED;
+    delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION;
+    delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
   });
@@ -1776,6 +1779,168 @@ describe('photo food analysis API', () => {
       loggable: false,
       unresolvedReason: 'low_identity_confidence',
     });
+  });
+
+  it('adjudicates only ambiguous active rows and applies a high-confidence mock selection', async () => {
+    process.env.AI_PROVIDER = 'mock';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION = 'select_candidate';
+    await createTrustedFood('chicken grilled');
+    await createTrustedFood('chicken fried');
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.items[0]).toMatchObject({
+      adjudication: {
+        selectionSource: 'ai_adjudicated',
+        status: 'selected',
+        confidence: 'high',
+      },
+      selectedCandidateId: expect.any(String),
+    });
+  });
+
+  it('bypasses adjudication for a strong deterministic match', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    await createTrustedFood('chicken');
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: 'STOP',
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        items: [
+                          {
+                            name: 'chicken',
+                            identityConfidence: 'high',
+                            ...estimatedQuantity(
+                              150,
+                              'gram',
+                              '150 g',
+                              'medium',
+                            ),
+                          },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.body.data.items[0]).toMatchObject({
+      adjudication: {
+        selectionSource: 'deterministic',
+        status: 'not_needed',
+      },
+      loggable: true,
+    });
+  });
+
+  it('keeps reject-all and no-decision rows unresolved without estimating nutrition', async () => {
+    for (const decision of ['reject_all', 'no_decision'] as const) {
+      process.env.AI_PROVIDER = 'mock';
+      process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+      process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION = decision;
+      await createTrustedFood(`chicken grilled ${decision}`);
+      await createTrustedFood(`chicken fried ${decision}`);
+
+      const response = await api
+        .post('/api/v1/ai/photo-analysis')
+        .set('Content-Type', 'image/jpeg')
+        .send(jpeg)
+        .expect(200);
+
+      expect(response.body.data.items[0]).toMatchObject({
+        selectedCandidateId: null,
+        loggable: false,
+        adjudication: {
+          selectionSource: 'user_required',
+          status: decision === 'reject_all' ? 'rejected_all' : 'no_decision',
+        },
+      });
+      expect(response.body.data.items[0]).not.toHaveProperty('calories');
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('preserves deterministic candidates when adjudication is rate limited', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    await createTrustedFood('chicken grilled');
+    await createTrustedFood('chicken fried');
+    const fetchMock = vi.fn(async () => {
+      if (fetchMock.mock.calls.length > 1) {
+        return new Response('', { status: 429 });
+      }
+      return new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              finishReason: 'STOP',
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      items: [
+                        {
+                          name: 'chicken',
+                          identityConfidence: 'high',
+                          ...estimatedQuantity(150, 'gram', '150 g', 'medium'),
+                        },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(response.body.data.items[0]).toMatchObject({
+      selectedCandidateId: null,
+      loggable: false,
+      adjudication: {
+        status: 'unavailable',
+        selectionSource: 'user_required',
+      },
+    });
+    expect(response.body.data.items[0].candidates.length).toBeGreaterThan(0);
   });
 
   it('marks an unsupported visual household portion as needs_review', async () => {

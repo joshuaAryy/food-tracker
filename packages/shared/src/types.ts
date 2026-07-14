@@ -328,6 +328,19 @@ export type PhotoRepresentationKind =
 export type PhotoRepresentationOverlapStatus =
   (typeof PHOTO_REPRESENTATION_OVERLAP_STATUSES)[number];
 
+export type PhotoSelectionSource =
+  | 'deterministic'
+  | 'ai_adjudicated'
+  | 'user_required';
+
+export type PhotoAdjudicationStatus =
+  | 'not_needed'
+  | 'selected'
+  | 'rejected_all'
+  | 'no_decision'
+  | 'unavailable'
+  | 'invalid_response';
+
 export type PhotoProvisionalQuantity =
   | {
       state: 'estimated';
@@ -367,6 +380,13 @@ export interface PhotoProvisionalPortion {
   parsed: ParsedServingSuggestion | null;
   quantity: PhotoProvisionalQuantity;
   servingResolution: PhotoServingResolution;
+}
+
+export interface PhotoAdjudicationMetadata {
+  selectionSource: PhotoSelectionSource;
+  status: PhotoAdjudicationStatus;
+  confidence: PhotoConfidenceLevel | null;
+  reviewReason: string | null;
 }
 
 export interface PhotoRepresentationItem {
@@ -422,6 +442,7 @@ export interface PhotoRecognizedItem {
   coverage: string[];
   excludedCoverage: string[];
   visiblePortionDescription: string | null;
+  adjudication?: PhotoAdjudicationMetadata;
 }
 
 export interface PhotoAnalysisResult {
