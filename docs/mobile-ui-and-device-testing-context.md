@@ -716,11 +716,18 @@ One photo may produce up to eight independent review rows. Each row starts
 pending and must be confirmed with a trusted candidate and valid serving, or
 explicitly excluded. Rows can be replaced, removed/excluded, or supplemented
 with a trusted search result; user-added rows remain distinct from
-provider-recognized rows. Unsupported servings, unresolved candidates,
-unreviewed low-confidence matches, and pending rows block continuation. Simple
+provider-recognized rows. The provider now returns a strict provisional
+quantity state: an estimated amount using the constrained photo vocabulary, or
+`no_responsible_estimate`. Observed count labels remain provisional and do not
+authorize a candidate conversion. Unsupported servings, unresolved
+candidates, unreviewed low-confidence matches, and pending rows block
+continuation. Component/composite decomposition, adjudication, natural
+serving defaults, and AI-estimated nutrition fallback are later slices. Simple
 mode shows concise trusted calories/protein; Detailed/Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
-unknown, and provider nutrition is never displayed or used.
+unknown, and provider nutrition is never displayed or used. Invalid optional
+provider regions are dropped before the mobile response because the review UI
+does not require region metadata.
 
 Final confirmation calls `/food-logs/from-candidates` with only trusted
 candidate references, reviewed servings, meal metadata, and permitted notes.
