@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { photoAnalysisConfig } from '../src/modules/ai/photo-config.js';
 import { parseProviderOutput } from '../src/modules/ai/photo-provider.js';
+import { adaptPhotoRepresentations } from '../src/modules/ai/photo-representation.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -40,6 +41,41 @@ function estimatedQuantity(
     quantityRawText: rawText,
     quantityConfidence: confidence,
   };
+}
+
+function representationItem(input: {
+  name: string;
+  groupKey: string;
+  mode: 'decomposed' | 'composite';
+  kind: 'component' | 'composite';
+  active?: boolean;
+  coverage?: string[];
+  excludedCoverage?: string[];
+  region?: { x: number; y: number; width: number; height: number } | null;
+}) {
+  return {
+    name: input.name,
+    preparationForm: null,
+    identityConfidence: 'high' as const,
+    region: input.region ?? null,
+    ...estimatedQuantity(1, 'gram', '1 gram', 'medium'),
+    groupKey: input.groupKey,
+    representationMode: input.mode,
+    representationKind: input.kind,
+    active: input.active ?? true,
+    coverage: input.coverage ?? [input.name],
+    excludedCoverage: input.excludedCoverage ?? [],
+    representationConfidence: 'high' as const,
+    visiblePortionDescription: null,
+  };
+}
+
+function adaptRepresentationItems(
+  items: ReturnType<typeof representationItem>[],
+) {
+  return adaptPhotoRepresentations(
+    parseProviderOutput(JSON.stringify({ items })),
+  );
 }
 
 async function createTrustedFood(name: string) {
@@ -343,6 +379,551 @@ describe('photo food analysis API', () => {
     expect(JSON.stringify(diagnostic)).not.toContain('Infinity');
   });
 
+  it('activates distinct visible components and flattens only active rows', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'eggs',
+        groupKey: 'breakfast',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['eggs'],
+      }),
+      representationItem({
+        name: 'toast',
+        groupKey: 'breakfast',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['toast'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.groups[0]).toMatchObject({
+      activeRepresentation: 'decomposed',
+      activeItemIds: ['photo-item-1', 'photo-item-2'],
+      alternatives: [],
+    });
+    expect(adapted.active.map((item) => item.coverage)).toEqual([
+      ['egg'],
+      ['toast'],
+    ]);
+  });
+
+  it('keeps one inactive composite alternative behind active components', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'cooked pasta',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['pasta'],
+      }),
+      representationItem({
+        name: 'tomato sauce',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['tomato sauce'],
+      }),
+      representationItem({
+        name: 'pasta with tomato sauce',
+        groupKey: 'pasta-dish',
+        mode: 'composite',
+        kind: 'composite',
+        active: false,
+        coverage: ['pasta', 'tomato sauce'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.groups[0]?.alternatives).toHaveLength(1);
+    expect(adapted.groups[0]?.alternatives[0]).toMatchObject({
+      active: false,
+      representation: 'composite',
+      itemIds: ['photo-alt-1-1-1'],
+    });
+    expect(adapted.groups[0]?.alternatives[0]?.items[0]).toMatchObject({
+      active: false,
+      representationKind: 'composite',
+    });
+  });
+
+  it('keeps an inactive decomposed alternative behind an active composite', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'vegetable casserole',
+        groupKey: 'casserole',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['vegetable casserole'],
+      }),
+      representationItem({
+        name: 'potato',
+        groupKey: 'casserole',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['potato'],
+      }),
+      representationItem({
+        name: 'carrot',
+        groupKey: 'casserole',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['carrot'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(1);
+    expect(adapted.groups[0]?.activeRepresentation).toBe('composite');
+    expect(adapted.groups[0]?.alternatives[0]?.items).toHaveLength(2);
+    expect(
+      adapted.groups[0]?.alternatives[0]?.items.every((item) => !item.active),
+    ).toBe(true);
+  });
+
+  it('supports a composite alternative that excludes separately represented coverage', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'pasta',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['pasta'],
+      }),
+      representationItem({
+        name: 'tomato sauce',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['tomato sauce'],
+      }),
+      representationItem({
+        name: 'grated Parmesan',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['parmesan'],
+      }),
+      representationItem({
+        name: 'pasta with tomato sauce',
+        groupKey: 'pasta-dish',
+        mode: 'composite',
+        kind: 'composite',
+        active: false,
+        coverage: ['pasta', 'tomato sauce', 'parmesan'],
+        excludedCoverage: ['parmesan'],
+      }),
+    ]);
+
+    expect(adapted.groups[0]?.alternatives[0]).toMatchObject({
+      representation: 'composite',
+    });
+    expect(
+      adapted.groups[0]?.alternatives[0]?.items[0]?.excludedCoverage,
+    ).toEqual(['parmesan']);
+  });
+
+  it.each([
+    'missing active representation',
+    'both representations active',
+    'duplicate active coverage',
+    'composite covering active components',
+    'unknown exclusion',
+    'decomposed representation with one component',
+    'multiple inactive alternatives',
+  ])('rejects invalid representation structure: %s', (caseName) => {
+    const cases: Record<string, ReturnType<typeof representationItem>[]> = {
+      'missing active representation': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          active: false,
+        }),
+        representationItem({
+          name: 'sauce',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          active: false,
+        }),
+      ],
+      'both representations active': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+        }),
+        representationItem({
+          name: 'pasta with sauce',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+        }),
+      ],
+      'duplicate active coverage': [
+        representationItem({
+          name: 'Parmesan',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['parmesan'],
+        }),
+        representationItem({
+          name: 'grated Parmesan',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['parmesan'],
+        }),
+      ],
+      'composite covering active components': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          coverage: ['pasta', 'sauce'],
+        }),
+        representationItem({
+          name: 'sauce',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          active: false,
+          coverage: ['sauce'],
+        }),
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          active: true,
+          coverage: ['pasta'],
+        }),
+        representationItem({
+          name: 'sauce',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          active: true,
+          coverage: ['sauce'],
+        }),
+      ],
+      'unknown exclusion': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+        }),
+        representationItem({
+          name: 'sauce',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+        }),
+        representationItem({
+          name: 'pasta with sauce',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          active: true,
+          coverage: ['pasta', 'sauce'],
+          excludedCoverage: ['parmesan'],
+        }),
+      ],
+      'decomposed representation with one component': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+        }),
+      ],
+      'multiple inactive alternatives': [
+        representationItem({
+          name: 'pasta',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+        }),
+        representationItem({
+          name: 'pasta with sauce',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          active: false,
+        }),
+        representationItem({
+          name: 'pasta meal',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          active: false,
+        }),
+      ],
+      'generic coverage': [
+        representationItem({
+          name: 'food',
+          groupKey: 'dish',
+          mode: 'composite',
+          kind: 'composite',
+          coverage: ['food'],
+        }),
+      ],
+    };
+
+    expect(() => adaptRepresentationItems(cases[caseName]!)).toThrow();
+  });
+
+  it('marks identical coverage without spatial evidence as uncertain', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'egg',
+        groupKey: 'egg-a',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['egg'],
+      }),
+      representationItem({
+        name: 'egg',
+        groupKey: 'egg-b',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['egg'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.groups.map((group) => group.overlapStatus)).toEqual([
+      'uncertain',
+      'uncertain',
+    ]);
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:representation]',
+      expect.objectContaining({
+        category: 'potential_cross_group_overlap',
+      }),
+    );
+    expect(JSON.stringify(warn.mock.calls.at(-1)?.[1])).not.toContain('egg');
+    warn.mockRestore();
+  });
+
+  it('allows identical coverage when one region is unavailable and marks it uncertain', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'bread slice',
+        groupKey: 'slice-a',
+        mode: 'composite',
+        kind: 'composite',
+        region: { x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+        coverage: ['bread slice'],
+      }),
+      representationItem({
+        name: 'bread slice',
+        groupKey: 'slice-b',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['bread slice'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(
+      adapted.groups.every((group) => group.overlapStatus === 'uncertain'),
+    ).toBe(true);
+  });
+
+  it('allows identical coverage for separate regions and rejects substantial overlap', () => {
+    const separate = adaptRepresentationItems([
+      representationItem({
+        name: 'egg',
+        groupKey: 'egg-a',
+        mode: 'composite',
+        kind: 'composite',
+        region: { x: 0, y: 0, width: 0.2, height: 0.2 },
+        coverage: ['egg'],
+      }),
+      representationItem({
+        name: 'egg',
+        groupKey: 'egg-b',
+        mode: 'composite',
+        kind: 'composite',
+        region: { x: 0.7, y: 0.7, width: 0.2, height: 0.2 },
+        coverage: ['egg'],
+      }),
+    ]);
+    expect(separate.active).toHaveLength(2);
+    expect(
+      separate.groups.every(
+        (group) => group.overlapStatus === 'non_overlapping',
+      ),
+    ).toBe(true);
+
+    expect(() =>
+      adaptRepresentationItems([
+        representationItem({
+          name: 'egg',
+          groupKey: 'egg-a',
+          mode: 'composite',
+          kind: 'composite',
+          region: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 },
+          coverage: ['egg'],
+        }),
+        representationItem({
+          name: 'egg',
+          groupKey: 'egg-b',
+          mode: 'composite',
+          kind: 'composite',
+          region: { x: 0.2, y: 0.2, width: 0.5, height: 0.5 },
+          coverage: ['egg'],
+        }),
+      ]),
+    ).toThrow();
+  });
+
+  it.each([
+    {
+      name: 'edge-touching regions',
+      first: { x: 0, y: 0, width: 0.2, height: 0.2 },
+      second: { x: 0.2, y: 0, width: 0.2, height: 0.2 },
+      expected: 'non_overlapping',
+    },
+    {
+      name: 'below-threshold intersection',
+      first: { x: 0, y: 0, width: 0.4, height: 0.4 },
+      second: { x: 0.3, y: 0.3, width: 0.4, height: 0.4 },
+      expected: 'non_overlapping',
+    },
+    {
+      name: 'above-threshold intersection',
+      first: { x: 0, y: 0, width: 0.5, height: 0.5 },
+      second: { x: 0.2, y: 0.2, width: 0.5, height: 0.5 },
+      expected: 'reject',
+    },
+    {
+      name: 'contained region',
+      first: { x: 0, y: 0, width: 0.8, height: 0.8 },
+      second: { x: 0.2, y: 0.2, width: 0.1, height: 0.1 },
+      expected: 'reject',
+    },
+  ])('handles $name deterministically', ({ first, second, expected }) => {
+    const items = [
+      representationItem({
+        name: 'rice',
+        groupKey: 'rice-a',
+        mode: 'composite',
+        kind: 'composite',
+        region: first,
+        coverage: ['rice'],
+      }),
+      representationItem({
+        name: 'rice',
+        groupKey: 'rice-b',
+        mode: 'composite',
+        kind: 'composite',
+        region: second,
+        coverage: ['rice'],
+      }),
+    ];
+
+    if (expected === 'reject') {
+      expect(() => adaptRepresentationItems(items)).toThrow();
+      return;
+    }
+
+    const adapted = adaptRepresentationItems(items);
+    expect(
+      adapted.groups.every((group) => group.overlapStatus === expected),
+    ).toBe(true);
+  });
+
+  it('rejects a cross-group composite/component duplicate without an exclusion', () => {
+    expect(() =>
+      adaptRepresentationItems([
+        representationItem({
+          name: 'pasta',
+          groupKey: 'component-group',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['pasta'],
+        }),
+        representationItem({
+          name: 'pasta with sauce',
+          groupKey: 'composite-group',
+          mode: 'composite',
+          kind: 'composite',
+          coverage: ['pasta'],
+        }),
+      ]),
+    ).toThrow();
+  });
+
+  it('keeps same-named rows with distinct coverage uncertain rather than merging them', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'chicken',
+        groupKey: 'chicken-a',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['chicken breast'],
+      }),
+      representationItem({
+        name: 'chicken',
+        groupKey: 'chicken-b',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['chicken thigh'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(
+      adapted.groups.every(
+        (group) => group.overlapStatus === 'non_overlapping',
+      ),
+    ).toBe(true);
+  });
+
+  it('emits safe representation diagnostics without provider food names', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    expect(() =>
+      adaptRepresentationItems([
+        representationItem({
+          name: 'grated Parmesan',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['parmesan'],
+        }),
+        representationItem({
+          name: 'Parmesan cheese',
+          groupKey: 'dish',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['parmesan'],
+        }),
+      ]),
+    ).toThrow();
+
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:representation]',
+      expect.objectContaining({
+        category: 'duplicate_active_coverage',
+        groupIndex: 0,
+      }),
+    );
+    const diagnostic = warn.mock.calls.at(-1)?.[1];
+    expect(JSON.stringify(diagnostic)).not.toContain('Parmesan');
+  });
+
   it.each([
     'item',
     'food',
@@ -373,6 +954,31 @@ describe('photo food analysis API', () => {
         }),
       ),
     ).toThrow();
+  });
+
+  it('preserves rows and marks overlap uncertain after invalid regions are discarded', () => {
+    const first = representationItem({
+      name: 'Parmesan',
+      groupKey: 'topping-a',
+      mode: 'composite',
+      kind: 'composite',
+      region: { x: 1.2, y: 0, width: 0.2, height: 0.2 },
+      coverage: ['parmesan'],
+    });
+    const second = representationItem({
+      name: 'grated Parmesan',
+      groupKey: 'topping-b',
+      mode: 'composite',
+      kind: 'composite',
+      region: { x: 1.1, y: 0, width: 0.2, height: 0.2 },
+      coverage: ['parmesan'],
+    });
+
+    const adapted = adaptRepresentationItems([first, second]);
+    expect(adapted.active).toHaveLength(2);
+    expect(
+      adapted.groups.every((group) => group.overlapStatus === 'uncertain'),
+    ).toBe(true);
   });
 
   it.each([
@@ -736,15 +1342,23 @@ describe('photo food analysis API', () => {
     expect(JSON.stringify(generationConfig.responseSchema)).not.toContain(
       'additionalProperties',
     );
+    const schemaText = JSON.stringify(generationConfig.responseSchema);
+    expect(schemaText).not.toContain('activeItemIds');
+    expect(schemaText).not.toContain('overlapStatus');
+    expect(schemaText).not.toContain('loggable');
+    expect(schemaText).not.toContain('calories');
+    expect(schemaText).not.toContain('foodItemId');
     const responseSchema = generationConfig.responseSchema as {
       properties?: {
         items?: {
+          maxItems?: number;
           items?: {
             properties?: Record<string, unknown>;
           };
         };
       };
     };
+    expect(responseSchema.properties?.items).not.toHaveProperty('maxItems');
     const quantityProperties =
       responseSchema.properties?.items?.items?.properties ?? {};
     expect(quantityProperties).toHaveProperty('quantityState');
@@ -753,9 +1367,188 @@ describe('photo food analysis API', () => {
     expect(quantityProperties).toHaveProperty('quantityCountLabel');
     expect(quantityProperties).toHaveProperty('quantityRawText');
     expect(quantityProperties).toHaveProperty('quantityConfidence');
+    expect(quantityProperties).toHaveProperty('groupKey');
+    expect(quantityProperties).toHaveProperty('representationMode');
+    expect(quantityProperties).toHaveProperty('representationKind');
+    expect(quantityProperties).toHaveProperty('active');
+    expect(quantityProperties).toHaveProperty('coverage');
+    expect(quantityProperties).toHaveProperty('excludedCoverage');
+    expect(quantityProperties).toHaveProperty('representationConfidence');
     expect(contents[0]?.parts[1]?.text).toEqual(
       expect.stringContaining('calories'),
     );
+  });
+
+  it('keeps a valid active group when an optional alternative is invalid', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'pasta',
+        groupKey: 'dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['pasta'],
+      }),
+      representationItem({
+        name: 'tomato sauce',
+        groupKey: 'dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['tomato sauce'],
+      }),
+      representationItem({
+        name: 'pasta meal alternative',
+        groupKey: 'dish',
+        mode: 'composite',
+        kind: 'composite',
+        active: false,
+        coverage: ['pasta'],
+        excludedCoverage: ['missing coverage'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.groups[0]?.alternatives).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:representation]',
+      expect.objectContaining({
+        category: 'provider_optional_alternative_discarded',
+      }),
+    );
+    warn.mockRestore();
+  });
+
+  it('drops invalid optional visible metadata while preserving the active group', () => {
+    const parsed = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            ...representationItem({
+              name: 'pasta',
+              groupKey: 'dish',
+              mode: 'composite',
+              kind: 'composite',
+            }),
+            visiblePortionDescription: 42,
+          },
+        ],
+      }),
+    );
+
+    expect(parsed[0]?.representation.visiblePortionDescription).toBe(42);
+    const adapted = adaptPhotoRepresentations(parsed);
+    expect(adapted.active).toHaveLength(1);
+    expect(adapted.active[0]?.visiblePortionDescription).toBeNull();
+  });
+
+  it('discards an alternative with a malformed optional region', () => {
+    const parsed = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          representationItem({
+            name: 'pasta',
+            groupKey: 'dish',
+            mode: 'decomposed',
+            kind: 'component',
+            coverage: ['pasta'],
+          }),
+          representationItem({
+            name: 'sauce',
+            groupKey: 'dish',
+            mode: 'decomposed',
+            kind: 'component',
+            coverage: ['sauce'],
+          }),
+          {
+            ...representationItem({
+              name: 'pasta with sauce',
+              groupKey: 'dish',
+              mode: 'composite',
+              kind: 'composite',
+              active: false,
+              coverage: ['pasta', 'sauce'],
+            }),
+            region: { x: 1.2, y: 0, width: 0.2, height: 0.2 },
+          },
+        ],
+      }),
+    );
+
+    const adapted = adaptPhotoRepresentations(parsed);
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.groups[0]?.alternatives).toEqual([]);
+  });
+
+  it('discards an independently invalid group while preserving valid groups', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'egg',
+        groupKey: 'valid-group',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['egg'],
+      }),
+      representationItem({
+        name: 'rice',
+        groupKey: 'invalid-group',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['rice'],
+      }),
+    ]);
+
+    expect(adapted.groups).toHaveLength(1);
+    expect(adapted.active).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:representation]',
+      expect.objectContaining({
+        category: 'provider_representation_group_discarded',
+      }),
+    );
+    warn.mockRestore();
+  });
+
+  it('rejects an invalid group when its coverage overlaps a valid group', () => {
+    expect(() =>
+      adaptRepresentationItems([
+        representationItem({
+          name: 'egg',
+          groupKey: 'valid-group',
+          mode: 'composite',
+          kind: 'composite',
+          coverage: ['egg'],
+        }),
+        representationItem({
+          name: 'egg duplicate',
+          groupKey: 'invalid-group',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['egg'],
+        }),
+      ]),
+    ).toThrow();
+  });
+
+  it('rejects when every representation group is invalid', () => {
+    expect(() =>
+      adaptRepresentationItems([
+        representationItem({
+          name: 'rice',
+          groupKey: 'invalid-a',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['rice'],
+        }),
+        representationItem({
+          name: 'pasta',
+          groupKey: 'invalid-b',
+          mode: 'decomposed',
+          kind: 'component',
+          coverage: ['pasta'],
+        }),
+      ]),
+    ).toThrow();
   });
 
   it('records a sanitized Gemini invalid-request diagnostic exactly once', async () => {
@@ -924,6 +1717,7 @@ describe('photo food analysis API', () => {
     expect(response.body.data).toEqual({
       status: 'no_food_detected',
       items: [],
+      representationGroups: [],
     });
     expect(await prisma.foodItem.count()).toBe(0);
     expect(await prisma.foodLog.count()).toBe(0);
@@ -1109,6 +1903,97 @@ describe('photo food analysis API', () => {
     expect(response.body.data.items[0].candidates[0]).toHaveProperty(
       'confidence',
     );
+  });
+
+  it('retrieves only active representation rows and retains inactive alternatives', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    await createTrustedFood('pasta');
+    await createTrustedFood('tomato sauce');
+    await createTrustedFood('pasta with tomato sauce');
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          items: [
+                            representationItem({
+                              name: 'pasta',
+                              groupKey: 'dish',
+                              mode: 'decomposed',
+                              kind: 'component',
+                              coverage: ['pasta'],
+                            }),
+                            representationItem({
+                              name: 'tomato sauce',
+                              groupKey: 'dish',
+                              mode: 'decomposed',
+                              kind: 'component',
+                              coverage: ['tomato sauce'],
+                            }),
+                            representationItem({
+                              name: 'pasta with tomato sauce',
+                              groupKey: 'dish',
+                              mode: 'composite',
+                              kind: 'composite',
+                              active: false,
+                              coverage: ['pasta', 'tomato sauce'],
+                            }),
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.items).toHaveLength(2);
+    expect(
+      response.body.data.items.map(
+        (item: { recognizedName: string }) => item.recognizedName,
+      ),
+    ).toEqual(['pasta', 'tomato sauce']);
+    expect(
+      response.body.data.items.every(
+        (item: { active: boolean }) => item.active,
+      ),
+    ).toBe(true);
+    expect(response.body.data.representationGroups[0]).toMatchObject({
+      activeRepresentation: 'decomposed',
+      activeItemIds: ['photo-item-1', 'photo-item-2'],
+      alternatives: [
+        {
+          active: false,
+          representation: 'composite',
+          items: [
+            expect.objectContaining({
+              recognizedName: 'pasta with tomato sauce',
+              active: false,
+            }),
+          ],
+        },
+      ],
+    });
   });
 
   it('keeps returned trusted candidate references compatible with authoritative saving', async () => {

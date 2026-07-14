@@ -22,6 +22,11 @@ import {
   type ProviderPhotoQuantity,
   type ProviderPhotoSuggestion,
 } from './photo-provider.js';
+import {
+  adaptPhotoRepresentations,
+  representationMetadataForRow,
+  type AdaptedPhotoRepresentationItem,
+} from './photo-representation.js';
 
 function candidateFood(candidate: AiFoodParseCandidate) {
   return candidate.candidateType === 'food_item'
@@ -206,6 +211,7 @@ function buildRow(input: {
   suggestion: ProviderPhotoSuggestion;
   retrieved: AiFoodParsedItem;
   duplicate: boolean;
+  representation: AdaptedPhotoRepresentationItem;
 }): PhotoRecognizedItem {
   const quantityParsed = parsedServingForQuantity(input.suggestion.quantity);
   const trusted = bestTrustedCandidate(
@@ -281,6 +287,7 @@ function buildRow(input: {
     loggable,
     candidates: input.retrieved.candidates,
     unresolvedReason: reason,
+    ...representationMetadataForRow(input.representation),
   };
 }
 
@@ -299,13 +306,19 @@ export async function analyzePhotoFood(input: {
   });
 
   if (suggestions.length === 0) {
-    return { status: 'no_food_detected', items: [] };
+    return {
+      status: 'no_food_detected',
+      items: [],
+      representationGroups: [],
+    };
   }
+
+  const representations = adaptPhotoRepresentations(suggestions);
 
   const retrieved = await retrieveParsedFoodItems({
     userId: input.userId,
     rateLimitKey: `${input.rateLimitKey}:photo`,
-    parsedItems: suggestions.map((suggestion) => ({
+    parsedItems: representations.active.map(({ suggestion }) => ({
       name: [suggestion.name, suggestion.preparationForm]
         .filter((value): value is string => value !== null)
         .join(' '),
@@ -314,7 +327,8 @@ export async function analyzePhotoFood(input: {
   });
 
   const seen = new Set<string>();
-  const items = suggestions.map((suggestion, index) => {
+  const items = representations.active.map((representation, index) => {
+    const { suggestion } = representation;
     const key = duplicateKey(suggestion);
     const duplicate = seen.has(key);
     seen.add(key);
@@ -327,12 +341,14 @@ export async function analyzePhotoFood(input: {
       suggestion,
       retrieved: retrievedItem,
       duplicate,
+      representation,
     });
   });
 
   const result: PhotoAnalysisResult = {
     status: 'recognized',
     items,
+    representationGroups: representations.groups,
   };
   photoAnalysisResultSchema.parse(result);
   return result;

@@ -31,6 +31,9 @@ import type {
 import type { ParsedServingSuggestion } from './serving-text.js';
 import type {
   PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_REPRESENTATION_KINDS,
+  PHOTO_REPRESENTATION_MODES,
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
   PHOTO_QUANTITY_STATES,
   PHOTO_QUANTITY_UNITS,
 } from './constants.js';
@@ -316,6 +319,15 @@ export type PhotoQuantityState = (typeof PHOTO_QUANTITY_STATES)[number];
 
 export type PhotoQuantityUnit = (typeof PHOTO_QUANTITY_UNITS)[number];
 
+export type PhotoRepresentationMode =
+  (typeof PHOTO_REPRESENTATION_MODES)[number];
+
+export type PhotoRepresentationKind =
+  (typeof PHOTO_REPRESENTATION_KINDS)[number];
+
+export type PhotoRepresentationOverlapStatus =
+  (typeof PHOTO_REPRESENTATION_OVERLAP_STATUSES)[number];
+
 export type PhotoProvisionalQuantity =
   | {
       state: 'estimated';
@@ -357,6 +369,40 @@ export interface PhotoProvisionalPortion {
   servingResolution: PhotoServingResolution;
 }
 
+export interface PhotoRepresentationItem {
+  id: string;
+  representationGroupId: string;
+  recognizedName: string;
+  preparationForm: string | null;
+  quantity: PhotoProvisionalQuantity;
+  identityConfidence: PhotoConfidenceLevel;
+  region: PhotoNormalizedRegion | null;
+  representationKind: PhotoRepresentationKind;
+  active: boolean;
+  coverage: string[];
+  excludedCoverage: string[];
+  visiblePortionDescription: string | null;
+}
+
+export interface PhotoRepresentationAlternative {
+  id: string;
+  representation: PhotoRepresentationMode;
+  active: false;
+  itemIds: string[];
+  items: PhotoRepresentationItem[];
+}
+
+export interface PhotoRepresentationGroup {
+  id: string;
+  activeRepresentation: PhotoRepresentationMode;
+  activeItemIds: string[];
+  representationConfidence: PhotoConfidenceLevel;
+  region: PhotoNormalizedRegion | null;
+  overlapStatus: PhotoRepresentationOverlapStatus;
+  reviewReason: string | null;
+  alternatives: PhotoRepresentationAlternative[];
+}
+
 export interface PhotoRecognizedItem {
   id: `photo-item-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
   recognizedName: string;
@@ -370,11 +416,18 @@ export interface PhotoRecognizedItem {
   loggable: boolean;
   candidates: AiFoodParseCandidate[];
   unresolvedReason: PhotoUnresolvedReason | null;
+  representationGroupId: string;
+  representationKind: PhotoRepresentationKind;
+  active: true;
+  coverage: string[];
+  excludedCoverage: string[];
+  visiblePortionDescription: string | null;
 }
 
 export interface PhotoAnalysisResult {
   status: 'recognized' | 'no_food_detected';
   items: PhotoRecognizedItem[];
+  representationGroups: PhotoRepresentationGroup[];
 }
 
 export interface WeightLog {

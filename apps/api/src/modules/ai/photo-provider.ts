@@ -4,12 +4,17 @@ import {
   photoNormalizedRegionSchema,
   photoConfidenceLevelSchema,
   photoProvisionalQuantitySchema,
-  PHOTO_ANALYSIS_MAX_ITEMS,
+  PHOTO_ANALYSIS_MAX_COVERAGE_LABELS,
+  PHOTO_ANALYSIS_MAX_PROVIDER_ITEMS,
+  PHOTO_REPRESENTATION_KINDS,
+  PHOTO_REPRESENTATION_MODES,
   PHOTO_QUANTITY_STATES,
   PHOTO_QUANTITY_UNITS,
   type PhotoQuantityState,
   type PhotoQuantityUnit,
   type PhotoConfidenceLevel,
+  type PhotoRepresentationKind,
+  type PhotoRepresentationMode,
   type ParsedServingSuggestion,
 } from '@food-tracker/shared';
 import { z } from 'zod';
@@ -27,6 +32,19 @@ export interface ProviderPhotoSuggestion {
     width: number;
     height: number;
   } | null;
+  regionWasDiscarded: boolean;
+  representation: ProviderPhotoRepresentation;
+}
+
+export interface ProviderPhotoRepresentation {
+  groupKey: string | null;
+  representationMode: PhotoRepresentationMode | null;
+  representationKind: PhotoRepresentationKind | null;
+  active: boolean;
+  coverage: string[];
+  excludedCoverage: string[];
+  representationConfidence: PhotoConfidenceLevel | null;
+  visiblePortionDescription: unknown;
 }
 
 export type ProviderPhotoQuantity =
@@ -73,10 +91,33 @@ const providerSuggestionSchema = z.strictObject({
   // Region is optional provider metadata. It is validated separately so an
   // invalid box cannot invalidate otherwise valid identity and quantity data.
   region: z.unknown().nullable().default(null),
+  groupKey: z.string().trim().min(1).max(40).nullable().default(null),
+  representationMode: z
+    .enum(PHOTO_REPRESENTATION_MODES)
+    .nullable()
+    .default(null),
+  representationKind: z
+    .enum(PHOTO_REPRESENTATION_KINDS)
+    .nullable()
+    .default(null),
+  active: z.boolean().default(true),
+  coverage: z
+    .array(z.string().trim().min(1).max(80))
+    .max(PHOTO_ANALYSIS_MAX_COVERAGE_LABELS)
+    .default([]),
+  excludedCoverage: z
+    .array(z.string().trim().min(1).max(80))
+    .max(PHOTO_ANALYSIS_MAX_COVERAGE_LABELS)
+    .default([]),
+  representationConfidence: photoConfidenceLevelSchema.nullable().default(null),
+  // Optional metadata is isolated by the deterministic adapter.
+  visiblePortionDescription: z.unknown().nullable().default(null),
 });
 
 const providerOutputSchema = z.strictObject({
-  items: z.array(providerSuggestionSchema).max(PHOTO_ANALYSIS_MAX_ITEMS),
+  items: z
+    .array(providerSuggestionSchema)
+    .max(PHOTO_ANALYSIS_MAX_PROVIDER_ITEMS),
 });
 
 const geminiResponseSchema = {
@@ -84,7 +125,6 @@ const geminiResponseSchema = {
   properties: {
     items: {
       type: 'array',
-      maxItems: PHOTO_ANALYSIS_MAX_ITEMS,
       items: {
         type: 'object',
         properties: {
@@ -131,6 +171,29 @@ const geminiResponseSchema = {
             },
             required: ['x', 'y', 'width', 'height'],
           },
+          groupKey: { type: 'string' },
+          representationMode: {
+            type: 'string',
+            enum: [...PHOTO_REPRESENTATION_MODES],
+          },
+          representationKind: {
+            type: 'string',
+            enum: [...PHOTO_REPRESENTATION_KINDS],
+          },
+          active: { type: 'boolean' },
+          coverage: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          excludedCoverage: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          representationConfidence: {
+            type: 'string',
+            enum: ['high', 'medium', 'low'],
+          },
+          visiblePortionDescription: { type: 'string' },
         },
         required: [
           'name',
@@ -143,6 +206,14 @@ const geminiResponseSchema = {
           'quantityConfidence',
           'preparationForm',
           'region',
+          'groupKey',
+          'representationMode',
+          'representationKind',
+          'active',
+          'coverage',
+          'excludedCoverage',
+          'representationConfidence',
+          'visiblePortionDescription',
         ],
       },
     },
@@ -512,12 +583,19 @@ function optionalRegionViolationCategories(
 function parseOptionalRegion(
   value: unknown,
   itemIndex: number,
-): ProviderPhotoSuggestion['region'] {
-  if (value === null || value === undefined) return null;
+): {
+  region: ProviderPhotoSuggestion['region'];
+  discarded: boolean;
+} {
+  if (value === null || value === undefined) {
+    return { region: null, discarded: false };
+  }
 
   const violationCategories = optionalRegionViolationCategories(value);
   const parsed = photoNormalizedRegionSchema.safeParse(value);
-  if (parsed.success && violationCategories.length === 0) return parsed.data;
+  if (parsed.success && violationCategories.length === 0) {
+    return { region: parsed.data, discarded: false };
+  }
 
   logDiagnostic('provider_optional_region_discarded', {
     itemIndex,
@@ -528,7 +606,7 @@ function parseOptionalRegion(
       : parsed.error.issues.map((issue) => issue.path.map(String)),
     violationCategories,
   });
-  return null;
+  return { region: null, discarded: true };
 }
 
 function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
@@ -552,13 +630,27 @@ function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
     throw aiUnavailable('Photo analysis returned an invalid response.');
   }
 
-  return parsed.data.items.map((item, itemIndex) => ({
-    name: item.name,
-    preparationForm: item.preparationForm,
-    identityConfidence: item.identityConfidence,
-    quantity: normalizeQuantity(item),
-    region: parseOptionalRegion(item.region, itemIndex),
-  }));
+  return parsed.data.items.map((item, itemIndex) => {
+    const parsedRegion = parseOptionalRegion(item.region, itemIndex);
+    return {
+      name: item.name,
+      preparationForm: item.preparationForm,
+      identityConfidence: item.identityConfidence,
+      quantity: normalizeQuantity(item),
+      region: parsedRegion.region,
+      regionWasDiscarded: parsedRegion.discarded,
+      representation: {
+        groupKey: item.groupKey,
+        representationMode: item.representationMode,
+        representationKind: item.representationKind,
+        active: item.active,
+        coverage: item.coverage,
+        excludedCoverage: item.excludedCoverage,
+        representationConfidence: item.representationConfidence,
+        visiblePortionDescription: item.visiblePortionDescription,
+      },
+    };
+  });
 }
 
 class DisabledPhotoAnalysisProvider implements PhotoAnalysisProvider {
@@ -583,6 +675,17 @@ class MockPhotoAnalysisProvider implements PhotoAnalysisProvider {
         },
         identityConfidence: 'medium',
         region: null,
+        regionWasDiscarded: false,
+        representation: {
+          groupKey: null,
+          representationMode: null,
+          representationKind: null,
+          active: true,
+          coverage: [],
+          excludedCoverage: [],
+          representationConfidence: null,
+          visiblePortionDescription: null,
+        },
       },
     ];
   }
@@ -631,15 +734,21 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
                   {
                     text: [
                       'Analyze this food photo and return structured JSON only.',
-                      'Return zero to eight independent foods visibly present.',
+                      'Return zero to ten bounded representation items, with no more than eight active rows.',
                       'Identify food names and optional preparation forms only.',
                       'Estimate quantity only when visually defensible. Use only count, slice, piece, tablespoon, teaspoon, cup, millilitre, gram, or ounce.',
                       'Use count only for visually countable discrete objects and include a concise count label such as egg, sandwich, breast, patty, or dumpling.',
+                      'For every non-count quantity, set quantityCountLabel to null. Do not split one physical food into subparts or repeat a coverage label; each active decomposed component must claim distinct visible food matter.',
                       'Never use generic count labels such as item, food, serving, meal, pasta, sauce, Parmesan, cheese, or rice.',
                       'For pasta, rice, sauce, grated cheese, and similar foods, use a meaningful volume or weight only when visually defensible; otherwise use no_responsible_estimate.',
                       'Use quantityState estimated with positive quantityAmount, quantityUnit, quantityRawText, and quantityConfidence when estimating. Use no_responsible_estimate with all other quantity fields null when you cannot estimate responsibly.',
                       'Do not invent exact weight, density, serving conversions, calories, protein, carbohydrates, fat, micronutrients, database IDs, trusted-food references, or reasoning.',
                       'Regions are optional normalized x, y, width, and height values from 0 to 1; never use pixels or percentages, and return null when the bounds cannot be kept inside the image.',
+                      'For visibly distinct, defensible foods, group components with one groupKey, use representationMode decomposed, representationKind component, active true, and non-overlapping coverage labels.',
+                      'Use decomposed only with at least two distinct active components; otherwise use one active composite. Keep only one active representation per group and mark alternatives active false.',
+                      'For blended or inseparable dishes, use one active composite item. You may include at most one inactive alternative representation per group; inactive items must use active false.',
+                      'Alternatives are optional; omit them unless structurally complete. Do not generate application IDs, active item ID arrays, loggable or overlap state, database references, nutrition, conversions, or reasoning.',
+                      'Use only group-local keys and coverage labels; never return database IDs. Coverage labels must name visible food matter and may not be food, meal, item, or serving.',
                     ].join('\n'),
                   },
                 ],
@@ -744,7 +853,10 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
       logDiagnostic('response_metadata', completedMetadata);
 
       try {
-        return parseProviderOutput(text).slice(0, this.config.maxItems);
+        // Keep provider alternatives available for the representation adapter.
+        // It enforces the eight-row active limit without silently truncating
+        // active provider output here.
+        return parseProviderOutput(text);
       } catch (error) {
         if (error instanceof ProviderJsonSyntaxError) {
           logDiagnostic('provider_malformed_completed_json', completedMetadata);

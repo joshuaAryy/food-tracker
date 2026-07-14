@@ -719,10 +719,13 @@ with a trusted search result; user-added rows remain distinct from
 provider-recognized rows. The provider now returns a strict provisional
 quantity state: an estimated amount using the constrained photo vocabulary, or
 `no_responsible_estimate`. Observed count labels remain provisional and do not
-authorize a candidate conversion. Unsupported servings, unresolved
-candidates, unreviewed low-confidence matches, and pending rows block
-continuation. Component/composite decomposition, adjudication, natural
-serving defaults, and AI-estimated nutrition fallback are later slices. Simple
+authorize a candidate conversion. Representation groups may expose active
+component rows or one active composite row; inactive alternatives remain
+backend metadata and never render as active rows. Unsupported servings,
+unresolved candidates, unreviewed low-confidence matches, and pending rows
+block continuation. Candidate adjudication, natural-serving defaults,
+AI-estimated nutrition fallback, and alternative-selection UI are later
+slices. Simple
 mode shows concise trusted calories/protein; Detailed/Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
 unknown, and provider nutrition is never displayed or used. Invalid optional

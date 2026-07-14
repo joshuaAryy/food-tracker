@@ -20,3 +20,12 @@ export const PHOTO_QUANTITY_UNITS = [
   'gram',
   'ounce',
 ] as const;
+export const PHOTO_REPRESENTATION_MODES = ['decomposed', 'composite'] as const;
+export const PHOTO_REPRESENTATION_KINDS = ['component', 'composite'] as const;
+export const PHOTO_REPRESENTATION_OVERLAP_STATUSES = [
+  'non_overlapping',
+  'uncertain',
+] as const;
+export const PHOTO_ANALYSIS_MAX_GROUPS = PHOTO_ANALYSIS_MAX_ITEMS;
+export const PHOTO_ANALYSIS_MAX_PROVIDER_ITEMS = 10;
+export const PHOTO_ANALYSIS_MAX_COVERAGE_LABELS = 8;

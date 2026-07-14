@@ -472,14 +472,35 @@ Slice 1 locks the following implementation details:
   backend environment settings.
 - Provider output is strict JSON containing identity, optional preparation,
   structured provisional quantity state, separate confidence values, and
-  optional normalized region metadata. Estimated quantities use only the
+  optional normalized region metadata plus bounded representation-group
+  metadata. Estimated quantities use only the
   constrained photo vocabulary and count labels are provisional observed
   evidence. `no_responsible_estimate` is valid when quantity cannot be
   defended. Invalid optional regions are discarded by the provider adapter;
   any region that survives remains strictly validated. Generic counts,
   nutrition fields, database references, and automatic actions are rejected.
-- One image may produce up to eight independent rows. Duplicate or ambiguous
-  recognition remains review-required; no segmentation editor is implied.
+  The Gemini-only response schema intentionally omits an array `maxItems`
+  keyword because Gemini rejected the nested representation schema as too
+  stateful; the raw provider Zod contract still caps the response at ten
+  items, and the deterministic adapter rejects more than eight active rows.
+- Representation groups prefer defensible non-overlapping components, retain
+  at most one inactive composite/decomposed alternative, and flatten only the
+  active representation into photo review rows. Coverage and exclusions are
+  qualitative overlap safeguards, not nutrition or candidate authority.
+- One image may produce up to eight active rows. Duplicate active coverage,
+  active composite/component overlap, and invalid alternatives are rejected;
+  no segmentation or alternative-selection editor is implied. Across
+  different groups, matching coverage without reliable regions is retained as
+  `uncertain` with a safe `potential_cross_group_overlap` diagnostic rather
+  than being rejected. Valid regions use a conservative 25% intersection over
+  the smaller region threshold; containment rejects, while edge-touching and
+  below-threshold intersections do not.
+- Backend representation IDs, active-row state, normalized coverage, and
+  overlap state are derived after provider validation. Invalid optional
+  alternatives and optional visible metadata are discarded with safe
+  diagnostics. Independently invalid groups may be discarded when they do not
+  overlap valid groups; active-group contradictions and all-invalid responses
+  remain strict failures.
 - Existing deterministic retrieval/ranking and serving resolution remain the
   only trusted candidate and portion authorities. Vision portions are
   provisional and never infer density or universal household weights.

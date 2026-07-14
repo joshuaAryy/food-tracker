@@ -1436,13 +1436,28 @@ selected candidate's existing serving basis and trusted options; density and
 unsupported household conversions are never inferred. Invalid optional region
 metadata is discarded at the provider adapter boundary without invalidating
 the identity or quantity row; surviving regions remain strictly validated.
+Rows also carry representation-group metadata: active component or composite
+kind, normalized visible-coverage claims, and a request-scoped group ID. The
+response retains at most one inactive alternative per group for future
+adjudication, but `data.items` contains only active rows. Active rows are
+validated so composite coverage cannot overlap its active components or a
+duplicate active topping. Matching coverage across groups is only a potential
+overlap when valid spatial/provider-link evidence is unavailable; those rows
+remain active with an `uncertain` group overlap status and a safe diagnostic.
+Substantial region intersection, or a strong composite/component duplicate,
+still rejects the representation response. Edge-touching regions and
+intersections below the conservative 25% intersection-to-smaller-region
+threshold are treated as separate. Invalid optional alternatives and
+nonessential representation metadata are discarded without invalidating a
+valid active group. An independently invalid group may be discarded when it
+does not overlap or provide a required reference for a valid group; if all
+groups are invalid, the response remains an AI-unavailable semantic error.
 
 The route never returns raw provider payloads, prompts, internal reasoning,
 credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
-records, USDA cache rows, or review sessions. Quantity recognition is
-provider-stabilization groundwork only; component/composite representations,
-candidate adjudication, natural-serving defaults, and AI-estimated nutrition
-fallback remain later Phase 14 slices. The current Slice 2 save path still
+records, USDA cache rows, or review sessions. Candidate adjudication,
+natural-serving defaults, AI-estimated nutrition fallback, and alternative
+selection UI remain later Phase 14 slices. The current Slice 2 save path still
 saves only reviewed candidate references and servings through
 `POST /api/v1/food-logs/from-candidates`.
 

@@ -27,7 +27,12 @@ import {
 } from './servings.js';
 import {
   PHOTO_ANALYSIS_MAX_ITEMS,
+  PHOTO_ANALYSIS_MAX_COVERAGE_LABELS,
+  PHOTO_ANALYSIS_MAX_GROUPS,
   PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_REPRESENTATION_KINDS,
+  PHOTO_REPRESENTATION_MODES,
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
   PHOTO_QUANTITY_STATES,
   PHOTO_QUANTITY_UNITS,
 } from './constants.js';
@@ -946,6 +951,15 @@ export const aiNutritionEstimateInputSchema = z.strictObject({
 export const photoConfidenceLevelSchema = z.enum(PHOTO_CONFIDENCE_LEVELS);
 export const photoQuantityStateSchema = z.enum(PHOTO_QUANTITY_STATES);
 export const photoQuantityUnitSchema = z.enum(PHOTO_QUANTITY_UNITS);
+export const photoRepresentationModeSchema = z.enum(PHOTO_REPRESENTATION_MODES);
+export const photoRepresentationKindSchema = z.enum(PHOTO_REPRESENTATION_KINDS);
+export const photoRepresentationOverlapStatusSchema = z.enum(
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
+);
+
+export const photoCoverageSchema = z
+  .array(z.string().trim().min(1).max(80))
+  .max(PHOTO_ANALYSIS_MAX_COVERAGE_LABELS);
 
 const photoCountLabelSchema = z
   .string()
@@ -1056,6 +1070,45 @@ export const photoProvisionalPortionSchema = z.strictObject({
   servingResolution: photoServingResolutionSchema,
 });
 
+export const photoRepresentationItemSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  representationGroupId: z.string().trim().min(1).max(80),
+  recognizedName: z.string().trim().min(1).max(120),
+  preparationForm: z.string().trim().min(1).max(80).nullable(),
+  quantity: photoProvisionalQuantitySchema,
+  identityConfidence: photoConfidenceLevelSchema,
+  region: photoNormalizedRegionSchema.nullable(),
+  representationKind: photoRepresentationKindSchema,
+  active: z.boolean(),
+  coverage: photoCoverageSchema,
+  excludedCoverage: photoCoverageSchema,
+  visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
+});
+
+const photoInactiveRepresentationItemSchema =
+  photoRepresentationItemSchema.extend({
+    active: z.literal(false),
+  });
+
+export const photoRepresentationAlternativeSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  representation: photoRepresentationModeSchema,
+  active: z.literal(false),
+  itemIds: z.array(z.string().trim().min(1).max(80)).min(1).max(8),
+  items: z.array(photoInactiveRepresentationItemSchema).min(1).max(8),
+});
+
+export const photoRepresentationGroupSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  activeRepresentation: photoRepresentationModeSchema,
+  activeItemIds: z.array(z.string().trim().min(1).max(80)).min(1).max(8),
+  representationConfidence: photoConfidenceLevelSchema,
+  region: photoNormalizedRegionSchema.nullable(),
+  overlapStatus: photoRepresentationOverlapStatusSchema,
+  reviewReason: z.string().trim().min(1).max(160).nullable(),
+  alternatives: z.array(photoRepresentationAlternativeSchema).max(1),
+});
+
 function isPhotoCandidate(value: unknown): value is AiFoodParseCandidate {
   if (typeof value !== 'object' || value === null) return false;
   const candidate = value as Record<string, unknown>;
@@ -1101,11 +1154,20 @@ export const photoRecognizedItemSchema = z.strictObject({
   loggable: z.boolean(),
   candidates: z.array(photoCandidateSchema),
   unresolvedReason: photoUnresolvedReasonSchema.nullable(),
+  representationGroupId: z.string().trim().min(1).max(80),
+  representationKind: photoRepresentationKindSchema,
+  active: z.literal(true),
+  coverage: photoCoverageSchema,
+  excludedCoverage: photoCoverageSchema,
+  visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
 });
 
 export const photoAnalysisResultSchema = z.strictObject({
   status: z.enum(['recognized', 'no_food_detected']),
   items: z.array(photoRecognizedItemSchema).max(PHOTO_ANALYSIS_MAX_ITEMS),
+  representationGroups: z
+    .array(photoRepresentationGroupSchema)
+    .max(PHOTO_ANALYSIS_MAX_GROUPS),
 });
 
 const optionalNonNegativeInteger = z

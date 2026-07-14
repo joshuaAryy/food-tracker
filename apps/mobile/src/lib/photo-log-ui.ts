@@ -271,6 +271,12 @@ export function addPhotoRow(
     loggable: false,
     candidates: [candidate],
     unresolvedReason: null,
+    representationGroupId: `photo-group-manual-${index + 1}`,
+    representationKind: 'composite',
+    active: true,
+    coverage: [food.name],
+    excludedCoverage: [],
+    visiblePortionDescription: null,
   };
   const serving = initialServing(item, food);
   return {

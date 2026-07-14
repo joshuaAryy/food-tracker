@@ -94,8 +94,15 @@ const result: PhotoAnalysisResult = {
       loggable: true,
       candidates: [candidate],
       unresolvedReason: null,
+      representationGroupId: 'photo-group-1',
+      representationKind: 'composite',
+      active: true,
+      coverage: ['chicken'],
+      excludedCoverage: [],
+      visiblePortionDescription: null,
     },
   ],
+  representationGroups: [],
 };
 
 describe('mobile photo image helpers', () => {
