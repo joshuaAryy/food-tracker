@@ -685,3 +685,48 @@ stack. It exposes Saved, My Foods, Recent, and Archived sections without a new
 tab or a cache-wide USDA browser. Default servings are editable prefills using
 the existing ServingAmountControl; every use still goes through serving
 validation. The multi-method Food Log selector redesign remains deferred.
+
+# Phase 14 Slice 2 Photo Logging
+
+Photo Logging is available from the current temporary Food Log method list;
+the deferred selector redesign remains deferred. The flow uses `/photo-log`
+for source choice and privacy disclosure, `/photo-log/camera` for still capture
+and permission recovery, `/photo-log/review` for analysis and independent
+rows, `/photo-log/search` for trusted replacement or manually added foods, and
+`/photo-log/confirm` for explicit final saving.
+
+Camera and photo-library permissions are configured through Expo. A library
+asset is user-owned and is never deleted. Camera captures and normalized files
+are app-owned temporary files. Both sources use the same native re-encoding
+pipeline: EXIF orientation is applied while decoding, aspect ratio is
+preserved, the longest edge is capped at 2048 px without upscaling, and the
+result is JPEG at quality 0.75. The processed file must be at most 5 MiB; the
+original is never silently uploaded as a fallback. HEIC/library input is
+converted to JPEG before upload. Cleanup is best-effort, idempotent, and never
+blocks navigation or replaces the primary error. No photo is retained after
+completion, failure, cancellation, or reset.
+
+The mobile client sends the normalized file as a raw `image/jpeg` request to
+the Slice 1 endpoint with an abort signal and a 17-second client budget. It
+does not send multipart, base64 JSON, provider payloads, photo URIs, or
+nutrition data. The Expo development client must be rebuilt after adding the
+approved image packages and permission/config changes.
+
+One photo may produce up to eight independent review rows. Each row starts
+pending and must be confirmed with a trusted candidate and valid serving, or
+explicitly excluded. Rows can be replaced, removed/excluded, or supplemented
+with a trusted search result; user-added rows remain distinct from
+provider-recognized rows. Unsupported servings, unresolved candidates,
+unreviewed low-confidence matches, and pending rows block continuation. Simple
+mode shows concise trusted calories/protein; Detailed/Complex mode also shows
+trusted available macros and normalized nutrients. Unknown values remain
+unknown, and provider nutrition is never displayed or used.
+
+Final confirmation calls `/food-logs/from-candidates` with only trusted
+candidate references, reviewed servings, meal metadata, and permitted notes.
+Rapid repeated taps are single-flight. A successful save clears the transient
+session, cleans app-owned files, marks the existing shared refresh signal, and
+dismisses the photo modal stack. Physical-device testing is still pending and
+must verify camera/library permissions, HEIC and orientation cases,
+cancellation, upload timeout/offline recovery, review-row editing, and final
+save on a rebuilt development client.

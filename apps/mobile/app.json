@@ -12,8 +12,14 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Food Tracker to use the camera to scan food barcodes.",
+          "cameraPermission": "Allow Food Tracker to use the camera for barcode scanning and food photos.",
           "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Food Tracker to choose a food photo for one-time analysis. Photos are not retained."
         }
       ],
       [
@@ -41,7 +47,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icons/simple.png",
         "backgroundColor": "#FFFFFF"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.foodtracker"
     }
   }
 }

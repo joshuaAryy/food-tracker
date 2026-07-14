@@ -1,6 +1,8 @@
 import { PHOTO_ANALYSIS_MAX_BYTES } from '@food-tracker/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
+import { photoAnalysisConfig } from '../src/modules/ai/photo-config.js';
+import { parseProviderOutput } from '../src/modules/ai/photo-provider.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -32,6 +34,7 @@ describe('photo food analysis API', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     delete process.env.GEMINI_API_KEY;
+    delete process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
   });
@@ -157,6 +160,7 @@ describe('photo food analysis API', () => {
           JSON.stringify({
             candidates: [
               {
+                finishReason: 'STOP',
                 content: {
                   parts: [
                     {
@@ -200,13 +204,75 @@ describe('photo food analysis API', () => {
       parts: Record<string, unknown>[];
     }[];
     expect(contents[0]?.parts[0]).toMatchObject({
-      inline_data: {
-        mime_type: 'image/jpeg',
+      inlineData: {
+        mimeType: 'image/jpeg',
         data: jpeg.toString('base64'),
       },
     });
+    const inlineData = contents[0]?.parts[0]?.inlineData as {
+      data?: string;
+    };
+    expect(inlineData.data).not.toContain('data:image/jpeg;base64,');
+    expect(Buffer.from(inlineData.data ?? '', 'base64')).toEqual(jpeg);
+    const generationConfig = capturedRequest.body.generationConfig as {
+      responseMimeType?: string;
+      responseSchema?: Record<string, unknown>;
+    };
+    expect(generationConfig.responseMimeType).toBe('application/json');
+    expect(JSON.stringify(generationConfig.responseSchema)).not.toContain(
+      'additionalProperties',
+    );
     expect(contents[0]?.parts[1]?.text).toEqual(
       expect.stringContaining('Do not return calories'),
+    );
+  });
+
+  it('records a sanitized Gemini invalid-request diagnostic exactly once', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: {
+                code: 400,
+                status: 'INVALID_ARGUMENT',
+                message:
+                  'Invalid JSON payload received. Unknown name "inline_data".',
+                details: [
+                  {
+                    fieldViolations: [
+                      { field: 'contents[0].parts[0].inline_data' },
+                    ],
+                  },
+                ],
+              },
+            }),
+            { status: 400, statusText: 'Bad Request' },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:provider]',
+      expect.objectContaining({
+        category: 'non_ok_response',
+        status: 400,
+        providerCode: 400,
+        providerStatus: 'INVALID_ARGUMENT',
+        providerMessage: expect.stringContaining('Unknown name'),
+        fieldViolationPaths: ['contents[0].parts[0].inline_data'],
+      }),
     );
   });
 
@@ -221,6 +287,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -267,6 +334,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -308,6 +376,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: { parts: [{ text: JSON.stringify({ items: [] }) }] },
                 },
               ],
@@ -343,6 +412,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -394,6 +464,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -447,6 +518,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -521,6 +593,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -590,6 +663,7 @@ describe('photo food analysis API', () => {
             JSON.stringify({
               candidates: [
                 {
+                  finishReason: 'STOP',
                   content: {
                     parts: [
                       {
@@ -634,5 +708,270 @@ describe('photo food analysis API', () => {
       loggable: false,
       unresolvedReason: 'ambiguous_identity',
     });
+  });
+
+  it('assembles multiple final text parts in order before strict parsing', () => {
+    const part1 = '{"items":[{"name":"grilled chick';
+    const part2 = 'en","identityConfidence":"high","portionConfidence":null}]}';
+
+    expect(() => parseProviderOutput(`${part1}${part2}`)).not.toThrow();
+  });
+
+  it.each([
+    ['MAX_TOKENS', 'provider_output_truncated'],
+    ['MALFORMED_RESPONSE', 'provider_completion_error'],
+    ['SAFETY', 'provider_completion_error'],
+    ['RECITATION', 'provider_completion_error'],
+    ['OTHER', 'provider_completion_error'],
+  ] as const)(
+    'rejects %s before parsing candidate text',
+    async (finishReason, category) => {
+      process.env.AI_PROVIDER = 'gemini';
+      process.env.GEMINI_API_KEY = 'test-key';
+      const warn = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const parseSpy = vi.spyOn(JSON, 'parse');
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                candidates: [
+                  {
+                    finishReason,
+                    finishMessage: 'safe provider detail',
+                    content: { parts: [{ text: '{"items":[' }] },
+                  },
+                ],
+                usageMetadata: {
+                  promptTokenCount: 10,
+                  candidatesTokenCount: 768,
+                  thoughtsTokenCount: 20,
+                  totalTokenCount: 798,
+                },
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+        ),
+      );
+
+      const response = await api
+        .post('/api/v1/ai/photo-analysis')
+        .set('Content-Type', 'image/jpeg')
+        .send(jpeg)
+        .expect(503);
+
+      expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+      expect(parseSpy).toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(
+        '[photo-analysis:provider]',
+        expect.objectContaining({ category }),
+      );
+      const diagnostic = warn.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+      expect(JSON.stringify(diagnostic)).not.toContain('{"items":[');
+      expect(diagnostic.finishMessage).toBe('safe provider detail');
+    },
+  );
+
+  it('rejects a missing finish reason before parsing candidate text', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [{ content: { parts: [{ text: '{"items":[]}' }] } }],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:provider]',
+      expect.objectContaining({
+        category: 'provider_incomplete_response',
+        finishReason: undefined,
+      }),
+    );
+  });
+
+  it('uses only the selected candidate and excludes thought parts', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      { text: 'internal thought', thought: true },
+                      { text: '{"items":[{"name":"grilled chick' },
+                      {
+                        text: 'en","identityConfidence":"high","portionConfidence":null}]}',
+                      },
+                    ],
+                  },
+                },
+                {
+                  finishReason: 'STOP',
+                  content: { parts: [{ text: '{"items":[]}' }] },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.status).toBe('recognized');
+    expect(response.body.data.items[0].recognizedName).toBe('grilled chicken');
+  });
+
+  it('classifies STOP with malformed JSON separately from truncation', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [{ text: '{"items":[{"name":"chicken"}' }],
+                  },
+                },
+              ],
+              usageMetadata: {
+                promptTokenCount: 20,
+                candidatesTokenCount: 80,
+                thoughtsTokenCount: 0,
+                totalTokenCount: 100,
+              },
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:provider]',
+      expect.objectContaining({
+        category: 'provider_malformed_completed_json',
+        finishReason: 'STOP',
+        promptTokenCount: 20,
+        candidatesTokenCount: 80,
+        thoughtsTokenCount: 0,
+        totalTokenCount: 100,
+      }),
+    );
+    expect(warn.mock.calls.map((call) => JSON.stringify(call[1]))).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('chicken')]),
+    );
+  });
+
+  it('rejects unsupported parts and empty completed output', async () => {
+    for (const parts of [[{ functionCall: { name: 'bad' } }], []]) {
+      process.env.AI_PROVIDER = 'gemini';
+      process.env.GEMINI_API_KEY = 'test-key';
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                candidates: [{ finishReason: 'STOP', content: { parts } }],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+        ),
+      );
+
+      const response = await api
+        .post('/api/v1/ai/photo-analysis')
+        .set('Content-Type', 'image/jpeg')
+        .send(jpeg)
+        .expect(503);
+      expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('sends a bounded photo-specific output budget with one candidate and no stop sequence', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS = '2048';
+    let body: Record<string, unknown> | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: 'STOP',
+                content: { parts: [{ text: '{"items":[]}' }] },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    const generationConfig = body?.generationConfig as Record<string, unknown>;
+    expect(generationConfig.maxOutputTokens).toBe(2048);
+    expect(generationConfig.candidateCount).toBe(1);
+    expect(generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+    expect(generationConfig).not.toHaveProperty('stopSequences');
+    expect(photoAnalysisConfig().maxOutputTokens).toBe(2048);
+  });
+
+  it('rejects an invalid photo output budget environment value', () => {
+    process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS = 'not-a-number';
+    expect(() => photoAnalysisConfig()).toThrow(
+      /PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS/,
+    );
   });
 });

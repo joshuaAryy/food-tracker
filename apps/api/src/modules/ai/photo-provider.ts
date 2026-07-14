@@ -69,14 +69,12 @@ const providerOutputSchema = z.strictObject({
 
 const geminiResponseSchema = {
   type: 'object',
-  additionalProperties: false,
   properties: {
     items: {
       type: 'array',
       maxItems: PHOTO_ANALYSIS_MAX_ITEMS,
       items: {
         type: 'object',
-        additionalProperties: false,
         properties: {
           name: { type: 'string' },
           preparationForm: { type: 'string', nullable: true },
@@ -94,7 +92,6 @@ const geminiResponseSchema = {
           region: {
             type: 'object',
             nullable: true,
-            additionalProperties: false,
             properties: {
               x: { type: 'number' },
               y: { type: 'number' },
@@ -136,40 +133,180 @@ function logDiagnostic(category: string, details: Record<string, unknown>) {
   console.warn('[photo-analysis:provider]', { category, ...details });
 }
 
-function extractJsonText(text: string): string {
-  const trimmed = text.trim();
-  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(trimmed);
-  if (fenced?.[1] !== undefined) return fenced[1].trim();
+type GeminiErrorBody = {
+  error?: {
+    code?: unknown;
+    status?: unknown;
+    message?: unknown;
+    details?: unknown;
+  };
+};
 
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    return trimmed.slice(firstBrace, lastBrace + 1);
-  }
-
-  return trimmed;
+function safeText(value: unknown): string | undefined {
+  return typeof value === 'string' ? diagnosticText(value) : undefined;
 }
 
-function responseText(payload: unknown): string | undefined {
-  if (typeof payload !== 'object' || payload === null) return undefined;
-  const candidates = (payload as { candidates?: unknown }).candidates;
-  if (!Array.isArray(candidates)) return undefined;
+function fieldViolationPaths(details: unknown): string[] | undefined {
+  if (!Array.isArray(details)) return undefined;
 
-  for (const candidate of candidates) {
-    if (typeof candidate !== 'object' || candidate === null) continue;
-    const content = (candidate as { content?: unknown }).content;
-    if (typeof content !== 'object' || content === null) continue;
-    const parts = (content as { parts?: unknown }).parts;
-    if (!Array.isArray(parts)) continue;
-    for (const part of parts) {
-      if (typeof part !== 'object' || part === null) continue;
-      const text = (part as { text?: unknown }).text;
-      if (typeof text === 'string') return text;
+  const paths = details.flatMap((detail) => {
+    if (typeof detail !== 'object' || detail === null) return [];
+    const violations = (detail as { fieldViolations?: unknown })
+      .fieldViolations;
+    if (!Array.isArray(violations)) return [];
+    return violations.flatMap((violation) => {
+      if (typeof violation !== 'object' || violation === null) return [];
+      const field = (violation as { field?: unknown }).field;
+      return typeof field === 'string' ? [diagnosticText(field)] : [];
+    });
+  });
+
+  return paths.length > 0 ? paths.slice(0, 10) : undefined;
+}
+
+async function geminiErrorDiagnostic(
+  response: Response,
+): Promise<Record<string, unknown>> {
+  let text: string;
+  try {
+    text = await response.text();
+  } catch {
+    return { providerBody: '[unreadable response body]' };
+  }
+
+  try {
+    const parsed = JSON.parse(text) as GeminiErrorBody;
+    const error = parsed.error;
+    if (typeof error !== 'object' || error === null) {
+      return { providerBody: diagnosticText(text) };
     }
+    return {
+      providerCode: typeof error.code === 'number' ? error.code : undefined,
+      providerStatus: safeText(error.status),
+      providerMessage: safeText(error.message),
+      fieldViolationPaths: fieldViolationPaths(error.details),
+    };
+  } catch {
+    return { providerBody: diagnosticText(text) };
+  }
+}
+
+type GeminiPart = Record<string, unknown>;
+type GeminiCandidate = {
+  content?: { parts?: unknown };
+  finishReason?: unknown;
+  finishMessage?: unknown;
+};
+type GeminiUsageMetadata = {
+  promptTokenCount?: unknown;
+  candidatesTokenCount?: unknown;
+  thoughtsTokenCount?: unknown;
+  totalTokenCount?: unknown;
+};
+type GeminiResponsePayload = {
+  candidates?: unknown;
+  usageMetadata?: GeminiUsageMetadata;
+};
+
+function safeNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function partType(part: GeminiPart): string {
+  const known = Object.keys(part).filter(
+    (key) => key !== 'thought' && key !== 'thoughtSignature',
+  );
+  return known.length > 0 ? known.join(',') : 'thought_metadata';
+}
+
+function isThoughtPart(part: GeminiPart): boolean {
+  return part.thought === true || typeof part.thoughtSignature === 'string';
+}
+
+function responseMetadata(input: {
+  payload: GeminiResponsePayload;
+  candidate: GeminiCandidate | undefined;
+  candidateCount: number;
+  selectedCandidateIndex: number;
+  model: string;
+  configuredMaxOutputTokens: number;
+  requestElapsedMs: number;
+  parts: GeminiPart[];
+  assembledOutputLength: number;
+}): Record<string, unknown> {
+  return {
+    status: 200,
+    model: input.model,
+    candidateCount: input.candidateCount,
+    selectedCandidateIndex: input.selectedCandidateIndex,
+    finishReason:
+      typeof input.candidate?.finishReason === 'string'
+        ? input.candidate.finishReason
+        : undefined,
+    finishMessage: safeText(input.candidate?.finishMessage),
+    contentPartCount: input.parts.length,
+    contentPartTypes: input.parts.map(partType),
+    thoughtParts: input.parts.map(isThoughtPart),
+    outputTextPartLengths: input.parts.map((part) =>
+      typeof part.text === 'string' ? part.text.length : 0,
+    ),
+    assembledOutputLength: input.assembledOutputLength,
+    promptTokenCount: safeNumber(input.payload.usageMetadata?.promptTokenCount),
+    candidatesTokenCount: safeNumber(
+      input.payload.usageMetadata?.candidatesTokenCount,
+    ),
+    thoughtsTokenCount: safeNumber(
+      input.payload.usageMetadata?.thoughtsTokenCount,
+    ),
+    totalTokenCount: safeNumber(input.payload.usageMetadata?.totalTokenCount),
+    configuredMaxOutputTokens: input.configuredMaxOutputTokens,
+    requestElapsedMs: input.requestElapsedMs,
+  };
+}
+
+function responseTextParts(
+  candidate: GeminiCandidate,
+  metadata: Record<string, unknown>,
+): string {
+  const rawParts = candidate.content?.parts;
+  if (!Array.isArray(rawParts)) {
+    logDiagnostic('provider_empty_output', metadata);
+    throw aiUnavailable('Photo analysis returned an empty response.');
   }
 
-  return undefined;
+  const parts = rawParts.filter(
+    (part): part is GeminiPart => typeof part === 'object' && part !== null,
+  );
+  if (parts.length !== rawParts.length) {
+    logDiagnostic('provider_unsupported_part', metadata);
+    throw aiUnavailable('Photo analysis returned an unsupported response.');
+  }
+
+  const output: string[] = [];
+  for (const part of parts) {
+    if (isThoughtPart(part)) continue;
+    if (typeof part.text === 'string') {
+      output.push(part.text);
+      continue;
+    }
+    logDiagnostic('provider_unsupported_part', {
+      ...metadata,
+      unsupportedPartType: partType(part),
+    });
+    throw aiUnavailable('Photo analysis returned an unsupported response.');
+  }
+
+  const assembled = output.join('');
+  if (assembled.trim() === '') {
+    logDiagnostic('provider_empty_output', metadata);
+    throw aiUnavailable('Photo analysis returned an empty response.');
+  }
+  return assembled;
 }
+
+class ProviderJsonSyntaxError extends Error {}
 
 export function parsePhotoServingText(input: {
   quantityText: string | null;
@@ -206,12 +343,11 @@ function validatePortionSafety(item: ProviderPhotoSuggestion): void {
 function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
   let decoded: unknown;
   try {
-    decoded = JSON.parse(extractJsonText(text));
+    decoded = JSON.parse(text.trim());
   } catch (error) {
-    logDiagnostic('json_parse_failure', {
-      message: error instanceof Error ? error.message : 'unknown',
-    });
-    throw aiUnavailable('Photo analysis returned invalid JSON.');
+    throw new ProviderJsonSyntaxError(
+      error instanceof Error ? error.message : 'unknown',
+    );
   }
 
   const parsed = providerOutputSchema.safeParse(decoded);
@@ -268,6 +404,7 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
     if (input.signal.aborted) controller.abort();
     input.signal.addEventListener('abort', abortFromCaller, { once: true });
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
+    const requestStartedAt = Date.now();
 
     try {
       const response = await fetch(
@@ -285,8 +422,8 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
               {
                 parts: [
                   {
-                    inline_data: {
-                      mime_type: input.mimeType,
+                    inlineData: {
+                      mimeType: input.mimeType,
                       data: Buffer.from(input.image).toString('base64'),
                     },
                   },
@@ -297,6 +434,7 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
                       'Identify food names and optional preparation forms only.',
                       'You may suggest raw portion wording such as 150 g, 1 cup, 2 eggs, or 1 slice, but never convert it or infer density.',
                       'Use identityConfidence and portionConfidence with only high, medium, or low.',
+                      'When both quantityText and servingText are null, omit portionConfidence entirely or set it to null; never set it to high, medium, or low. When either portion field is present, portionConfidence must be high, medium, or low.',
                       'Regions are optional normalized x, y, width, and height values from 0 to 1 and are metadata only.',
                       'Do not return calories, protein, carbohydrates, fat, fiber, sugar, sodium, micronutrients, nutrient totals, density assumptions, database IDs, FoodItem references, candidate selections, automatic saves, prompts, or internal reasoning.',
                     ].join('\n'),
@@ -305,8 +443,10 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
               },
             ],
             generationConfig: {
+              candidateCount: 1,
+              thinkingConfig: { thinkingBudget: 0 },
               temperature: 0.1,
-              maxOutputTokens: 768,
+              maxOutputTokens: this.config.maxOutputTokens,
               responseMimeType: 'application/json',
               responseSchema: geminiResponseSchema,
             },
@@ -319,14 +459,17 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
         logDiagnostic('non_ok_response', {
           status: response.status,
           statusText: response.statusText,
+          model: this.config.geminiModel,
+          stage: 'generate_content',
+          ...(await geminiErrorDiagnostic(response)),
         });
         if (response.status === 429) throw providerRateLimited();
         throw aiUnavailable('Photo analysis could not be reached.');
       }
 
-      let payload: unknown;
+      let payload: GeminiResponsePayload;
       try {
-        payload = await response.json();
+        payload = (await response.json()) as GeminiResponsePayload;
       } catch (error) {
         logDiagnostic('response_json_failure', {
           message:
@@ -335,13 +478,77 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
         throw aiUnavailable('Photo analysis returned an unreadable response.');
       }
 
-      const text = responseText(payload);
-      if (text === undefined) {
-        logDiagnostic('missing_text_part', {});
-        throw aiUnavailable('Photo analysis returned an unreadable response.');
+      const candidates = Array.isArray(payload.candidates)
+        ? payload.candidates
+        : [];
+      const candidateCount = candidates.length;
+      const selectedCandidateIndex = 0;
+      const candidate = candidates[selectedCandidateIndex] as
+        | GeminiCandidate
+        | undefined;
+      const rawParts =
+        candidate?.content !== undefined &&
+        Array.isArray(candidate.content.parts)
+          ? candidate.content.parts
+          : [];
+      const parts = rawParts.filter(
+        (part): part is GeminiPart => typeof part === 'object' && part !== null,
+      );
+      const baseMetadata = responseMetadata({
+        payload,
+        candidate,
+        candidateCount,
+        selectedCandidateIndex,
+        model: this.config.geminiModel,
+        configuredMaxOutputTokens: this.config.maxOutputTokens,
+        requestElapsedMs: Date.now() - requestStartedAt,
+        parts,
+        assembledOutputLength: parts.reduce(
+          (length, part) =>
+            length +
+            (isThoughtPart(part) || typeof part.text !== 'string'
+              ? 0
+              : part.text.length),
+          0,
+        ),
+      });
+      const finishReason = candidate?.finishReason;
+      if (finishReason !== 'STOP') {
+        const category =
+          finishReason === 'MAX_TOKENS'
+            ? 'provider_output_truncated'
+            : finishReason === undefined
+              ? 'provider_incomplete_response'
+              : 'provider_completion_error';
+        logDiagnostic(category, baseMetadata);
+        throw aiUnavailable(
+          finishReason === 'MAX_TOKENS'
+            ? 'Photo analysis was cut off. Try again.'
+            : 'Photo analysis did not complete. Try again.',
+        );
       }
 
-      return parseProviderOutput(text).slice(0, this.config.maxItems);
+      if (candidate === undefined) {
+        logDiagnostic('provider_incomplete_response', baseMetadata);
+        throw aiUnavailable('Photo analysis returned an incomplete response.');
+      }
+
+      const text = responseTextParts(candidate, baseMetadata);
+      const completedMetadata = {
+        ...baseMetadata,
+        assembledOutputLength: text.length,
+      };
+      logDiagnostic('response_metadata', completedMetadata);
+
+      try {
+        return parseProviderOutput(text).slice(0, this.config.maxItems);
+      } catch (error) {
+        if (error instanceof ProviderJsonSyntaxError) {
+          logDiagnostic('provider_malformed_completed_json', completedMetadata);
+          throw aiUnavailable('Photo analysis returned invalid JSON.');
+        }
+        throw error;
+      }
     } catch (error) {
       if (error instanceof AppError) throw error;
 

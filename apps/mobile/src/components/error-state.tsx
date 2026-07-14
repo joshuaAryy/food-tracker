@@ -6,12 +6,14 @@ interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: (() => void) | undefined;
+  retryLabel?: string | undefined;
 }
 
 export function ErrorState({
   title = 'Unable to load this section',
   message,
   onRetry,
+  retryLabel = 'Try again',
 }: ErrorStateProps) {
   return (
     <View className="gap-3 rounded-app border border-error/30 bg-error-soft p-4">
@@ -29,7 +31,7 @@ export function ErrorState({
           className="self-start px-4"
           onPress={onRetry}
         >
-          Try again
+          {retryLabel}
         </AppButton>
       )}
     </View>

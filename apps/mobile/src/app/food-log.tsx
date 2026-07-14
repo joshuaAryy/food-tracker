@@ -1469,6 +1469,28 @@ export default function FoodLogScreen() {
               </View>
             </Pressable>
             <Pressable
+              accessibilityLabel="Open Photo Logging"
+              accessibilityRole="button"
+              className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
+              onPress={() => router.push('/photo-log' as Href)}
+            >
+              <View className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-soft">
+                  <Camera
+                    color={colors.light.ink}
+                    size={18}
+                    strokeWidth={2.3}
+                  />
+                </View>
+                <View className="gap-0.5">
+                  <AppText variant="label">Photo logging</AppText>
+                  <AppText variant="caption" muted>
+                    Review foods from a new photo.
+                  </AppText>
+                </View>
+              </View>
+            </Pressable>
+            <Pressable
               accessibilityLabel="Open Food Library"
               accessibilityRole="button"
               className="flex-row items-center justify-between border-t border-line py-3 active:bg-[#F6F6F6]"
