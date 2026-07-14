@@ -1,8 +1,14 @@
 import {
+  MAX_SERVING_QUANTITY,
   parseServingText,
   photoNormalizedRegionSchema,
   photoConfidenceLevelSchema,
+  photoProvisionalQuantitySchema,
   PHOTO_ANALYSIS_MAX_ITEMS,
+  PHOTO_QUANTITY_STATES,
+  PHOTO_QUANTITY_UNITS,
+  type PhotoQuantityState,
+  type PhotoQuantityUnit,
   type PhotoConfidenceLevel,
   type ParsedServingSuggestion,
 } from '@food-tracker/shared';
@@ -13,10 +19,8 @@ import type { PhotoAnalysisConfig } from './photo-config.js';
 export interface ProviderPhotoSuggestion {
   name: string;
   preparationForm: string | null;
-  quantityText: string | null;
-  servingText: string | null;
+  quantity: ProviderPhotoQuantity;
   identityConfidence: PhotoConfidenceLevel;
-  portionConfidence: PhotoConfidenceLevel | null;
   region: {
     x: number;
     y: number;
@@ -24,6 +28,24 @@ export interface ProviderPhotoSuggestion {
     height: number;
   } | null;
 }
+
+export type ProviderPhotoQuantity =
+  | {
+      quantityState: 'estimated';
+      quantityAmount: number;
+      quantityUnit: PhotoQuantityUnit;
+      quantityCountLabel: string | null;
+      quantityRawText: string;
+      quantityConfidence: PhotoConfidenceLevel;
+    }
+  | {
+      quantityState: 'no_responsible_estimate';
+      quantityAmount: null;
+      quantityUnit: null;
+      quantityCountLabel: null;
+      quantityRawText: null;
+      quantityConfidence: null;
+    };
 
 export interface PhotoAnalysisProvider {
   analyze(input: {
@@ -33,35 +55,25 @@ export interface PhotoAnalysisProvider {
   }): Promise<ProviderPhotoSuggestion[]>;
 }
 
-const providerSuggestionSchema = z
-  .strictObject({
-    name: z.string().trim().min(1).max(120),
-    preparationForm: z.string().trim().min(1).max(80).nullable().default(null),
-    quantityText: z.string().trim().min(1).max(80).nullable().default(null),
-    servingText: z.string().trim().min(1).max(120).nullable().default(null),
-    identityConfidence: photoConfidenceLevelSchema,
-    portionConfidence: photoConfidenceLevelSchema.nullable().default(null),
-    region: photoNormalizedRegionSchema.nullable().default(null),
-  })
-  .superRefine((item, context) => {
-    const hasPortion = item.quantityText !== null || item.servingText !== null;
-    if (hasPortion && item.portionConfidence === null) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          'portionConfidence is required when portion wording is present',
-        path: ['portionConfidence'],
-      });
-    }
-    if (!hasPortion && item.portionConfidence !== null) {
-      context.addIssue({
-        code: 'custom',
-        message:
-          'portionConfidence must be null when portion wording is absent',
-        path: ['portionConfidence'],
-      });
-    }
-  });
+const providerSuggestionSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  preparationForm: z.string().trim().min(1).max(80).nullable().default(null),
+  identityConfidence: photoConfidenceLevelSchema,
+  quantityState: z.enum(PHOTO_QUANTITY_STATES),
+  quantityAmount: z
+    .number()
+    .finite()
+    .positive()
+    .max(MAX_SERVING_QUANTITY)
+    .nullable(),
+  quantityUnit: z.enum(PHOTO_QUANTITY_UNITS).nullable(),
+  quantityCountLabel: z.string().trim().min(1).max(40).nullable(),
+  quantityRawText: z.string().trim().min(1).max(120).nullable(),
+  quantityConfidence: photoConfidenceLevelSchema.nullable(),
+  // Region is optional provider metadata. It is validated separately so an
+  // invalid box cannot invalidate otherwise valid identity and quantity data.
+  region: z.unknown().nullable().default(null),
+});
 
 const providerOutputSchema = z.strictObject({
   items: z.array(providerSuggestionSchema).max(PHOTO_ANALYSIS_MAX_ITEMS),
@@ -78,13 +90,32 @@ const geminiResponseSchema = {
         properties: {
           name: { type: 'string' },
           preparationForm: { type: 'string', nullable: true },
-          quantityText: { type: 'string', nullable: true },
-          servingText: { type: 'string', nullable: true },
           identityConfidence: {
             type: 'string',
             enum: ['high', 'medium', 'low'],
           },
-          portionConfidence: {
+          quantityState: {
+            type: 'string',
+            enum: [...PHOTO_QUANTITY_STATES],
+          },
+          quantityAmount: {
+            type: 'number',
+            nullable: true,
+          },
+          quantityUnit: {
+            type: 'string',
+            enum: [...PHOTO_QUANTITY_UNITS],
+            nullable: true,
+          },
+          quantityCountLabel: {
+            type: 'string',
+            nullable: true,
+          },
+          quantityRawText: {
+            type: 'string',
+            nullable: true,
+          },
+          quantityConfidence: {
             type: 'string',
             enum: ['high', 'medium', 'low'],
             nullable: true,
@@ -101,7 +132,18 @@ const geminiResponseSchema = {
             required: ['x', 'y', 'width', 'height'],
           },
         },
-        required: ['name', 'identityConfidence'],
+        required: [
+          'name',
+          'identityConfidence',
+          'quantityState',
+          'quantityAmount',
+          'quantityUnit',
+          'quantityCountLabel',
+          'quantityRawText',
+          'quantityConfidence',
+          'preparationForm',
+          'region',
+        ],
       },
     },
   },
@@ -330,14 +372,163 @@ export function parsePhotoServingText(input: {
   return parsed;
 }
 
-function validatePortionSafety(item: ProviderPhotoSuggestion): void {
-  const parsed = parsePhotoServingText({
-    quantityText: item.quantityText,
-    servingText: item.servingText,
-  });
-  if (parsed.status === 'invalid') {
-    throw aiUnavailable('Photo analysis returned an invalid portion.');
+function normalizeQuantity(input: {
+  quantityState: PhotoQuantityState;
+  quantityAmount: number | null;
+  quantityUnit: PhotoQuantityUnit | null;
+  quantityCountLabel: string | null;
+  quantityRawText: string | null;
+  quantityConfidence: PhotoConfidenceLevel | null;
+}): ProviderPhotoQuantity {
+  if (
+    input.quantityState === 'no_responsible_estimate' &&
+    (input.quantityAmount !== null ||
+      input.quantityUnit !== null ||
+      input.quantityCountLabel !== null ||
+      input.quantityRawText !== null ||
+      input.quantityConfidence !== null)
+  ) {
+    throw aiUnavailable('Photo analysis returned contradictory quantity data.');
   }
+
+  const quantity =
+    input.quantityState === 'estimated'
+      ? {
+          state: 'estimated' as const,
+          amount: input.quantityAmount,
+          unit: input.quantityUnit,
+          countLabel: input.quantityCountLabel,
+          rawText: input.quantityRawText,
+          confidence: input.quantityConfidence,
+        }
+      : { state: 'no_responsible_estimate' as const };
+
+  const parsed = photoProvisionalQuantitySchema.safeParse(quantity);
+  if (!parsed.success) {
+    logDiagnostic('quantity_semantic_validation_failure', {
+      issues: parsed.error.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+      })),
+    });
+    throw aiUnavailable('Photo analysis returned an invalid quantity.');
+  }
+
+  return parsed.data.state === 'estimated'
+    ? {
+        quantityState: 'estimated',
+        quantityAmount: parsed.data.amount,
+        quantityUnit: parsed.data.unit,
+        quantityCountLabel: parsed.data.countLabel,
+        quantityRawText: parsed.data.rawText,
+        quantityConfidence: parsed.data.confidence,
+      }
+    : {
+        quantityState: 'no_responsible_estimate',
+        quantityAmount: null,
+        quantityUnit: null,
+        quantityCountLabel: null,
+        quantityRawText: null,
+        quantityConfidence: null,
+      };
+}
+
+type OptionalRegionViolationCategory =
+  | 'malformed_object'
+  | 'missing_fields'
+  | 'non_numeric'
+  | 'non_finite'
+  | 'below_zero'
+  | 'above_one'
+  | 'reversed_bounds'
+  | 'zero_area';
+
+const optionalRegionFields = ['x', 'y', 'width', 'height'] as const;
+
+function optionalRegionViolationCategories(
+  value: unknown,
+): OptionalRegionViolationCategory[] {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return ['malformed_object'];
+  }
+
+  const region = value as Record<string, unknown>;
+  const categories = new Set<OptionalRegionViolationCategory>();
+  if (
+    Object.keys(region).some(
+      (field) =>
+        !optionalRegionFields.includes(
+          field as (typeof optionalRegionFields)[number],
+        ),
+    )
+  ) {
+    categories.add('malformed_object');
+  }
+  const missing = optionalRegionFields.filter((field) => !(field in region));
+  if (missing.length > 0) categories.add('missing_fields');
+
+  for (const field of optionalRegionFields) {
+    const coordinate = region[field];
+    if (typeof coordinate !== 'number') {
+      categories.add('non_numeric');
+      continue;
+    }
+    if (!Number.isFinite(coordinate)) {
+      categories.add('non_finite');
+      continue;
+    }
+    if (coordinate < 0) categories.add('below_zero');
+    if (coordinate > 1) categories.add('above_one');
+  }
+
+  const x = region.x;
+  const y = region.y;
+  const width = region.width;
+  const height = region.height;
+  if (
+    typeof x === 'number' &&
+    Number.isFinite(x) &&
+    typeof width === 'number' &&
+    Number.isFinite(width)
+  ) {
+    if (width < 0) categories.add('reversed_bounds');
+    if (width === 0) categories.add('zero_area');
+    if (x + width > 1) categories.add('above_one');
+  }
+  if (
+    typeof y === 'number' &&
+    Number.isFinite(y) &&
+    typeof height === 'number' &&
+    Number.isFinite(height)
+  ) {
+    if (height < 0) categories.add('reversed_bounds');
+    if (height === 0) categories.add('zero_area');
+    if (y + height > 1) categories.add('above_one');
+  }
+
+  return [...categories];
+}
+
+function parseOptionalRegion(
+  value: unknown,
+  itemIndex: number,
+): ProviderPhotoSuggestion['region'] {
+  if (value === null || value === undefined) return null;
+
+  const violationCategories = optionalRegionViolationCategories(value);
+  const parsed = photoNormalizedRegionSchema.safeParse(value);
+  if (parsed.success && violationCategories.length === 0) return parsed.data;
+
+  logDiagnostic('provider_optional_region_discarded', {
+    itemIndex,
+    invalidFieldPaths: parsed.success
+      ? violationCategories.includes('zero_area')
+        ? [['width'], ['height']]
+        : []
+      : parsed.error.issues.map((issue) => issue.path.map(String)),
+    violationCategories,
+  });
+  return null;
 }
 
 function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
@@ -361,8 +552,13 @@ function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
     throw aiUnavailable('Photo analysis returned an invalid response.');
   }
 
-  for (const item of parsed.data.items) validatePortionSafety(item);
-  return parsed.data.items;
+  return parsed.data.items.map((item, itemIndex) => ({
+    name: item.name,
+    preparationForm: item.preparationForm,
+    identityConfidence: item.identityConfidence,
+    quantity: normalizeQuantity(item),
+    region: parseOptionalRegion(item.region, itemIndex),
+  }));
 }
 
 class DisabledPhotoAnalysisProvider implements PhotoAnalysisProvider {
@@ -377,10 +573,15 @@ class MockPhotoAnalysisProvider implements PhotoAnalysisProvider {
       {
         name: 'chicken',
         preparationForm: null,
-        quantityText: null,
-        servingText: null,
+        quantity: {
+          quantityState: 'no_responsible_estimate',
+          quantityAmount: null,
+          quantityUnit: null,
+          quantityCountLabel: null,
+          quantityRawText: null,
+          quantityConfidence: null,
+        },
         identityConfidence: 'medium',
-        portionConfidence: null,
         region: null,
       },
     ];
@@ -432,11 +633,13 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
                       'Analyze this food photo and return structured JSON only.',
                       'Return zero to eight independent foods visibly present.',
                       'Identify food names and optional preparation forms only.',
-                      'You may suggest raw portion wording such as 150 g, 1 cup, 2 eggs, or 1 slice, but never convert it or infer density.',
-                      'Use identityConfidence and portionConfidence with only high, medium, or low.',
-                      'When both quantityText and servingText are null, omit portionConfidence entirely or set it to null; never set it to high, medium, or low. When either portion field is present, portionConfidence must be high, medium, or low.',
-                      'Regions are optional normalized x, y, width, and height values from 0 to 1 and are metadata only.',
-                      'Do not return calories, protein, carbohydrates, fat, fiber, sugar, sodium, micronutrients, nutrient totals, density assumptions, database IDs, FoodItem references, candidate selections, automatic saves, prompts, or internal reasoning.',
+                      'Estimate quantity only when visually defensible. Use only count, slice, piece, tablespoon, teaspoon, cup, millilitre, gram, or ounce.',
+                      'Use count only for visually countable discrete objects and include a concise count label such as egg, sandwich, breast, patty, or dumpling.',
+                      'Never use generic count labels such as item, food, serving, meal, pasta, sauce, Parmesan, cheese, or rice.',
+                      'For pasta, rice, sauce, grated cheese, and similar foods, use a meaningful volume or weight only when visually defensible; otherwise use no_responsible_estimate.',
+                      'Use quantityState estimated with positive quantityAmount, quantityUnit, quantityRawText, and quantityConfidence when estimating. Use no_responsible_estimate with all other quantity fields null when you cannot estimate responsibly.',
+                      'Do not invent exact weight, density, serving conversions, calories, protein, carbohydrates, fat, micronutrients, database IDs, trusted-food references, or reasoning.',
+                      'Regions are optional normalized x, y, width, and height values from 0 to 1; never use pixels or percentages, and return null when the bounds cannot be kept inside the image.',
                     ].join('\n'),
                   },
                 ],

@@ -471,9 +471,13 @@ Slice 1 locks the following implementation details:
   `GEMINI_API_KEY`; photo model, item, timeout, and rate limits are separate
   backend environment settings.
 - Provider output is strict JSON containing identity, optional preparation,
-  optional raw portion wording, separate confidence values, and optional
-  normalized region metadata. Nutrition fields, database references, and
-  automatic actions are rejected.
+  structured provisional quantity state, separate confidence values, and
+  optional normalized region metadata. Estimated quantities use only the
+  constrained photo vocabulary and count labels are provisional observed
+  evidence. `no_responsible_estimate` is valid when quantity cannot be
+  defended. Invalid optional regions are discarded by the provider adapter;
+  any region that survives remains strictly validated. Generic counts,
+  nutrition fields, database references, and automatic actions are rejected.
 - One image may produce up to eight independent rows. Duplicate or ambiguous
   recognition remains review-required; no segmentation editor is implied.
 - Existing deterministic retrieval/ranking and serving resolution remain the

@@ -8,6 +8,7 @@ import {
   type PhotoRecognizedItem,
   type PhotoServingResolution,
   type PhotoUnresolvedReason,
+  type ParsedServingSuggestion,
 } from '@food-tracker/shared';
 import {
   bestTrustedCandidate,
@@ -18,6 +19,7 @@ import type { PhotoAnalysisConfig } from './photo-config.js';
 import {
   parsePhotoServingText,
   photoAnalysisProvider,
+  type ProviderPhotoQuantity,
   type ProviderPhotoSuggestion,
 } from './photo-provider.js';
 
@@ -48,9 +50,10 @@ function resolutionOptions(options: FoodItemServingOptions | null) {
 
 function validatePortionAgainstCandidate(
   candidate: AiFoodParseCandidate | undefined,
-  suggestion: ReturnType<typeof parsePhotoServingText>,
+  suggestion: ParsedServingSuggestion | null,
 ): PhotoServingResolution {
-  if (suggestion.status === 'missing') return 'not_attempted';
+  if (suggestion === null || suggestion.status === 'missing')
+    return 'not_attempted';
   if (suggestion.status !== 'parsed' || candidate === undefined) {
     return 'needs_review';
   }
@@ -92,9 +95,92 @@ function duplicateKey(suggestion: ProviderPhotoSuggestion): string {
   return [
     suggestion.name.trim().toLocaleLowerCase(),
     suggestion.preparationForm?.trim().toLocaleLowerCase() ?? '',
-    suggestion.quantityText?.trim().toLocaleLowerCase() ?? '',
-    suggestion.servingText?.trim().toLocaleLowerCase() ?? '',
+    suggestion.quantity.quantityState,
+    suggestion.quantity.quantityAmount?.toString() ?? '',
+    suggestion.quantity.quantityUnit ?? '',
+    suggestion.quantity.quantityCountLabel?.trim().toLocaleLowerCase() ?? '',
   ].join('|');
+}
+
+function canonicalServingUnit(quantity: ProviderPhotoQuantity): string | null {
+  if (quantity.quantityState !== 'estimated') return null;
+  if (quantity.quantityUnit === 'count') {
+    switch (quantity.quantityCountLabel?.trim().toLocaleLowerCase()) {
+      case 'egg':
+        return 'egg';
+      case 'slice':
+        return 'slice';
+      case 'bar':
+        return 'bar';
+      default:
+        return null;
+    }
+  }
+  switch (quantity.quantityUnit) {
+    case 'slice':
+      return 'slice';
+    case 'tablespoon':
+      return 'tbsp';
+    case 'teaspoon':
+      return 'tsp';
+    case 'cup':
+      return 'cup';
+    case 'millilitre':
+      return 'ml';
+    case 'gram':
+      return 'g';
+    case 'ounce':
+      return 'oz';
+    case 'piece':
+      return null;
+  }
+}
+
+function parsedServingForQuantity(
+  quantity: ProviderPhotoQuantity,
+): ParsedServingSuggestion {
+  if (quantity.quantityState === 'no_responsible_estimate') {
+    return parsePhotoServingText({ quantityText: null, servingText: null });
+  }
+
+  const unit = canonicalServingUnit(quantity);
+  if (unit === null) {
+    return {
+      status: 'needs_review',
+      quantity: quantity.quantityAmount,
+      unit: null,
+      reason: 'unsupported_serving_text',
+      rawQuantityText: quantity.quantityRawText,
+      rawServingText: null,
+    };
+  }
+
+  return parsePhotoServingText({
+    quantityText: String(quantity.quantityAmount),
+    servingText: `${quantity.quantityAmount} ${unit}`,
+  });
+}
+
+function retrievalServingText(quantity: ProviderPhotoQuantity): {
+  quantityText: string | null;
+  servingText: string | null;
+} {
+  if (quantity.quantityState === 'no_responsible_estimate') {
+    return { quantityText: null, servingText: null };
+  }
+
+  const unit = canonicalServingUnit(quantity);
+  if (unit === null) {
+    return {
+      quantityText: null,
+      servingText: quantity.quantityCountLabel,
+    };
+  }
+
+  return {
+    quantityText: String(quantity.quantityAmount),
+    servingText: `${quantity.quantityAmount} ${unit}`,
+  };
 }
 
 function unresolvedReason(input: {
@@ -121,10 +207,7 @@ function buildRow(input: {
   retrieved: AiFoodParsedItem;
   duplicate: boolean;
 }): PhotoRecognizedItem {
-  const parsed = parsePhotoServingText({
-    quantityText: input.suggestion.quantityText,
-    servingText: input.suggestion.servingText,
-  });
+  const quantityParsed = parsedServingForQuantity(input.suggestion.quantity);
   const trusted = bestTrustedCandidate(
     input.retrieved.parsedName,
     input.retrieved.candidates,
@@ -138,7 +221,7 @@ function buildRow(input: {
       : trusted;
   const portionResolution = validatePortionAgainstCandidate(
     selectedCandidate,
-    parsed,
+    quantityParsed,
   );
   const reason = unresolvedReason({
     identityConfidence: input.suggestion.identityConfidence,
@@ -152,24 +235,40 @@ function buildRow(input: {
       ? null
       : parseCandidateId(selectedCandidate);
   const loggable = selectedCandidateId !== null && reason === null;
-  const provisionalPortion =
-    input.suggestion.quantityText !== null ||
-    input.suggestion.servingText !== null
-      ? {
-          rawQuantityText: input.suggestion.quantityText,
-          rawServingText: input.suggestion.servingText,
-          confidence: input.suggestion.portionConfidence ?? 'low',
-          parsed,
-          servingResolution: portionResolution,
-        }
-      : null;
+  const provisionalPortion = {
+    rawQuantityText:
+      input.suggestion.quantity.quantityState === 'estimated'
+        ? input.suggestion.quantity.quantityRawText
+        : null,
+    rawServingText: null,
+    confidence:
+      input.suggestion.quantity.quantityState === 'estimated'
+        ? input.suggestion.quantity.quantityConfidence
+        : null,
+    parsed: quantityParsed,
+    quantity:
+      input.suggestion.quantity.quantityState === 'estimated'
+        ? {
+            state: 'estimated' as const,
+            amount: input.suggestion.quantity.quantityAmount,
+            unit: input.suggestion.quantity.quantityUnit,
+            countLabel: input.suggestion.quantity.quantityCountLabel,
+            rawText: input.suggestion.quantity.quantityRawText,
+            confidence: input.suggestion.quantity.quantityConfidence,
+          }
+        : { state: 'no_responsible_estimate' as const },
+    servingResolution: portionResolution,
+  };
 
   return {
     id: `photo-item-${input.index + 1}` as PhotoRecognizedItem['id'],
     recognizedName: input.suggestion.name,
     preparationForm: input.suggestion.preparationForm,
     identityConfidence: input.suggestion.identityConfidence,
-    portionConfidence: input.suggestion.portionConfidence,
+    portionConfidence:
+      input.suggestion.quantity.quantityState === 'estimated'
+        ? input.suggestion.quantity.quantityConfidence
+        : null,
     region: input.suggestion.region,
     provisionalPortion,
     reviewStatus:
@@ -210,8 +309,7 @@ export async function analyzePhotoFood(input: {
       name: [suggestion.name, suggestion.preparationForm]
         .filter((value): value is string => value !== null)
         .join(' '),
-      quantityText: suggestion.quantityText,
-      servingText: suggestion.servingText,
+      ...retrievalServingText(suggestion.quantity),
     })),
   });
 

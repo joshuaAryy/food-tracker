@@ -7,6 +7,41 @@ import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
 
+const noResponsibleEstimate = {
+  quantityState: 'no_responsible_estimate' as const,
+  quantityAmount: null,
+  quantityUnit: null,
+  quantityCountLabel: null,
+  quantityRawText: null,
+  quantityConfidence: null,
+};
+
+function estimatedQuantity(
+  amount: number,
+  unit:
+    | 'count'
+    | 'slice'
+    | 'piece'
+    | 'tablespoon'
+    | 'teaspoon'
+    | 'cup'
+    | 'millilitre'
+    | 'gram'
+    | 'ounce',
+  rawText: string,
+  confidence: 'high' | 'medium' | 'low',
+  countLabel: string | null = null,
+) {
+  return {
+    quantityState: 'estimated' as const,
+    quantityAmount: amount,
+    quantityUnit: unit,
+    quantityCountLabel: countLabel,
+    quantityRawText: rawText,
+    quantityConfidence: confidence,
+  };
+}
+
 async function createTrustedFood(name: string) {
   return prisma.foodItem.create({
     data: {
@@ -37,6 +72,382 @@ describe('photo food analysis API', () => {
     delete process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
+  });
+
+  it.each([
+    [
+      'count',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 2,
+        quantityUnit: 'count',
+        quantityCountLabel: 'egg',
+        quantityRawText: 'approximately 2 eggs',
+        quantityConfidence: 'high',
+      },
+    ],
+    [
+      'slice',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 1,
+        quantityUnit: 'slice',
+        quantityCountLabel: null,
+        quantityRawText: '1 slice',
+        quantityConfidence: 'medium',
+      },
+    ],
+    [
+      'piece',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 0.5,
+        quantityUnit: 'piece',
+        quantityCountLabel: null,
+        quantityRawText: 'half a piece',
+        quantityConfidence: 'low',
+      },
+    ],
+    [
+      'cup',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 1.5,
+        quantityUnit: 'cup',
+        quantityCountLabel: null,
+        quantityRawText: 'approximately 1.5 cups',
+        quantityConfidence: 'medium',
+      },
+    ],
+    [
+      'tablespoon',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 2,
+        quantityUnit: 'tablespoon',
+        quantityCountLabel: null,
+        quantityRawText: 'approximately 2 tablespoons',
+        quantityConfidence: 'medium',
+      },
+    ],
+    [
+      'teaspoon',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 1,
+        quantityUnit: 'teaspoon',
+        quantityCountLabel: null,
+        quantityRawText: '1 teaspoon',
+        quantityConfidence: 'medium',
+      },
+    ],
+    [
+      'millilitre',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 120,
+        quantityUnit: 'millilitre',
+        quantityCountLabel: null,
+        quantityRawText: '120 millilitres',
+        quantityConfidence: 'low',
+      },
+    ],
+    [
+      'gram',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 120,
+        quantityUnit: 'gram',
+        quantityCountLabel: null,
+        quantityRawText: 'approximately 120 grams',
+        quantityConfidence: 'low',
+      },
+    ],
+    [
+      'ounce',
+      {
+        quantityState: 'estimated',
+        quantityAmount: 4,
+        quantityUnit: 'ounce',
+        quantityCountLabel: null,
+        quantityRawText: '4 ounces',
+        quantityConfidence: 'low',
+      },
+    ],
+  ] as const)('accepts a structured %s quantity', (_unit, quantity) => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'food',
+            preparationForm: null,
+            identityConfidence: 'medium',
+            region: null,
+            ...quantity,
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.quantity).toEqual(quantity);
+  });
+
+  it('accepts an explicit no-responsible-estimate quantity state', () => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'pasta',
+            preparationForm: null,
+            identityConfidence: 'medium',
+            region: null,
+            quantityState: 'no_responsible_estimate',
+            quantityAmount: null,
+            quantityUnit: null,
+            quantityCountLabel: null,
+            quantityRawText: null,
+            quantityConfidence: null,
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.quantity).toEqual({
+      quantityState: 'no_responsible_estimate',
+      quantityAmount: null,
+      quantityUnit: null,
+      quantityCountLabel: null,
+      quantityRawText: null,
+      quantityConfidence: null,
+    });
+  });
+
+  it.each([
+    ['full image', { x: 0, y: 0, width: 1, height: 1 }],
+    ['small region', { x: 0.1, y: 0.2, width: 0.2, height: 0.3 }],
+    ['decimal bounds', { x: 0.333, y: 0.125, width: 0.5, height: 0.25 }],
+  ])('preserves a valid %s region', (_label, region) => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'food',
+            preparationForm: null,
+            identityConfidence: 'high',
+            region,
+            ...estimatedQuantity(
+              2,
+              'count',
+              'approximately 2 eggs',
+              'high',
+              'egg',
+            ),
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.region).toEqual(region);
+    expect(suggestion?.quantity).toMatchObject({
+      quantityState: 'estimated',
+      quantityAmount: 2,
+      quantityUnit: 'count',
+      quantityCountLabel: 'egg',
+    });
+    expect(suggestion?.identityConfidence).toBe('high');
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['explicit null', null],
+  ])('accepts a %s optional region', (_label, region) => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'food',
+            preparationForm: null,
+            identityConfidence: 'medium',
+            ...(region === undefined ? {} : { region }),
+            ...estimatedQuantity(120, 'gram', '120 grams', 'medium'),
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.region).toBeNull();
+  });
+
+  it.each([
+    ['negative coordinate', { x: -0.1, y: 0, width: 0.2, height: 0.2 }],
+    ['coordinate above one', { x: 1.1, y: 0, width: 0.2, height: 0.2 }],
+    ['reversed horizontal bounds', { x: 0.8, y: 0, width: -0.2, height: 0.2 }],
+    ['reversed vertical bounds', { x: 0, y: 0.8, width: 0.2, height: -0.2 }],
+    ['zero width', { x: 0.1, y: 0.1, width: 0, height: 0.2 }],
+    ['zero height', { x: 0.1, y: 0.1, width: 0.2, height: 0 }],
+    ['missing field', { x: 0.1, y: 0.1, width: 0.2 }],
+    ['non-numeric field', { x: '0.1', y: 0.1, width: 0.2, height: 0.2 }],
+    ['malformed object', []],
+  ])('drops an invalid optional region: %s', (_label, region) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'food',
+            preparationForm: null,
+            identityConfidence: 'high',
+            region,
+            ...estimatedQuantity(
+              2,
+              'count',
+              'approximately 2 eggs',
+              'high',
+              'egg',
+            ),
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion).toBeDefined();
+    expect(suggestion?.region).toBeNull();
+    expect(suggestion?.identityConfidence).toBe('high');
+    expect(suggestion?.quantity).toMatchObject({
+      quantityState: 'estimated',
+      quantityAmount: 2,
+      quantityUnit: 'count',
+      quantityCountLabel: 'egg',
+    });
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:provider]',
+      expect.objectContaining({
+        category: 'provider_optional_region_discarded',
+        itemIndex: 0,
+        violationCategories: expect.any(Array),
+        invalidFieldPaths: expect.any(Array),
+      }),
+    );
+  });
+
+  it('drops a non-finite optional region without logging coordinate values', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const [suggestion] = parseProviderOutput(
+      '{"items":[{"name":"food","preparationForm":null,"identityConfidence":"high","quantityState":"estimated","quantityAmount":2,"quantityUnit":"count","quantityCountLabel":"egg","quantityRawText":"approximately 2 eggs","quantityConfidence":"high","region":{"x":1e999,"y":0,"width":0.2,"height":0.2}}]}',
+    );
+
+    expect(suggestion?.region).toBeNull();
+    const diagnostic = warn.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    expect(diagnostic.category).toBe('provider_optional_region_discarded');
+    expect(JSON.stringify(diagnostic)).not.toContain('1e999');
+    expect(JSON.stringify(diagnostic)).not.toContain('Infinity');
+  });
+
+  it.each([
+    'item',
+    'food',
+    'serving',
+    'meal',
+    'pasta',
+    'sauce',
+    'Parmesan',
+    'grated Parmesan',
+  ])('rejects generic or non-countable count label %s', (countLabel) => {
+    expect(() =>
+      parseProviderOutput(
+        JSON.stringify({
+          items: [
+            {
+              name: 'food',
+              preparationForm: null,
+              identityConfidence: 'medium',
+              region: null,
+              quantityState: 'estimated',
+              quantityAmount: 1,
+              quantityUnit: 'count',
+              quantityCountLabel: countLabel,
+              quantityRawText: `1 ${countLabel}`,
+              quantityConfidence: 'medium',
+            },
+          ],
+        }),
+      ),
+    ).toThrow();
+  });
+
+  it.each([
+    {
+      quantityState: 'estimated',
+      quantityAmount: 0,
+      quantityUnit: 'gram',
+      quantityCountLabel: null,
+      quantityRawText: '0 grams',
+      quantityConfidence: 'low',
+    },
+    {
+      quantityState: 'estimated',
+      quantityAmount: 1,
+      quantityUnit: 'count',
+      quantityCountLabel: null,
+      quantityRawText: '1 count',
+      quantityConfidence: 'low',
+    },
+    {
+      quantityState: 'estimated',
+      quantityAmount: 1,
+      quantityUnit: 'gram',
+      quantityCountLabel: 'egg',
+      quantityRawText: '1 gram egg',
+      quantityConfidence: 'low',
+    },
+    {
+      quantityState: 'estimated',
+      quantityAmount: 'half',
+      quantityUnit: 'piece',
+      quantityCountLabel: null,
+      quantityRawText: 'half a piece',
+      quantityConfidence: 'low',
+    },
+    {
+      quantityState: 'estimated',
+      quantityAmount: 1,
+      quantityUnit: 'serving',
+      quantityCountLabel: null,
+      quantityRawText: '1 serving',
+      quantityConfidence: 'low',
+    },
+    {
+      quantityState: 'no_responsible_estimate',
+      quantityAmount: 1,
+      quantityUnit: null,
+      quantityCountLabel: null,
+      quantityRawText: null,
+      quantityConfidence: null,
+    },
+    {
+      quantityState: 'no_responsible_estimate',
+      quantityAmount: null,
+      quantityUnit: null,
+      quantityCountLabel: null,
+      quantityRawText: null,
+      quantityConfidence: 'low',
+    },
+  ])('rejects contradictory structured quantity output %#', (quantity) => {
+    expect(() =>
+      parseProviderOutput(
+        JSON.stringify({
+          items: [
+            {
+              name: 'food',
+              preparationForm: null,
+              identityConfidence: 'medium',
+              region: null,
+              ...quantity,
+            },
+          ],
+        }),
+      ),
+    ).toThrow();
   });
 
   it('rejects unsupported content types before invoking the provider', async () => {
@@ -134,11 +545,111 @@ describe('photo food analysis API', () => {
           candidates: expect.any(Array),
           selectedCandidateId: null,
           loggable: false,
+          portionConfidence: null,
         }),
       ],
     });
+    expect(response.body.data.items[0].provisionalPortion).toMatchObject({
+      confidence: null,
+      quantity: { state: 'no_responsible_estimate' },
+    });
+    expect(response.body.data.items[0].provisionalPortion.parsed.status).toBe(
+      'missing',
+    );
     expect(response.body.data.items[0]).not.toHaveProperty('nutrition');
     expect(response.body.data.items[0]).not.toHaveProperty('providerPayload');
+    expect(await prisma.foodItem.count()).toBe(before.foodItems);
+    expect(await prisma.foodLog.count()).toBe(before.foodLogs);
+  });
+
+  it('discards invalid optional regions while preserving retrieval and quantity', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    await createTrustedFood('chicken');
+    const before = {
+      foodItems: await prisma.foodItem.count(),
+      foodLogs: await prisma.foodLog.count(),
+    };
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          items: [
+                            {
+                              name: 'chicken',
+                              identityConfidence: 'high',
+                              region: {
+                                x: 0.9,
+                                y: 0.1,
+                                width: 0.3,
+                                height: 0.2,
+                              },
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 grams',
+                                'medium',
+                              ),
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.items).toHaveLength(1);
+    expect(response.body.data.items[0]).toMatchObject({
+      recognizedName: 'chicken',
+      identityConfidence: 'high',
+      region: null,
+      selectedCandidateId: expect.any(String),
+      provisionalPortion: {
+        quantity: {
+          state: 'estimated',
+          amount: 150,
+          unit: 'gram',
+          confidence: 'medium',
+        },
+      },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:provider]',
+      expect.objectContaining({
+        category: 'provider_optional_region_discarded',
+        itemIndex: 0,
+      }),
+    );
+    const diagnostic = warn.mock.calls.find(
+      ([, details]) =>
+        (details as { category?: string }).category ===
+        'provider_optional_region_discarded',
+    )?.[1];
+    expect(JSON.stringify(diagnostic)).not.toContain('0.9');
+    expect(JSON.stringify(diagnostic)).not.toContain('0.3');
     expect(await prisma.foodItem.count()).toBe(before.foodItems);
     expect(await prisma.foodLog.count()).toBe(before.foodLogs);
   });
@@ -169,9 +680,12 @@ describe('photo food analysis API', () => {
                           {
                             name: 'chicken',
                             identityConfidence: 'high',
-                            portionConfidence: 'medium',
-                            quantityText: '150',
-                            servingText: '150 g',
+                            ...estimatedQuantity(
+                              150,
+                              'gram',
+                              '150 g',
+                              'medium',
+                            ),
                             calories: 300,
                           },
                         ],
@@ -222,8 +736,25 @@ describe('photo food analysis API', () => {
     expect(JSON.stringify(generationConfig.responseSchema)).not.toContain(
       'additionalProperties',
     );
+    const responseSchema = generationConfig.responseSchema as {
+      properties?: {
+        items?: {
+          items?: {
+            properties?: Record<string, unknown>;
+          };
+        };
+      };
+    };
+    const quantityProperties =
+      responseSchema.properties?.items?.items?.properties ?? {};
+    expect(quantityProperties).toHaveProperty('quantityState');
+    expect(quantityProperties).toHaveProperty('quantityAmount');
+    expect(quantityProperties).toHaveProperty('quantityUnit');
+    expect(quantityProperties).toHaveProperty('quantityCountLabel');
+    expect(quantityProperties).toHaveProperty('quantityRawText');
+    expect(quantityProperties).toHaveProperty('quantityConfidence');
     expect(contents[0]?.parts[1]?.text).toEqual(
-      expect.stringContaining('Do not return calories'),
+      expect.stringContaining('calories'),
     );
   });
 
@@ -296,9 +827,7 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'high',
-                              quantityText: '-1 g',
-                              servingText: null,
+                              ...estimatedQuantity(-1, 'gram', '-1 g', 'high'),
                               unknown: true,
                             },
                           ],
@@ -342,7 +871,7 @@ describe('photo food analysis API', () => {
                           items: Array.from({ length: 9 }, (_, index) => ({
                             name: `food ${index + 1}`,
                             identityConfidence: 'low',
-                            portionConfidence: null,
+                            ...noResponsibleEstimate,
                           })),
                         }),
                       },
@@ -421,9 +950,12 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'low',
-                              portionConfidence: 'medium',
-                              quantityText: '150 g',
-                              servingText: null,
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 g',
+                                'medium',
+                              ),
                             },
                           ],
                         }),
@@ -473,9 +1005,7 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'low',
-                              quantityText: '1 cup',
-                              servingText: null,
+                              ...estimatedQuantity(1, 'cup', '1 cup', 'low'),
                             },
                           ],
                         }),
@@ -527,16 +1057,17 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'medium',
-                              quantityText: '150',
-                              servingText: '150 g',
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 g',
+                                'medium',
+                              ),
                             },
                             {
                               name: 'rice',
                               identityConfidence: 'medium',
-                              portionConfidence: 'low',
-                              quantityText: '150 g',
-                              servingText: null,
+                              ...estimatedQuantity(150, 'gram', '150 g', 'low'),
                             },
                           ],
                         }),
@@ -602,9 +1133,12 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'medium',
-                              quantityText: '150 g',
-                              servingText: null,
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 g',
+                                'medium',
+                              ),
                             },
                           ],
                         }),
@@ -672,16 +1206,22 @@ describe('photo food analysis API', () => {
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'medium',
-                              quantityText: '150 g',
-                              servingText: null,
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 g',
+                                'medium',
+                              ),
                             },
                             {
                               name: 'chicken',
                               identityConfidence: 'high',
-                              portionConfidence: 'medium',
-                              quantityText: '150 g',
-                              servingText: null,
+                              ...estimatedQuantity(
+                                150,
+                                'gram',
+                                '150 g',
+                                'medium',
+                              ),
                             },
                           ],
                         }),
@@ -712,7 +1252,8 @@ describe('photo food analysis API', () => {
 
   it('assembles multiple final text parts in order before strict parsing', () => {
     const part1 = '{"items":[{"name":"grilled chick';
-    const part2 = 'en","identityConfidence":"high","portionConfidence":null}]}';
+    const part2 =
+      'en","preparationForm":null,"identityConfidence":"high","quantityState":"no_responsible_estimate","quantityAmount":null,"quantityUnit":null,"quantityCountLabel":null,"quantityRawText":null,"quantityConfidence":null,"region":null}]}';
 
     expect(() => parseProviderOutput(`${part1}${part2}`)).not.toThrow();
   });
@@ -823,9 +1364,11 @@ describe('photo food analysis API', () => {
                   content: {
                     parts: [
                       { text: 'internal thought', thought: true },
-                      { text: '{"items":[{"name":"grilled chick' },
                       {
-                        text: 'en","identityConfidence":"high","portionConfidence":null}]}',
+                        text: '{"items":[{"name":"grilled chick',
+                      },
+                      {
+                        text: 'en","preparationForm":null,"identityConfidence":"high","quantityState":"no_responsible_estimate","quantityAmount":null,"quantityUnit":null,"quantityCountLabel":null,"quantityRawText":null,"quantityConfidence":null,"region":null}]}',
                       },
                     ],
                   },

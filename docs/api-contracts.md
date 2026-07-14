@@ -1423,16 +1423,28 @@ application/provider throttling uses `RATE_LIMITED`.
 Success `data` is either `recognized` with zero to eight ordered rows or
 `no_food_detected` with an empty array. Each row contains a request-scoped ID,
 recognized name, optional preparation form, separate identity and portion
-confidence, optional normalized region metadata, a provisional parsed serving,
+confidence, optional normalized region metadata, a provisional quantity,
 existing ranked `AiFoodParseCandidate[]`, a review status, and an explicit
-`loggable`/unresolved state. Provisional portions are checked against the
+`loggable`/unresolved state. The provisional quantity is either an estimated
+positive amount using `count`, `slice`, `piece`, `tablespoon`, `teaspoon`,
+`cup`, `millilitre`, `gram`, or `ounce`, or `no_responsible_estimate`. Count
+quantities carry provisional observed count evidence such as `egg` or
+`sandwich`; they do not authorize a trusted serving conversion until a later
+candidate-serving check. Generic counts such as `item`, `food`, `serving`,
+`pasta`, or `sauce` are rejected. Provisional portions are checked against the
 selected candidate's existing serving basis and trusted options; density and
-unsupported household conversions are never inferred.
+unsupported household conversions are never inferred. Invalid optional region
+metadata is discarded at the provider adapter boundary without invalidating
+the identity or quantity row; surviving regions remain strictly validated.
 
 The route never returns raw provider payloads, prompts, internal reasoning,
 credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
-records, USDA cache rows, or review sessions. Slice 2 must save only reviewed
-candidate references and servings through `POST /api/v1/food-logs/from-candidates`.
+records, USDA cache rows, or review sessions. Quantity recognition is
+provider-stabilization groundwork only; component/composite representations,
+candidate adjudication, natural-serving defaults, and AI-estimated nutrition
+fallback remain later Phase 14 slices. The current Slice 2 save path still
+saves only reviewed candidate references and servings through
+`POST /api/v1/food-logs/from-candidates`.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

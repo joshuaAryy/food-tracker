@@ -28,6 +28,8 @@ import {
 import {
   PHOTO_ANALYSIS_MAX_ITEMS,
   PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_QUANTITY_STATES,
+  PHOTO_QUANTITY_UNITS,
 } from './constants.js';
 import { parsedServingSuggestionSchema } from './serving-text.js';
 import type { AiFoodParseCandidate } from './types.js';
@@ -942,6 +944,70 @@ export const aiNutritionEstimateInputSchema = z.strictObject({
 });
 
 export const photoConfidenceLevelSchema = z.enum(PHOTO_CONFIDENCE_LEVELS);
+export const photoQuantityStateSchema = z.enum(PHOTO_QUANTITY_STATES);
+export const photoQuantityUnitSchema = z.enum(PHOTO_QUANTITY_UNITS);
+
+const photoCountLabelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(40)
+  .regex(/^[A-Za-z]+(?:[ -][A-Za-z]+)*$/);
+
+const photoNonCountableLabelTokens = new Set([
+  'cheese',
+  'food',
+  'item',
+  'meal',
+  'parmesan',
+  'pasta',
+  'rice',
+  'sauce',
+  'serving',
+]);
+
+export const photoProvisionalQuantitySchema = z.discriminatedUnion('state', [
+  z
+    .strictObject({
+      state: z.literal('estimated'),
+      amount: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+      unit: photoQuantityUnitSchema,
+      countLabel: photoCountLabelSchema.nullable(),
+      rawText: z.string().trim().min(1).max(120),
+      confidence: photoConfidenceLevelSchema,
+    })
+    .superRefine((quantity, context) => {
+      if (quantity.unit === 'count') {
+        if (quantity.countLabel === null) {
+          context.addIssue({
+            code: 'custom',
+            message: 'count quantities require a countLabel',
+            path: ['countLabel'],
+          });
+          return;
+        }
+        const labelTokens = quantity.countLabel.toLowerCase().split(' ');
+        if (
+          labelTokens.some((token) => photoNonCountableLabelTokens.has(token))
+        ) {
+          context.addIssue({
+            code: 'custom',
+            message: 'countLabel is not a defensible discrete object',
+            path: ['countLabel'],
+          });
+        }
+      } else if (quantity.countLabel !== null) {
+        context.addIssue({
+          code: 'custom',
+          message: 'countLabel is only valid for count quantities',
+          path: ['countLabel'],
+        });
+      }
+    }),
+  z.strictObject({
+    state: z.literal('no_responsible_estimate'),
+  }),
+]);
 
 export const photoNormalizedRegionSchema = z
   .strictObject({
@@ -982,10 +1048,11 @@ export const photoUnresolvedReasonSchema = z.enum([
 ]);
 
 export const photoProvisionalPortionSchema = z.strictObject({
-  rawQuantityText: z.string().trim().min(1).max(80).nullable(),
+  rawQuantityText: z.string().trim().min(1).max(120).nullable(),
   rawServingText: z.string().trim().min(1).max(120).nullable(),
-  confidence: photoConfidenceLevelSchema,
-  parsed: parsedServingSuggestionSchema,
+  confidence: photoConfidenceLevelSchema.nullable(),
+  parsed: parsedServingSuggestionSchema.nullable(),
+  quantity: photoProvisionalQuantitySchema,
   servingResolution: photoServingResolutionSchema,
 });
 

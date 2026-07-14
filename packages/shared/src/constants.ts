@@ -5,3 +5,18 @@ export const PHOTO_ANALYSIS_JPEG_MIME_TYPE = 'image/jpeg';
 export const PHOTO_ANALYSIS_MAX_BYTES = 5 * 1024 * 1024;
 export const PHOTO_ANALYSIS_MAX_ITEMS = 8;
 export const PHOTO_CONFIDENCE_LEVELS = ['high', 'medium', 'low'] as const;
+export const PHOTO_QUANTITY_STATES = [
+  'estimated',
+  'no_responsible_estimate',
+] as const;
+export const PHOTO_QUANTITY_UNITS = [
+  'count',
+  'slice',
+  'piece',
+  'tablespoon',
+  'teaspoon',
+  'cup',
+  'millilitre',
+  'gram',
+  'ounce',
+] as const;

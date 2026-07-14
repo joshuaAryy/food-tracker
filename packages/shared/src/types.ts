@@ -29,7 +29,11 @@ import type {
   RecipeNutritionSummarySnapshot,
 } from './schemas.js';
 import type { ParsedServingSuggestion } from './serving-text.js';
-import type { PHOTO_CONFIDENCE_LEVELS } from './constants.js';
+import type {
+  PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_QUANTITY_STATES,
+  PHOTO_QUANTITY_UNITS,
+} from './constants.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -308,6 +312,23 @@ export interface AiNutritionEstimateResult {
 
 export type PhotoConfidenceLevel = (typeof PHOTO_CONFIDENCE_LEVELS)[number];
 
+export type PhotoQuantityState = (typeof PHOTO_QUANTITY_STATES)[number];
+
+export type PhotoQuantityUnit = (typeof PHOTO_QUANTITY_UNITS)[number];
+
+export type PhotoProvisionalQuantity =
+  | {
+      state: 'estimated';
+      amount: number;
+      unit: PhotoQuantityUnit;
+      countLabel: string | null;
+      rawText: string;
+      confidence: PhotoConfidenceLevel;
+    }
+  | {
+      state: 'no_responsible_estimate';
+    };
+
 export type PhotoServingResolution =
   | 'not_attempted'
   | 'supported'
@@ -330,8 +351,9 @@ export interface PhotoNormalizedRegion {
 export interface PhotoProvisionalPortion {
   rawQuantityText: string | null;
   rawServingText: string | null;
-  confidence: PhotoConfidenceLevel;
-  parsed: ParsedServingSuggestion;
+  confidence: PhotoConfidenceLevel | null;
+  parsed: ParsedServingSuggestion | null;
+  quantity: PhotoProvisionalQuantity;
   servingResolution: PhotoServingResolution;
 }
 
