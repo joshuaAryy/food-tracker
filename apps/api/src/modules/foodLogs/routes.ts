@@ -2,6 +2,8 @@ import { Router, type RequestHandler } from 'express';
 import {
   DEFAULT_TIMEZONE,
   foodLogFromAiEstimateInputSchema,
+  photoAnalysisConfirmationInputSchema,
+  type PhotoAnalysisConfirmationInput,
   type FoodLogFromAiEstimateInput,
   foodLogServingSnapshotSchema,
   type NormalizedNutrientMap,
@@ -16,6 +18,7 @@ import {
   foodLogSaveAsManualFoodInputSchema,
   foodLogsQuerySchema,
   idParamsSchema,
+  classifyServingUnit,
   validateServingQuantity,
   type FoodLogServingSnapshot,
 } from '@food-tracker/shared';
@@ -31,10 +34,11 @@ import {
   serializeFoodItem,
   serializeFoodLog,
 } from '../../lib/serializers.js';
+import { usdaFdcConfig } from '../foodItems/usda-fdc.js';
 import {
-  findOrCreateUsdaFoodItem,
-  usdaFdcConfig,
-} from '../foodItems/usda-fdc.js';
+  findOrCreateExternalFoodItem,
+  withExternalFoodMaterializationLocks,
+} from '../foodItems/external-food.js';
 import {
   AuthoritativeServingInvariantError,
   calculateAuthoritativeServing,
@@ -50,6 +54,12 @@ import {
   validatedQuery,
 } from '../../middleware/validate.js';
 import { createMixedMeal, previewMixedMeal } from './mixed-meals.js';
+import { photoAnalysisConfig } from '../ai/photo-config.js';
+import {
+  verifyPhotoEstimateProof,
+  type PhotoEstimateProofPayload,
+} from '../ai/photo-estimate-proof.js';
+import { validatePhotoNutritionEstimate } from '../ai/photo-nutrition-estimate.js';
 
 type FoodLogInput = z.infer<typeof foodLogInputSchema>;
 type FoodLogUpdateInput = z.infer<typeof foodLogUpdateInputSchema>;
@@ -64,6 +74,12 @@ type FoodLogsQuery = z.infer<typeof foodLogsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
 type FoodLogSaveAsManualFoodInput = z.infer<
   typeof foodLogSaveAsManualFoodInputSchema
+>;
+type PhotoConfirmationInput = PhotoAnalysisConfirmationInput;
+type PhotoConfirmationEntry = PhotoConfirmationInput['entries'][number];
+type PhotoEstimatedConfirmationEntry = Extract<
+  PhotoConfirmationEntry,
+  { disposition: 'estimated' }
 >;
 type VisibleFoodItem = NonNullable<Awaited<ReturnType<typeof visibleFoodItem>>>;
 type FoodItemServingRequest = Pick<
@@ -138,6 +154,215 @@ function aiEstimateNotes(input: FoodLogFromAiEstimateInput): string {
     : `${prefix} ${userNotes}`;
 }
 
+function mixedConfirmationError(
+  code:
+    | 'ESTIMATE_CONFIRMATION_DISABLED'
+    | 'INVALID_ESTIMATE_PROOF'
+    | 'EXPIRED_ESTIMATE_PROOF'
+    | 'ESTIMATE_PROOF_USER_MISMATCH'
+    | 'INVALID_TRUSTED_CANDIDATE'
+    | 'DUPLICATE_ROW_REFERENCE'
+    | 'DUPLICATE_ESTIMATE_PROOF'
+    | 'INVALID_MIXED_CONFIRMATION',
+  message: string,
+  details: Record<string, unknown> = {},
+) {
+  return new AppError(400, code, message, details);
+}
+
+function estimateServingFields(payload: PhotoEstimateProofPayload): {
+  servingQuantity: number | null;
+  servingUnit: string | null;
+} {
+  if (payload.quantity.state !== 'estimated') {
+    return { servingQuantity: null, servingUnit: null };
+  }
+
+  let servingUnit: string | null = null;
+  if (payload.quantity.unit === 'count') {
+    const label = payload.quantity.countLabel?.trim().toLocaleLowerCase();
+    servingUnit =
+      label === 'egg' || label === 'slice' || label === 'bar' ? label : null;
+  } else {
+    servingUnit =
+      {
+        slice: 'slice',
+        tablespoon: 'tbsp',
+        teaspoon: 'tsp',
+        cup: 'cup',
+        millilitre: 'ml',
+        gram: 'g',
+        ounce: 'oz',
+        piece: null,
+      }[payload.quantity.unit] ?? null;
+  }
+
+  return servingUnit === null
+    ? { servingQuantity: null, servingUnit: null }
+    : { servingQuantity: roundTo(payload.quantity.amount, 2), servingUnit };
+}
+
+function estimateNotes(input: {
+  payload: PhotoEstimateProofPayload;
+  adjusted: boolean;
+  notes: string | null | undefined;
+}): string {
+  const status = input.adjusted ? 'adjusted' : 'reviewed';
+  const basis =
+    input.payload.estimateBasis === 'structured_quantity'
+      ? ` Estimated for ${input.payload.quantity.state === 'estimated' ? input.payload.quantity.rawText : 'the structured quantity'}.`
+      : ' Estimated for portion shown.';
+  const prefix = `[AI-estimated nutrition: low trust, ${status}]${basis}`;
+  const userNotes = input.notes?.trim();
+  return userNotes === undefined || userNotes === ''
+    ? prefix
+    : `${prefix} ${userNotes}`;
+}
+
+function estimateServingSnapshot(input: {
+  payload: PhotoEstimateProofPayload;
+  nutrition: {
+    calories: number;
+    proteinGrams: number;
+    carbohydrateGrams: number;
+    fatGrams: number;
+  };
+  serving: { servingQuantity: number | null; servingUnit: string | null };
+}) {
+  if (
+    input.payload.estimateBasis !== 'structured_quantity' ||
+    input.serving.servingQuantity === null ||
+    input.serving.servingUnit === null
+  ) {
+    return Prisma.JsonNull;
+  }
+  const unit = classifyServingUnit(input.serving.servingUnit);
+  if (unit === null) return Prisma.JsonNull;
+  const snapshot = foodLogServingSnapshotSchema.safeParse({
+    schemaVersion: 1,
+    nutritionBasis: {
+      quantity: input.serving.servingQuantity,
+      unit: unit.unit,
+      unitFamily: unit.family,
+      displayText:
+        input.payload.quantity.state === 'estimated'
+          ? input.payload.quantity.rawText
+          : null,
+      equivalentWeightGrams: null,
+      equivalentVolumeMl: null,
+    },
+    requestedServing: {
+      quantity: input.serving.servingQuantity,
+      unit: unit.unit,
+      unitFamily: unit.family,
+      servingOptionId: null,
+      selectedServingOption: null,
+    },
+    resolution: {
+      status: 'exact',
+      reason: 'same_basis',
+      multiplier: 1,
+      resolvedWeightGrams: null,
+      resolvedVolumeMl: null,
+    },
+    basisNutrition: {
+      calories: input.nutrition.calories,
+      protein: input.nutrition.proteinGrams,
+      carbs: input.nutrition.carbohydrateGrams,
+      fat: input.nutrition.fatGrams,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      nutrients: {},
+    },
+    nutritionOverride: null,
+    provenance: {
+      basisOrigin: 'ai_estimate',
+      foodItemId: null,
+      sourceType: null,
+      sourceProvider: null,
+      sourceId: null,
+      trustLevel: 'low',
+    },
+  });
+  if (!snapshot.success) {
+    throw mixedConfirmationError(
+      'INVALID_MIXED_CONFIRMATION',
+      'The estimated serving basis is invalid.',
+      { reason: 'invalid_estimated_basis' },
+    );
+  }
+  return snapshot.data as Prisma.InputJsonValue;
+}
+
+function normalizedEstimateNutrition(input: {
+  payload: PhotoEstimateProofPayload;
+  adjustment: PhotoEstimatedConfirmationEntry['userAdjustedNutrition'];
+}) {
+  const source = input.adjustment ?? {
+    calories: input.payload.calories,
+    proteinGrams: input.payload.proteinGrams,
+    carbohydrateGrams: input.payload.carbohydrateGrams,
+    fatGrams: input.payload.fatGrams,
+  };
+  const rounded = {
+    calories: Math.round(source.calories),
+    proteinGrams: roundTo(source.proteinGrams, 1),
+    carbohydrateGrams: roundTo(source.carbohydrateGrams, 1),
+    fatGrams: roundTo(source.fatGrams, 1),
+    confidence: input.payload.confidence,
+  };
+  const validated = validatePhotoNutritionEstimate(rounded);
+  if (validated === null) {
+    throw mixedConfirmationError(
+      'INVALID_MIXED_CONFIRMATION',
+      'The estimated nutrition is invalid.',
+      { reason: 'invalid_estimated_nutrition' },
+    );
+  }
+  return rounded;
+}
+
+function estimatedFoodLogData(input: {
+  entry: PhotoEstimatedConfirmationEntry;
+  payload: PhotoEstimateProofPayload;
+  mealType: PhotoConfirmationInput['mealType'];
+  loggedAt: string;
+}) {
+  const nutrition = normalizedEstimateNutrition({
+    payload: input.payload,
+    adjustment: input.entry.userAdjustedNutrition,
+  });
+  const serving = estimateServingFields(input.payload);
+  return {
+    foodItemId: null,
+    foodName:
+      input.entry.confirmedFoodName?.trim() ?? input.payload.recognizedName,
+    mealType: input.mealType,
+    calories: nutrition.calories,
+    protein: nutrition.proteinGrams,
+    carbs: nutrition.carbohydrateGrams,
+    fat: nutrition.fatGrams,
+    fiber: null,
+    sugar: null,
+    sodium: null,
+    notes: estimateNotes({
+      payload: input.payload,
+      adjusted: input.entry.userAdjustedNutrition !== undefined,
+      notes: input.entry.notes,
+    }),
+    servingQuantity: serving.servingQuantity,
+    servingUnit: serving.servingUnit,
+    servingSnapshot: estimateServingSnapshot({
+      payload: input.payload,
+      nutrition,
+      serving,
+    }),
+    loggedAt: new Date(input.loggedAt),
+    nutrients: { create: [] },
+  };
+}
+
 function visibleFoodWhere(userId: string): Prisma.FoodItemWhereInput {
   return {
     archivedAt: null,
@@ -162,7 +387,8 @@ function servingValidationIssue(issue: {
   params?: Record<string, unknown> | undefined;
 }): ServingValidationIssue | null {
   const itemIndex =
-    issue.path[0] === 'items' && typeof issue.path[1] === 'number'
+    (issue.path[0] === 'items' || issue.path[0] === 'entries') &&
+    typeof issue.path[1] === 'number'
       ? issue.path[1]
       : undefined;
   if (issue.params?.code === 'SERVING_CONFLICT') {
@@ -239,6 +465,9 @@ const validateDirectFoodItemBody = validateAuthoritativeServingBody(
 );
 const validateCandidatesBody = validateAuthoritativeServingBody(
   foodLogsFromCandidatesInputSchema,
+);
+const validatePhotoConfirmationBody = validateAuthoritativeServingBody(
+  photoAnalysisConfirmationInputSchema,
 );
 const validateFoodItemsBody = validateAuthoritativeServingBody(
   foodLogsFromFoodItemsInputSchema,
@@ -1149,50 +1378,254 @@ foodLogsRouter.post(
     const input = validatedBody<FoodLogsFromCandidatesInput>(response);
     const usdaConfig = usdaFdcConfig();
 
-    const foodLogs = await prisma.$transaction(async (tx) => {
-      const foodLogData = [];
+    const foodLogs = await withExternalFoodMaterializationLocks({
+      references: input.items
+        .filter((item) => item.candidateType === 'external_food')
+        .map((item) => ({
+          sourceProvider: item.sourceProvider,
+          sourceId: item.sourceId,
+        })),
+      operation: () =>
+        prisma.$transaction(async (tx) => {
+          const foodLogData = [];
 
-      for (const [itemIndex, item] of input.items.entries()) {
-        const foodItem =
-          item.candidateType === 'food_item'
-            ? await visibleFoodItemInTransaction(tx, item.foodItemId, userId)
-            : await findOrCreateUsdaFoodItem({
-                sourceId: item.sourceId,
-                config: usdaConfig,
-                transaction: tx,
-              });
+          for (const [itemIndex, item] of input.items.entries()) {
+            const foodItem =
+              item.candidateType === 'food_item'
+                ? await visibleFoodItemInTransaction(
+                    tx,
+                    item.foodItemId,
+                    userId,
+                  )
+                : await findOrCreateExternalFoodItem({
+                    sourceProvider: item.sourceProvider,
+                    sourceId: item.sourceId,
+                    config: usdaConfig,
+                    transaction: tx,
+                  });
 
-        if (foodItem === null) {
-          throw notFoundError('Food item');
-        }
+            if (foodItem === null) {
+              throw notFoundError('Food item');
+            }
 
-        try {
-          foodLogData.push(
-            authoritativeFoodLogData(foodItem, {
-              ...item,
-              mealType: input.mealType,
-              loggedAt: input.loggedAt,
-              notes: input.notes,
-            }),
-          );
-        } catch (error) {
-          throw withServingItemIndex(error, itemIndex);
-        }
-      }
+            try {
+              foodLogData.push(
+                authoritativeFoodLogData(foodItem, {
+                  ...item,
+                  mealType: input.mealType,
+                  loggedAt: input.loggedAt,
+                  notes: input.notes,
+                }),
+              );
+            } catch (error) {
+              throw withServingItemIndex(error, itemIndex);
+            }
+          }
 
-      const createdFoodLogs = [];
-      for (const data of foodLogData) {
-        createdFoodLogs.push(
-          await tx.foodLog.create({
-            data: { userId, ...data },
-            include: foodLogInclude,
-          }),
-        );
-      }
-      return createdFoodLogs;
+          const createdFoodLogs = [];
+          for (const data of foodLogData) {
+            createdFoodLogs.push(
+              await tx.foodLog.create({
+                data: { userId, ...data },
+                include: foodLogInclude,
+              }),
+            );
+          }
+          return createdFoodLogs;
+        }),
     });
 
     sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });
+  },
+);
+
+foodLogsRouter.post(
+  '/from-photo-analysis',
+  validatePhotoConfirmationBody,
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<PhotoConfirmationInput>(response);
+    const rowRefs = new Set<string>();
+    const proofTokens = new Set<string>();
+    const proofPayloads = new Map<string, PhotoEstimateProofPayload>();
+    const config = photoAnalysisConfig();
+
+    for (const [entryIndex, entry] of input.entries.entries()) {
+      if (rowRefs.has(entry.rowRef)) {
+        throw mixedConfirmationError(
+          'DUPLICATE_ROW_REFERENCE',
+          'Each photo row may be submitted only once.',
+          { entryIndex },
+        );
+      }
+      rowRefs.add(entry.rowRef);
+      if (entry.disposition === 'estimated') {
+        if (proofTokens.has(entry.estimateProof)) {
+          throw mixedConfirmationError(
+            'DUPLICATE_ESTIMATE_PROOF',
+            'An estimate proof may be used only once per request.',
+            { entryIndex },
+          );
+        }
+        proofTokens.add(entry.estimateProof);
+      }
+    }
+    for (const [entryIndex, entry] of input.entries.entries()) {
+      if (entry.disposition === 'estimated') {
+        if (!config.photoEstimateConfirmationEnabled) {
+          throw mixedConfirmationError(
+            'ESTIMATE_CONFIRMATION_DISABLED',
+            'Estimated photo rows cannot be confirmed while estimate confirmation is disabled.',
+          );
+        }
+        const verification = verifyPhotoEstimateProof({
+          token: entry.estimateProof,
+          secret: config.photoEstimateProofSecret,
+          userId,
+          rowRef: entry.rowRef,
+        });
+        if (!verification.ok) {
+          if (verification.reason === 'expired') {
+            throw mixedConfirmationError(
+              'EXPIRED_ESTIMATE_PROOF',
+              'The photo estimate proof has expired.',
+              { entryIndex },
+            );
+          }
+          if (verification.reason === 'user_mismatch') {
+            throw mixedConfirmationError(
+              'ESTIMATE_PROOF_USER_MISMATCH',
+              'The photo estimate proof is not valid for this user.',
+              { entryIndex },
+            );
+          }
+          throw mixedConfirmationError(
+            'INVALID_ESTIMATE_PROOF',
+            'The photo estimate proof is invalid.',
+            { entryIndex },
+          );
+        }
+        proofPayloads.set(entry.rowRef, verification.payload);
+        normalizedEstimateNutrition({
+          payload: verification.payload,
+          adjustment: entry.userAdjustedNutrition,
+        });
+        continue;
+      }
+
+      if (entry.disposition === 'trusted') {
+        const foodItem = await visibleFoodItem(entry.candidateId, userId);
+        if (foodItem === null) {
+          throw new AppError(
+            422,
+            'INVALID_TRUSTED_CANDIDATE',
+            'The trusted candidate is no longer available.',
+            { entryIndex },
+          );
+        }
+        try {
+          authoritativeFoodLogData(foodItem, {
+            ...entry,
+            mealType: input.mealType,
+            loggedAt: input.loggedAt,
+          });
+        } catch (error) {
+          throw withServingItemIndex(error, entryIndex);
+        }
+      }
+    }
+
+    const created = await prisma.$transaction(async (tx) => {
+      const results: Array<{
+        rowRef: string;
+        disposition: 'trusted' | 'estimated';
+        foodLog: Awaited<ReturnType<typeof tx.foodLog.create>>;
+      }> = [];
+
+      for (const [entryIndex, entry] of input.entries.entries()) {
+        if (entry.disposition === 'excluded') continue;
+
+        if (entry.disposition === 'trusted') {
+          const foodItem = await visibleFoodItemInTransaction(
+            tx,
+            entry.candidateId,
+            userId,
+          );
+          if (foodItem === null) {
+            throw new AppError(
+              422,
+              'INVALID_TRUSTED_CANDIDATE',
+              'The trusted candidate is no longer available.',
+              { entryIndex },
+            );
+          }
+          let data;
+          try {
+            data = authoritativeFoodLogData(foodItem, {
+              ...entry,
+              mealType: input.mealType,
+              loggedAt: input.loggedAt,
+            });
+          } catch (error) {
+            throw withServingItemIndex(error, entryIndex);
+          }
+          const foodLog = await tx.foodLog.create({
+            data: { userId, ...data },
+            include: foodLogInclude,
+          });
+          results.push({
+            rowRef: entry.rowRef,
+            disposition: 'trusted',
+            foodLog,
+          });
+          continue;
+        }
+
+        const payload = proofPayloads.get(entry.rowRef);
+        if (payload === undefined) {
+          throw mixedConfirmationError(
+            'INVALID_ESTIMATE_PROOF',
+            'The photo estimate proof is invalid.',
+            { entryIndex },
+          );
+        }
+        const foodLog = await tx.foodLog.create({
+          data: {
+            userId,
+            ...estimatedFoodLogData({
+              entry,
+              payload,
+              mealType: input.mealType,
+              loggedAt: input.loggedAt,
+            }),
+          },
+          include: foodLogInclude,
+        });
+        results.push({
+          rowRef: entry.rowRef,
+          disposition: 'estimated',
+          foodLog,
+        });
+      }
+      return results;
+    });
+
+    sendSuccess(response, {
+      foodLogs: created.map((entry) => ({
+        rowRef: entry.rowRef,
+        disposition: entry.disposition,
+        foodLog: serializeFoodLog(entry.foodLog),
+      })),
+      createdTrustedCount: created.filter(
+        (entry) => entry.disposition === 'trusted',
+      ).length,
+      createdEstimatedCount: created.filter(
+        (entry) => entry.disposition === 'estimated',
+      ).length,
+      excludedCount: input.entries.filter(
+        (entry) => entry.disposition === 'excluded',
+      ).length,
+    });
   },
 );
 

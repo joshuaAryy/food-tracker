@@ -685,3 +685,98 @@ stack. It exposes Saved, My Foods, Recent, and Archived sections without a new
 tab or a cache-wide USDA browser. Default servings are editable prefills using
 the existing ServingAmountControl; every use still goes through serving
 validation. The multi-method Food Log selector redesign remains deferred.
+
+# Phase 14 Slice 2 Photo Logging
+
+Photo Logging is available from the current temporary Food Log method list;
+the deferred selector redesign remains deferred. The flow uses `/photo-log`
+for source choice and privacy disclosure, `/photo-log/camera` for still capture
+and permission recovery, `/photo-log/review` for analysis and independent
+rows, `/photo-log/search` for trusted replacement or manually added foods, and
+`/photo-log/confirm` for explicit final saving.
+
+Camera and photo-library permissions are configured through Expo. A library
+asset is user-owned and is never deleted. Camera captures and normalized files
+are app-owned temporary files. Both sources use the same native re-encoding
+pipeline: EXIF orientation is applied while decoding, aspect ratio is
+preserved, the longest edge is capped at 2048 px without upscaling, and the
+result is JPEG at quality 0.75. The processed file must be at most 5 MiB; the
+original is never silently uploaded as a fallback. HEIC/library input is
+converted to JPEG before upload. Cleanup is best-effort, idempotent, and never
+blocks navigation or replaces the primary error. No photo is retained after
+completion, failure, cancellation, or reset.
+
+The mobile client sends the normalized file as a raw `image/jpeg` request to
+the Slice 1 endpoint with an abort signal and a 17-second client budget. It
+does not send multipart, base64 JSON, provider payloads, photo URIs, or
+nutrition data. The Expo development client must be rebuilt after adding the
+approved image packages and permission/config changes.
+
+One photo may produce up to eight independent review rows. Each row starts
+pending and must be confirmed with a trusted candidate and valid serving, or
+explicitly excluded. Rows can be replaced, removed/excluded, or supplemented
+with a trusted search result; user-added rows remain distinct from
+provider-recognized rows. The provider now returns a strict provisional
+quantity state: an estimated amount using the constrained photo vocabulary, or
+`no_responsible_estimate`. Observed count labels remain provisional and do not
+authorize a candidate conversion. Representation groups may expose active
+component rows or one active composite row; inactive alternatives remain
+backend metadata and never render as active rows. Unsupported servings,
+unresolved candidates, unreviewed low-confidence matches, and pending rows
+block continuation. Bounded backend candidate adjudication may mark a trusted
+candidate as AI-adjudicated, but medium/low confidence, reject-all,
+no-decision, and unavailable outcomes remain editable review rows.
+Natural-serving defaults and alternative-selection UI are later slices. Simple
+mode shows concise trusted calories/protein; Detailed/Complex mode also shows
+trusted available macros and normalized nutrients. Unknown values remain
+unknown, and provider nutrition is never displayed or used. Invalid optional
+provider regions are dropped before the mobile response because the review UI
+does not require region metadata.
+
+Phase 14.2B2 may attach optional `estimatedNutrition` metadata to an unresolved
+photo row. C2 connects that metadata to the secure C1 confirmation route. Each
+active row has one in-memory disposition: trusted, estimated, excluded, or
+unresolved. Strong deterministic or high-confidence adjudicated compatible
+FoodItem matches default to trusted. A usable signed estimate defaults to
+estimated; missing or unusable proof remains unresolved. Every active row must
+be reviewed, excluded, or corrected before save, and unresolved rows block the
+save action. Inactive representation alternatives never render as rows.
+
+Physical C2 review requires `PHOTO_NUTRITION_ESTIMATION_ENABLED=true`,
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED=true`, and a local
+`PHOTO_ESTIMATE_PROOF_SECRET` containing at least 32 bytes. Candidate
+adjudication may be enabled in the same bounded assistance call. Without the
+estimation and proof settings, an unresolved trusted lookup cannot produce a
+C2-usable estimated row.
+
+Estimated rows are labelled `AI estimate` with their backend-provided
+structured-quantity basis or `Estimated for portion shown`. They expose only
+food name, calories, protein, carbohydrates, and fat editing. They do not show
+fake servings, micronutrients, density, provider reasoning, or proof tokens.
+Corrections use explicit C1 fields; unchanged estimates omit adjustment data.
+Proofs remain opaque and in memory only. They are cleared on success, discard,
+reset, replacement analysis, and session loss.
+
+The client sends one shared-schema-validated request to
+`/food-logs/from-photo-analysis` containing trusted, estimated, and excluded
+entries in original order. Excluded entries are included in the request but
+create no logs. There are no per-row save calls, automatic retries, or
+durable mixed-save idempotency guarantees. External provider-only candidates
+are incompatible with this endpoint until the backend materializes the
+selected available record into a canonical FoodItem. Automatic
+high-confidence resolution and the explicit `Use this match` action share
+that provider-neutral service; mobile shows a loading state and replaces the
+row with the returned canonical item. Unavailable or ambiguous candidates
+preserve the estimate or explicit unresolved actions. On an ambiguous network outcome the
+review remains in memory and the user is told to check History before trying
+again. Success uses the returned counts, clears proofs and app-owned
+temporary files without touching library originals, marks the existing shared
+History/Dashboard/Insights refresh signal, and returns to the existing
+post-save destination.
+
+Natural-serving changes remain pending. Final Phase 14 physical-device
+closeout remains pending and must verify camera and photo-library capture,
+trusted-only, estimated-only, mixed plus excluded save, candidate replacement,
+restoration, unresolved blocking, controlled proof errors, repeated taps,
+network failure warning, refreshes, and temporary-file cleanup on a rebuilt
+Expo development client.

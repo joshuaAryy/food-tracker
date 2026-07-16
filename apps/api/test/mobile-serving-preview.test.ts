@@ -67,6 +67,25 @@ describe('mobile provisional serving previews', () => {
     ).toEqual({ amount: '0.22', unit: 'lb', servingOptionId: null });
   });
 
+  it('initializes a blank amount from the selected trusted serving choice', () => {
+    expect(
+      changeServingChoice(
+        { amount: '', unit: '', servingOptionId: null },
+        {
+          id: 'option:tbsp-1',
+          label: '1 tablespoon',
+          unit: 'tbsp',
+          servingOptionId: 'tbsp-1',
+          quantity: 1,
+        },
+      ),
+    ).toEqual({
+      amount: '1',
+      unit: 'tbsp',
+      servingOptionId: 'tbsp-1',
+    });
+  });
+
   it('refuses a conversion that rounds to zero without changing state', () => {
     expect(
       convertServingAmountForUnitChange({
@@ -217,15 +236,40 @@ describe('mobile provisional serving previews', () => {
         },
       }),
     ).toEqual([
-      { id: 'unit:g', label: 'g', unit: 'g', servingOptionId: null },
-      { id: 'unit:kg', label: 'kg', unit: 'kg', servingOptionId: null },
-      { id: 'unit:oz', label: 'oz', unit: 'oz', servingOptionId: null },
-      { id: 'unit:lb', label: 'lb', unit: 'lb', servingOptionId: null },
+      {
+        id: 'unit:g',
+        label: 'g',
+        unit: 'g',
+        servingOptionId: null,
+        quantity: 100,
+      },
+      {
+        id: 'unit:kg',
+        label: 'kg',
+        unit: 'kg',
+        servingOptionId: null,
+        quantity: 100,
+      },
+      {
+        id: 'unit:oz',
+        label: 'oz',
+        unit: 'oz',
+        servingOptionId: null,
+        quantity: 100,
+      },
+      {
+        id: 'unit:lb',
+        label: 'lb',
+        unit: 'lb',
+        servingOptionId: null,
+        quantity: 100,
+      },
       {
         id: 'option:cup-158g',
         label: '1 cup',
         unit: 'cup',
         servingOptionId: 'cup-158g',
+        quantity: 1,
       },
     ]);
   });

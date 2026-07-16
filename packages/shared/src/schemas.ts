@@ -25,6 +25,20 @@ import {
   SERVING_UNITS,
   classifyServingUnit,
 } from './servings.js';
+import {
+  PHOTO_ANALYSIS_MAX_ITEMS,
+  PHOTO_ANALYSIS_MAX_COVERAGE_LABELS,
+  PHOTO_ANALYSIS_MAX_GROUPS,
+  PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_REPRESENTATION_KINDS,
+  PHOTO_REPRESENTATION_MODES,
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
+  PHOTO_QUANTITY_STATES,
+  PHOTO_QUANTITY_UNITS,
+  PHOTO_RESOLUTION_METHODS,
+} from './constants.js';
+import { parsedServingSuggestionSchema } from './serving-text.js';
+import type { AiFoodParseCandidate } from './types.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -869,8 +883,8 @@ const foodLogFoodItemCandidateInputSchema = z.strictObject({
 
 const foodLogExternalCandidateInputSchema = z.strictObject({
   candidateType: z.literal('external_food'),
-  sourceProvider: z.literal('usda_fdc'),
-  sourceId: z.string().trim().regex(/^\d+$/),
+  sourceProvider: foodSourceProviderSchema,
+  sourceId: z.string().trim().min(1).max(160),
   servingMultiplier: z.number().finite().positive().optional(),
   serving: servingRequestInputSchema.optional(),
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
@@ -924,6 +938,94 @@ export const foodLogFromAiEstimateInputSchema = z.strictObject({
   loggedAt: z.iso.datetime(),
 });
 
+const photoConfirmationRowRefSchema = z.string().trim().min(1).max(80);
+const photoConfirmationServingSchema = z.strictObject({
+  quantity: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+  unit: z.string().trim().min(1),
+  servingOptionId: z.string().trim().min(1).nullable().optional(),
+});
+const photoConfirmationNutritionSchema = z.strictObject({
+  calories: z.number().finite().positive(),
+  proteinGrams: z.number().finite().nonnegative(),
+  carbohydrateGrams: z.number().finite().nonnegative(),
+  fatGrams: z.number().finite().nonnegative(),
+});
+
+const photoTrustedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('trusted'),
+  candidateId: z.uuid(),
+  servingMultiplier: z.number().finite().positive().optional(),
+  serving: photoConfirmationServingSchema.optional(),
+  notes: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+const photoEstimatedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('estimated'),
+  estimateProof: z.string().trim().min(1).max(4096),
+  confirmedFoodName: z.string().trim().min(1).max(120).optional(),
+  userAdjustedNutrition: photoConfirmationNutritionSchema.optional(),
+  notes: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+const photoExcludedConfirmationEntrySchema = z.strictObject({
+  rowRef: photoConfirmationRowRefSchema,
+  disposition: z.literal('excluded'),
+});
+
+export const photoAnalysisConfirmationInputSchema = z
+  .strictObject({
+    mealType: mealTypeSchema,
+    loggedAt: z.iso.datetime(),
+    entries: z
+      .array(
+        z.discriminatedUnion('disposition', [
+          photoTrustedConfirmationEntrySchema,
+          photoEstimatedConfirmationEntrySchema,
+          photoExcludedConfirmationEntrySchema,
+        ]),
+      )
+      .min(1)
+      .max(PHOTO_ANALYSIS_MAX_ITEMS),
+  })
+  .superRefine((input, context) => {
+    if (input.entries.every((entry) => entry.disposition === 'excluded')) {
+      context.addIssue({
+        code: 'custom',
+        message: 'At least one entry must be persisted.',
+        path: ['entries'],
+      });
+    }
+    for (const [index, entry] of input.entries.entries()) {
+      if (
+        entry.disposition === 'trusted' &&
+        entry.serving !== undefined &&
+        entry.servingMultiplier !== undefined
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'serving and servingMultiplier cannot be combined',
+          path: ['entries', index, 'serving'],
+          params: { code: 'SERVING_CONFLICT' },
+        });
+      }
+    }
+  });
+
+export const photoAnalysisConfirmationResponseSchema = z.strictObject({
+  foodLogs: z.array(
+    z.strictObject({
+      rowRef: photoConfirmationRowRefSchema,
+      disposition: z.enum(['trusted', 'estimated']),
+      foodLog: z.unknown(),
+    }),
+  ),
+  createdTrustedCount: z.number().int().nonnegative(),
+  createdEstimatedCount: z.number().int().nonnegative(),
+  excludedCount: z.number().int().nonnegative(),
+});
+
 export const aiFoodParseInputSchema = z.strictObject({
   description: z.string().trim().min(1),
 });
@@ -933,6 +1035,309 @@ export const aiNutritionEstimateInputSchema = z.strictObject({
   quantityText: z.string().trim().min(1).max(80).nullable().optional(),
   servingText: z.string().trim().min(1).max(120).nullable().optional(),
   description: z.string().trim().min(1).max(500).nullable().optional(),
+});
+
+export const photoConfidenceLevelSchema = z.enum(PHOTO_CONFIDENCE_LEVELS);
+export const photoQuantityStateSchema = z.enum(PHOTO_QUANTITY_STATES);
+export const photoQuantityUnitSchema = z.enum(PHOTO_QUANTITY_UNITS);
+export const photoQuantitySourceSchema = z.enum([
+  'vision_structured',
+  'provider_serving',
+  'deterministic_conversion',
+  'user_edited',
+  'unresolved_visible_portion',
+]);
+export const photoRepresentationModeSchema = z.enum(PHOTO_REPRESENTATION_MODES);
+export const photoRepresentationKindSchema = z.enum(PHOTO_REPRESENTATION_KINDS);
+export const photoRepresentationOverlapStatusSchema = z.enum(
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
+);
+
+export const photoCoverageSchema = z
+  .array(z.string().trim().min(1).max(80))
+  .max(PHOTO_ANALYSIS_MAX_COVERAGE_LABELS);
+
+const photoCountLabelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(40)
+  .regex(/^[A-Za-z]+(?:[ -][A-Za-z]+)*$/);
+
+const photoNonCountableLabelTokens = new Set([
+  'cheese',
+  'food',
+  'item',
+  'meal',
+  'parmesan',
+  'pasta',
+  'rice',
+  'sauce',
+  'serving',
+]);
+
+export const photoProvisionalQuantitySchema = z.discriminatedUnion('state', [
+  z
+    .strictObject({
+      state: z.literal('estimated'),
+      amount: z.number().finite().positive().max(MAX_SERVING_QUANTITY),
+      unit: photoQuantityUnitSchema,
+      countLabel: photoCountLabelSchema.nullable(),
+      rawText: z.string().trim().min(1).max(120),
+      confidence: photoConfidenceLevelSchema,
+      source: photoQuantitySourceSchema.optional(),
+      massEstimateGrams: z
+        .number()
+        .finite()
+        .positive()
+        .max(MAX_SERVING_QUANTITY)
+        .nullable()
+        .optional(),
+      massEstimateConfidence: photoConfidenceLevelSchema.nullable().optional(),
+    })
+    .superRefine((quantity, context) => {
+      if (quantity.unit === 'count') {
+        if (quantity.countLabel === null) {
+          context.addIssue({
+            code: 'custom',
+            message: 'count quantities require a countLabel',
+            path: ['countLabel'],
+          });
+          return;
+        }
+        const labelTokens = quantity.countLabel.toLowerCase().split(' ');
+        if (
+          labelTokens.some((token) => photoNonCountableLabelTokens.has(token))
+        ) {
+          context.addIssue({
+            code: 'custom',
+            message: 'countLabel is not a defensible discrete object',
+            path: ['countLabel'],
+          });
+        }
+      } else if (quantity.countLabel !== null) {
+        context.addIssue({
+          code: 'custom',
+          message: 'countLabel is only valid for count quantities',
+          path: ['countLabel'],
+        });
+      }
+    }),
+  z.strictObject({
+    state: z.literal('no_responsible_estimate'),
+    source: photoQuantitySourceSchema.optional(),
+  }),
+]);
+
+export const photoNormalizedRegionSchema = z
+  .strictObject({
+    x: z.number().finite().min(0).max(1),
+    y: z.number().finite().min(0).max(1),
+    width: z.number().finite().min(0).max(1),
+    height: z.number().finite().min(0).max(1),
+  })
+  .superRefine((region, context) => {
+    if (region.x + region.width > 1) {
+      context.addIssue({
+        code: 'custom',
+        message: 'region must remain within the normalized image width',
+        path: ['width'],
+      });
+    }
+    if (region.y + region.height > 1) {
+      context.addIssue({
+        code: 'custom',
+        message: 'region must remain within the normalized image height',
+        path: ['height'],
+      });
+    }
+  });
+
+export const photoServingResolutionSchema = z.enum([
+  'not_attempted',
+  'supported',
+  'needs_review',
+]);
+
+export const photoResolvedServingSchema = z.strictObject({
+  status: z.enum(['resolved', 'needs_review']),
+  quantity: persistedServingNumberSchema.nullable(),
+  unit: persistedServingUnitSchema.nullable(),
+  servingOptionId: z.string().trim().min(1).nullable(),
+  multiplier: z.number().finite().positive().nullable(),
+  method: z
+    .enum([
+      'provider_serving',
+      'mass_conversion',
+      'volume_conversion',
+      'count_serving',
+      'serving_alias',
+    ])
+    .nullable(),
+  reason: z
+    .enum([
+      'no_quantity',
+      'low_confidence',
+      'no_safe_conversion',
+      'invalid_quantity',
+      'invalid_basis',
+    ])
+    .nullable(),
+  source: photoQuantitySourceSchema.nullable(),
+  reviewRequired: z.boolean(),
+  normalizedGrams: persistedServingNumberSchema.nullable().optional(),
+  normalizedGramsConfidence: photoConfidenceLevelSchema.nullable().optional(),
+  normalizationMethod: z.enum(PHOTO_RESOLUTION_METHODS).optional(),
+  requiresUserReview: z.boolean().optional(),
+});
+
+export const photoUnresolvedReasonSchema = z.enum([
+  'low_identity_confidence',
+  'ambiguous_identity',
+  'no_trusted_candidate',
+  'low_candidate_confidence',
+  'portion_needs_review',
+]);
+
+export const photoProvisionalPortionSchema = z.strictObject({
+  rawQuantityText: z.string().trim().min(1).max(120).nullable(),
+  rawServingText: z.string().trim().min(1).max(120).nullable(),
+  confidence: photoConfidenceLevelSchema.nullable(),
+  parsed: parsedServingSuggestionSchema.nullable(),
+  quantity: photoProvisionalQuantitySchema,
+  servingResolution: photoServingResolutionSchema,
+  resolvedServing: photoResolvedServingSchema.optional(),
+});
+
+export const photoAdjudicationMetadataSchema = z.strictObject({
+  selectionSource: z.enum(['deterministic', 'ai_adjudicated', 'user_required']),
+  status: z.enum([
+    'not_needed',
+    'selected',
+    'rejected_all',
+    'no_decision',
+    'unavailable',
+    'invalid_response',
+  ]),
+  confidence: photoConfidenceLevelSchema.nullable(),
+  reviewReason: z.string().trim().min(1).max(160).nullable(),
+});
+
+export const photoNutritionEstimateSchema = z.strictObject({
+  calories: z.number().int().positive(),
+  proteinGrams: z.number().finite().nonnegative(),
+  carbohydrateGrams: z.number().finite().nonnegative(),
+  fatGrams: z.number().finite().nonnegative(),
+  confidence: z.enum(['low', 'medium']),
+  basis: z.enum(['structured_quantity', 'portion_shown']),
+  source: z.literal('ai_estimate'),
+  trust: z.literal('low'),
+  editable: z.literal(true),
+  linkedFoodItemId: z.null(),
+  label: z.string().trim().min(1).max(160),
+  estimateProof: z.string().trim().min(1).max(4096).optional(),
+});
+
+export const photoRepresentationItemSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  representationGroupId: z.string().trim().min(1).max(80),
+  recognizedName: z.string().trim().min(1).max(120),
+  preparationForm: z.string().trim().min(1).max(80).nullable(),
+  quantity: photoProvisionalQuantitySchema,
+  identityConfidence: photoConfidenceLevelSchema,
+  region: photoNormalizedRegionSchema.nullable(),
+  representationKind: photoRepresentationKindSchema,
+  active: z.boolean(),
+  coverage: photoCoverageSchema,
+  excludedCoverage: photoCoverageSchema,
+  visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
+});
+
+const photoInactiveRepresentationItemSchema =
+  photoRepresentationItemSchema.extend({
+    active: z.literal(false),
+  });
+
+export const photoRepresentationAlternativeSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  representation: photoRepresentationModeSchema,
+  active: z.literal(false),
+  itemIds: z.array(z.string().trim().min(1).max(80)).min(1).max(8),
+  items: z.array(photoInactiveRepresentationItemSchema).min(1).max(8),
+});
+
+export const photoRepresentationGroupSchema = z.strictObject({
+  id: z.string().trim().min(1).max(80),
+  activeRepresentation: photoRepresentationModeSchema,
+  activeItemIds: z.array(z.string().trim().min(1).max(80)).min(1).max(8),
+  representationConfidence: photoConfidenceLevelSchema,
+  region: photoNormalizedRegionSchema.nullable(),
+  overlapStatus: photoRepresentationOverlapStatusSchema,
+  reviewReason: z.string().trim().min(1).max(160).nullable(),
+  alternatives: z.array(photoRepresentationAlternativeSchema).max(1),
+});
+
+function isPhotoCandidate(value: unknown): value is AiFoodParseCandidate {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  if (
+    (candidate.candidateType !== 'food_item' &&
+      candidate.candidateType !== 'external_food') ||
+    typeof candidate.rank !== 'number' ||
+    !Number.isInteger(candidate.rank) ||
+    candidate.rank < 1 ||
+    typeof candidate.defaultServingMultiplier !== 'number' ||
+    !Number.isFinite(candidate.defaultServingMultiplier) ||
+    !['high', 'medium', 'low'].includes(String(candidate.confidence))
+  ) {
+    return false;
+  }
+
+  if (candidate.candidateType === 'food_item') {
+    return (
+      typeof candidate.foodItem === 'object' && candidate.foodItem !== null
+    );
+  }
+
+  return (
+    candidate.externalFood !== null &&
+    typeof candidate.externalFood === 'object'
+  );
+}
+
+const photoCandidateSchema = z.custom<AiFoodParseCandidate>(isPhotoCandidate, {
+  message: 'candidate must use the existing trusted candidate contract',
+});
+
+export const photoRecognizedItemSchema = z.strictObject({
+  id: z.string().regex(/^photo-item-[1-8]$/),
+  recognizedName: z.string().trim().min(1).max(120),
+  preparationForm: z.string().trim().min(1).max(80).nullable(),
+  identityConfidence: photoConfidenceLevelSchema,
+  portionConfidence: photoConfidenceLevelSchema.nullable(),
+  region: photoNormalizedRegionSchema.nullable(),
+  provisionalPortion: photoProvisionalPortionSchema.nullable(),
+  reviewStatus: z.enum(['matched', 'needs_review', 'unmatched']),
+  selectedCandidateId: z.string().trim().min(1).nullable(),
+  loggable: z.boolean(),
+  candidates: z.array(photoCandidateSchema),
+  unresolvedReason: photoUnresolvedReasonSchema.nullable(),
+  representationGroupId: z.string().trim().min(1).max(80),
+  representationKind: photoRepresentationKindSchema,
+  active: z.literal(true),
+  coverage: photoCoverageSchema,
+  excludedCoverage: photoCoverageSchema,
+  visiblePortionDescription: z.string().trim().min(1).max(160).nullable(),
+  adjudication: photoAdjudicationMetadataSchema.optional(),
+  estimatedNutrition: photoNutritionEstimateSchema.optional(),
+});
+
+export const photoAnalysisResultSchema = z.strictObject({
+  status: z.enum(['recognized', 'no_food_detected']),
+  items: z.array(photoRecognizedItemSchema).max(PHOTO_ANALYSIS_MAX_ITEMS),
+  representationGroups: z
+    .array(photoRepresentationGroupSchema)
+    .max(PHOTO_ANALYSIS_MAX_GROUPS),
 });
 
 const optionalNonNegativeInteger = z
@@ -1079,8 +1484,8 @@ export const foodItemSearchCandidatesInputSchema = z.strictObject({
 });
 
 export const foodItemExternalCandidateInputSchema = z.strictObject({
-  sourceProvider: z.literal('usda_fdc'),
-  sourceId: z.string().trim().regex(/^\d+$/),
+  sourceProvider: foodSourceProviderSchema,
+  sourceId: z.string().trim().min(1).max(160),
 });
 
 export const foodBarcodeParamsSchema = z.strictObject({
@@ -1119,6 +1524,12 @@ export type FoodLogsFromCandidatesInput = z.infer<
 >;
 export type FoodLogFromAiEstimateInput = z.infer<
   typeof foodLogFromAiEstimateInputSchema
+>;
+export type PhotoAnalysisConfirmationInput = z.infer<
+  typeof photoAnalysisConfirmationInputSchema
+>;
+export type PhotoAnalysisConfirmationResponse = z.infer<
+  typeof photoAnalysisConfirmationResponseSchema
 >;
 export type FoodLogNutritionOverride = z.infer<
   typeof foodLogNutritionOverrideSchema

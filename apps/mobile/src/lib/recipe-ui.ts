@@ -78,14 +78,13 @@ export function externalCandidatePersistenceInput(
 ): FoodItemExternalCandidateInput | null {
   if (
     candidate.candidateType !== 'external_food' ||
-    candidate.externalFood.sourceProvider !== 'usda_fdc' ||
-    !/^\d+$/.test(candidate.externalFood.sourceId)
+    candidate.externalFood.sourceId.trim() === ''
   ) {
     return null;
   }
   return {
-    sourceProvider: 'usda_fdc',
-    sourceId: candidate.externalFood.sourceId,
+    sourceProvider: candidate.externalFood.sourceProvider,
+    sourceId: candidate.externalFood.sourceId.trim(),
   };
 }
 

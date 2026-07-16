@@ -1,5 +1,4 @@
 import type {
-  ApiResponse,
   AdvancedAnalytics,
   AiFoodParseCandidate,
   AiFoodParseResult,
@@ -44,6 +43,9 @@ import type {
   TrackingPreferences,
   WeightLog,
   WeightLogInput,
+  PhotoAnalysisResult,
+  PhotoAnalysisConfirmationInput,
+  PhotoAnalysisConfirmationResponse,
 } from '@food-tracker/shared';
 import {
   API_BASE_PATH,
@@ -53,8 +55,20 @@ import {
   setupResultSchema,
   setupStatusSchema,
   trackingPreferencesSchema,
+  photoAnalysisResultSchema,
+  photoAnalysisConfirmationResponseSchema,
 } from '@food-tracker/shared';
-import { Platform } from 'react-native';
+import { File } from 'expo-file-system';
+import {
+  photoAnalysisRequestInit,
+  readNormalizedPhotoBytes,
+  PhotoUploadError,
+} from './photo-image-core';
+import type { NormalizedPhotoImage } from './photo-image-core';
+import {
+  parseApiResponse as parseStandardApiResponse,
+  type ResponseSchema,
+} from './api-response';
 
 const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(
   /\/+$/,
@@ -80,28 +94,30 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
-interface ResponseSchema<T> {
-  safeParse: (
-    value: unknown,
-  ) => { success: true; data: T } | { success: false };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function invalidResponse(status: number): ApiClientError {
-  return new ApiClientError(
-    'The API returned an unreadable or unexpected response.',
-    'INVALID_RESPONSE',
-    status,
+export async function parseApiResponse<T>(
+  response: Response,
+  schema?: ResponseSchema<T>,
+): Promise<T> {
+  return parseStandardApiResponse(
+    response,
+    schema,
+    (event, details) => {
+      if (__DEV__) console.warn(`[photo-debug] ${event}`, details);
+    },
+    ({ response: errorResponse, error }) =>
+      new ApiClientError(
+        error.message as string,
+        error.code as string,
+        errorResponse.status,
+        error.details as Record<string, unknown>,
+      ),
   );
 }
 
 function apiConnectionMessage(): string {
   const base = `Could not reach the API at ${API_URL}. Confirm the API is running`;
 
-  if (Platform.OS === 'web') {
+  if (typeof window !== 'undefined') {
     return `${base}.`;
   }
 
@@ -130,64 +146,121 @@ async function request<T>(
 
   try {
     response = await fetch(`${API_URL}${path}`, requestInit);
-  } catch {
+  } catch (cause) {
+    if (cause instanceof Error && cause.name === 'AbortError') {
+      throw new ApiClientError(
+        'The request timed out before the save result was confirmed.',
+        'NETWORK_TIMEOUT',
+        0,
+      );
+    }
     throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
   }
 
-  let payload: unknown;
+  return parseApiResponse(response, schema);
+}
 
+async function requestRaw<T>(
+  path: string,
+  body: ArrayBuffer,
+  signal: AbortSignal,
+  schema: ResponseSchema<T>,
+): Promise<T> {
+  if (__DEV__) {
+    console.warn('[photo-debug] fetch preparation started', {
+      endpoint: '/api/v1/ai/photo-analysis',
+      bodyByteSize: body.byteLength,
+      apiHost: API_URL.replace(/^https?:\/\/([^/]+).*$/, '$1'),
+    });
+  }
+  let response: Response;
   try {
-    payload = await response.json();
-  } catch {
-    throw invalidResponse(response.status);
-  }
-
-  if (!isRecord(payload) || typeof payload.success !== 'boolean') {
-    throw invalidResponse(response.status);
-  }
-
-  const envelope = payload as unknown as ApiResponse<unknown>;
-
-  if (!envelope.success) {
-    if (
-      !isRecord(envelope.error) ||
-      typeof envelope.error.code !== 'string' ||
-      typeof envelope.error.message !== 'string' ||
-      !isRecord(envelope.error.details)
-    ) {
-      throw invalidResponse(response.status);
+    if (__DEV__) console.warn('[photo-debug] fetch started');
+    response = await fetch(
+      `${API_URL}${path}`,
+      photoAnalysisRequestInit({ bytes: body, signal }),
+    );
+  } catch (cause) {
+    if (__DEV__) {
+      console.warn('[photo-debug] fetch rejected', {
+        errorName: cause instanceof Error ? cause.name : 'unknown',
+        errorCategory: signal.aborted ? 'aborted' : 'network_or_body',
+      });
     }
+    if (signal.aborted) {
+      throw new ApiClientError('Photo analysis was cancelled.', 'CANCELLED', 0);
+    }
+    throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
+  }
+  return parseApiResponse(response, schema);
+}
 
+export const PHOTO_ANALYSIS_CLIENT_TIMEOUT_MS = 17_000;
+export const PHOTO_CONFIRMATION_CLIENT_TIMEOUT_MS = 20_000;
+
+export type PhotoAnalysisUpload = Pick<
+  NormalizedPhotoImage,
+  'uri' | 'mimeType' | 'byteSize'
+>;
+
+async function readLocalPhoto(
+  photo: PhotoAnalysisUpload,
+  signal: AbortSignal,
+): Promise<ArrayBuffer> {
+  if (__DEV__) {
+    console.warn('[photo-debug] local photo read started', {
+      uriScheme: photo.uri.split(':', 1)[0] ?? 'unknown',
+      normalizedByteSize: photo.byteSize,
+      normalizedMimeType: photo.mimeType,
+    });
+  }
+  try {
+    const prepared = await readNormalizedPhotoBytes({
+      ...photo,
+      signal,
+      openFile: (uri) => new File(uri),
+    });
+    if (__DEV__) {
+      console.warn('[photo-debug] local photo bytes read complete', {
+        byteSize: prepared.byteSize,
+      });
+    }
+    return prepared.bytes.buffer as ArrayBuffer;
+  } catch (cause) {
+    if (cause instanceof PhotoUploadError) {
+      if (cause.code === 'PHOTO_CANCELLED') {
+        throw new ApiClientError(
+          'Photo analysis was cancelled.',
+          'CANCELLED',
+          0,
+        );
+      }
+      const messages: Record<PhotoUploadError['code'], string> = {
+        PHOTO_UNSUPPORTED_TYPE: 'The prepared photo is not a JPEG. Try again.',
+        PHOTO_FILE_UNAVAILABLE:
+          'The prepared photo is no longer available. Choose the photo again.',
+        PHOTO_FILE_READ_FAILED:
+          'The prepared photo could not be read. Choose the photo again.',
+        PHOTO_EMPTY: 'The prepared photo is empty. Choose the photo again.',
+        PHOTO_TOO_LARGE:
+          'The prepared photo is larger than 5 MiB. Choose another photo.',
+        PHOTO_INVALID_JPEG:
+          'The prepared photo is not a valid JPEG. Choose the photo again.',
+        PHOTO_FILE_CHANGED:
+          'The prepared photo changed before upload. Choose the photo again.',
+        PHOTO_CANCELLED: 'Photo analysis was cancelled.',
+      };
+      throw new ApiClientError(messages[cause.code], cause.code, 0);
+    }
+    if (signal.aborted) {
+      throw new ApiClientError('Photo analysis was cancelled.', 'CANCELLED', 0);
+    }
     throw new ApiClientError(
-      envelope.error.message,
-      envelope.error.code,
-      response.status,
-      envelope.error.details,
+      'The prepared photo could not be read. Choose the photo again.',
+      'PHOTO_FILE_READ_FAILED',
+      0,
     );
   }
-
-  if (!response.ok) {
-    throw new ApiClientError(
-      `Request failed with status ${response.status}.`,
-      'HTTP_ERROR',
-      response.status,
-    );
-  }
-
-  if (schema === undefined) {
-    return envelope.data as T;
-  }
-
-  const parsed = schema.safeParse(envelope.data);
-  if (!parsed.success) {
-    throw new ApiClientError(
-      'The API returned data that does not match the expected contract.',
-      'INVALID_RESPONSE',
-      response.status,
-    );
-  }
-
-  return parsed.data;
 }
 
 export interface AdvancedAnalyticsQuery {
@@ -401,6 +474,19 @@ export const api = {
         method: 'POST',
         body: input,
       }).then(({ foodLogs }) => foodLogs),
+    confirmPhotoAnalysisEntries: (
+      input: PhotoAnalysisConfirmationInput,
+      signal?: AbortSignal,
+    ) =>
+      request<PhotoAnalysisConfirmationResponse>(
+        '/food-logs/from-photo-analysis',
+        {
+          method: 'POST',
+          body: input,
+          ...(signal === undefined ? {} : { signal }),
+        },
+        photoAnalysisConfirmationResponseSchema,
+      ),
     createFromAiEstimate: (input: FoodLogFromAiEstimateInput) =>
       request<FoodLog>('/food-logs/from-ai-estimate', {
         method: 'POST',
@@ -543,6 +629,16 @@ export const api = {
         method: 'POST',
         body: input,
       }),
+    analyzePhoto: async (
+      photo: PhotoAnalysisUpload,
+      signal: AbortSignal,
+    ): Promise<PhotoAnalysisResult> =>
+      requestRaw<PhotoAnalysisResult>(
+        '/ai/photo-analysis',
+        await readLocalPhoto(photo, signal),
+        signal,
+        photoAnalysisResultSchema as unknown as ResponseSchema<PhotoAnalysisResult>,
+      ),
   },
 };
 

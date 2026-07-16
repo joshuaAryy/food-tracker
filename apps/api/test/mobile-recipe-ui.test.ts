@@ -502,7 +502,7 @@ describe('mobile recipe flow helpers', () => {
     expect(
       externalCandidatePersistenceInput({
         ...external,
-        externalFood: { ...external.externalFood, sourceId: 'not-a-usda-id' },
+        externalFood: { ...external.externalFood, sourceId: '' },
       }),
     ).toBeNull();
 

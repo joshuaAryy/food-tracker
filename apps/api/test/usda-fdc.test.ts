@@ -115,6 +115,57 @@ describe('USDA FDC enrichment utilities', () => {
     expect(maxActiveDetailFetches).toBeLessThanOrEqual(3);
   });
 
+  it('reports a timed-out detail while preserving the searchable candidate metadata', async () => {
+    const unavailable: Array<{ id: number; reason: string }> = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 901,
+                  description: 'Pasta with tomato sauce',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (requestUrl.includes('/food/901')) {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('aborted', 'AbortError'));
+            });
+          });
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+    const foods = await enrichUsdaFoods({
+      query: 'pasta',
+      config,
+      rateLimitKey: 'test:timeout-preservation',
+      policy: {
+        metadataLimit: 2,
+        detailWindow: 1,
+        concurrency: 1,
+        detailTimeoutMs: 5,
+        totalBudgetMs: 100,
+      },
+      onDetailUnavailable: ({ food, reason }) => {
+        unavailable.push({ id: food.fdcId, reason });
+      },
+    });
+
+    expect(foods).toEqual([]);
+    expect(unavailable).toEqual([{ id: 901, reason: 'timeout' }]);
+  });
+
   it('backfills past the initial detail window when relevant candidates are unloggable', async () => {
     const detailIds: string[] = [];
     vi.stubGlobal(

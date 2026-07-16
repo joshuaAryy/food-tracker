@@ -26,6 +26,26 @@ export default function RootLayout() {
           options={{ presentation: 'modal', gestureEnabled: true }}
         />
         <Stack.Screen
+          name="photo-log"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="photo-log/camera"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="photo-log/review"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="photo-log/search"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
+          name="photo-log/confirm"
+          options={{ presentation: 'modal', gestureEnabled: true }}
+        />
+        <Stack.Screen
           name="weight-log"
           options={{ presentation: 'modal', gestureEnabled: true }}
         />

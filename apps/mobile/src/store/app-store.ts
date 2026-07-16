@@ -6,6 +6,8 @@ import type {
 } from '@/lib/recipe-ui';
 import type { MixedMealDraft } from '@/lib/mixed-meal-ui';
 import type { FoodItem } from '@food-tracker/shared';
+import type { PhotoReviewRow } from '@/lib/photo-log-ui';
+import type { NormalizedPhotoImage } from '@/lib/photo-image-core';
 
 export interface RecipeServingSession {
   context: 'recipe' | 'mixedMeal';
@@ -29,6 +31,37 @@ interface AppState {
   mixedMealManualResult: FoodItem | null;
   setMixedMealManualResult: (food: FoodItem) => void;
   clearMixedMealManualResult: () => void;
+  photoLogSession: PhotoLogSession | null;
+  beginPhotoLogSession: (session: PhotoLogSession) => void;
+  setPhotoLogImage: (
+    image: Pick<
+      PhotoLogSession,
+      | 'normalizedUri'
+      | 'normalizedWidth'
+      | 'normalizedHeight'
+      | 'normalizedByteSize'
+      | 'normalizedMimeType'
+    >,
+  ) => void;
+  setPhotoLogRows: (rows: PhotoReviewRow[]) => void;
+  updatePhotoLogRow: (
+    id: string,
+    update: (row: PhotoReviewRow) => PhotoReviewRow,
+  ) => void;
+  clearPhotoLogSession: () => void;
+}
+
+export interface PhotoLogSession {
+  sessionId: string;
+  source: 'camera' | 'library';
+  originalUri: string;
+  originalOwnership: 'user_library' | 'app_capture';
+  normalizedUri: string;
+  normalizedWidth: number;
+  normalizedHeight: number;
+  normalizedByteSize: number;
+  normalizedMimeType: NormalizedPhotoImage['mimeType'];
+  rows: PhotoReviewRow[];
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -56,4 +89,31 @@ export const useAppStore = create<AppState>((set) => ({
   mixedMealManualResult: null,
   setMixedMealManualResult: (food) => set({ mixedMealManualResult: food }),
   clearMixedMealManualResult: () => set({ mixedMealManualResult: null }),
+  photoLogSession: null,
+  beginPhotoLogSession: (session) => set({ photoLogSession: session }),
+  setPhotoLogImage: (image) =>
+    set((state) =>
+      state.photoLogSession === null
+        ? state
+        : { photoLogSession: { ...state.photoLogSession, ...image } },
+    ),
+  setPhotoLogRows: (rows) =>
+    set((state) =>
+      state.photoLogSession === null
+        ? state
+        : { photoLogSession: { ...state.photoLogSession, rows } },
+    ),
+  updatePhotoLogRow: (id, update) =>
+    set((state) => {
+      if (state.photoLogSession === null) return state;
+      return {
+        photoLogSession: {
+          ...state.photoLogSession,
+          rows: state.photoLogSession.rows.map((row) =>
+            row.id === id ? update(row) : row,
+          ),
+        },
+      };
+    }),
+  clearPhotoLogSession: () => set({ photoLogSession: null }),
 }));

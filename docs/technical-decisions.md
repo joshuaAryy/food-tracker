@@ -450,7 +450,7 @@ vector search, recipes, and additional providers are future targeted work.
 
 ## TD-015: Photo Logging Sequencing
 
-Status: Planned
+Status: Implemented for backend Slice 1; mobile Slice 2 pending
 
 Photo food logging should come after food database and RAG foundations. It
 should eventually support image capture/upload, food recognition, portion
@@ -460,6 +460,160 @@ detail review.
 
 Do not prioritize photo logging before trusted food search, barcode lookup,
 cached food data, and candidate review exist.
+
+Slice 1 locks the following implementation details:
+
+- Photo analysis uses a separate provider abstraction; text parsing is not
+  widened to accept image input.
+- The endpoint accepts only an in-memory raw JPEG body up to exactly 5 MiB and
+  never stores image bytes or provider payloads.
+- Gemini, mock, and disabled provider modes share `AI_PROVIDER` and
+  `GEMINI_API_KEY`; photo model, item, timeout, and rate limits are separate
+  backend environment settings.
+- Provider output is strict JSON containing identity, optional preparation,
+  structured provisional quantity state, separate confidence values, and
+  optional normalized region metadata plus bounded representation-group
+  metadata. Estimated quantities use only the
+  constrained photo vocabulary and count labels are provisional observed
+  evidence. `no_responsible_estimate` is valid when quantity cannot be
+  defended. Invalid optional regions are discarded by the provider adapter;
+  any region that survives remains strictly validated. Generic counts,
+  nutrition fields, database references, and automatic actions are rejected.
+  The Gemini-only response schema intentionally omits an array `maxItems`
+  keyword because Gemini rejected the nested representation schema as too
+  stateful; the raw provider Zod contract still caps the response at ten
+  items, and the deterministic adapter rejects more than eight active rows.
+- Representation groups prefer defensible non-overlapping components, retain
+  at most one inactive composite/decomposed alternative, and flatten only the
+  active representation into photo review rows. Coverage and exclusions are
+  qualitative overlap safeguards, not nutrition or candidate authority.
+- When a provider marks a composite active but also supplies a complete
+  high-confidence decomposed alternative whose distinct component coverage
+  exactly matches the composite, the deterministic adapter promotes the
+  components. Missing or discarded optional regions do not prevent that
+  semantic choice. Lower-confidence, incomplete, overlapping, or mismatched
+  decomposition remains inactive so blended dishes stay composite.
+- One image may produce up to eight active rows. Duplicate active coverage,
+  active composite/component overlap, and invalid alternatives are rejected;
+  no segmentation or alternative-selection editor is implied. Across
+  different groups, matching coverage without reliable regions is retained as
+  `uncertain` with a safe `potential_cross_group_overlap` diagnostic rather
+  than being rejected. Valid regions use a conservative 25% intersection over
+  the smaller region threshold; containment rejects, while edge-touching and
+  below-threshold intersections do not.
+- Backend representation IDs, active-row state, normalized coverage, and
+  overlap state are derived after provider validation. Invalid optional
+  coverage alternatives and optional visible metadata are discarded with safe
+  diagnostics. An invalid optional region is discarded by itself and does not
+  discard an otherwise valid component or alternative. Independently invalid
+  groups may be discarded when they do not overlap valid groups; active-group
+  contradictions and all-invalid responses remain strict failures.
+- Existing deterministic retrieval/ranking and serving resolution remain the
+  only trusted candidate and portion authorities. Vision portions are
+  provisional and never infer density or universal household weights.
+- Analysis is no-write. Final saving remains the existing transactional
+  `/food-logs/from-candidates` contract.
+- Phase 14 Slice 14.2B1 adds optional bounded candidate adjudication after
+  deterministic retrieval. Only active ambiguous rows enter one text-only
+  batch, capped at three eligible candidates per row and eight rows per
+  request. Strong deterministic selections bypass the provider. Gemini sees
+  backend-controlled candidate summaries and request-scoped references only;
+  it cannot query data, create candidates, alter nutrition, or select inactive
+  alternatives. Only high-confidence valid references are applied; reject-all,
+  no-decision, medium/low confidence, invalid output, and provider failures
+  preserve deterministic review. The feature is disabled by default and adds
+  no persistence or AI nutrition estimation; fallback estimation remains Slice
+  14.2B2.
+
+## TD-019: Phase 14.2B2 Photo Nutrition Estimate Fallback
+
+Status: Implemented in the read-only analysis response
+
+Photo nutrition fallback extends the existing Phase 14 bounded text-only
+adjudication batch; it never adds a second provider call or resends the image.
+Only unresolved active rows may receive an estimate after deterministic
+retrieval and candidate decisions. Strong deterministic and high-confidence
+adjudicated trusted selections remain authoritative and suppress estimates.
+
+The photo estimate reuses Phase 12.6's low-trust, unlinked, editable safety
+model, but is stricter and photo-specific: Gemini returns only calories,
+protein grams, carbohydrate grams, fat grams, and low/medium confidence. The
+backend validates finite bounded values and conservative macro-energy
+consistency, rounds them, derives a structured-quantity or portion-shown
+basis, and adds low-trust provenance metadata. Micronutrients, serving
+weights, density, conversions, rewritten identities, and database references
+are rejected. Estimates remain read-only photo metadata; FoodItem/FoodLog
+persistence and mixed trusted/estimated confirmation remain future work.
+The shared assistance sub-budget is 2.5 seconds by default, capped below the
+overall photo-analysis timeout; the increase from 1.5 seconds was justified by
+measured three-row mixed-batch latency and remains within the mobile budget.
+
+## TD-020: Phase 14.2C1 Mixed Photo Confirmation
+
+Status: Implemented as an authenticated backend transaction
+
+`POST /api/v1/food-logs/from-photo-analysis` accepts trusted, estimated, and
+excluded photo-row dispositions. Trusted candidates are fetched again under
+the current user and their serving/nutrition snapshot is recomputed; client
+nutrition is never authoritative. Estimated rows require a short-lived,
+request-scoped HMAC-SHA-256 proof issued by B2 when
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED` is enabled. The proof is signed, not
+encrypted, and binds the user, row, recognized identity, quantity/basis, and
+original core macros. User corrections remain low-trust and unlinked.
+
+All persisted rows are prevalidated and created in one Prisma transaction;
+excluded rows create nothing. No FoodItems, provider calls, image records, or
+review-session records are created. The existing trusted-only confirmation
+route remains unchanged. Durable cross-request idempotency is not introduced;
+stateless proof replay remains possible until the proof expires and is tracked
+as a later schema-backed decision.
+
+## TD-021: Phase 14.2C2 Mobile Mixed Photo Review
+
+Status: Implemented and user-confirmed on the paired iPhone; Codex did not
+operate the device
+
+The mobile photo review keeps four explicit local dispositions: trusted,
+estimated, excluded, and unresolved. Strong deterministic or high-confidence
+adjudicated saved FoodItem matches default to trusted. Rows with a usable
+server-issued estimate proof default to estimated; rows without a compatible
+saved candidate or usable proof remain unresolved and block saving. Inactive
+representation alternatives never enter review state.
+
+Estimated rows are visibly low-trust and may edit only the confirmed food name,
+calories, protein, carbohydrates, and fat. The proof, estimate basis, source,
+trust level, row reference, and recognition metadata remain opaque or immutable
+mobile state. Proofs live only in the ephemeral Zustand session and are never
+persisted, logged, placed in navigation parameters, or sent to the old trusted
+confirmation endpoint. The mobile client builds one shared-schema-validated
+request containing trusted, estimated, and excluded entries in original row
+order; unresolved rows and all-excluded reviews cannot save.
+
+The C1 endpoint accepts trusted entries only when a candidate is a compatible
+visible FoodItem UUID. An available external candidate remains non-loggable
+until the shared backend materializer refetches and validates its provider
+record, creates or reuses a canonical `FoodItem`, and returns that UUID. A
+clear high-confidence winner may be materialized before estimate fallback;
+manual `Use this match` selection uses the same materializer. Photo quantities
+resolve through the existing deterministic serving engine: observed quantity,
+normalized grams, and selected serving remain separate; compatible provider
+servings and validated mass/count conversions are exposed as selectable options,
+while unsupported mappings remain amount-review states. A trusted canonical row
+may therefore have a blank or low-confidence amount without becoming unresolved
+or requiring a second trust confirmation. The canonical 100 g basis is an
+explicit user choice only, never a substitute for a missing photo observation.
+Provider-only references never enter the mixed confirmation payload, and losing
+or unavailable candidates are not inserted. Save is single-flight with no
+automatic retry.
+Confirmed success clears review state and proofs, removes app-owned temporary
+images without touching library originals, marks the existing History,
+Dashboard, and Insights refresh signal, and returns the existing post-save
+destination. An ambiguous timeout or connection loss warns the user to check
+History before deliberately trying again; durable cross-request idempotency is
+not guaranteed. User-confirmed paired-iPhone validation also covered
+decomposition, external materialization, estimate fallback, mixed review/save,
+History persistence, canonical local reuse, flexible serving controls, and safe
+Back/Close navigation without the GO_BACK warning. No photos are persisted.
 
 ## TD-017: Phase 12.8 Serving Intelligence
 

@@ -29,6 +29,18 @@ import type {
   RecipeNutritionSummarySnapshot,
 } from './schemas.js';
 import type { ParsedServingSuggestion } from './serving-text.js';
+import type {
+  PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_QUANTITY_SOURCES,
+  PHOTO_RESOLVED_SERVING_STATUSES,
+  PHOTO_RESOLUTION_METHODS,
+  PHOTO_RESOLUTION_REASONS,
+  PHOTO_REPRESENTATION_KINDS,
+  PHOTO_REPRESENTATION_MODES,
+  PHOTO_REPRESENTATION_OVERLAP_STATUSES,
+  PHOTO_QUANTITY_STATES,
+  PHOTO_QUANTITY_UNITS,
+} from './constants.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -303,6 +315,194 @@ export interface AiNutritionEstimateResult {
   sugar: number | null;
   sodium: number | null;
   nutrients: Record<string, never>;
+}
+
+export type PhotoConfidenceLevel = (typeof PHOTO_CONFIDENCE_LEVELS)[number];
+
+export type PhotoQuantityState = (typeof PHOTO_QUANTITY_STATES)[number];
+
+export type PhotoQuantityUnit = (typeof PHOTO_QUANTITY_UNITS)[number];
+
+export type PhotoQuantitySource = (typeof PHOTO_QUANTITY_SOURCES)[number];
+
+export type PhotoResolvedServingStatus =
+  (typeof PHOTO_RESOLVED_SERVING_STATUSES)[number];
+
+export type PhotoResolutionMethod = (typeof PHOTO_RESOLUTION_METHODS)[number];
+
+export type PhotoResolutionReason = (typeof PHOTO_RESOLUTION_REASONS)[number];
+
+export type PhotoRepresentationMode =
+  (typeof PHOTO_REPRESENTATION_MODES)[number];
+
+export type PhotoRepresentationKind =
+  (typeof PHOTO_REPRESENTATION_KINDS)[number];
+
+export type PhotoRepresentationOverlapStatus =
+  (typeof PHOTO_REPRESENTATION_OVERLAP_STATUSES)[number];
+
+export type PhotoSelectionSource =
+  | 'deterministic'
+  | 'ai_adjudicated'
+  | 'user_required';
+
+export type PhotoAdjudicationStatus =
+  | 'not_needed'
+  | 'selected'
+  | 'rejected_all'
+  | 'no_decision'
+  | 'unavailable'
+  | 'invalid_response';
+
+export type PhotoProvisionalQuantity =
+  | {
+      state: 'estimated';
+      amount: number;
+      unit: PhotoQuantityUnit;
+      countLabel: string | null;
+      rawText: string;
+      confidence: PhotoConfidenceLevel;
+      source?: PhotoQuantitySource;
+      massEstimateGrams?: number | null;
+      massEstimateConfidence?: PhotoConfidenceLevel | null;
+    }
+  | {
+      state: 'no_responsible_estimate';
+      source?: PhotoQuantitySource;
+    };
+
+export type PhotoServingResolution =
+  | 'not_attempted'
+  | 'supported'
+  | 'needs_review';
+
+export interface PhotoResolvedServing {
+  status: PhotoResolvedServingStatus;
+  quantity: number | null;
+  unit: string | null;
+  servingOptionId: string | null;
+  multiplier: number | null;
+  method: PhotoResolutionMethod | null;
+  reason: PhotoResolutionReason | null;
+  source: PhotoQuantitySource | null;
+  reviewRequired: boolean;
+  normalizedGrams?: number | null;
+  normalizedGramsConfidence?: PhotoConfidenceLevel | null;
+  normalizationMethod?: PhotoResolutionMethod;
+  requiresUserReview?: boolean;
+}
+
+export type PhotoUnresolvedReason =
+  | 'low_identity_confidence'
+  | 'ambiguous_identity'
+  | 'no_trusted_candidate'
+  | 'low_candidate_confidence'
+  | 'portion_needs_review';
+
+export interface PhotoNormalizedRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PhotoProvisionalPortion {
+  rawQuantityText: string | null;
+  rawServingText: string | null;
+  confidence: PhotoConfidenceLevel | null;
+  parsed: ParsedServingSuggestion | null;
+  quantity: PhotoProvisionalQuantity;
+  servingResolution: PhotoServingResolution;
+  resolvedServing?: PhotoResolvedServing;
+}
+
+export interface PhotoAdjudicationMetadata {
+  selectionSource: PhotoSelectionSource;
+  status: PhotoAdjudicationStatus;
+  confidence: PhotoConfidenceLevel | null;
+  reviewReason: string | null;
+}
+
+export interface PhotoRepresentationItem {
+  id: string;
+  representationGroupId: string;
+  recognizedName: string;
+  preparationForm: string | null;
+  quantity: PhotoProvisionalQuantity;
+  identityConfidence: PhotoConfidenceLevel;
+  region: PhotoNormalizedRegion | null;
+  representationKind: PhotoRepresentationKind;
+  active: boolean;
+  coverage: string[];
+  excludedCoverage: string[];
+  visiblePortionDescription: string | null;
+}
+
+export interface PhotoRepresentationAlternative {
+  id: string;
+  representation: PhotoRepresentationMode;
+  active: false;
+  itemIds: string[];
+  items: PhotoRepresentationItem[];
+}
+
+export interface PhotoRepresentationGroup {
+  id: string;
+  activeRepresentation: PhotoRepresentationMode;
+  activeItemIds: string[];
+  representationConfidence: PhotoConfidenceLevel;
+  region: PhotoNormalizedRegion | null;
+  overlapStatus: PhotoRepresentationOverlapStatus;
+  reviewReason: string | null;
+  alternatives: PhotoRepresentationAlternative[];
+}
+
+export interface PhotoRecognizedItem {
+  id: `photo-item-${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8}`;
+  recognizedName: string;
+  preparationForm: string | null;
+  identityConfidence: PhotoConfidenceLevel;
+  portionConfidence: PhotoConfidenceLevel | null;
+  region: PhotoNormalizedRegion | null;
+  provisionalPortion: PhotoProvisionalPortion | null;
+  reviewStatus: AiFoodReviewStatus;
+  selectedCandidateId: string | null;
+  loggable: boolean;
+  candidates: AiFoodParseCandidate[];
+  unresolvedReason: PhotoUnresolvedReason | null;
+  representationGroupId: string;
+  representationKind: PhotoRepresentationKind;
+  active: true;
+  coverage: string[];
+  excludedCoverage: string[];
+  visiblePortionDescription: string | null;
+  adjudication?: PhotoAdjudicationMetadata;
+  estimatedNutrition?: PhotoNutritionEstimate;
+}
+
+export type PhotoNutritionEstimateBasis =
+  | 'structured_quantity'
+  | 'portion_shown';
+
+export interface PhotoNutritionEstimate {
+  calories: number;
+  proteinGrams: number;
+  carbohydrateGrams: number;
+  fatGrams: number;
+  confidence: 'low' | 'medium';
+  basis: PhotoNutritionEstimateBasis;
+  source: 'ai_estimate';
+  trust: 'low';
+  editable: true;
+  linkedFoodItemId: null;
+  label: string;
+  estimateProof?: string;
+}
+
+export interface PhotoAnalysisResult {
+  status: 'recognized' | 'no_food_detected';
+  items: PhotoRecognizedItem[];
+  representationGroups: PhotoRepresentationGroup[];
 }
 
 export interface WeightLog {

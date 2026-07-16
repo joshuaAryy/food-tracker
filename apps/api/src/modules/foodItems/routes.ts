@@ -42,10 +42,13 @@ import {
   enrichUsdaFoods,
   defaultWholeItemServingFromOptions,
   USDA_ENRICHMENT_POLICIES,
-  findOrCreateUsdaFoodItem,
   usdaFdcConfig,
   type NormalizedUsdaFood,
 } from './usda-fdc.js';
+import {
+  findOrCreateExternalFoodItem,
+  withExternalFoodMaterializationLock,
+} from './external-food.js';
 import {
   externalSearchQuery,
   normalizeText,
@@ -649,6 +652,9 @@ foodItemsRouter.post(
         ),
       };
       seen.add(serialized.id);
+      if (serialized.sourceProvider !== null && serialized.sourceId !== null) {
+        seen.add(`${serialized.sourceProvider}:${serialized.sourceId}`);
+      }
       candidates.push({
         candidateType: 'food_item',
         foodItem: candidateFoodItem,
@@ -700,16 +706,22 @@ foodItemsRouter.post(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<FoodItemExternalCandidateInput>(response);
-    const foodItem = await prisma.$transaction(async (transaction) => {
-      const persisted = await findOrCreateUsdaFoodItem({
-        sourceId: input.sourceId,
-        config: usdaFdcConfig(),
-        transaction,
-      });
-      return transaction.foodItem.findUniqueOrThrow({
-        where: { id: persisted.id },
-        include: foodItemInclude(userId),
-      });
+    const foodItem = await withExternalFoodMaterializationLock({
+      sourceProvider: input.sourceProvider,
+      sourceId: input.sourceId,
+      operation: () =>
+        prisma.$transaction(async (transaction) => {
+          const persisted = await findOrCreateExternalFoodItem({
+            sourceProvider: input.sourceProvider,
+            sourceId: input.sourceId,
+            config: usdaFdcConfig(),
+            transaction,
+          });
+          return transaction.foodItem.findUniqueOrThrow({
+            where: { id: persisted.id },
+            include: foodItemInclude(userId),
+          });
+        }),
     });
     sendSuccess(response, serializeFoodItem(foodItem));
   },

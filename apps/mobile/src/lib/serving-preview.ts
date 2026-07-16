@@ -29,6 +29,7 @@ export type ServingChoice = {
   label: string;
   unit: string;
   servingOptionId: string | null;
+  quantity?: number;
 };
 
 export type ServingUnitChangeResult =
@@ -96,6 +97,18 @@ export function changeServingChoice(
   state: ServingChoiceState,
   choice: ServingChoice,
 ): ServingChoiceState & { error?: string } {
+  if (
+    state.amount.trim() === '' &&
+    choice.quantity !== undefined &&
+    Number.isFinite(choice.quantity) &&
+    choice.quantity > 0
+  ) {
+    return {
+      amount: String(choice.quantity),
+      unit: choice.unit,
+      servingOptionId: choice.servingOptionId,
+    };
+  }
   const result = convertServingAmountForUnitChange({
     amount: Number(state.amount),
     fromUnit: state.unit,
@@ -245,17 +258,23 @@ export function availableServingChoices(
     return [];
   }
 
-  const choices = baseChoices(basis.servingUnit).map((unit) => ({
-    id: `unit:${unit}`,
-    label: unitLabel(unit),
-    unit,
-    servingOptionId: null,
-  }));
+  const choices: ServingChoice[] = baseChoices(basis.servingUnit).map(
+    (unit) => ({
+      id: `unit:${unit}`,
+      label: unitLabel(unit),
+      unit,
+      servingOptionId: null,
+      ...(basis.servingQuantity === null
+        ? {}
+        : { quantity: basis.servingQuantity }),
+    }),
+  );
   const optionChoices = (basis.servingOptions?.options ?? []).map((option) => ({
     id: `option:${option.id}`,
     label: option.label,
     unit: option.unit,
     servingOptionId: option.id,
+    quantity: option.quantity,
   }));
 
   return [...choices, ...optionChoices];

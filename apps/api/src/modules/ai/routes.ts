@@ -1,8 +1,11 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import {
   type AiFoodParsedItem,
   aiFoodParseInputSchema,
   aiNutritionEstimateInputSchema,
+  PHOTO_ANALYSIS_JPEG_MIME_TYPE,
+  PHOTO_ANALYSIS_MAX_BYTES,
   type AiFoodParseInput,
   type AiNutritionEstimateInput,
 } from '@food-tracker/shared';
@@ -18,8 +21,88 @@ import { aiFoodParseConfig } from './config.js';
 import { foodParseProvider, nutritionEstimateProvider } from './provider.js';
 import { assertAiFoodParseLimit } from './rate-limit.js';
 import { retrieveParsedFoodItems } from './retrieval.js';
+import { photoAnalysisConfig } from './photo-config.js';
+import { analyzePhotoFood } from './photo-analysis.js';
+import { runPhotoAnalysisWithId } from './photo-diagnostics.js';
+
+const photoRawBody = express.raw({
+  type: PHOTO_ANALYSIS_JPEG_MIME_TYPE,
+  limit: PHOTO_ANALYSIS_MAX_BYTES,
+});
+
+function isJpegMagicBytes(value: unknown): value is Buffer {
+  return (
+    Buffer.isBuffer(value) &&
+    value.length >= 3 &&
+    value[0] === 0xff &&
+    value[1] === 0xd8 &&
+    value[2] === 0xff
+  );
+}
 
 export const aiRouter = Router();
+
+aiRouter.post('/photo-analysis', photoRawBody, async (request, response) => {
+  const contentType = request.get('content-type');
+  if (contentType !== PHOTO_ANALYSIS_JPEG_MIME_TYPE) {
+    throw new AppError(
+      415,
+      'UNSUPPORTED_IMAGE_TYPE',
+      'Photo analysis accepts only image/jpeg uploads.',
+    );
+  }
+
+  const body = request.body;
+  if (!Buffer.isBuffer(body) || body.length === 0 || !isJpegMagicBytes(body)) {
+    throw new AppError(
+      400,
+      'INVALID_IMAGE',
+      'The uploaded image is empty or is not a valid JPEG.',
+    );
+  }
+  if (body.length > PHOTO_ANALYSIS_MAX_BYTES) {
+    throw new AppError(
+      413,
+      'IMAGE_TOO_LARGE',
+      'The uploaded image is larger than 5 MiB.',
+    );
+  }
+
+  const userId = currentUserId(response);
+  const config = photoAnalysisConfig();
+  const rateLimitKey = `${userId}:${request.ip ?? 'unknown'}:photo-analysis`;
+  assertAiFoodParseLimit({
+    key: rateLimitKey,
+    windowMs: config.rateLimitWindowMs,
+    windowMax: config.rateLimitMax,
+    dailyMax: config.dailyLimit,
+    message: 'Photo analysis is temporarily limited. Try again later.',
+  });
+
+  const controller = new AbortController();
+  const abortOnDisconnect = () => {
+    if (!response.writableEnded) controller.abort();
+  };
+  request.once('aborted', abortOnDisconnect);
+  response.once('close', abortOnDisconnect);
+
+  try {
+    const analysisId = randomUUID();
+    const result = await runPhotoAnalysisWithId(analysisId, () =>
+      analyzePhotoFood({
+        image: body,
+        userId,
+        rateLimitKey,
+        signal: controller.signal,
+        config,
+      }),
+    );
+    sendSuccess(response, result);
+  } finally {
+    request.off('aborted', abortOnDisconnect);
+    response.off('close', abortOnDisconnect);
+  }
+});
 
 function rowHasRelevantTrustedCandidate(
   row: AiFoodParsedItem | undefined,

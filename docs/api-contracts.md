@@ -10,7 +10,8 @@ Persisted model types, relations, indexes, and constraints are locked in [prisma
 
 - Use REST-style endpoints.
 - Use `/api/v1` as the base path.
-- Use JSON request and response bodies.
+- Use JSON request and response bodies, except the raw JPEG body documented for
+  `POST /api/v1/ai/photo-analysis`.
 - Use ISO 8601 UTC timestamps for timestamp fields.
 - Use local calendar dates in `YYYY-MM-DD` format for date filters.
 - Authenticated endpoints operate only on the current user's records.
@@ -1062,6 +1063,39 @@ Rules:
 
 Success `data` is the normal FoodLog response shape.
 
+### `POST /api/v1/food-logs/from-photo-analysis`
+
+Confirms a bounded set of reviewed photo rows as trusted candidates, low-trust
+AI estimates, or exclusions. The request is authenticated and validated in
+full before one transaction creates the persisted trusted and estimated logs.
+
+Trusted entries contain only a current candidate ID and serving selection; the
+server re-fetches the candidate and recomputes authoritative nutrition.
+For this no-FoodItem-write endpoint, the candidate ID must reference a current
+visible FoodItem; external USDA candidates continue through the existing
+trusted-only candidate route, which owns its cache behavior.
+Estimated entries require a server-issued `estimateProof` from photo analysis.
+Proofs are versioned HMAC-SHA-256 signatures (signed, not encrypted), bound to
+the authenticated user, row reference, estimate basis, quantity, identity, and
+original core nutrition, and expire after the configured short TTL. Optional
+user nutrition or food-name corrections remain low-trust and unlinked.
+
+Excluded entries create no FoodLog. All persisted entries are written
+atomically; no FoodItem, provider, image, or review-session writes occur.
+Estimated confirmation is disabled by default with
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED=false`; enabling it requires a dedicated
+`PHOTO_ESTIMATE_PROOF_SECRET` of at least 32 bytes. Durable cross-request
+idempotency is not added in this slice, so stateless proof replay remains
+possible until expiry.
+
+Photo review keeps observed quantity, normalized grams, and selected serving
+separate. The client may submit a validated serving request, but never
+conversion factors or trusted nutrition. Canonical local and externally
+materialized FoodItems use the same serving-resolution path; provider-only
+references cannot enter this request. User-confirmed paired-iPhone validation
+covered mixed trusted/estimated review, atomic save, History persistence, and
+flexible serving selection. No photo bytes are persisted.
+
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.
@@ -1400,6 +1434,97 @@ alternate options do not make a physical `g`/`kg`/`oz`/`lb` or `mL`/`L` basis
 unusable. A quantity-only AI count may use the candidate's one safe
 `defaultWholeItemServing` internally, but the editable serving request uses
 the resulting physical amount and unit.
+
+### `POST /api/v1/ai/photo-analysis` (Phase 14 Slice 1)
+
+This is a read-only backend analysis route. It accepts a normalized JPEG as
+raw request bytes, not JSON, multipart form data, a URL, or a file-system path.
+
+Request requirements:
+
+- `Content-Type` must be exactly `image/jpeg`.
+- The body must be non-empty and begin with JPEG magic bytes.
+- The maximum body size is exactly `5 MiB` (`5 * 1024 * 1024` bytes).
+- A route-local raw-body parser handles this media type; the global JSON parser
+  does not consume `image/jpeg` requests.
+- The image remains in request memory only and is never persisted.
+
+Stable upload errors are `UNSUPPORTED_IMAGE_TYPE` (415), `IMAGE_TOO_LARGE`
+(413), and `INVALID_IMAGE` (400). Provider failures use `AI_UNAVAILABLE`, and
+application/provider throttling uses `RATE_LIMITED`.
+
+Success `data` is either `recognized` with zero to eight ordered rows or
+`no_food_detected` with an empty array. Each row contains a request-scoped ID,
+recognized name, optional preparation form, separate identity and portion
+confidence, optional normalized region metadata, a provisional quantity,
+existing ranked `AiFoodParseCandidate[]`, a review status, and an explicit
+`loggable`/unresolved state. The provisional quantity is either an estimated
+positive amount using `count`, `slice`, `piece`, `tablespoon`, `teaspoon`,
+`cup`, `millilitre`, `gram`, or `ounce`, or `no_responsible_estimate`. Count
+quantities carry provisional observed count evidence such as `egg` or
+`sandwich`; they do not authorize a trusted serving conversion until a later
+candidate-serving check. Generic counts such as `item`, `food`, `serving`,
+`pasta`, or `sauce` are rejected. Provisional portions are checked against the
+selected candidate's existing serving basis and trusted options; density and
+unsupported household conversions are never inferred. Invalid optional region
+metadata is discarded at the provider adapter boundary without invalidating
+the identity or quantity row; surviving regions remain strictly validated.
+Rows also carry representation-group metadata: active component or composite
+kind, normalized visible-coverage claims, and a request-scoped group ID. The
+response retains at most one inactive alternative per group for future
+adjudication, but `data.items` contains only active rows. Active rows are
+validated so composite coverage cannot overlap its active components or a
+duplicate active topping. Matching coverage across groups is only a potential
+overlap when valid spatial/provider-link evidence is unavailable; those rows
+remain active with an `uncertain` group overlap status and a safe diagnostic.
+Substantial region intersection, or a strong composite/component duplicate,
+still rejects the representation response. Edge-touching regions and
+intersections below the conservative 25% intersection-to-smaller-region
+threshold are treated as separate. Invalid optional alternatives and
+nonessential representation metadata are discarded without invalidating a
+valid active group. An independently invalid group may be discarded when it
+does not overlap or provide a required reference for a valid group; if all
+groups are invalid, the response remains an AI-unavailable semantic error.
+
+The route never returns raw provider payloads, prompts, internal reasoning,
+credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
+records, USDA cache rows, or review sessions. Natural-serving defaults,
+AI-estimated nutrition fallback, and alternative selection UI remain later
+Phase 14 slices. The current Slice 2 save path still
+saves only reviewed candidate references and servings through
+`POST /api/v1/food-logs/from-candidates`.
+
+When `PHOTO_CANDIDATE_ADJUDICATION_ENABLED=true`, deterministic retrieval
+completes before an optional bounded text-only adjudication step. Only active
+rows without a strong deterministic selection and with up to three
+selection-eligible candidates are included. At most one batch containing at
+most eight rows is sent; no image, user ID, permanent database ID, nutrition,
+or inactive alternative is sent. Candidates use request-scoped opaque
+references. Only validated high-confidence selections are applied
+automatically; trusted candidate nutrition and servings remain authoritative.
+Medium/low selections, `reject_all`, `no_decision`, invalid output, timeout,
+429, 503, cancellation, or malformed output preserve deterministic review
+rows and require user review. Strong deterministic matches make zero
+adjudication calls. Optional row `adjudication` metadata reports source,
+status, confidence, and a safe review reason. The B1 slice adds no estimated
+nutrition, persistence, or confirmation behavior; automatic AI nutrition
+fallback remains Slice 14.2B2.
+
+When `PHOTO_NUTRITION_ESTIMATION_ENABLED=true`, the same single bounded
+text-only batch may also return a low-trust core-macro estimate for unresolved
+active rows. No second estimate call or image resend is allowed. Estimates
+contain calories, protein, carbohydrates, and fat only, with low or medium
+confidence. The backend derives either a `structured_quantity` or
+`portion_shown` basis and user-facing label; the provider cannot invent
+serving weights, density, conversions, micronutrients, or food identities.
+Trusted selections always suppress estimates. Valid estimates are unlinked,
+editable, low-trust read-only metadata and never enter trusted confirmation,
+FoodItems, FoodLogs, caches, or search results. Invalid or unavailable
+estimates leave the recognition row and candidates unresolved. Mixed
+trusted/estimated review and save remain a later slice.
+The expanded assistance timeout defaults to 2.5 seconds (and remains capped
+below the overall photo-analysis timeout); this was measured against the
+three-row mixed estimate batch while preserving the mobile budget.
 
 ### `POST /api/v1/ai/nutrition-estimate`
 

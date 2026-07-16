@@ -884,8 +884,10 @@ validation, and physical-device validation are complete.
 
 ## Photo Food Logging
 
-Photo logging belongs after the food database and RAG foundations. It should
-not be placed before trusted food search, barcode lookup, cached food data, and
+Phase 14 Slice 1 implements the backend photo-analysis and trusted-matching
+foundation after the food database and RAG foundations. Mobile capture,
+normalization, review, and saving remain Slice 2. Photo logging should not be
+placed before trusted food search, barcode lookup, cached food data, and
 candidate review exist.
 
 Photo logging should eventually support:
@@ -898,6 +900,29 @@ Photo logging should eventually support:
 - user edits before saving
 - Simple confirmation UI
 - Complex nutrient detail review
+
+Slice 1 accepts only normalized raw JPEG bytes (exactly `image/jpeg`, maximum
+5 MiB) and keeps them in request memory. There is no permanent image storage,
+temporary backend file, cloud object, or persisted analysis session. The
+backend uses a separate disabled/mock/Gemini photo provider. Gemini may return
+zero to eight food identities, preparation wording, provisional raw portions,
+confidence values, optional photo-derived mass estimates, and optional normalized regions; it may not return
+nutrition, density, candidate IDs, prompts, or saving instructions.
+
+Each recognized food is an independent future review row. Existing trusted
+retrieval and deterministic candidate ranking provide candidates, while the
+existing serving engine validates a provisional amount/unit. Vision identity
+confidence, vision portion confidence, and candidate confidence are separate.
+Observed quantity, normalized grams, and selected serving remain separate;
+compatible provider servings and mass units are selectable only when the
+backend can resolve them. Low-confidence or ambiguous matches, unsupported
+portions, and duplicate recognition remain amount-review states without
+changing trusted identity. Analysis creates no FoodItems or FoodLogs and does
+not persist USDA candidates. User-confirmed paired-iPhone validation covered
+decomposition, external materialization, estimate fallback, mixed review/save,
+History persistence, canonical local reuse, flexible serving controls, safe
+navigation, and the absence of persisted photos. Codex did not operate the
+device.
 
 ## Reporting Direction
 

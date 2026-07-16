@@ -637,10 +637,21 @@ describe('AI food parse API', () => {
     expect(response.body.data.items).toEqual([
       expect.objectContaining({
         parsedName: 'boiled plantain',
-        reviewStatus: 'unmatched',
+        reviewStatus: 'needs_review',
         loggable: false,
         selectedCandidateId: null,
-        candidates: [],
+        candidates: [
+          expect.objectContaining({
+            candidateType: 'external_food',
+            confidence: 'medium',
+            externalFood: expect.objectContaining({
+              sourceId: '999',
+              servingBasisText: 'USDA nutrition details unavailable (invalid)',
+              calories: null,
+              protein: null,
+            }),
+          }),
+        ],
       }),
     ]);
   });

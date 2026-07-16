@@ -3,10 +3,17 @@ import {
   MOCK_USER_ID,
   NORMALIZED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
+  type AiFoodParseCandidate,
+  type FoodItemServingOptions,
 } from '@food-tracker/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { clearUsdaFdcCaches } from '../src/modules/foodItems/usda-fdc.js';
+import {
+  findOrCreateExternalFoodItem,
+  registerExternalFoodMaterializer,
+} from '../src/modules/foodItems/external-food.js';
+import { usdaFdcConfig } from '../src/modules/foodItems/usda-fdc.js';
 import {
   api,
   expectErrorEnvelope,
@@ -68,6 +75,63 @@ describe('food items API', () => {
     delete process.env.USDA_FDC_RATE_LIMIT_WINDOW;
   });
 
+  it('preserves validated provider serving options when an existing canonical item is reused', async () => {
+    await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Existing topping',
+        normalizedName: 'existing topping',
+        searchText: 'existing topping',
+        sourceType: 'cached_external',
+        sourceProvider: 'usda_fdc',
+        sourceId: 'photo-serving-existing',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 200,
+        protein: 10,
+      },
+    });
+    const servingOptions: FoodItemServingOptions = {
+      schemaVersion: 1,
+      options: [
+        {
+          id: 'photo-tbsp',
+          label: '1 tablespoon',
+          quantity: 1,
+          unit: 'tbsp',
+          unitFamily: 'household',
+          equivalentWeightGrams: 5,
+          equivalentVolumeMl: 15,
+          source: 'provider',
+          trust: 'trusted',
+          provider: 'usda_fdc',
+          providerDescription: 'tablespoon',
+        },
+      ],
+    };
+
+    const materialized = await prisma.$transaction((transaction) =>
+      findOrCreateExternalFoodItem({
+        sourceProvider: 'usda_fdc',
+        sourceId: 'photo-serving-existing',
+        config: usdaFdcConfig(),
+        transaction,
+        servingOptions,
+      }),
+    );
+
+    expect(materialized.servingOptions).toEqual(servingOptions);
+    expect(
+      (
+        await prisma.foodItem.findFirstOrThrow({
+          where: { sourceId: 'photo-serving-existing' },
+        })
+      ).servingOptions,
+    ).toEqual(servingOptions);
+  });
+
   it('returns the authoritative persisted FoodItem for a USDA recipe candidate without creating a FoodLog', async () => {
     const food = await prisma.foodItem.create({
       data: {
@@ -108,6 +172,47 @@ describe('food items API', () => {
     ).toBe(1);
   });
 
+  it('allows a materialized external FoodItem UUID through atomic photo confirmation', async () => {
+    const food = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Materialized external rice',
+        normalizedName: 'materialized external rice',
+        searchText: 'materialized external rice',
+        sourceType: 'cached_external',
+        sourceProvider: 'usda_fdc',
+        sourceId: '2708403',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 129,
+        protein: 2.7,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-logs/from-photo-analysis')
+      .send({
+        mealType: 'lunch',
+        loggedAt: new Date().toISOString(),
+        entries: [
+          {
+            rowRef: 'photo-item-1',
+            disposition: 'trusted',
+            candidateId: food.id,
+            serving: { quantity: 100, unit: 'g' },
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(response.body.data.foodLogs[0]?.foodLog).toMatchObject({
+      foodItemId: food.id,
+      calories: 129,
+    });
+  });
+
   it('normalizes a new USDA candidate once and returns serving options and nutrients', async () => {
     process.env.USDA_FDC_API_KEY = 'test-usda-key';
     const fetchSpy = vi.fn(
@@ -145,8 +250,208 @@ describe('food items API', () => {
       servingUnit: 'g',
       nutrients: { potassium: { amount: 358, unit: 'mg' } },
     });
+    const repeated = await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({ sourceProvider: 'usda_fdc', sourceId: '173944' })
+      .expect(200);
+    expect(repeated.body.data.id).toBe(response.body.data.id);
     expect(await prisma.foodLog.count()).toBe(0);
+    expect(
+      await prisma.foodItem.count({
+        where: { sourceProvider: 'usda_fdc', sourceId: '173944' },
+      }),
+    ).toBe(1);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns a materialized provider record as one reusable canonical search candidate', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const value = String(url);
+        return value.includes('/foods/search')
+          ? new Response(
+              JSON.stringify({
+                foods: [
+                  {
+                    fdcId: 173946,
+                    description: 'Bananas, raw',
+                    dataType: 'Foundation',
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            )
+          : new Response(
+              JSON.stringify({
+                fdcId: 173946,
+                description: 'Bananas, raw',
+                dataType: 'Foundation',
+                foodNutrients: [
+                  {
+                    amount: 89,
+                    nutrient: { name: 'Energy', unitName: 'KCAL' },
+                  },
+                  {
+                    amount: 1.09,
+                    nutrient: { name: 'Protein', unitName: 'G' },
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } },
+            );
+      }),
+    );
+
+    await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({ sourceProvider: 'usda_fdc', sourceId: '173946' })
+      .expect(200);
+    const search = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'Bananas, raw', limit: 8 })
+      .expect(200);
+    const sameProviderRecord = search.body.data.candidates.filter(
+      (candidate: AiFoodParseCandidate) =>
+        candidate.candidateType === 'food_item'
+          ? candidate.foodItem.sourceProvider === 'usda_fdc' &&
+            candidate.foodItem.sourceId === '173946'
+          : candidate.externalFood.sourceProvider === 'usda_fdc' &&
+            candidate.externalFood.sourceId === '173946',
+    );
+
+    expect(sameProviderRecord).toHaveLength(1);
+    expect(sameProviderRecord[0]?.candidateType).toBe('food_item');
+  });
+
+  it('deduplicates concurrent external materialization requests', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            fdcId: 173945,
+            description: 'Rice, cooked',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 130, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 2.69, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const responses = await Promise.all(
+      [1, 2].map(() =>
+        api
+          .post('/api/v1/food-items/from-external-candidate')
+          .send({ sourceProvider: 'usda_fdc', sourceId: '173945' }),
+      ),
+    );
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(responses[0]?.body.data.id).toBe(responses[1]?.body.data.id);
+    expect(
+      await prisma.foodItem.count({
+        where: { sourceProvider: 'usda_fdc', sourceId: '173945' },
+      }),
+    ).toBe(1);
+  });
+
+  it('rejects client nutrition when materializing an external candidate', async () => {
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            fdcId: 173944,
+            description: 'Bananas, raw',
+            dataType: 'Foundation',
+            foodNutrients: [
+              { amount: 89, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+              { amount: 1.09, nutrient: { name: 'Protein', unitName: 'G' } },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({
+        sourceProvider: 'usda_fdc',
+        sourceId: '173944',
+        calories: 1,
+        protein: 1,
+      })
+      .expect(400);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(
+      await prisma.foodItem.count({
+        where: { sourceProvider: 'usda_fdc', sourceId: '173944' },
+      }),
+    ).toBe(0);
+  });
+
+  it('keeps unsupported external providers non-loggable without creating a FoodItem', async () => {
+    await api
+      .post('/api/v1/food-items/from-external-candidate')
+      .send({ sourceProvider: 'open_food_facts', sourceId: '3017624010701' })
+      .expect(422);
+
+    expect(
+      await prisma.foodItem.count({
+        where: {
+          sourceProvider: 'open_food_facts',
+          sourceId: '3017624010701',
+        },
+      }),
+    ).toBe(0);
+  });
+
+  it('resolves a future provider through the shared materializer contract', async () => {
+    const unregister = registerExternalFoodMaterializer(
+      'other',
+      async ({ sourceId, transaction }) =>
+        transaction.foodItem.create({
+          data: {
+            name: 'Future provider food',
+            normalizedName: 'future provider food',
+            searchText: 'future provider food',
+            sourceType: 'cached_external',
+            sourceProvider: 'other',
+            sourceId,
+            foodType: 'generic',
+            servingQuantity: 100,
+            servingUnit: 'g',
+            servingWeightGrams: 100,
+            calories: 100,
+            protein: 5,
+          },
+          include: { nutrients: true },
+        }),
+    );
+
+    try {
+      const foodItem = await prisma.$transaction((transaction) =>
+        findOrCreateExternalFoodItem({
+          sourceProvider: 'other',
+          sourceId: 'future-1',
+          config: usdaFdcConfig(),
+          transaction,
+        }),
+      );
+
+      expect(foodItem.sourceProvider).toBe('other');
+      expect(foodItem.sourceId).toBe('future-1');
+    } finally {
+      unregister();
+    }
   });
 
   it('exposes a future-ready static nutrient catalog without duplicating column-backed nutrients as normalized rows', () => {

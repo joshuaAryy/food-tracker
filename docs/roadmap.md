@@ -394,6 +394,22 @@ The next roadmap phase is Phase 14 — Photo Food Logging.
 - Simple confirmation UI
 - Complex nutrient detail review
 
+### C2 checkpoint
+
+C2 is implemented and checkpoint-ready on branch
+`phase-14-photo-food-logging`. The paired-iPhone physical validation was
+user-confirmed; Codex did not operate the device. Confirmed coverage includes
+component decomposition, trusted external materialization, AI-estimate fallback,
+structured component quantities, backend gram normalization, flexible serving
+selection, trusted/estimated mixed review, atomic server-authoritative save,
+History persistence, canonical local reuse, and deterministic Back/Close
+navigation without a GO_BACK warning. Observed quantity, normalized grams, and
+selected serving remain separate, and canonical trusted rows do not require a
+second trust confirmation. No photos are persisted.
+
+Phase 14 remains open for any roadmap slices after C2; this checkpoint does not
+claim overall Phase 14 completion.
+
 Photo logging comes after food database and RAG foundations.
 
 ## Phase 15 — Streaks + Better Reporting
