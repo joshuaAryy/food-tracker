@@ -35,6 +35,7 @@ import {
   PHOTO_REPRESENTATION_OVERLAP_STATUSES,
   PHOTO_QUANTITY_STATES,
   PHOTO_QUANTITY_UNITS,
+  PHOTO_RESOLUTION_METHODS,
 } from './constants.js';
 import { parsedServingSuggestionSchema } from './serving-text.js';
 import type { AiFoodParseCandidate } from './types.js';
@@ -882,8 +883,8 @@ const foodLogFoodItemCandidateInputSchema = z.strictObject({
 
 const foodLogExternalCandidateInputSchema = z.strictObject({
   candidateType: z.literal('external_food'),
-  sourceProvider: z.literal('usda_fdc'),
-  sourceId: z.string().trim().regex(/^\d+$/),
+  sourceProvider: foodSourceProviderSchema,
+  sourceId: z.string().trim().min(1).max(160),
   servingMultiplier: z.number().finite().positive().optional(),
   serving: servingRequestInputSchema.optional(),
   nutritionOverride: foodLogNutritionOverrideSchema.optional(),
@@ -1039,6 +1040,13 @@ export const aiNutritionEstimateInputSchema = z.strictObject({
 export const photoConfidenceLevelSchema = z.enum(PHOTO_CONFIDENCE_LEVELS);
 export const photoQuantityStateSchema = z.enum(PHOTO_QUANTITY_STATES);
 export const photoQuantityUnitSchema = z.enum(PHOTO_QUANTITY_UNITS);
+export const photoQuantitySourceSchema = z.enum([
+  'vision_structured',
+  'provider_serving',
+  'deterministic_conversion',
+  'user_edited',
+  'unresolved_visible_portion',
+]);
 export const photoRepresentationModeSchema = z.enum(PHOTO_REPRESENTATION_MODES);
 export const photoRepresentationKindSchema = z.enum(PHOTO_REPRESENTATION_KINDS);
 export const photoRepresentationOverlapStatusSchema = z.enum(
@@ -1077,6 +1085,15 @@ export const photoProvisionalQuantitySchema = z.discriminatedUnion('state', [
       countLabel: photoCountLabelSchema.nullable(),
       rawText: z.string().trim().min(1).max(120),
       confidence: photoConfidenceLevelSchema,
+      source: photoQuantitySourceSchema.optional(),
+      massEstimateGrams: z
+        .number()
+        .finite()
+        .positive()
+        .max(MAX_SERVING_QUANTITY)
+        .nullable()
+        .optional(),
+      massEstimateConfidence: photoConfidenceLevelSchema.nullable().optional(),
     })
     .superRefine((quantity, context) => {
       if (quantity.unit === 'count') {
@@ -1108,6 +1125,7 @@ export const photoProvisionalQuantitySchema = z.discriminatedUnion('state', [
     }),
   z.strictObject({
     state: z.literal('no_responsible_estimate'),
+    source: photoQuantitySourceSchema.optional(),
   }),
 ]);
 
@@ -1141,6 +1159,38 @@ export const photoServingResolutionSchema = z.enum([
   'needs_review',
 ]);
 
+export const photoResolvedServingSchema = z.strictObject({
+  status: z.enum(['resolved', 'needs_review']),
+  quantity: persistedServingNumberSchema.nullable(),
+  unit: persistedServingUnitSchema.nullable(),
+  servingOptionId: z.string().trim().min(1).nullable(),
+  multiplier: z.number().finite().positive().nullable(),
+  method: z
+    .enum([
+      'provider_serving',
+      'mass_conversion',
+      'volume_conversion',
+      'count_serving',
+      'serving_alias',
+    ])
+    .nullable(),
+  reason: z
+    .enum([
+      'no_quantity',
+      'low_confidence',
+      'no_safe_conversion',
+      'invalid_quantity',
+      'invalid_basis',
+    ])
+    .nullable(),
+  source: photoQuantitySourceSchema.nullable(),
+  reviewRequired: z.boolean(),
+  normalizedGrams: persistedServingNumberSchema.nullable().optional(),
+  normalizedGramsConfidence: photoConfidenceLevelSchema.nullable().optional(),
+  normalizationMethod: z.enum(PHOTO_RESOLUTION_METHODS).optional(),
+  requiresUserReview: z.boolean().optional(),
+});
+
 export const photoUnresolvedReasonSchema = z.enum([
   'low_identity_confidence',
   'ambiguous_identity',
@@ -1156,6 +1206,7 @@ export const photoProvisionalPortionSchema = z.strictObject({
   parsed: parsedServingSuggestionSchema.nullable(),
   quantity: photoProvisionalQuantitySchema,
   servingResolution: photoServingResolutionSchema,
+  resolvedServing: photoResolvedServingSchema.optional(),
 });
 
 export const photoAdjudicationMetadataSchema = z.strictObject({
@@ -1433,8 +1484,8 @@ export const foodItemSearchCandidatesInputSchema = z.strictObject({
 });
 
 export const foodItemExternalCandidateInputSchema = z.strictObject({
-  sourceProvider: z.literal('usda_fdc'),
-  sourceId: z.string().trim().regex(/^\d+$/),
+  sourceProvider: foodSourceProviderSchema,
+  sourceId: z.string().trim().min(1).max(160),
 });
 
 export const foodBarcodeParamsSchema = z.strictObject({

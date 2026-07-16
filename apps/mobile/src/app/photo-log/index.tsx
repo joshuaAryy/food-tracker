@@ -14,6 +14,7 @@ import {
   PhotoImageError,
 } from '@/lib/photo-image';
 import { ensurePhotoLibraryPermission } from '@/lib/photo-log-ui';
+import { safePhotoLogBack } from '@/lib/photo-log-navigation';
 import { useAppStore } from '@/store/app-store';
 
 function sessionId(): string {
@@ -57,7 +58,12 @@ export default function PhotoLogSourceScreen() {
       ]);
       clearSession();
     }
-    router.back();
+    safePhotoLogBack({
+      canGoBack: router.canGoBack,
+      back: router.back,
+      replace: router.replace,
+      fallback: '/(tabs)/history' as Href,
+    });
   };
 
   const chooseLibrary = async () => {
@@ -100,6 +106,15 @@ export default function PhotoLogSourceScreen() {
       }
       const asset = result.assets[0];
       if (asset === undefined) return;
+      if (__DEV__) {
+        console.warn('[photo-debug] library asset returned', {
+          uriScheme: asset.uri.split(':', 1)[0] ?? 'unknown',
+          fileExtension: asset.uri.split('.').pop()?.toLowerCase() ?? 'unknown',
+          mimeType: asset.mimeType ?? 'unknown',
+          width: asset.width,
+          height: asset.height,
+        });
+      }
       const normalized = await normalizePhotoImage({
         uri: asset.uri,
         width: asset.width,
@@ -109,6 +124,16 @@ export default function PhotoLogSourceScreen() {
             ? asset.exif.Orientation
             : null,
       });
+      if (__DEV__) {
+        console.warn('[photo-debug] library normalization complete', {
+          uriScheme: normalized.uri.split(':', 1)[0] ?? 'unknown',
+          fileExists: true,
+          normalizedByteSize: normalized.byteSize,
+          normalizedMimeType: normalized.mimeType,
+          width: normalized.width,
+          height: normalized.height,
+        });
+      }
       if (!activeRef.current || pickerRequestRef.current !== pickerRequestId) {
         await cleanupPhotoFiles([
           { uri: normalized.uri, ownership: 'app_normalized' },

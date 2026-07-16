@@ -487,6 +487,12 @@ Slice 1 locks the following implementation details:
   at most one inactive composite/decomposed alternative, and flatten only the
   active representation into photo review rows. Coverage and exclusions are
   qualitative overlap safeguards, not nutrition or candidate authority.
+- When a provider marks a composite active but also supplies a complete
+  high-confidence decomposed alternative whose distinct component coverage
+  exactly matches the composite, the deterministic adapter promotes the
+  components. Missing or discarded optional regions do not prevent that
+  semantic choice. Lower-confidence, incomplete, overlapping, or mismatched
+  decomposition remains inactive so blended dishes stay composite.
 - One image may produce up to eight active rows. Duplicate active coverage,
   active composite/component overlap, and invalid alternatives are rejected;
   no segmentation or alternative-selection editor is implied. Across
@@ -497,10 +503,11 @@ Slice 1 locks the following implementation details:
   below-threshold intersections do not.
 - Backend representation IDs, active-row state, normalized coverage, and
   overlap state are derived after provider validation. Invalid optional
-  alternatives and optional visible metadata are discarded with safe
-  diagnostics. Independently invalid groups may be discarded when they do not
-  overlap valid groups; active-group contradictions and all-invalid responses
-  remain strict failures.
+  coverage alternatives and optional visible metadata are discarded with safe
+  diagnostics. An invalid optional region is discarded by itself and does not
+  discard an otherwise valid component or alternative. Independently invalid
+  groups may be discarded when they do not overlap valid groups; active-group
+  contradictions and all-invalid responses remain strict failures.
 - Existing deterministic retrieval/ranking and serving resolution remain the
   only trusted candidate and portion authorities. Vision portions are
   provisional and never infer density or universal household weights.
@@ -560,6 +567,53 @@ review-session records are created. The existing trusted-only confirmation
 route remains unchanged. Durable cross-request idempotency is not introduced;
 stateless proof replay remains possible until the proof expires and is tracked
 as a later schema-backed decision.
+
+## TD-021: Phase 14.2C2 Mobile Mixed Photo Review
+
+Status: Implemented and user-confirmed on the paired iPhone; Codex did not
+operate the device
+
+The mobile photo review keeps four explicit local dispositions: trusted,
+estimated, excluded, and unresolved. Strong deterministic or high-confidence
+adjudicated saved FoodItem matches default to trusted. Rows with a usable
+server-issued estimate proof default to estimated; rows without a compatible
+saved candidate or usable proof remain unresolved and block saving. Inactive
+representation alternatives never enter review state.
+
+Estimated rows are visibly low-trust and may edit only the confirmed food name,
+calories, protein, carbohydrates, and fat. The proof, estimate basis, source,
+trust level, row reference, and recognition metadata remain opaque or immutable
+mobile state. Proofs live only in the ephemeral Zustand session and are never
+persisted, logged, placed in navigation parameters, or sent to the old trusted
+confirmation endpoint. The mobile client builds one shared-schema-validated
+request containing trusted, estimated, and excluded entries in original row
+order; unresolved rows and all-excluded reviews cannot save.
+
+The C1 endpoint accepts trusted entries only when a candidate is a compatible
+visible FoodItem UUID. An available external candidate remains non-loggable
+until the shared backend materializer refetches and validates its provider
+record, creates or reuses a canonical `FoodItem`, and returns that UUID. A
+clear high-confidence winner may be materialized before estimate fallback;
+manual `Use this match` selection uses the same materializer. Photo quantities
+resolve through the existing deterministic serving engine: observed quantity,
+normalized grams, and selected serving remain separate; compatible provider
+servings and validated mass/count conversions are exposed as selectable options,
+while unsupported mappings remain amount-review states. A trusted canonical row
+may therefore have a blank or low-confidence amount without becoming unresolved
+or requiring a second trust confirmation. The canonical 100 g basis is an
+explicit user choice only, never a substitute for a missing photo observation.
+Provider-only references never enter the mixed confirmation payload, and losing
+or unavailable candidates are not inserted. Save is single-flight with no
+automatic retry.
+Confirmed success clears review state and proofs, removes app-owned temporary
+images without touching library originals, marks the existing History,
+Dashboard, and Insights refresh signal, and returns the existing post-save
+destination. An ambiguous timeout or connection loss warns the user to check
+History before deliberately trying again; durable cross-request idempotency is
+not guaranteed. User-confirmed paired-iPhone validation also covered
+decomposition, external materialization, estimate fallback, mixed review/save,
+History persistence, canonical local reuse, flexible serving controls, and safe
+Back/Close navigation without the GO_BACK warning. No photos are persisted.
 
 ## TD-017: Phase 12.8 Serving Intelligence
 

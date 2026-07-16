@@ -20,6 +20,7 @@ function previewCopy(preview: ProvisionalServingPreview): string | null {
 export function ServingAmountControl({
   amount,
   basisLabel,
+  placeholder = 'Enter amount',
   choices,
   compact = false,
   disabled = false,
@@ -31,6 +32,7 @@ export function ServingAmountControl({
 }: {
   amount: string;
   basisLabel: string;
+  placeholder?: string;
   choices: ServingChoice[];
   compact?: boolean;
   disabled?: boolean;
@@ -81,7 +83,7 @@ export function ServingAmountControl({
         keyboardType="decimal-pad"
         label="Amount"
         maxLength={9}
-        placeholder="100"
+        placeholder={placeholder}
         value={amount}
         onChangeText={onAmountChange}
       />

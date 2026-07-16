@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import type { TrackingMode } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -16,12 +16,16 @@ import {
 } from '@/lib/api-client';
 import { cleanupPhotoFiles } from '@/lib/photo-image';
 import {
-  confirmPhotoRow,
-  photoRowReason,
+  materializePhotoCandidate,
+  photoExternalResolutionState,
   photoRowsDisposition,
   photoRowsFromAnalysis,
+  replacePhotoRowCandidate,
+  selectedPhotoCandidate,
+  setPhotoRowIncluded,
   type PhotoReviewRow,
 } from '@/lib/photo-log-ui';
+import { externalCandidatePersistenceInput } from '@/lib/recipe-ui';
 import { useAppStore } from '@/store/app-store';
 
 type AnalysisState = 'ready' | 'analyzing' | 'recognized' | 'no_food' | 'error';
@@ -46,6 +50,10 @@ export default function PhotoLogReviewScreen() {
   const [analysisState, setAnalysisState] = useState<AnalysisState>('ready');
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [resolvingRowId, setResolvingRowId] = useState<string | null>(null);
+  const [resolutionErrors, setResolutionErrors] = useState<
+    Record<string, string>
+  >({});
   const controllerRef = useRef<AbortController | null>(null);
   const preserveOnUnmount = useRef(false);
 
@@ -166,13 +174,41 @@ export default function PhotoLogReviewScreen() {
   const updateRow = (next: PhotoReviewRow) => {
     setRows(rows.map((row) => (row.id === next.id ? next : row)));
   };
-  const confirmRow = (row: PhotoReviewRow) => {
-    const next = confirmPhotoRow(row);
-    const reason = next.status === 'confirmed' ? null : photoRowReason(next);
-    if (reason !== null)
-      setRowErrors((current) => ({ ...current, [row.id]: reason }));
-    else setRowErrors((current) => ({ ...current, [row.id]: '' }));
-    updateRow(next);
+  const resolveExternalRow = async (row: PhotoReviewRow) => {
+    if (resolvingRowId !== null) return;
+    const candidate = selectedPhotoCandidate(row);
+    const input =
+      candidate?.candidateType === 'external_food'
+        ? externalCandidatePersistenceInput(candidate)
+        : null;
+    if (candidate?.candidateType !== 'external_food' || input === null) {
+      setResolutionErrors((current) => ({
+        ...current,
+        [row.id]: 'This external match cannot be resolved for trusted logging.',
+      }));
+      return;
+    }
+    setResolvingRowId(row.id);
+    setResolutionErrors((current) => ({ ...current, [row.id]: '' }));
+    try {
+      const foodItem = await api.foodItems.persistExternalCandidate(input);
+      updateRow(
+        replacePhotoRowCandidate(
+          row,
+          materializePhotoCandidate(candidate, foodItem),
+        ),
+      );
+    } catch (cause) {
+      setResolutionErrors((current) => ({
+        ...current,
+        [row.id]: errorMessage(
+          cause,
+          'This external match could not be resolved. Choose another match, use the estimate, or exclude the row.',
+        ),
+      }));
+    } finally {
+      setResolvingRowId(null);
+    }
   };
   const continueToConfirm = () => {
     const nextDisposition = photoRowsDisposition(
@@ -195,7 +231,7 @@ export default function PhotoLogReviewScreen() {
             disabled={analysisState === 'analyzing' || !disposition.canContinue}
             onPress={continueToConfirm}
           >
-            Continue to confirmation
+            Continue to save
           </AppButton>
           <AppButton
             variant="secondary"
@@ -210,7 +246,7 @@ export default function PhotoLogReviewScreen() {
       <ScreenHeader
         eyebrow="Photo logging"
         title="Review the photo"
-        subtitle="Every row is provisional. Confirm trusted food and serving details before saving."
+        subtitle="Review each row as trusted, AI-estimated, or excluded before one atomic save."
         action={
           <Pressable
             disabled={analysisState === 'analyzing'}
@@ -290,7 +326,13 @@ export default function PhotoLogReviewScreen() {
           row={row}
           mode={mode}
           error={rowErrors[row.id] || undefined}
+          externalResolutionError={resolutionErrors[row.id] || undefined}
+          externalResolutionState={photoExternalResolutionState(row, {
+            resolving: resolvingRowId === row.id,
+            failure: resolutionErrors[row.id],
+          })}
           onChange={updateRow}
+          onResolveExternal={() => void resolveExternalRow(row)}
           onReplace={() => {
             preserveOnUnmount.current = true;
             router.push(
@@ -298,14 +340,40 @@ export default function PhotoLogReviewScreen() {
             );
           }}
           onToggleInclude={() =>
-            updateRow({
-              ...row,
-              status: row.status === 'excluded' ? 'pending' : 'excluded',
-            })
+            updateRow(setPhotoRowIncluded(row, row.disposition === 'excluded'))
           }
-          onConfirm={() => confirmRow(row)}
         />
       ))}
+      {rows.length > 0 && disposition.excluded.length === rows.length ? (
+        <View className="gap-2 rounded-control bg-error-soft px-3 py-3">
+          <AppText variant="label" className="text-error">
+            All rows are excluded
+          </AppText>
+          <AppText variant="caption" className="text-error">
+            Nothing will be saved until you restore a row. Discarding clears the
+            current photo review.
+          </AppText>
+          <AppButton
+            variant="danger"
+            onPress={() =>
+              Alert.alert(
+                'Discard photo analysis?',
+                'This clears the current photo review.',
+                [
+                  { text: 'Keep review', style: 'cancel' },
+                  {
+                    text: 'Discard',
+                    style: 'destructive',
+                    onPress: () => void closeFlow(),
+                  },
+                ],
+              )
+            }
+          >
+            Discard analysis
+          </AppButton>
+        </View>
+      ) : null}
       {rows.length > 0 ? (
         <AppButton
           variant="secondary"

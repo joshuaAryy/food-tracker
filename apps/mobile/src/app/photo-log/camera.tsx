@@ -13,6 +13,7 @@ import {
   PhotoImageError,
 } from '@/lib/photo-image';
 import { useAppStore } from '@/store/app-store';
+import { safePhotoLogBack } from '@/lib/photo-log-navigation';
 
 function sessionId(): string {
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -23,6 +24,13 @@ export default function PhotoLogCameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
   const existingSession = useAppStore((state) => state.photoLogSession);
+  const goBack = () =>
+    safePhotoLogBack({
+      canGoBack: router.canGoBack,
+      back: router.back,
+      replace: router.replace,
+      fallback: '/photo-log' as Href,
+    });
   const beginSession = useAppStore((state) => state.beginPhotoLogSession);
   const [cameraReady, setCameraReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
@@ -147,7 +155,7 @@ export default function PhotoLogCameraScreen() {
       <AppScreen
         scroll={false}
         contentClassName="flex-1 justify-center"
-        footer={<AppButton onPress={() => router.back()}>Cancel</AppButton>}
+        footer={<AppButton onPress={goBack}>Cancel</AppButton>}
       >
         <View className="items-center gap-3">
           <ActivityIndicator />
@@ -166,7 +174,7 @@ export default function PhotoLogCameraScreen() {
             <AppButton loading={requesting} onPress={() => void allowCamera()}>
               Allow camera
             </AppButton>
-            <AppButton variant="secondary" onPress={() => router.back()}>
+            <AppButton variant="secondary" onPress={goBack}>
               Cancel
             </AppButton>
           </View>
@@ -188,7 +196,7 @@ export default function PhotoLogCameraScreen() {
       <AppScreen
         scroll={false}
         contentClassName="flex-1 justify-center"
-        footer={<AppButton onPress={() => router.back()}>Cancel</AppButton>}
+        footer={<AppButton onPress={goBack}>Cancel</AppButton>}
       >
         <View className="items-center gap-3">
           <ActivityIndicator />
@@ -213,7 +221,7 @@ export default function PhotoLogCameraScreen() {
             >
               Try again
             </AppButton>
-            <AppButton variant="secondary" onPress={() => router.back()}>
+            <AppButton variant="secondary" onPress={goBack}>
               Cancel
             </AppButton>
           </View>
@@ -244,7 +252,7 @@ export default function PhotoLogCameraScreen() {
           accessibilityLabel="Cancel photo capture"
           accessibilityRole="button"
           className="h-11 w-11 items-center justify-center rounded-full bg-white/15"
-          onPress={() => router.back()}
+          onPress={goBack}
         >
           <X color="#FFFFFF" size={21} />
         </Pressable>

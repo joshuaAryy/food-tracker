@@ -11,6 +11,7 @@ import {
   validatePhotoNutritionEstimate,
   type PhotoNutritionEstimateValues,
 } from './photo-nutrition-estimate.js';
+import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
 export interface PhotoAdjudicationCandidateSummary {
   candidateRef: string;
@@ -136,7 +137,10 @@ const geminiResponseSchema = {
 } as const;
 
 function logDiagnostic(category: string, details: Record<string, unknown>) {
-  console.warn('[photo-adjudication:provider]', { category, ...details });
+  console.warn(
+    '[photo-adjudication:provider]',
+    photoAnalysisDiagnosticDetails({ category, ...details }),
+  );
 }
 
 function isThoughtPart(part: Record<string, unknown>): boolean {

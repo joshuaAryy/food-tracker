@@ -31,6 +31,10 @@ import type {
 import type { ParsedServingSuggestion } from './serving-text.js';
 import type {
   PHOTO_CONFIDENCE_LEVELS,
+  PHOTO_QUANTITY_SOURCES,
+  PHOTO_RESOLVED_SERVING_STATUSES,
+  PHOTO_RESOLUTION_METHODS,
+  PHOTO_RESOLUTION_REASONS,
   PHOTO_REPRESENTATION_KINDS,
   PHOTO_REPRESENTATION_MODES,
   PHOTO_REPRESENTATION_OVERLAP_STATUSES,
@@ -319,6 +323,15 @@ export type PhotoQuantityState = (typeof PHOTO_QUANTITY_STATES)[number];
 
 export type PhotoQuantityUnit = (typeof PHOTO_QUANTITY_UNITS)[number];
 
+export type PhotoQuantitySource = (typeof PHOTO_QUANTITY_SOURCES)[number];
+
+export type PhotoResolvedServingStatus =
+  (typeof PHOTO_RESOLVED_SERVING_STATUSES)[number];
+
+export type PhotoResolutionMethod = (typeof PHOTO_RESOLUTION_METHODS)[number];
+
+export type PhotoResolutionReason = (typeof PHOTO_RESOLUTION_REASONS)[number];
+
 export type PhotoRepresentationMode =
   (typeof PHOTO_REPRESENTATION_MODES)[number];
 
@@ -349,15 +362,35 @@ export type PhotoProvisionalQuantity =
       countLabel: string | null;
       rawText: string;
       confidence: PhotoConfidenceLevel;
+      source?: PhotoQuantitySource;
+      massEstimateGrams?: number | null;
+      massEstimateConfidence?: PhotoConfidenceLevel | null;
     }
   | {
       state: 'no_responsible_estimate';
+      source?: PhotoQuantitySource;
     };
 
 export type PhotoServingResolution =
   | 'not_attempted'
   | 'supported'
   | 'needs_review';
+
+export interface PhotoResolvedServing {
+  status: PhotoResolvedServingStatus;
+  quantity: number | null;
+  unit: string | null;
+  servingOptionId: string | null;
+  multiplier: number | null;
+  method: PhotoResolutionMethod | null;
+  reason: PhotoResolutionReason | null;
+  source: PhotoQuantitySource | null;
+  reviewRequired: boolean;
+  normalizedGrams?: number | null;
+  normalizedGramsConfidence?: PhotoConfidenceLevel | null;
+  normalizationMethod?: PhotoResolutionMethod;
+  requiresUserReview?: boolean;
+}
 
 export type PhotoUnresolvedReason =
   | 'low_identity_confidence'
@@ -380,6 +413,7 @@ export interface PhotoProvisionalPortion {
   parsed: ParsedServingSuggestion | null;
   quantity: PhotoProvisionalQuantity;
   servingResolution: PhotoServingResolution;
+  resolvedServing?: PhotoResolvedServing;
 }
 
 export interface PhotoAdjudicationMetadata {

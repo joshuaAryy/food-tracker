@@ -14,6 +14,7 @@ import {
   scoreFoodCandidate,
 } from './candidate-ranking.js';
 import { foodIntentFallbackQuery } from './food-intent.js';
+import { photoAnalysisDiagnosticDetails } from '../ai/photo-diagnostics.js';
 
 interface LimitBucket {
   windowStartedAt: number;
@@ -40,8 +41,12 @@ export const USDA_ENRICHMENT_POLICIES = {
     metadataLimit: 20,
     detailWindow: 8,
     concurrency: 3,
-    detailTimeoutMs: 1500,
-    totalBudgetMs: 4500,
+    // Physical photo analysis showed the 1.5s per-detail budget expiring on
+    // otherwise valid USDA records. Keep the enrichment bounded, but allow
+    // one slower provider response without extending the overall photo flow
+    // beyond its existing deadline.
+    detailTimeoutMs: 2200,
+    totalBudgetMs: 6000,
   },
 } as const;
 
@@ -144,12 +149,24 @@ interface CacheEntry<T> {
   value: T;
 }
 
-type NegativeDetailReason = 'not_found' | 'timeout' | 'invalid';
+export type UsdaDetailUnavailableReason =
+  | 'not_found'
+  | 'timeout'
+  | 'invalid'
+  | 'failure';
+
+interface UsdaDetailResult {
+  food: NormalizedUsdaFood | null;
+  failure: UsdaDetailUnavailableReason | null;
+}
 
 const searchCache = new Map<string, CacheEntry<UsdaSearchFood[]>>();
 const detailCache = new Map<string, CacheEntry<NormalizedUsdaFood>>();
-const negativeDetailCache = new Map<string, CacheEntry<NegativeDetailReason>>();
-const detailInflight = new Map<string, Promise<NormalizedUsdaFood | null>>();
+const negativeDetailCache = new Map<
+  string,
+  CacheEntry<Exclude<UsdaDetailUnavailableReason, 'failure'>>
+>();
+const detailInflight = new Map<string, Promise<UsdaDetailResult>>();
 
 export function clearUsdaFdcCaches(): void {
   buckets.clear();
@@ -207,44 +224,27 @@ function dateValue(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function safeUrlForLog(value: string): string {
-  try {
-    const url = new URL(value);
-    return `${url.origin}${url.pathname}`;
-  } catch {
-    return '[invalid-url]';
-  }
-}
-
-function redactUrls(value: string): string {
-  return value.replace(/https?:\/\/[^\s"',}]+/gi, (match) =>
-    safeUrlForLog(match),
-  );
+function usdaResourceKind(url: string): 'search' | 'detail' {
+  return url.includes('/food/') ? 'detail' : 'search';
 }
 
 function diagnosticText(value: string): string {
-  return redactUrls(value)
-    .replace(/api[_-]?key=([^&"'\s]+)/gi, 'api_key=[redacted]')
+  return value
     .replace(
       /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
       '$1=[redacted]',
     )
-    .slice(0, 800);
-}
-
-async function responseDiagnostic(response: Response): Promise<string> {
-  try {
-    return diagnosticText(await response.text());
-  } catch {
-    return '[unreadable response body]';
-  }
+    .slice(0, 500);
 }
 
 function logUsdaDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn('[usda-fdc]', { category, ...details });
+  console.warn(
+    '[usda-fdc]',
+    photoAnalysisDiagnosticDetails({ category, ...details }),
+  );
 }
 
 function assertUsdaRateLimit(input: {
@@ -296,7 +296,7 @@ async function fetchJsonResult(
   timeoutMs: number,
 ): Promise<{
   payload: unknown | null;
-  failure: NegativeDetailReason | 'failure' | null;
+  failure: UsdaDetailUnavailableReason | null;
 }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -307,8 +307,7 @@ async function fetchJsonResult(
       logUsdaDiagnostic('non_ok_response', {
         status: response.status,
         statusText: response.statusText,
-        url: safeUrlForLog(url),
-        body: await responseDiagnostic(response),
+        resource: usdaResourceKind(url),
       });
       return {
         payload: null,
@@ -321,7 +320,7 @@ async function fetchJsonResult(
     const isTimeout =
       error instanceof DOMException && error.name === 'AbortError';
     logUsdaDiagnostic(isTimeout ? 'timeout' : 'request_failure', {
-      url: safeUrlForLog(url),
+      resource: usdaResourceKind(url),
       message:
         error instanceof Error ? diagnosticText(error.message) : 'unknown',
     });
@@ -440,15 +439,24 @@ export async function fetchUsdaFood(input: {
   config: UsdaFdcConfig;
   timeoutMs?: number;
 }): Promise<NormalizedUsdaFood | null> {
+  return (await fetchUsdaFoodResult(input)).food;
+}
+
+async function fetchUsdaFoodResult(input: {
+  sourceId: string;
+  config: UsdaFdcConfig;
+  timeoutMs?: number;
+}): Promise<UsdaDetailResult> {
   const cached = cacheValue(detailCache, input.sourceId);
-  if (cached !== null) return cached;
-  if (cacheValue(negativeDetailCache, input.sourceId) !== null) return null;
+  if (cached !== null) return { food: cached, failure: null };
+  const negative = cacheValue(negativeDetailCache, input.sourceId);
+  if (negative !== null) return { food: null, failure: negative };
 
   const url = apiUrl(
     input.config,
     `/food/${encodeURIComponent(input.sourceId)}`,
   );
-  if (url === null) return null;
+  if (url === null) return { food: null, failure: 'failure' };
   const inflight = detailInflight.get(input.sourceId);
   if (inflight !== undefined) return inflight;
 
@@ -463,10 +471,12 @@ export async function fetchUsdaFood(input: {
     );
     const food = normalizeUsdaFood(fetched.payload);
     if (food === null) {
-      const reason =
+      const reason: UsdaDetailUnavailableReason =
         fetched.failure === 'not_found' || fetched.failure === 'timeout'
           ? fetched.failure
-          : 'invalid';
+          : fetched.failure === 'failure'
+            ? 'failure'
+            : 'invalid';
       setCacheValue(
         negativeDetailCache,
         input.sourceId,
@@ -475,10 +485,10 @@ export async function fetchUsdaFood(input: {
           ? USDA_TIMEOUT_CACHE_TTL_MS
           : USDA_NOT_FOUND_CACHE_TTL_MS,
       );
-      return null;
+      return { food: null, failure: reason };
     }
     setCacheValue(detailCache, input.sourceId, food, USDA_DETAIL_CACHE_TTL_MS);
-    return food;
+    return { food, failure: null };
   })();
   detailInflight.set(input.sourceId, promise);
 
@@ -568,6 +578,10 @@ export async function enrichUsdaFoods(input: {
   rateLimitKey: string;
   policy: UsdaEnrichmentPolicy;
   isEnough?: (foods: NormalizedUsdaFood[]) => boolean;
+  onDetailUnavailable?: (input: {
+    food: UsdaSearchFood;
+    reason: UsdaDetailUnavailableReason;
+  }) => void;
 }): Promise<NormalizedUsdaFood[]> {
   const deadline = Date.now() + input.policy.totalBudgetMs;
   const primaryMatches = await searchUsdaFoods({
@@ -611,9 +625,9 @@ export async function enrichUsdaFoods(input: {
     const batch = queue.slice(index, index + input.policy.concurrency);
     const remainingBudget = Math.max(1, deadline - Date.now());
     const timeoutMs = Math.min(input.policy.detailTimeoutMs, remainingBudget);
-    const batchFoods = await Promise.all(
+    const batchResults = await Promise.all(
       batch.map((food) =>
-        fetchUsdaFood({
+        fetchUsdaFoodResult({
           sourceId: String(food.fdcId),
           config: input.config,
           timeoutMs,
@@ -621,8 +635,17 @@ export async function enrichUsdaFoods(input: {
       ),
     );
 
-    for (const food of batchFoods) {
-      if (food !== null) result.push(food);
+    for (const [batchIndex, detail] of batchResults.entries()) {
+      if (detail.food !== null) {
+        result.push(detail.food);
+      } else if (detail.failure !== null) {
+        const unavailableFood = batch[batchIndex];
+        if (unavailableFood === undefined) continue;
+        input.onDetailUnavailable?.({
+          food: unavailableFood,
+          reason: detail.failure,
+        });
+      }
     }
   }
 
@@ -960,6 +983,7 @@ export async function findOrCreateUsdaFoodItem(input: {
   sourceId: string;
   config: UsdaFdcConfig;
   transaction: Prisma.TransactionClient;
+  servingOptions?: FoodItemServingOptions | null;
 }) {
   const existing = await input.transaction.foodItem.findFirst({
     where: {
@@ -972,23 +996,72 @@ export async function findOrCreateUsdaFoodItem(input: {
     include: { nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] } },
   });
 
-  if (existing !== null) return existing;
+  if (existing !== null) {
+    if (
+      existing.calories === null ||
+      existing.protein === null ||
+      existing.servingQuantity === null ||
+      existing.servingUnit === null ||
+      existing.servingQuantity.toNumber() <= 0 ||
+      existing.servingUnit.trim() === ''
+    ) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'USDA food needs calories, protein, and serving data before it can be logged.',
+        {
+          issues: [
+            {
+              path: ['items'],
+              message:
+                'USDA food needs calories, protein, and serving data before it can be logged.',
+            },
+          ],
+        },
+      );
+    }
+    const incomingOptions = input.servingOptions;
+    if (
+      (existing.servingOptions === null ||
+        existing.servingOptions === undefined) &&
+      incomingOptions !== undefined &&
+      incomingOptions !== null &&
+      foodItemServingOptionsSchema.safeParse(incomingOptions).success
+    ) {
+      await input.transaction.foodItem.update({
+        where: { id: existing.id },
+        data: { servingOptions: incomingOptions as Prisma.InputJsonValue },
+      });
+      return input.transaction.foodItem.findUniqueOrThrow({
+        where: { id: existing.id },
+        include: { nutrients: { orderBy: [{ nutrientKey: 'asc' as const }] } },
+      });
+    }
+    return existing;
+  }
 
   const food = await fetchUsdaFood({
     sourceId: input.sourceId,
     config: input.config,
   });
-  if (food === null || food.calories === null || food.protein === null) {
+  if (
+    food === null ||
+    food.calories === null ||
+    food.protein === null ||
+    !Number.isFinite(food.servingQuantity) ||
+    food.servingQuantity <= 0 ||
+    food.servingUnit.trim() === ''
+  ) {
     throw new AppError(
       400,
       'VALIDATION_ERROR',
-      'USDA food needs calories and protein before it can be logged.',
+      'USDA food needs calories, protein, and serving data before it can be logged.',
       {
         issues: [
           {
             path: ['items'],
             message:
-              'USDA food needs calories and protein before it can be logged.',
+              'USDA food needs calories, protein, and serving data before it can be logged.',
           },
         ],
       },

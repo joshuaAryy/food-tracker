@@ -4,6 +4,7 @@ import { prisma } from '../src/lib/prisma.js';
 import { photoAnalysisConfig } from '../src/modules/ai/photo-config.js';
 import { parseProviderOutput } from '../src/modules/ai/photo-provider.js';
 import { adaptPhotoRepresentations } from '../src/modules/ai/photo-representation.js';
+import { clearUsdaFdcCaches } from '../src/modules/foodItems/usda-fdc.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
@@ -52,20 +53,43 @@ function representationItem(input: {
   coverage?: string[];
   excludedCoverage?: string[];
   region?: { x: number; y: number; width: number; height: number } | null;
+  representationConfidence?: 'high' | 'medium' | 'low';
+  quantity?: {
+    amount: number;
+    unit:
+      | 'count'
+      | 'slice'
+      | 'piece'
+      | 'tablespoon'
+      | 'teaspoon'
+      | 'cup'
+      | 'millilitre'
+      | 'gram'
+      | 'ounce';
+    rawText: string;
+    confidence: 'high' | 'medium' | 'low';
+    countLabel?: string | null;
+  };
 }) {
   return {
     name: input.name,
     preparationForm: null,
     identityConfidence: 'high' as const,
     region: input.region ?? null,
-    ...estimatedQuantity(1, 'gram', '1 gram', 'medium'),
+    ...estimatedQuantity(
+      input.quantity?.amount ?? 1,
+      input.quantity?.unit ?? 'gram',
+      input.quantity?.rawText ?? '1 gram',
+      input.quantity?.confidence ?? 'medium',
+      input.quantity?.countLabel ?? null,
+    ),
     groupKey: input.groupKey,
     representationMode: input.mode,
     representationKind: input.kind,
     active: input.active ?? true,
     coverage: input.coverage ?? [input.name],
     excludedCoverage: input.excludedCoverage ?? [],
-    representationConfidence: 'high' as const,
+    representationConfidence: input.representationConfidence ?? 'high',
     visiblePortionDescription: null,
   };
 }
@@ -95,6 +119,20 @@ async function createTrustedFood(name: string) {
   });
 }
 
+function geminiJsonResponse(value: unknown): Response {
+  return new Response(
+    JSON.stringify({
+      candidates: [
+        {
+          finishReason: 'STOP',
+          content: { parts: [{ text: JSON.stringify(value) }] },
+        },
+      ],
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
+}
+
 describe('photo food analysis API', () => {
   beforeEach(() => {
     process.env.AI_PROVIDER = 'mock';
@@ -104,6 +142,7 @@ describe('photo food analysis API', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    clearUsdaFdcCaches();
     delete process.env.GEMINI_API_KEY;
     delete process.env.PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED;
@@ -116,6 +155,8 @@ describe('photo food analysis API', () => {
     delete process.env.PHOTO_CANDIDATE_ADJUDICATION_MAX_OUTPUT_TOKENS;
     delete process.env.PHOTO_ANALYSIS_RATE_LIMIT_MAX;
     delete process.env.PHOTO_ANALYSIS_DAILY_LIMIT;
+    delete process.env.USDA_FDC_API_KEY;
+    delete process.env.USDA_FDC_BASE_URL;
   });
 
   it.each([
@@ -266,6 +307,37 @@ describe('photo food analysis API', () => {
     });
   });
 
+  it('preserves an optional component-specific photo mass estimate', () => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'topping',
+            preparationForm: null,
+            identityConfidence: 'high',
+            region: null,
+            quantityState: 'estimated',
+            quantityAmount: 2,
+            quantityUnit: 'tablespoon',
+            quantityCountLabel: null,
+            quantityRawText: 'approximately 2 tablespoons',
+            quantityConfidence: 'medium',
+            massEstimateGrams: 10,
+            massEstimateConfidence: 'medium',
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.quantity).toMatchObject({
+      quantityState: 'estimated',
+      quantityAmount: 2,
+      quantityUnit: 'tablespoon',
+      massEstimateGrams: 10,
+      massEstimateConfidence: 'medium',
+    });
+  });
+
   it.each([
     ['full image', { x: 0, y: 0, width: 1, height: 1 }],
     ['small region', { x: 0.1, y: 0.2, width: 0.2, height: 0.3 }],
@@ -325,6 +397,10 @@ describe('photo food analysis API', () => {
   it.each([
     ['negative coordinate', { x: -0.1, y: 0, width: 0.2, height: 0.2 }],
     ['coordinate above one', { x: 1.1, y: 0, width: 0.2, height: 0.2 }],
+    ['percentage-style coordinates', { x: 25, y: 25, width: 50, height: 50 }],
+    ['pixel-style coordinates', { x: 120, y: 80, width: 240, height: 180 }],
+    ['horizontal overflow', { x: 0.8, y: 0, width: 0.3, height: 0.2 }],
+    ['vertical overflow', { x: 0, y: 0.8, width: 0.2, height: 0.3 }],
     ['reversed horizontal bounds', { x: 0.8, y: 0, width: -0.2, height: 0.2 }],
     ['reversed vertical bounds', { x: 0, y: 0.8, width: 0.2, height: -0.2 }],
     ['zero width', { x: 0.1, y: 0.1, width: 0, height: 0.2 }],
@@ -456,6 +532,109 @@ describe('photo food analysis API', () => {
     });
   });
 
+  it('preserves safe decomposed components after discarding illegal component exclusions', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'pasta with tomato sauce',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['pasta with tomato sauce'],
+        excludedCoverage: ['grated cheese'],
+      }),
+      representationItem({
+        name: 'grated cheese',
+        groupKey: 'pasta-dish',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['grated cheese'],
+      }),
+      representationItem({
+        name: 'pasta with tomato sauce and grated cheese',
+        groupKey: 'pasta-dish',
+        mode: 'composite',
+        kind: 'composite',
+        active: false,
+        coverage: ['pasta with tomato sauce', 'grated cheese'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.active.map((item) => item.representationKind)).toEqual([
+      'component',
+      'component',
+    ]);
+    expect(adapted.active[0]?.excludedCoverage).toEqual([]);
+    expect(adapted.groups[0]?.alternatives).toHaveLength(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[photo-analysis:representation]',
+      expect.objectContaining({
+        category: 'provider_optional_metadata_discarded',
+        field: 'excludedCoverage',
+        itemIndex: 0,
+      }),
+    );
+    warn.mockRestore();
+  });
+
+  it('isolates invalid regions and component exclusions independently', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'main pasta',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        excludedCoverage: ['topping'],
+        coverage: ['main pasta'],
+        region: { x: 0.8, y: 0.8, width: 0.4, height: 0.4 },
+      }),
+      representationItem({
+        name: 'visible topping',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        coverage: ['topping'],
+        region: null,
+      }),
+      representationItem({
+        name: 'complete meal',
+        groupKey: 'meal',
+        mode: 'composite',
+        kind: 'composite',
+        active: false,
+        coverage: ['main pasta', 'topping'],
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.active.map((item) => item.suggestion.region)).toEqual([
+      null,
+      null,
+    ]);
+    expect(adapted.active[0]?.excludedCoverage).toEqual([]);
+    expect(adapted.groups[0]?.activeRepresentation).toBe('decomposed');
+    expect(warn.mock.calls).toEqual(
+      expect.arrayContaining([
+        [
+          '[photo-analysis:representation]',
+          expect.objectContaining({
+            category: 'provider_optional_metadata_discarded',
+            field: 'excludedCoverage',
+          }),
+        ],
+        [
+          '[photo-analysis:provider]',
+          expect.objectContaining({
+            category: 'provider_optional_region_discarded',
+          }),
+        ],
+      ]),
+    );
+    warn.mockRestore();
+  });
+
   it('keeps an inactive decomposed alternative behind an active composite', () => {
     const adapted = adaptRepresentationItems([
       representationItem({
@@ -489,6 +668,95 @@ describe('photo food analysis API', () => {
     expect(
       adapted.groups[0]?.alternatives[0]?.items.every((item) => !item.active),
     ).toBe(true);
+  });
+
+  it('selects complete high-confidence separable components without requiring valid regions', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'pasta with tomato sauce and grated cheese',
+        groupKey: 'meal',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['pasta with tomato sauce', 'grated cheese'],
+      }),
+      representationItem({
+        name: 'pasta with tomato sauce',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['pasta with tomato sauce'],
+        region: { x: 25, y: 25, width: 50, height: 50 },
+      }),
+      representationItem({
+        name: 'grated hard cheese',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['grated cheese'],
+        region: null,
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(2);
+    expect(adapted.active.map((item) => item.representationKind)).toEqual([
+      'component',
+      'component',
+    ]);
+    expect(adapted.active.map((item) => item.suggestion.region)).toEqual([
+      null,
+      null,
+    ]);
+    expect(adapted.groups[0]).toMatchObject({
+      activeRepresentation: 'decomposed',
+      overlapStatus: 'non_overlapping',
+      alternatives: [
+        expect.objectContaining({ representation: 'composite', active: false }),
+      ],
+    });
+    expect(
+      warn.mock.calls.some(
+        (call) =>
+          (call[1] as { category?: string } | undefined)?.category ===
+          'provider_optional_alternative_discarded',
+      ),
+    ).toBe(false);
+  });
+
+  it('keeps a composite active when decomposition confidence is speculative', () => {
+    const adapted = adaptRepresentationItems([
+      representationItem({
+        name: 'blended dish',
+        groupKey: 'meal',
+        mode: 'composite',
+        kind: 'composite',
+        coverage: ['base', 'filling'],
+      }),
+      representationItem({
+        name: 'possible base',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['base'],
+        representationConfidence: 'low',
+      }),
+      representationItem({
+        name: 'possible filling',
+        groupKey: 'meal',
+        mode: 'decomposed',
+        kind: 'component',
+        active: false,
+        coverage: ['filling'],
+        representationConfidence: 'low',
+      }),
+    ]);
+
+    expect(adapted.active).toHaveLength(1);
+    expect(adapted.active[0]?.representationKind).toBe('composite');
+    expect(adapted.groups[0]?.activeRepresentation).toBe('composite');
   });
 
   it('supports a composite alternative that excludes separately represented coverage', () => {
@@ -964,6 +1232,57 @@ describe('photo food analysis API', () => {
     ).toThrow();
   });
 
+  it('discards an inapplicable count label without rejecting a valid non-count quantity', () => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'visible food',
+            preparationForm: null,
+            identityConfidence: 'high',
+            region: null,
+            quantityState: 'estimated',
+            quantityAmount: 100,
+            quantityUnit: 'gram',
+            quantityCountLabel: 'portion',
+            quantityRawText: 'about 100 grams',
+            quantityConfidence: 'medium',
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.quantity).toMatchObject({
+      quantityState: 'estimated',
+      quantityAmount: 100,
+      quantityUnit: 'gram',
+      quantityCountLabel: null,
+    });
+  });
+
+  it('preserves a defensible count label for a true count quantity', () => {
+    const [suggestion] = parseProviderOutput(
+      JSON.stringify({
+        items: [
+          {
+            name: 'visible food',
+            preparationForm: null,
+            identityConfidence: 'high',
+            region: null,
+            quantityState: 'estimated',
+            quantityAmount: 2,
+            quantityUnit: 'count',
+            quantityCountLabel: 'egg',
+            quantityRawText: '2 eggs',
+            quantityConfidence: 'high',
+          },
+        ],
+      }),
+    );
+
+    expect(suggestion?.quantity.quantityCountLabel).toBe('egg');
+  });
+
   it('preserves rows and marks overlap uncertain after invalid regions are discarded', () => {
     const first = representationItem({
       name: 'Parmesan',
@@ -1004,14 +1323,6 @@ describe('photo food analysis API', () => {
       quantityUnit: 'count',
       quantityCountLabel: null,
       quantityRawText: '1 count',
-      quantityConfidence: 'low',
-    },
-    {
-      quantityState: 'estimated',
-      quantityAmount: 1,
-      quantityUnit: 'gram',
-      quantityCountLabel: 'egg',
-      quantityRawText: '1 gram egg',
       quantityConfidence: 'low',
     },
     {
@@ -1375,6 +1686,22 @@ describe('photo food analysis API', () => {
     expect(quantityProperties).toHaveProperty('quantityCountLabel');
     expect(quantityProperties).toHaveProperty('quantityRawText');
     expect(quantityProperties).toHaveProperty('quantityConfidence');
+    expect(
+      (quantityProperties.quantityState as { description?: string })
+        .description,
+    ).toContain('every active visible food component');
+    expect(
+      (quantityProperties.quantityAmount as { description?: string })
+        .description,
+    ).toContain('rounded approximate');
+    expect(contents[0]?.parts[1]?.text).toEqual(
+      expect.stringContaining(
+        'no_responsible_estimate only after considering all supported units',
+      ),
+    );
+    expect(contents[0]?.parts[1]?.text).toEqual(
+      expect.stringContaining('low-confidence structured quantities'),
+    );
     expect(quantityProperties).toHaveProperty('groupKey');
     expect(quantityProperties).toHaveProperty('representationMode');
     expect(quantityProperties).toHaveProperty('representationKind');
@@ -1449,7 +1776,7 @@ describe('photo food analysis API', () => {
     expect(adapted.active[0]?.visiblePortionDescription).toBeNull();
   });
 
-  it('discards an alternative with a malformed optional region', () => {
+  it('preserves an alternative after discarding only its malformed optional region', () => {
     const parsed = parseProviderOutput(
       JSON.stringify({
         items: [
@@ -1484,7 +1811,10 @@ describe('photo food analysis API', () => {
 
     const adapted = adaptPhotoRepresentations(parsed);
     expect(adapted.active).toHaveLength(2);
-    expect(adapted.groups[0]?.alternatives).toEqual([]);
+    expect(adapted.groups[0]?.alternatives[0]).toMatchObject({
+      representation: 'composite',
+      items: [expect.objectContaining({ region: null })],
+    });
   });
 
   it('discards an independently invalid group while preserving valid groups', () => {
@@ -1937,11 +2267,311 @@ describe('photo food analysis API', () => {
     );
   });
 
-  it('keeps reject-all and no-decision rows unresolved without estimating nutrition', async () => {
+  it('keeps a provider-only candidate visible without letting it suppress a valid estimate', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_BASE_URL = 'https://usda.test/fdc/v1';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-analysis-proof-secret-with-at-least-32-bytes';
+    let geminiCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes(':generateContent')) {
+          geminiCalls += 1;
+          return geminiCalls === 1
+            ? geminiJsonResponse({
+                items: [
+                  {
+                    name: 'rice',
+                    preparationForm: null,
+                    identityConfidence: 'high',
+                    region: null,
+                    ...estimatedQuantity(100, 'gram', '100 g', 'medium'),
+                  },
+                ],
+              })
+            : geminiJsonResponse({
+                decisions: [
+                  {
+                    recognitionRef: 'photo-item-1',
+                    decision: 'no_decision',
+                    nutritionEstimate: {
+                      calories: 460,
+                      proteinGrams: 15.3,
+                      carbohydrateGrams: 76.1,
+                      fatGrams: 11,
+                      confidence: 'low',
+                    },
+                  },
+                ],
+              });
+        }
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 9901,
+                  description: 'Rice',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (requestUrl.includes('/food/9901')) {
+          return new Response(
+            JSON.stringify({
+              fdcId: 9901,
+              description: 'Rice',
+              dataType: 'Foundation',
+              foodNutrients: [
+                { amount: 130, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+                { amount: 2.4, nutrient: { name: 'Protein', unitName: 'G' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(geminiCalls).toBe(2);
+    expect(response.body.data.items[0]).toMatchObject({
+      selectedCandidateId: null,
+      loggable: false,
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ candidateType: 'external_food' }),
+      ]),
+      estimatedNutrition: {
+        source: 'ai_estimate',
+        trust: 'low',
+        linkedFoodItemId: null,
+        estimateProof: expect.stringMatching(/^v1\./),
+      },
+    });
+  });
+
+  it('automatically materializes a clear external winner before estimate fallback', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_BASE_URL = 'https://usda.test/fdc/v1';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-analysis-proof-secret-with-at-least-32-bytes';
+    let geminiCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes(':generateContent')) {
+          geminiCalls += 1;
+          return geminiCalls === 1
+            ? geminiJsonResponse({
+                items: [
+                  {
+                    name: 'rice cooked plain',
+                    preparationForm: null,
+                    identityConfidence: 'high',
+                    region: null,
+                    ...estimatedQuantity(100, 'gram', '100 g', 'medium'),
+                  },
+                ],
+              })
+            : geminiJsonResponse({
+                decisions: [
+                  {
+                    recognitionRef: 'photo-item-1',
+                    decision: 'no_decision',
+                    nutritionEstimate: {
+                      calories: 460,
+                      proteinGrams: 15.3,
+                      carbohydrateGrams: 76.1,
+                      fatGrams: 11,
+                      confidence: 'low',
+                    },
+                  },
+                ],
+              });
+        }
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 9903,
+                  description: 'Rice cooked plain',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (requestUrl.includes('/food/9903')) {
+          return new Response(
+            JSON.stringify({
+              fdcId: 9903,
+              description: 'Rice cooked plain',
+              dataType: 'Foundation',
+              foodNutrients: [
+                { amount: 130, nutrient: { name: 'Energy', unitName: 'KCAL' } },
+                { amount: 2.4, nutrient: { name: 'Protein', unitName: 'G' } },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(geminiCalls).toBe(2);
+    expect(response.body.data.items[0]).toMatchObject({
+      loggable: true,
+      reviewStatus: 'matched',
+      selectedCandidateId: expect.any(String),
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ candidateType: 'external_food' }),
+      ]),
+    });
+    expect(response.body.data.items[0]).not.toHaveProperty(
+      'estimatedNutrition',
+    );
+    expect(
+      await prisma.foodItem.count({
+        where: { sourceProvider: 'usda_fdc', sourceId: '9903' },
+      }),
+    ).toBe(1);
+  });
+
+  it('keeps a timed-out USDA candidate visible without suppressing estimate fallback', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_BASE_URL = 'https://usda.test/fdc/v1';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-analysis-proof-secret-with-at-least-32-bytes';
+    let geminiCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes(':generateContent')) {
+          geminiCalls += 1;
+          return geminiCalls === 1
+            ? geminiJsonResponse({
+                items: [
+                  {
+                    name: 'rice',
+                    preparationForm: null,
+                    identityConfidence: 'high',
+                    region: null,
+                    ...estimatedQuantity(100, 'gram', '100 g', 'medium'),
+                  },
+                ],
+              })
+            : geminiJsonResponse({
+                decisions: [
+                  {
+                    recognitionRef: 'photo-item-1',
+                    decision: 'reject_all',
+                    confidence: 'high',
+                    nutritionEstimate: {
+                      calories: 460,
+                      proteinGrams: 15.3,
+                      carbohydrateGrams: 76.1,
+                      fatGrams: 11,
+                      confidence: 'low',
+                    },
+                  },
+                ],
+              });
+        }
+        if (requestUrl.includes('/foods/search')) {
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: 9902,
+                  description: 'Rice',
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (requestUrl.includes('/food/9902')) {
+          throw new DOMException('aborted', 'AbortError');
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(geminiCalls).toBe(2);
+    expect(response.body.data.items[0]).toMatchObject({
+      selectedCandidateId: null,
+      loggable: false,
+      candidates: [
+        expect.objectContaining({
+          candidateType: 'external_food',
+          externalFood: expect.objectContaining({
+            calories: null,
+            protein: null,
+          }),
+        }),
+      ],
+      estimatedNutrition: {
+        source: 'ai_estimate',
+        estimateProof: expect.stringMatching(/^v1\./),
+      },
+      adjudication: { status: 'rejected_all' },
+    });
+  });
+
+  it('retains valid estimate fallback for reject-all and no-decision adjudication', async () => {
     for (const decision of ['reject_all', 'no_decision'] as const) {
       process.env.AI_PROVIDER = 'mock';
       process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
       process.env.PHOTO_CANDIDATE_ADJUDICATION_MOCK_DECISION = decision;
+      process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+      process.env.PHOTO_NUTRITION_ESTIMATION_MOCK = 'valid';
+      process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+      process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+        'photo-analysis-proof-secret-with-at-least-32-bytes';
       await createTrustedFood(`chicken grilled ${decision}`);
       await createTrustedFood(`chicken fried ${decision}`);
 
@@ -1958,8 +2588,11 @@ describe('photo food analysis API', () => {
           selectionSource: 'user_required',
           status: decision === 'reject_all' ? 'rejected_all' : 'no_decision',
         },
+        estimatedNutrition: {
+          source: 'ai_estimate',
+          estimateProof: expect.stringMatching(/^v1\./),
+        },
       });
-      expect(response.body.data.items[0]).not.toHaveProperty('calories');
       vi.unstubAllGlobals();
     }
   });
@@ -2023,6 +2656,7 @@ describe('photo food analysis API', () => {
   it('marks an unsupported visual household portion as needs_review', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await createTrustedFood('chicken');
     vi.stubGlobal(
       'fetch',
@@ -2068,6 +2702,9 @@ describe('photo food analysis API', () => {
       unresolvedReason: 'portion_needs_review',
       provisionalPortion: { servingResolution: 'needs_review' },
     });
+    expect(
+      warn.mock.calls.some((call) => call[0] === '[photo-analysis:lifecycle]'),
+    ).toBe(false);
   });
 
   it('returns multiple independently ranked foods with a supported provisional serving', async () => {
@@ -2147,12 +2784,12 @@ describe('photo food analysis API', () => {
     );
   });
 
-  it('retrieves only active representation rows and retains inactive alternatives', async () => {
+  it('retrieves separable active components independently and retains the inactive composite', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
-    await createTrustedFood('pasta');
-    await createTrustedFood('tomato sauce');
     await createTrustedFood('pasta with tomato sauce');
+    await createTrustedFood('grated hard cheese');
+    await createTrustedFood('pasta with tomato sauce and grated cheese');
 
     vi.stubGlobal(
       'fetch',
@@ -2169,26 +2806,37 @@ describe('photo food analysis API', () => {
                         text: JSON.stringify({
                           items: [
                             representationItem({
-                              name: 'pasta',
+                              name: 'pasta with tomato sauce and grated cheese',
                               groupKey: 'dish',
-                              mode: 'decomposed',
-                              kind: 'component',
-                              coverage: ['pasta'],
-                            }),
-                            representationItem({
-                              name: 'tomato sauce',
-                              groupKey: 'dish',
-                              mode: 'decomposed',
-                              kind: 'component',
-                              coverage: ['tomato sauce'],
+                              mode: 'composite',
+                              kind: 'composite',
+                              coverage: [
+                                'pasta with tomato sauce',
+                                'grated cheese',
+                              ],
                             }),
                             representationItem({
                               name: 'pasta with tomato sauce',
                               groupKey: 'dish',
-                              mode: 'composite',
-                              kind: 'composite',
+                              mode: 'decomposed',
+                              kind: 'component',
                               active: false,
-                              coverage: ['pasta', 'tomato sauce'],
+                              coverage: ['pasta with tomato sauce'],
+                              region: {
+                                x: 25,
+                                y: 25,
+                                width: 50,
+                                height: 50,
+                              },
+                            }),
+                            representationItem({
+                              name: 'grated hard cheese',
+                              groupKey: 'dish',
+                              mode: 'decomposed',
+                              kind: 'component',
+                              active: false,
+                              coverage: ['grated cheese'],
+                              region: null,
                             }),
                           ],
                         }),
@@ -2214,7 +2862,13 @@ describe('photo food analysis API', () => {
       response.body.data.items.map(
         (item: { recognizedName: string }) => item.recognizedName,
       ),
-    ).toEqual(['pasta', 'tomato sauce']);
+    ).toEqual(['pasta with tomato sauce', 'grated hard cheese']);
+    expect(
+      response.body.data.items.every(
+        (item: { selectedCandidateId: string | null }) =>
+          item.selectedCandidateId !== null,
+      ),
+    ).toBe(true);
     expect(
       response.body.data.items.every(
         (item: { active: boolean }) => item.active,
@@ -2229,13 +2883,174 @@ describe('photo food analysis API', () => {
           representation: 'composite',
           items: [
             expect.objectContaining({
-              recognizedName: 'pasta with tomato sauce',
+              recognizedName: 'pasta with tomato sauce and grated cheese',
               active: false,
             }),
           ],
         },
       ],
     });
+  });
+
+  it('keeps a separable fixture decomposed through USDA unavailability, estimation, and proof issuance', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    process.env.USDA_FDC_BASE_URL = 'https://usda.test/fdc/v1';
+    process.env.PHOTO_CANDIDATE_ADJUDICATION_ENABLED = 'true';
+    process.env.PHOTO_NUTRITION_ESTIMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_CONFIRMATION_ENABLED = 'true';
+    process.env.PHOTO_ESTIMATE_PROOF_SECRET =
+      'photo-analysis-proof-secret-with-at-least-32-bytes';
+    let visionCalls = 0;
+    let assistanceCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const requestUrl = String(url);
+        if (requestUrl.includes(':generateContent')) {
+          const body = JSON.parse(String(init?.body)) as {
+            contents?: Array<{ parts?: Array<{ inlineData?: unknown }> }>;
+          };
+          const isVision =
+            body.contents?.[0]?.parts?.some(
+              (part) => part.inlineData !== undefined,
+            ) ?? false;
+          if (isVision) {
+            visionCalls += 1;
+            return geminiJsonResponse({
+              items: [
+                representationItem({
+                  name: 'pasta with tomato sauce and grated cheese',
+                  groupKey: 'fixture-meal',
+                  mode: 'composite',
+                  kind: 'composite',
+                  coverage: ['pasta with tomato sauce', 'grated cheese'],
+                }),
+                representationItem({
+                  name: 'pasta with tomato sauce',
+                  groupKey: 'fixture-meal',
+                  mode: 'decomposed',
+                  kind: 'component',
+                  active: false,
+                  coverage: ['pasta with tomato sauce'],
+                  region: { x: 25, y: 25, width: 50, height: 50 },
+                }),
+                representationItem({
+                  name: 'grated hard cheese',
+                  groupKey: 'fixture-meal',
+                  mode: 'decomposed',
+                  kind: 'component',
+                  active: false,
+                  coverage: ['grated cheese'],
+                  region: null,
+                  quantity: {
+                    amount: 2,
+                    unit: 'tablespoon',
+                    rawText: 'approximately 2 tablespoons',
+                    confidence: 'medium',
+                  },
+                }),
+              ],
+            });
+          }
+          assistanceCalls += 1;
+          return geminiJsonResponse({
+            decisions: [
+              {
+                recognitionRef: 'photo-item-1',
+                decision: 'no_decision',
+                nutritionEstimate: {
+                  calories: 460,
+                  proteinGrams: 15.3,
+                  carbohydrateGrams: 76.1,
+                  fatGrams: 11,
+                  confidence: 'low',
+                },
+              },
+              {
+                recognitionRef: 'photo-item-2',
+                decision: 'reject_all',
+                confidence: 'high',
+                nutritionEstimate: {
+                  calories: 120,
+                  proteinGrams: 9,
+                  carbohydrateGrams: 1,
+                  fatGrams: 8.9,
+                  confidence: 'low',
+                },
+              },
+            ],
+          });
+        }
+        if (requestUrl.includes('/foods/search')) {
+          const search = JSON.parse(String(init?.body)) as { query: string };
+          const topping = search.query.includes('cheese');
+          return new Response(
+            JSON.stringify({
+              foods: [
+                {
+                  fdcId: topping ? 9912 : 9911,
+                  description: search.query,
+                  dataType: 'Foundation',
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        if (
+          requestUrl.includes('/food/9911') ||
+          requestUrl.includes('/food/9912')
+        ) {
+          throw new DOMException('aborted', 'AbortError');
+        }
+        return new Response('{}', { status: 404 });
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(visionCalls).toBe(1);
+    expect(assistanceCalls).toBe(1);
+    expect(response.body.data.representationGroups[0]).toMatchObject({
+      activeRepresentation: 'decomposed',
+      activeItemIds: ['photo-item-1', 'photo-item-2'],
+    });
+    expect(response.body.data.items).toHaveLength(2);
+    const topping = response.body.data.items.find(
+      (item: { coverage: string[] }) => item.coverage.includes('grated cheese'),
+    );
+    expect(topping?.provisionalPortion).toMatchObject({
+      quantity: {
+        state: 'estimated',
+        amount: 2,
+        unit: 'tablespoon',
+        confidence: 'medium',
+      },
+    });
+    expect(topping?.provisionalPortion?.rawQuantityText).not.toBe('100 g');
+    expect(
+      response.body.data.items.every(
+        (item: {
+          representationKind: string;
+          selectedCandidateId: string | null;
+          estimatedNutrition?: { estimateProof?: string };
+        }) =>
+          item.representationKind === 'component' &&
+          item.selectedCandidateId === null &&
+          item.estimatedNutrition?.estimateProof?.startsWith('v1.'),
+      ),
+    ).toBe(true);
+    expect(
+      response.body.data.items.flatMap(
+        (item: { coverage: string[] }) => item.coverage,
+      ),
+    ).toEqual(['pasta with tomato sauce', 'grated cheese']);
   });
 
   it('keeps returned trusted candidate references compatible with authoritative saving', async () => {
@@ -2437,9 +3252,18 @@ describe('photo food analysis API', () => {
         '[photo-analysis:provider]',
         expect.objectContaining({ category }),
       );
-      const diagnostic = warn.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+      const diagnostic = warn.mock.calls
+        .map((call) => call[1])
+        .find(
+          (details): details is Record<string, unknown> =>
+            typeof details === 'object' &&
+            details !== null &&
+            (details as Record<string, unknown>).category === category,
+        );
+      expect(diagnostic).toBeDefined();
       expect(JSON.stringify(diagnostic)).not.toContain('{"items":[');
-      expect(diagnostic.finishMessage).toBe('safe provider detail');
+      expect(diagnostic).not.toHaveProperty('finishMessage');
+      expect(JSON.stringify(diagnostic)).not.toContain('safe provider detail');
     },
   );
 
@@ -2521,6 +3345,55 @@ describe('photo food analysis API', () => {
     expect(response.body.data.items[0].recognizedName).toBe('grilled chicken');
   });
 
+  it('accepts final JSON text carrying thoughtSignature metadata', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  finishReason: 'STOP',
+                  content: {
+                    role: 'model',
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          items: [
+                            {
+                              name: 'grilled chicken',
+                              preparationForm: null,
+                              identityConfidence: 'high',
+                              ...noResponsibleEstimate,
+                              region: null,
+                            },
+                          ],
+                        }),
+                        thoughtSignature: 'opaque-provider-signature',
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+      ),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/photo-analysis')
+      .set('Content-Type', 'image/jpeg')
+      .send(jpeg)
+      .expect(200);
+
+    expect(response.body.data.status).toBe('recognized');
+    expect(response.body.data.items).toHaveLength(1);
+  });
+
   it('classifies STOP with malformed JSON separately from truncation', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
@@ -2558,17 +3431,27 @@ describe('photo food analysis API', () => {
       .expect(503);
 
     expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
-    expect(warn).toHaveBeenCalledWith(
-      '[photo-analysis:provider]',
-      expect.objectContaining({
-        category: 'provider_malformed_completed_json',
-        finishReason: 'STOP',
-        promptTokenCount: 20,
-        candidatesTokenCount: 80,
-        thoughtsTokenCount: 0,
-        totalTokenCount: 100,
-      }),
-    );
+    const diagnostic = warn.mock.calls
+      .map((call) => call[1])
+      .find(
+        (details): details is Record<string, unknown> =>
+          typeof details === 'object' &&
+          details !== null &&
+          (details as Record<string, unknown>).category ===
+            'provider_malformed_completed_json',
+      );
+    expect(diagnostic).toMatchObject({
+      category: 'provider_malformed_completed_json',
+      finishReason: 'STOP',
+      contentPartCount: 1,
+      selectedCandidateIndex: 0,
+    });
+    expect(diagnostic).not.toHaveProperty('finishMessage');
+    expect(diagnostic).not.toHaveProperty('promptTokenCount');
+    expect(diagnostic).not.toHaveProperty('candidatesTokenCount');
+    expect(diagnostic).not.toHaveProperty('thoughtsTokenCount');
+    expect(diagnostic).not.toHaveProperty('totalTokenCount');
+    expect(JSON.stringify(diagnostic)).not.toContain('safe provider detail');
     expect(warn.mock.calls.map((call) => JSON.stringify(call[1]))).not.toEqual(
       expect.arrayContaining([expect.stringContaining('chicken')]),
     );
@@ -2597,6 +3480,11 @@ describe('photo food analysis API', () => {
         .send(jpeg)
         .expect(503);
       expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+      if (parts.length === 0) {
+        expect(response.body.error.message).toBe(
+          'Photo analysis could not be completed. Please try another photo.',
+        );
+      }
       vi.unstubAllGlobals();
     }
   });
@@ -2635,6 +3523,53 @@ describe('photo food analysis API', () => {
     expect(generationConfig.candidateCount).toBe(1);
     expect(generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
     expect(generationConfig).not.toHaveProperty('stopSequences');
+    const contents = body?.contents as Array<{
+      parts: Array<{ text?: string }>;
+    }>;
+    const prompt = contents[0]?.parts.find(
+      (part) => part.text !== undefined,
+    )?.text;
+    expect(prompt).toContain(
+      'clearly visible toppings and independently identifiable sides as separate components',
+    );
+    expect(prompt).toContain(
+      'Do not combine separable components merely to create a natural-language dish title',
+    );
+    expect(prompt).toContain(
+      'Do not require a region to preserve or select a semantic component',
+    );
+    expect(prompt).toContain(
+      'Avoid speculative decomposition of blended sauces, soups, smoothies, casseroles, and mixed fillings',
+    );
+    expect(prompt).toContain(
+      'Every component alternative and its composite alternative for the same dish must share one groupKey',
+    );
+    expect(prompt).toContain(
+      'First inventory every clearly visible food that can be logged independently',
+    );
+    expect(prompt).toContain(
+      'Never emit a singleton component alongside a composite that contains additional visible food',
+    );
+    expect(prompt).toContain('toast with a visible fried egg');
+    expect(prompt).toContain(
+      'Do not extract hidden ingredients from sauces or mixed dishes',
+    );
+    const responseSchema = generationConfig.responseSchema as {
+      properties: {
+        items: {
+          items: {
+            properties: Record<string, { description?: string }>;
+          };
+        };
+      };
+    };
+    expect(
+      responseSchema.properties.items.items.properties.representationMode
+        ?.description,
+    ).toContain('semantic');
+    expect(
+      responseSchema.properties.items.items.properties.coverage?.description,
+    ).toContain('visible food matter');
     expect(photoAnalysisConfig().maxOutputTokens).toBe(2048);
   });
 
@@ -2643,6 +3578,21 @@ describe('photo food analysis API', () => {
     expect(() => photoAnalysisConfig()).toThrow(
       /PHOTO_ANALYSIS_MAX_OUTPUT_TOKENS/,
     );
+  });
+
+  it('uses the supported configured Gemini model when photo model is unset', () => {
+    const previousModel = process.env.GEMINI_PHOTO_ANALYSIS_MODEL;
+    delete process.env.GEMINI_PHOTO_ANALYSIS_MODEL;
+
+    try {
+      expect(photoAnalysisConfig().geminiModel).toBe('gemini-3.1-flash-lite');
+    } finally {
+      if (previousModel === undefined) {
+        delete process.env.GEMINI_PHOTO_ANALYSIS_MODEL;
+      } else {
+        process.env.GEMINI_PHOTO_ANALYSIS_MODEL = previousModel;
+      }
+    }
   });
 
   it('keeps photo nutrition estimation disabled by default and explicitly configurable', () => {

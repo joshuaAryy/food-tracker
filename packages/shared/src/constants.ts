@@ -20,6 +20,39 @@ export const PHOTO_QUANTITY_UNITS = [
   'gram',
   'ounce',
 ] as const;
+export const PHOTO_QUANTITY_SOURCES = [
+  'vision_structured',
+  'provider_serving',
+  'deterministic_conversion',
+  'user_edited',
+  'unresolved_visible_portion',
+] as const;
+export const PHOTO_RESOLVED_SERVING_STATUSES = [
+  'resolved',
+  'needs_review',
+] as const;
+export const PHOTO_RESOLUTION_METHODS = [
+  'provider_serving',
+  'mass_conversion',
+  'direct_grams',
+  'deterministic_mass_conversion',
+  'provider_serving_conversion',
+  'ai_photo_mass_estimate',
+  'user_entered_grams',
+  'unresolved',
+  'volume_conversion',
+  'count_serving',
+  'serving_alias',
+] as const;
+export const PHOTO_RESOLUTION_REASONS = [
+  'no_quantity',
+  'low_confidence',
+  'no_safe_conversion',
+  'invalid_quantity',
+  'invalid_basis',
+  'no_mass_estimate',
+  'invalid_mass_estimate',
+] as const;
 export const PHOTO_REPRESENTATION_MODES = ['decomposed', 'composite'] as const;
 export const PHOTO_REPRESENTATION_KINDS = ['component', 'composite'] as const;
 export const PHOTO_REPRESENTATION_OVERLAP_STATUSES = [

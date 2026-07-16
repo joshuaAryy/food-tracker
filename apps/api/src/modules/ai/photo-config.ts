@@ -137,7 +137,8 @@ export function photoAnalysisConfig(): PhotoAnalysisConfig {
     provider: textConfig.provider,
     geminiApiKey: textConfig.geminiApiKey,
     geminiModel:
-      process.env.GEMINI_PHOTO_ANALYSIS_MODEL?.trim() || 'gemini-2.5-flash',
+      process.env.GEMINI_PHOTO_ANALYSIS_MODEL?.trim() ||
+      'gemini-3.1-flash-lite',
     maxItems: Math.min(
       positiveIntegerEnv('PHOTO_ANALYSIS_MAX_ITEMS', PHOTO_ANALYSIS_MAX_ITEMS),
       PHOTO_ANALYSIS_MAX_ITEMS,

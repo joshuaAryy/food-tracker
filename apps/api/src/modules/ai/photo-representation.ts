@@ -18,6 +18,7 @@ import type {
   ProviderPhotoRepresentation,
   ProviderPhotoSuggestion,
 } from './photo-provider.js';
+import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
 const genericCoverageLabels = new Set(['food', 'meal', 'item', 'serving']);
 const MIN_REGION_OVERLAP_RATIO = 0.25;
@@ -45,6 +46,23 @@ type NormalizedProviderRepresentation = Omit<
   visiblePortionDescription: string | null;
 };
 
+interface NormalizedRepresentationEntry {
+  suggestion: ProviderPhotoSuggestion;
+  itemIndex: number;
+  representation: NormalizedProviderRepresentation;
+  coverage: string[];
+  excludedCoverage: string[];
+}
+
+interface RepresentationSelection {
+  activeItems: NormalizedRepresentationEntry[];
+  inactiveItems: NormalizedRepresentationEntry[];
+  reason:
+    | 'provider_decomposed'
+    | 'provider_composite'
+    | 'complete_high_confidence_components';
+}
+
 function logRepresentationDiagnostic(
   category: string,
   details: Record<string, unknown>,
@@ -61,7 +79,10 @@ function recordRepresentationDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn('[photo-analysis:representation]', { category, ...details });
+  console.warn(
+    '[photo-analysis:representation]',
+    photoAnalysisDiagnosticDetails({ category, ...details }),
+  );
 }
 
 function normalizeCoverageLabel(label: string): string {
@@ -126,8 +147,21 @@ function representationQuantity(
         countLabel: suggestion.quantity.quantityCountLabel,
         rawText: suggestion.quantity.quantityRawText,
         confidence: suggestion.quantity.quantityConfidence,
+        source: 'vision_structured',
+        ...(suggestion.quantity.massEstimateGrams === undefined
+          ? {}
+          : { massEstimateGrams: suggestion.quantity.massEstimateGrams }),
+        ...(suggestion.quantity.massEstimateConfidence === undefined
+          ? {}
+          : {
+              massEstimateConfidence:
+                suggestion.quantity.massEstimateConfidence,
+            }),
       }
-    : { state: 'no_responsible_estimate' };
+    : {
+        state: 'no_responsible_estimate',
+        source: 'unresolved_visible_portion',
+      };
 }
 
 function hasExplicitRepresentation(
@@ -221,8 +255,26 @@ function normalizeProviderRepresentation(
     });
   }
 
+  const excludedCoverage =
+    representation.representationKind === 'component' &&
+    representation.excludedCoverage.length > 0
+      ? (() => {
+          recordRepresentationDiagnostic(
+            'provider_optional_metadata_discarded',
+            {
+              itemIndex,
+              field: 'excludedCoverage',
+              exclusionReferenceCount: representation.excludedCoverage.length,
+              reason: 'component_cannot_exclude_coverage',
+            },
+          );
+          return [];
+        })()
+      : representation.excludedCoverage;
+
   return {
     ...representation,
+    excludedCoverage,
     visiblePortionDescription: normalizeVisiblePortionDescription(
       representation.visiblePortionDescription,
       itemIndex,
@@ -270,6 +322,74 @@ function validateExclusions(input: {
       reason: 'excludes_all_coverage',
     });
   }
+}
+
+function sameCoverage(first: string[], second: string[]): boolean {
+  const firstSet = new Set(first);
+  const secondSet = new Set(second);
+  return (
+    firstSet.size === first.length &&
+    secondSet.size === second.length &&
+    firstSet.size === secondSet.size &&
+    [...firstSet].every((label) => secondSet.has(label))
+  );
+}
+
+function selectRepresentation(input: {
+  groupItems: NormalizedRepresentationEntry[];
+  invalidAlternativeIndexes: Set<number>;
+}): RepresentationSelection {
+  const providerActiveItems = input.groupItems.filter(
+    (item) => item.representation.active,
+  );
+  const availableInactiveItems = input.groupItems.filter(
+    (item) =>
+      !item.representation.active &&
+      !input.invalidAlternativeIndexes.has(item.itemIndex),
+  );
+  const providerMode =
+    providerActiveItems[0]?.representation.representationMode;
+  if (
+    providerMode !== 'composite' ||
+    providerActiveItems.length !== 1 ||
+    availableInactiveItems.length < 2 ||
+    availableInactiveItems.some(
+      (item) =>
+        item.representation.representationMode !== 'decomposed' ||
+        item.representation.representationKind !== 'component' ||
+        item.representation.representationConfidence !== 'high',
+    )
+  ) {
+    return {
+      activeItems: providerActiveItems,
+      inactiveItems: availableInactiveItems,
+      reason:
+        providerMode === 'decomposed'
+          ? 'provider_decomposed'
+          : 'provider_composite',
+    };
+  }
+
+  const composite = providerActiveItems[0]!;
+  const compositeCoverage = composite.coverage.filter(
+    (label) => !composite.excludedCoverage.includes(label),
+  );
+  const componentCoverage = availableInactiveItems.flatMap(
+    (item) => item.coverage,
+  );
+  if (!sameCoverage(compositeCoverage, componentCoverage)) {
+    return {
+      activeItems: providerActiveItems,
+      inactiveItems: availableInactiveItems,
+      reason: 'provider_composite',
+    };
+  }
+
+  return {
+    activeItems: availableInactiveItems,
+    inactiveItems: providerActiveItems,
+    reason: 'complete_high_confidence_components',
+  };
 }
 
 function regionOverlap(
@@ -393,35 +513,37 @@ function inactiveAlternativeItem(input: {
 export function adaptPhotoRepresentations(
   suggestions: ProviderPhotoSuggestion[],
 ): AdaptedPhotoRepresentations {
-  const normalized = suggestions.flatMap((suggestion, itemIndex) => {
-    try {
-      const representation = normalizeProviderRepresentation(
-        suggestion,
-        itemIndex,
-      );
-      return [
-        {
+  const normalized: NormalizedRepresentationEntry[] = suggestions.flatMap(
+    (suggestion, itemIndex) => {
+      try {
+        const representation = normalizeProviderRepresentation(
           suggestion,
           itemIndex,
-          representation,
-          coverage: representation.coverage,
-          excludedCoverage: representation.excludedCoverage,
-        },
-      ];
-    } catch (error) {
-      if (
-        suggestion.representation.active === false &&
-        error instanceof AppError
-      ) {
-        recordRepresentationDiagnostic(
-          'provider_optional_alternative_discarded',
-          { itemIndex, reason: 'invalid_alternative_metadata' },
         );
-        return [];
+        return [
+          {
+            suggestion,
+            itemIndex,
+            representation,
+            coverage: representation.coverage,
+            excludedCoverage: representation.excludedCoverage,
+          },
+        ];
+      } catch (error) {
+        if (
+          suggestion.representation.active === false &&
+          error instanceof AppError
+        ) {
+          recordRepresentationDiagnostic(
+            'provider_optional_alternative_discarded',
+            { itemIndex, reason: 'invalid_alternative_metadata' },
+          );
+          return [];
+        }
+        throw error;
       }
-      throw error;
-    }
-  });
+    },
+  );
 
   const groups = new Map<string, typeof normalized>();
   for (const item of normalized) {
@@ -446,20 +568,6 @@ export function adaptPhotoRepresentations(
     try {
       const invalidAlternativeIndexes = new Set<number>();
       for (const item of groupItems) {
-        if (!item.representation.active && item.suggestion.regionWasDiscarded) {
-          invalidAlternativeIndexes.add(item.itemIndex);
-          item.coverage = [];
-          item.excludedCoverage = [];
-          recordRepresentationDiagnostic(
-            'provider_optional_alternative_discarded',
-            {
-              groupIndex,
-              itemIndex: item.itemIndex,
-              reason: 'invalid_alternative_region',
-            },
-          );
-          continue;
-        }
         try {
           const coverage =
             item.representation.coverage.length > 0
@@ -498,9 +606,11 @@ export function adaptPhotoRepresentations(
         }
       }
 
-      const activeItems = groupItems.filter(
-        (item) => item.representation.active,
-      );
+      const selection = selectRepresentation({
+        groupItems,
+        invalidAlternativeIndexes,
+      });
+      const activeItems = selection.activeItems;
       if (activeItems.length === 0) {
         logRepresentationDiagnostic('invalid_representation_group', {
           groupIndex,
@@ -569,11 +679,7 @@ export function adaptPhotoRepresentations(
         });
       }
 
-      let inactiveItems = groupItems.filter(
-        (item) =>
-          !item.representation.active &&
-          !invalidAlternativeIndexes.has(item.itemIndex),
-      );
+      let inactiveItems = selection.inactiveItems;
       let inactiveMode: PhotoRepresentationMode | null | undefined;
       let alternativeValid = true;
       try {

@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import {
   type AiFoodParsedItem,
   aiFoodParseInputSchema,
@@ -22,6 +23,7 @@ import { assertAiFoodParseLimit } from './rate-limit.js';
 import { retrieveParsedFoodItems } from './retrieval.js';
 import { photoAnalysisConfig } from './photo-config.js';
 import { analyzePhotoFood } from './photo-analysis.js';
+import { runPhotoAnalysisWithId } from './photo-diagnostics.js';
 
 const photoRawBody = express.raw({
   type: PHOTO_ANALYSIS_JPEG_MIME_TYPE,
@@ -85,13 +87,16 @@ aiRouter.post('/photo-analysis', photoRawBody, async (request, response) => {
   response.once('close', abortOnDisconnect);
 
   try {
-    const result = await analyzePhotoFood({
-      image: body,
-      userId,
-      rateLimitKey,
-      signal: controller.signal,
-      config,
-    });
+    const analysisId = randomUUID();
+    const result = await runPhotoAnalysisWithId(analysisId, () =>
+      analyzePhotoFood({
+        image: body,
+        userId,
+        rateLimitKey,
+        signal: controller.signal,
+        config,
+      }),
+    );
     sendSuccess(response, result);
   } finally {
     request.off('aborted', abortOnDisconnect);

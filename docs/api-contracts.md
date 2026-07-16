@@ -1088,6 +1088,14 @@ Estimated confirmation is disabled by default with
 idempotency is not added in this slice, so stateless proof replay remains
 possible until expiry.
 
+Photo review keeps observed quantity, normalized grams, and selected serving
+separate. The client may submit a validated serving request, but never
+conversion factors or trusted nutrition. Canonical local and externally
+materialized FoodItems use the same serving-resolution path; provider-only
+references cannot enter this request. User-confirmed paired-iPhone validation
+covered mixed trusted/estimated review, atomic save, History persistence, and
+flexible serving selection. No photo bytes are persisted.
+
 ### `PUT /api/v1/food-logs/:id`
 
 Replaces the editable fields of a current-user food log. The request uses the same required and optional editable fields as `POST /api/v1/food-logs`. The client cannot edit `id`, `userId`, `createdAt`, or `updatedAt`.

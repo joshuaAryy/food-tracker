@@ -15,6 +15,8 @@ import {
   defaultWholeItemServingFromOptions,
   USDA_ENRICHMENT_POLICIES,
   usdaFdcConfig,
+  type UsdaDetailUnavailableReason,
+  type UsdaSearchFood,
 } from '../foodItems/usda-fdc.js';
 import {
   bestTrustedCandidate,
@@ -24,6 +26,7 @@ import {
   rankParseCandidates,
 } from '../foodItems/candidate-ranking.js';
 import type { ProviderParsedFoodItem } from './provider.js';
+import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
 function searchTextWhere(value: string): Prisma.FoodItemWhereInput {
   return {
@@ -82,7 +85,10 @@ function logUsdaRetrievalDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn('[ai-food-parse:usda]', { category, ...details });
+  console.warn(
+    '[ai-food-parse:usda]',
+    photoAnalysisDiagnosticDetails({ category, ...details }),
+  );
 }
 
 export async function retrieveParsedFoodItems(input: {
@@ -103,6 +109,9 @@ export async function retrieveParsedFoodItems(input: {
     ) => {
       if (seen.has(foodItem.id)) return;
       seen.add(foodItem.id);
+      if (foodItem.sourceProvider !== null && foodItem.sourceId !== null) {
+        seen.add(`${foodItem.sourceProvider}:${foodItem.sourceId}`);
+      }
       candidates.push({
         candidateType: 'food_item',
         foodItem: {
@@ -209,6 +218,10 @@ export async function retrieveParsedFoodItems(input: {
     if (bestTrustedCandidate(normalizedQuery, candidates) === undefined) {
       const usdaConfig = usdaFdcConfig();
       try {
+        const unavailableUsdaFoods: Array<{
+          food: UsdaSearchFood;
+          reason: UsdaDetailUnavailableReason;
+        }> = [];
         const usdaFoods = await enrichUsdaFoods({
           query: externalSearchQuery(normalizedQuery),
           config: usdaConfig,
@@ -218,6 +231,9 @@ export async function retrieveParsedFoodItems(input: {
             foods.some(
               (food) => food.calories !== null && food.protein !== null,
             ),
+          onDetailUnavailable: (detail) => {
+            unavailableUsdaFoods.push(detail);
+          },
         });
 
         for (const food of usdaFoods) {
@@ -269,9 +285,48 @@ export async function retrieveParsedFoodItems(input: {
             defaultServingMultiplier: 1,
           });
         }
+
+        for (const { food, reason } of unavailableUsdaFoods) {
+          const externalId = `usda_fdc:${food.fdcId}`;
+          if (seen.has(externalId)) continue;
+          seen.add(externalId);
+          candidates.push({
+            candidateType: 'external_food',
+            foodItem: null,
+            externalFood: {
+              sourceProvider: 'usda_fdc',
+              sourceId: String(food.fdcId),
+              name: food.description,
+              brandName: food.brandName ?? food.brandOwner,
+              foodType:
+                food.dataType === 'Branded' ||
+                food.brandName !== null ||
+                food.brandOwner !== null
+                  ? 'branded'
+                  : 'generic',
+              servingBasisText: `USDA nutrition details unavailable (${reason})`,
+              servingQuantity: null,
+              servingUnit: null,
+              servingWeightGrams: null,
+              servingOptions: null,
+              defaultWholeItemServing: null,
+              calories: null,
+              protein: null,
+              carbs: null,
+              fat: null,
+              fiber: null,
+              sugar: null,
+              sodium: null,
+              nutrients: {},
+            },
+            rank: candidates.length + 1,
+            matchReason: 'usda_fdc',
+            confidence: 'low',
+            defaultServingMultiplier: 1,
+          });
+        }
       } catch (error) {
         logUsdaRetrievalDiagnostic('non_fatal_lookup_failure', {
-          query: normalizedQuery,
           message:
             error instanceof Error ? diagnosticText(error.message) : 'unknown',
         });

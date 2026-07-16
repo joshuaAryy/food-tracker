@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import type { AiFoodParseCandidate, TrackingMode } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
 import { AppScreen } from '@/components/app-screen';
@@ -11,7 +11,13 @@ import { FoodItemChoiceRow } from '@/components/food-item-choice-row';
 import { LoadingState } from '@/components/loading-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
-import { addPhotoRow, replacePhotoRowCandidate } from '@/lib/photo-log-ui';
+import {
+  addPhotoRow,
+  materializePhotoCandidate,
+  replacePhotoRowCandidate,
+} from '@/lib/photo-log-ui';
+import { externalCandidatePersistenceInput } from '@/lib/recipe-ui';
+import { safePhotoLogBack } from '@/lib/photo-log-navigation';
 import { useAppStore } from '@/store/app-store';
 
 export default function PhotoLogSearchScreen() {
@@ -25,6 +31,9 @@ export default function PhotoLogSearchScreen() {
   const [candidates, setCandidates] = useState<AiFoodParseCandidate[]>([]);
   const [mode, setMode] = useState<TrackingMode>('simple');
   const [loading, setLoading] = useState(false);
+  const [resolvingCandidate, setResolvingCandidate] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,15 +71,50 @@ export default function PhotoLogSearchScreen() {
     };
   }, [query]);
 
-  const selectCandidate = (candidate: AiFoodParseCandidate) => {
-    if (session === null || (candidates.length === 0 && context === 'replace'))
+  const selectCandidate = async (candidate: AiFoodParseCandidate) => {
+    if (
+      session === null ||
+      (candidates.length === 0 && context === 'replace') ||
+      resolvingCandidate !== null
+    )
       return;
+    let resolvedCandidate = candidate;
+    if (candidate.candidateType === 'external_food') {
+      const input = externalCandidatePersistenceInput(candidate);
+      if (input === null) {
+        setError(
+          'This external candidate cannot be resolved for trusted logging.',
+        );
+        return;
+      }
+      const key = `${input.sourceProvider}:${input.sourceId}`;
+      setResolvingCandidate(key);
+      setError(null);
+      try {
+        resolvedCandidate = materializePhotoCandidate(
+          candidate,
+          await api.foodItems.persistExternalCandidate(input),
+        );
+      } catch (cause) {
+        setError(
+          errorMessage(
+            cause,
+            'This external candidate could not be resolved. Choose another match, use the estimate, or exclude the row.',
+          ),
+        );
+        setResolvingCandidate(null);
+        return;
+      }
+      setResolvingCandidate(null);
+    }
     if (context === 'replace' && rowId !== null) {
       const row = session.rows.find((item) => item.id === rowId);
       if (row === undefined) return;
       setRows(
         session.rows.map((item) =>
-          item.id === rowId ? replacePhotoRowCandidate(item, candidate) : item,
+          item.id === rowId
+            ? replacePhotoRowCandidate(item, resolvedCandidate)
+            : item,
         ),
       );
     } else {
@@ -78,9 +122,17 @@ export default function PhotoLogSearchScreen() {
         setError('A photo can contain up to eight review rows.');
         return;
       }
-      setRows([...session.rows, addPhotoRow(candidate, session.rows.length)]);
+      setRows([
+        ...session.rows,
+        addPhotoRow(resolvedCandidate, session.rows.length),
+      ]);
     }
-    router.back();
+    safePhotoLogBack({
+      canGoBack: router.canGoBack,
+      back: router.back,
+      replace: router.replace,
+      fallback: '/photo-log/review' as Href,
+    });
   };
 
   if (session === null) return null;
@@ -97,7 +149,17 @@ export default function PhotoLogSearchScreen() {
             : 'This food was added by you, not recognized by the photo provider.'
         }
         action={
-          <Pressable onPress={() => router.back()}>
+          <Pressable
+            disabled={resolvingCandidate !== null}
+            onPress={() =>
+              safePhotoLogBack({
+                canGoBack: router.canGoBack,
+                back: router.back,
+                replace: router.replace,
+                fallback: '/photo-log/review' as Href,
+              })
+            }
+          >
             <AppText variant="label">Cancel</AppText>
           </Pressable>
         }
@@ -111,6 +173,9 @@ export default function PhotoLogSearchScreen() {
         onChangeText={setQuery}
       />
       {loading ? <LoadingState message="Searching trusted foods…" /> : null}
+      {resolvingCandidate !== null ? (
+        <LoadingState message="Resolving the selected provider food…" />
+      ) : null}
       {error === null ? null : (
         <ErrorState title="Food search unavailable" message={error} />
       )}
@@ -139,17 +204,17 @@ export default function PhotoLogSearchScreen() {
               <FoodItemChoiceRow
                 foodItem={candidate.foodItem}
                 mode={mode}
-                onPress={() => selectCandidate(candidate)}
+                onPress={() => void selectCandidate(candidate)}
               />
             ) : (
               <Pressable
                 accessibilityRole="button"
                 className="gap-1 px-4 py-3.5 active:bg-module-muted"
-                onPress={() => selectCandidate(candidate)}
+                onPress={() => void selectCandidate(candidate)}
               >
                 <AppText variant="label">{candidate.externalFood.name}</AppText>
                 <AppText variant="caption" muted>
-                  USDA · {candidate.externalFood.servingBasisText}
+                  Database match · {candidate.externalFood.servingBasisText}
                 </AppText>
                 <AppText variant="caption">
                   {candidate.externalFood.calories === null

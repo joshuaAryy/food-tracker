@@ -734,19 +734,49 @@ provider regions are dropped before the mobile response because the review UI
 does not require region metadata.
 
 Phase 14.2B2 may attach optional `estimatedNutrition` metadata to an unresolved
-photo row. It is explicitly low-trust, editable metadata for calories and core
-macros only, labelled from a backend-derived structured quantity or
-`Estimated for portion shown` basis. The current mobile review continues to
-require a trusted candidate for confirmation and save; it does not render a
-new mixed trusted/estimated editor or submit estimates to the existing trusted
-confirmation endpoint. Candidate replacement and exclusion behavior remain
-unchanged, and unknown micronutrients stay unknown.
+photo row. C2 connects that metadata to the secure C1 confirmation route. Each
+active row has one in-memory disposition: trusted, estimated, excluded, or
+unresolved. Strong deterministic or high-confidence adjudicated compatible
+FoodItem matches default to trusted. A usable signed estimate defaults to
+estimated; missing or unusable proof remains unresolved. Every active row must
+be reviewed, excluded, or corrected before save, and unresolved rows block the
+save action. Inactive representation alternatives never render as rows.
 
-Final confirmation calls `/food-logs/from-candidates` with only trusted
-candidate references, reviewed servings, meal metadata, and permitted notes.
-Rapid repeated taps are single-flight. A successful save clears the transient
-session, cleans app-owned files, marks the existing shared refresh signal, and
-dismisses the photo modal stack. Physical-device testing is still pending and
-must verify camera/library permissions, HEIC and orientation cases,
-cancellation, upload timeout/offline recovery, review-row editing, and final
-save on a rebuilt development client.
+Physical C2 review requires `PHOTO_NUTRITION_ESTIMATION_ENABLED=true`,
+`PHOTO_ESTIMATE_CONFIRMATION_ENABLED=true`, and a local
+`PHOTO_ESTIMATE_PROOF_SECRET` containing at least 32 bytes. Candidate
+adjudication may be enabled in the same bounded assistance call. Without the
+estimation and proof settings, an unresolved trusted lookup cannot produce a
+C2-usable estimated row.
+
+Estimated rows are labelled `AI estimate` with their backend-provided
+structured-quantity basis or `Estimated for portion shown`. They expose only
+food name, calories, protein, carbohydrates, and fat editing. They do not show
+fake servings, micronutrients, density, provider reasoning, or proof tokens.
+Corrections use explicit C1 fields; unchanged estimates omit adjustment data.
+Proofs remain opaque and in memory only. They are cleared on success, discard,
+reset, replacement analysis, and session loss.
+
+The client sends one shared-schema-validated request to
+`/food-logs/from-photo-analysis` containing trusted, estimated, and excluded
+entries in original order. Excluded entries are included in the request but
+create no logs. There are no per-row save calls, automatic retries, or
+durable mixed-save idempotency guarantees. External provider-only candidates
+are incompatible with this endpoint until the backend materializes the
+selected available record into a canonical FoodItem. Automatic
+high-confidence resolution and the explicit `Use this match` action share
+that provider-neutral service; mobile shows a loading state and replaces the
+row with the returned canonical item. Unavailable or ambiguous candidates
+preserve the estimate or explicit unresolved actions. On an ambiguous network outcome the
+review remains in memory and the user is told to check History before trying
+again. Success uses the returned counts, clears proofs and app-owned
+temporary files without touching library originals, marks the existing shared
+History/Dashboard/Insights refresh signal, and returns to the existing
+post-save destination.
+
+Natural-serving changes remain pending. Final Phase 14 physical-device
+closeout remains pending and must verify camera and photo-library capture,
+trusted-only, estimated-only, mixed plus excluded save, candidate replacement,
+restoration, unresolved blocking, controlled proof errors, repeated taps,
+network failure warning, refreshes, and temporary-file cleanup on a rebuilt
+Expo development client.

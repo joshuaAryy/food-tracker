@@ -34,10 +34,11 @@ import {
   serializeFoodItem,
   serializeFoodLog,
 } from '../../lib/serializers.js';
+import { usdaFdcConfig } from '../foodItems/usda-fdc.js';
 import {
-  findOrCreateUsdaFoodItem,
-  usdaFdcConfig,
-} from '../foodItems/usda-fdc.js';
+  findOrCreateExternalFoodItem,
+  withExternalFoodMaterializationLocks,
+} from '../foodItems/external-food.js';
 import {
   AuthoritativeServingInvariantError,
   calculateAuthoritativeServing,
@@ -1377,47 +1378,61 @@ foodLogsRouter.post(
     const input = validatedBody<FoodLogsFromCandidatesInput>(response);
     const usdaConfig = usdaFdcConfig();
 
-    const foodLogs = await prisma.$transaction(async (tx) => {
-      const foodLogData = [];
+    const foodLogs = await withExternalFoodMaterializationLocks({
+      references: input.items
+        .filter((item) => item.candidateType === 'external_food')
+        .map((item) => ({
+          sourceProvider: item.sourceProvider,
+          sourceId: item.sourceId,
+        })),
+      operation: () =>
+        prisma.$transaction(async (tx) => {
+          const foodLogData = [];
 
-      for (const [itemIndex, item] of input.items.entries()) {
-        const foodItem =
-          item.candidateType === 'food_item'
-            ? await visibleFoodItemInTransaction(tx, item.foodItemId, userId)
-            : await findOrCreateUsdaFoodItem({
-                sourceId: item.sourceId,
-                config: usdaConfig,
-                transaction: tx,
-              });
+          for (const [itemIndex, item] of input.items.entries()) {
+            const foodItem =
+              item.candidateType === 'food_item'
+                ? await visibleFoodItemInTransaction(
+                    tx,
+                    item.foodItemId,
+                    userId,
+                  )
+                : await findOrCreateExternalFoodItem({
+                    sourceProvider: item.sourceProvider,
+                    sourceId: item.sourceId,
+                    config: usdaConfig,
+                    transaction: tx,
+                  });
 
-        if (foodItem === null) {
-          throw notFoundError('Food item');
-        }
+            if (foodItem === null) {
+              throw notFoundError('Food item');
+            }
 
-        try {
-          foodLogData.push(
-            authoritativeFoodLogData(foodItem, {
-              ...item,
-              mealType: input.mealType,
-              loggedAt: input.loggedAt,
-              notes: input.notes,
-            }),
-          );
-        } catch (error) {
-          throw withServingItemIndex(error, itemIndex);
-        }
-      }
+            try {
+              foodLogData.push(
+                authoritativeFoodLogData(foodItem, {
+                  ...item,
+                  mealType: input.mealType,
+                  loggedAt: input.loggedAt,
+                  notes: input.notes,
+                }),
+              );
+            } catch (error) {
+              throw withServingItemIndex(error, itemIndex);
+            }
+          }
 
-      const createdFoodLogs = [];
-      for (const data of foodLogData) {
-        createdFoodLogs.push(
-          await tx.foodLog.create({
-            data: { userId, ...data },
-            include: foodLogInclude,
-          }),
-        );
-      }
-      return createdFoodLogs;
+          const createdFoodLogs = [];
+          for (const data of foodLogData) {
+            createdFoodLogs.push(
+              await tx.foodLog.create({
+                data: { userId, ...data },
+                include: foodLogInclude,
+              }),
+            );
+          }
+          return createdFoodLogs;
+        }),
     });
 
     sendSuccess(response, { foodLogs: foodLogs.map(serializeFoodLog) });

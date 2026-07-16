@@ -906,19 +906,23 @@ Slice 1 accepts only normalized raw JPEG bytes (exactly `image/jpeg`, maximum
 temporary backend file, cloud object, or persisted analysis session. The
 backend uses a separate disabled/mock/Gemini photo provider. Gemini may return
 zero to eight food identities, preparation wording, provisional raw portions,
-confidence values, and optional normalized regions; it may not return
+confidence values, optional photo-derived mass estimates, and optional normalized regions; it may not return
 nutrition, density, candidate IDs, prompts, or saving instructions.
 
 Each recognized food is an independent future review row. Existing trusted
 retrieval and deterministic candidate ranking provide candidates, while the
 existing serving engine validates a provisional amount/unit. Vision identity
 confidence, vision portion confidence, and candidate confidence are separate.
-Low-confidence or ambiguous matches, unsupported portions, and duplicate
-recognition remain needs-review. Analysis creates no FoodItems or FoodLogs and
-does not persist USDA candidates. Slice 2 must use the existing authoritative
-`/food-logs/from-candidates` transaction after explicit user review; the
-AI-estimated nutrition fallback remains limited to its existing user-triggered
-text-row rules and is not available to photo rows.
+Observed quantity, normalized grams, and selected serving remain separate;
+compatible provider servings and mass units are selectable only when the
+backend can resolve them. Low-confidence or ambiguous matches, unsupported
+portions, and duplicate recognition remain amount-review states without
+changing trusted identity. Analysis creates no FoodItems or FoodLogs and does
+not persist USDA candidates. User-confirmed paired-iPhone validation covered
+decomposition, external materialization, estimate fallback, mixed review/save,
+History persistence, canonical local reuse, flexible serving controls, safe
+navigation, and the absence of persisted photos. Codex did not operate the
+device.
 
 ## Reporting Direction
 
