@@ -172,9 +172,10 @@ saving. AI can parse messy descriptions, split meals into likely items, rank
 candidate matches, and explain choices, but it must not be the source of truth
 for nutrition values or bypass backend validation.
 
-Photo food logging should come after food database and RAG foundations. It
-should support recognition, portion estimation, trusted data matching,
-confidence/review state, and user edits before saving.
+Photo food logging is implemented after the food database and retrieval
+foundations. It supports recognition, portion estimation, trusted data
+matching, confidence/review state, user edits, flexible serving selection, and
+server-authoritative mixed saving without persisting photos.
 
 ### Reporting
 

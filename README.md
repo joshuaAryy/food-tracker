@@ -26,6 +26,11 @@ The implemented baseline includes:
 - USDA FoodData Central generic food lookup for AI review and normal search
 - User-triggered low-trust AI nutrition estimates for unresolved text-logging
   rows
+- Photo food logging with in-memory capture/library analysis, independent
+  review rows, canonical trusted matching, quantity-aware servings, and mixed
+  trusted/estimated confirmation
+- Backend-authoritative photo-derived quantity normalization with flexible
+  compatible serving selection and History persistence
 - Daily calorie and protein dashboard
 - Timezone-aware food and weight history
 - Deterministic recommendation generation and dismissal
@@ -46,8 +51,9 @@ the nutrition source of truth.
 The implemented baseline includes the full manual logging lifecycle, food
 database reuse, barcode lookup, AI-assisted text parsing with USDA generic
 nutrition fallback, USDA-backed normal food search, AI-estimated nutrition for
-unresolved text-logging rows, mode-aware analytics, and real onboarding with
-deterministic calorie and protein target calculation.
+unresolved text-logging rows, completed Phase 14 photo food logging, mode-aware
+analytics, and real onboarding with deterministic calorie and protein target
+calculation. Phase 15 — Streaks and Better Reporting — is next.
 
 ## Current Limitations
 
@@ -56,8 +62,8 @@ deterministic calorie and protein target calculation.
 - Mobile automated tests are not yet configured.
 - Local PostgreSQL is required for API persistence and backend tests.
 - Physical devices require an explicit LAN API URL.
-- Photo recognition, saved meals, real auth, deployment/TestFlight, and
-  supplements are future work.
+- Saved meals, real authentication, deployment/TestFlight, water, and
+  supplements remain future work.
 
 ## Technology
 

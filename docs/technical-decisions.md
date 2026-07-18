@@ -450,7 +450,7 @@ vector search, recipes, and additional providers are future targeted work.
 
 ## TD-015: Photo Logging Sequencing
 
-Status: Implemented for backend Slice 1; mobile Slice 2 pending
+Status: Implemented and merged through PR #1 in Phase 14
 
 Photo food logging should come after food database and RAG foundations. It
 should eventually support image capture/upload, food recognition, portion
@@ -511,8 +511,9 @@ Slice 1 locks the following implementation details:
 - Existing deterministic retrieval/ranking and serving resolution remain the
   only trusted candidate and portion authorities. Vision portions are
   provisional and never infer density or universal household weights.
-- Analysis is no-write. Final saving remains the existing transactional
-  `/food-logs/from-candidates` contract.
+- Analysis creates no FoodLogs, image records, or review sessions. Validated
+  external candidates may be materialized into canonical FoodItems before
+  review; final mixed saving remains transactional and server-authoritative.
 - Phase 14 Slice 14.2B1 adds optional bounded candidate adjudication after
   deterministic retrieval. Only active ambiguous rows enter one text-only
   batch, capped at three eligible candidates per row and eight rows per
@@ -529,7 +530,7 @@ Slice 1 locks the following implementation details:
 
 Status: Implemented in the read-only analysis response
 
-Photo nutrition fallback extends the existing Phase 14 bounded text-only
+Photo nutrition fallback extended the existing Phase 14 bounded text-only
 adjudication batch; it never adds a second provider call or resends the image.
 Only unresolved active rows may receive an estimate after deterministic
 retrieval and candidate decisions. Strong deterministic and high-confidence
@@ -542,8 +543,9 @@ backend validates finite bounded values and conservative macro-energy
 consistency, rounds them, derives a structured-quantity or portion-shown
 basis, and adds low-trust provenance metadata. Micronutrients, serving
 weights, density, conversions, rewritten identities, and database references
-are rejected. Estimates remain read-only photo metadata; FoodItem/FoodLog
-persistence and mixed trusted/estimated confirmation remain future work.
+are rejected. Estimates remain unlinked and low-trust; reviewed estimates use
+the secure mixed-confirmation route described in TD-020 and TD-021 and never
+become canonical FoodItems.
 The shared assistance sub-budget is 2.5 seconds by default, capped below the
 overall photo-analysis timeout; the increase from 1.5 seconds was justified by
 measured three-row mixed-batch latency and remains within the mobile budget.
@@ -645,9 +647,10 @@ The Food Log's current one-page logging-method list remains intentionally
 temporary. A future interactive multi-screen or curved-control selector is
 deferred and is not part of Phase 12.9.
 
-## TD-015: Skeleton Loading
+## TD-022: Skeleton Loading
 
-Status: Planned
+Status: Planned; identifier corrected on 2026-07-18 because the historical
+document contained a duplicate TD-015 identifier
 
 Phase 7 should add skeleton loading where appropriate. Skeletons should match
 the page layout, preserve layout shape, reduce perceived loading time, avoid

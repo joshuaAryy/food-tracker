@@ -882,47 +882,152 @@ serving preferences, and keeping trusted global foods separate from
 user-created custom foods. Backend and mobile implementation, automated
 validation, and physical-device validation are complete.
 
-## Photo Food Logging
+## Photo Food Logging — Phase 14 Complete
 
-Phase 14 Slice 1 implements the backend photo-analysis and trusted-matching
-foundation after the food database and RAG foundations. Mobile capture,
-normalization, review, and saving remain Slice 2. Photo logging should not be
-placed before trusted food search, barcode lookup, cached food data, and
-candidate review exist.
+Phase 14 is complete and was merged to `main` through PR #1 at merge commit
+`e47287c`. Automated validation passed with 44 test files and 899 passing
+tests. The paired-iPhone validation was performed and confirmed by the user;
+Codex did not operate the device. No photos are persisted.
 
-Photo logging should eventually support:
+The final flow accepts a temporary normalized JPEG, performs one bounded vision
+analysis, decomposes independently visible foods, retrieves trusted candidates,
+materializes validated external records into canonical FoodItems, preserves
+AI-estimate fallback for unavailable or ambiguous identity, resolves structured
+quantities through backend serving data, and supports trusted/estimated mixed
+review and atomic server-authoritative saving. Observed quantity, normalized
+grams or millilitres, and selected serving remain separate concepts. Canonical
+trusted rows do not require a second trust-confirmation action.
 
-- image capture/upload
-- food recognition
-- portion estimation
-- RAG matching against trusted food data
-- confidence/review state
-- user edits before saving
-- Simple confirmation UI
-- Complex nutrient detail review
+### Phase 14 retrospective
 
-Slice 1 accepts only normalized raw JPEG bytes (exactly `image/jpeg`, maximum
-5 MiB) and keeps them in request memory. There is no permanent image storage,
-temporary backend file, cloud object, or persisted analysis session. The
-backend uses a separate disabled/mock/Gemini photo provider. Gemini may return
-zero to eight food identities, preparation wording, provisional raw portions,
-confidence values, optional photo-derived mass estimates, and optional normalized regions; it may not return
-nutrition, density, candidate IDs, prompts, or saving instructions.
+#### What went well
 
-Each recognized food is an independent future review row. Existing trusted
-retrieval and deterministic candidate ranking provide candidates, while the
-existing serving engine validates a provisional amount/unit. Vision identity
-confidence, vision portion confidence, and candidate confidence are separate.
-Observed quantity, normalized grams, and selected serving remain separate;
-compatible provider servings and mass units are selectable only when the
-backend can resolve them. Low-confidence or ambiguous matches, unsupported
-portions, and duplicate recognition remain amount-review states without
-changing trusted identity. Analysis creates no FoodItems or FoodLogs and does
-not persist USDA candidates. User-confirmed paired-iPhone validation covered
-decomposition, external materialization, estimate fallback, mixed review/save,
-History persistence, canonical local reuse, flexible serving controls, safe
-navigation, and the absence of persisted photos. Codex did not operate the
-device.
+- The provider abstraction kept vision, mock, and disabled modes behind a
+  backend boundary.
+- Nutrition remained server-authoritative for trusted rows.
+- Mixed trusted/estimated confirmation stayed atomic.
+- Trusted and estimated food paths remained separate, with estimates unlinked
+  and proof-bound.
+- No photo persistence was introduced.
+- AI usage remained bounded to one image call and one optional text-only batch.
+- Canonical local reuse and provider-neutral external materialization prevented
+  duplicate trusted food paths.
+- Regression coverage expanded across parsing, materialization, quantities,
+  serving controls, save authority, and navigation.
+- Physical-device validation caught issues automation did not expose.
+- Safe Back/Close navigation was corrected and validated.
+- The final quantity model separates observed quantity, normalized quantity,
+  and selected serving.
+
+#### What did not go well and permanent corrections
+
+##### Quantity and unit integrity
+
+- Failure pattern: A failed quantity conversion was allowed to fall through to
+  a canonical 100 g basis, and later a household number was placed in a mass
+  editor.
+- Phase 14 example: Parmesan detected as approximately two tablespoons was
+  first presented as 100 g, then briefly as 2 g; making grams the only editor
+  also overcorrected the UX.
+- Why it happened: canonical nutrition basis, observed photo quantity, and
+  selected user-facing serving were coupled across provider, backend, and
+  mobile state.
+- User/system effect: nutrition could be calculated from a false amount and the
+  user could not understand or edit the detected serving safely.
+- Implemented correction: preserved the original unit, normalized grams only
+  through a validated path, and restored compatible household/provider serving
+  choices.
+- Permanent rule: numeric values must never lose their unit meaning; observed,
+  normalized, and selected quantities are separate contracts; 100 g is never a
+  silent fallback.
+- Future validation: test direct mass, deterministic serving, AI mass,
+  unresolved household, unit switching, and physical display semantics.
+
+##### Food identity versus serving resolution
+
+- Failure pattern: Serving compatibility was incorrectly used as a prerequisite
+  for trusted food identity materialization.
+- Phase 14 example: strong external candidates were suppressed with
+  `portion_not_supported` and became AI estimates instead of trusted foods.
+- Why it happened: identity eligibility and serving resolution were evaluated as
+  one decision.
+- User/system effect: provider-backed nutrition authority and canonical reuse
+  were lost when only the amount needed review.
+- Implemented correction: materialize trusted identity first, then resolve the
+  serving; retain trusted rows with amount review when conversion is unavailable.
+- Permanent rule: a serving mismatch must not discard a trusted food identity;
+  only backend-convertible household or provider servings are selectable.
+- Future validation: test unsupported cup, tablespoon, count, missing quantity,
+  local canonical, and external canonical rows independently.
+
+##### Trusted versus estimated disposition
+
+- Failure pattern: A trusted row could retain an internal fallback estimate or
+  expose a redundant disabled trust-confirmation gate.
+- Phase 14 example: final counts exceeded active rows and canonical external
+  rows were shown as AI estimates or asked to confirm an already trusted food.
+- Why it happened: orchestration fallback state was not separated from final
+  disposition, and identity confirmation was conflated with serving review.
+- User/system effect: users saw contradictory statuses and dead-end actions.
+- Implemented correction: enforce one effective disposition per row, discard
+  fallback estimates after trust succeeds, and make canonical rows immediately
+  trusted.
+- Permanent rule: trusted resolved, trusted amount-review, estimated, and
+  unresolved are mutually exclusive; proofs exist only for final estimates;
+  trusted nutrition remains server-authoritative.
+- Future validation: assert disposition totals equal active rows and inspect the
+  final mobile response, not only internal orchestration state.
+
+##### End-to-end requirement tracing
+
+- Failure pattern: A local fix was treated as complete without tracing the full
+  provider-to-persistence workflow.
+- Phase 14 example: quantity parsing passed while materialization, mobile
+  initialization, mixed payloads, History, and reuse still lost or relabelled
+  serving meaning.
+- Why it happened: tests and reviews were initially organized around individual
+  parsers, endpoints, or components.
+- User/system effect: each correction exposed an overcorrection in another layer.
+- Implemented correction: traced provider output through representation, API
+  contracts, mobile state, confirmation, persistence, History, and reuse.
+- Permanent rule: no cross-layer requirement is complete until its full user
+  workflow and authority boundary are validated.
+- Future validation: maintain an end-to-end matrix for every stateful feature,
+  including save, reload, reuse, failure, and navigation.
+
+##### UX and physical-device validation
+
+- Failure pattern: Automated tests validated state transitions without exposing
+  confusing physical presentation or route-history assumptions.
+- Phase 14 example: quantity labels, disabled trust confirmation, and Back/Close
+  behavior required physical-device correction.
+- Why it happened: web and unit-level validation could not represent the full
+  small-device interaction context.
+- User/system effect: technically valid rows could still be confusing or
+  impossible to complete on-device.
+- Implemented correction: performed user-operated paired-iPhone review and
+  added deterministic route-specific navigation fallbacks.
+- Permanent rule: complex mobile workflows require physical-device validation
+  before phase closeout, with no redundant disabled action states.
+- Future validation: test loading, empty, error, repeated-submit, navigation,
+  review, persistence, and reuse behavior on the target device.
+
+##### Privacy and diagnostics
+
+- Failure pattern: temporary success-path diagnostics exposed too much detail
+  during physical debugging.
+- Phase 14 example: provider output structure, token/output metadata, candidate
+  scoring, quantity arrays, and lifecycle success summaries were too verbose.
+- Why it happened: diagnostics were optimized for debugging success paths rather
+  than operational failure diagnosis.
+- User/system effect: logs risked exposing food content, quantities, proofs, or
+  provider details that were not required for operations.
+- Implemented correction: removed verbose success diagnostics and retained only
+  sanitized failure categories and useful correlation.
+- Permanent rule: logs must not contain images, food content, quantities,
+  nutrition, proof values, secrets, provider IDs, or request/response bodies.
+- Future validation: include sensitive-log regression checks and review logs for
+  failure usefulness without personal content.
 
 ## Reporting Direction
 
