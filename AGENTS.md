@@ -45,9 +45,11 @@ The following rules are mandatory:
   and recommendations convert facts into recommendation objects.
 - Do not introduce microservices, event buses, custom authentication, stored
   daily-summary sources of truth, or unnecessary abstractions.
-- Supabase Auth is the intended authentication provider. Until it is
-  implemented, development uses the fixed mock-user boundary and clients MUST
-  NOT send `userId`.
+- The authentication provider remains undecided until Phase 19 planning. Until
+  real authentication is implemented, development uses the fixed mock-user
+  boundary and clients MUST NOT send `userId`.
+- Authentication establishes who the user is; authorization determines which
+  resources that user may access. Preserve both boundaries independently.
 - Prisma schema or migration changes require explicit approval before editing.
 - Existing regression coverage MUST NOT be removed, weakened, or bypassed to
   obtain a green validation result.
@@ -282,7 +284,35 @@ Codex MUST:
   without the required verification and authorization.
 - Finish with what changed, why, risks, and the next practical step.
 
-## 10. Completion Report
+## 10. Phase Closeout Standard
+
+Every phase closeout must record the following in the appropriate existing
+documents:
+
+- completion status and intended scope versus delivered scope;
+- important architecture decisions and decisions now locked;
+- UX review findings and regression-sensitive behaviour;
+- automated validation with runtime, commands, and test counts;
+- simulator or physical-device validation where relevant, including who
+  performed it;
+- documentation alignment, known limitations, and remaining risks;
+- mistakes, root causes, implemented corrections, and prevention rules;
+- intentionally deferred or excluded work;
+- the next-phase recommendation.
+
+The roadmap must contain a concise phase-level completion summary. Detailed
+lessons belong in the existing architecture, technical-decision, AI/data,
+mobile-testing, or workflow documents that own them. Future roadmap entries
+must remain phase-level; implementation slices are planned only when that
+phase begins.
+
+Before declaring a phase closed, search for stale phase, branch, checkpoint,
+provider, and pending-work wording. Confirm that no unintended product code,
+schema, migration, dependency, lockfile, generated-native, or unrelated
+changes are included. Documentation-only closeouts still run the complete
+validation sequence in Section 7.
+
+## 11. Completion Report
 
 Every implementation handoff must include:
 

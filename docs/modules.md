@@ -5,7 +5,7 @@ Handles:
 - profile
 - user data
 - user timezone preference
-- references to Supabase Auth user IDs
+- authenticated identity and current-user ownership boundaries
 
 The current development implementation uses mock user context. Clients do not
 send `userId`. This module does not handle custom password authentication.

@@ -34,7 +34,7 @@ Reason: `pnpm` workspaces are sufficient for the current phase. Additional monor
 
 ## TD-002: Authentication
 
-Status: Locked
+Status: Superseded on 2026-07-18 by TD-023; retained as historical context
 
 - Supabase Auth is the intended authentication provider.
 - The current development implementation uses a fixed mock user through mock auth context.
@@ -43,6 +43,10 @@ Status: Locked
 - User identity should eventually come from Supabase Auth.
 - User-owned records reference the local `User.id`; long-term, that ID aligns with the Supabase Auth user ID.
 - Do not build custom password authentication or a custom auth system.
+
+The provider-specific selection above is historical. The current provider-
+neutral direction is defined by TD-023; the stable local-user ownership
+boundary and no-client-`userId` rule remain active.
 
 ## TD-003: Phase 2 Food Logging
 
@@ -181,6 +185,10 @@ Status: Locked
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 - Do not include `DailySummary`, raw/parsed food logs, or other future models
   without explicit approval.
+
+The provider-specific long-term identity-alignment clause above is historical
+and superseded by TD-023. The local UUID ownership boundary and all other
+schema decisions remain current.
 
 ## TD-010: Hybrid Food Database Direction
 
@@ -656,6 +664,26 @@ Phase 7 should add skeleton loading where appropriate. Skeletons should match
 the page layout, preserve layout shape, reduce perceived loading time, avoid
 jarring layout jumps, follow the Phase 6 white/charcoal visual standard, use
 subtle neutral placeholder shapes, and avoid heavy animation.
+
+## TD-023: Authentication Provider Selection Deferred
+
+Status: Current and locked, dated 2026-07-18
+
+This decision supersedes the provider-specific portions of TD-002 and TD-009;
+those decisions remain in this document as historical context.
+
+- The authentication provider will be researched and selected during Phase 19
+  planning. The current documentation does not select Supabase or any other
+  provider.
+- The local `User` model and current-user ownership boundary remain stable.
+- Future external identity mapping is a Phase 19 design decision and is not
+  assumed to equal the local `User.id`.
+- Clients never send `userId`; the backend derives identity from its auth
+  boundary.
+- Authentication determines who the user is. Authorization determines which
+  resources that user may access. Both checks remain required.
+- Do not add custom password authentication or a provider integration through
+  this documentation decision.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate
