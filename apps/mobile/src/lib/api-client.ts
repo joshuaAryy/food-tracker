@@ -46,6 +46,8 @@ import type {
   PhotoAnalysisResult,
   PhotoAnalysisConfirmationInput,
   PhotoAnalysisConfirmationResponse,
+  ProgressResponse,
+  ReportsResponse,
 } from '@food-tracker/shared';
 import {
   API_BASE_PATH,
@@ -273,6 +275,14 @@ export interface DailyNutrientTotalsQuery {
   date?: string;
 }
 
+export interface ReportingQuery {
+  date?: string;
+}
+
+export interface ReportsQuery extends ReportingQuery {
+  period: 'week' | 'month';
+}
+
 interface FoodLogsQuery {
   date?: string;
   limit?: number;
@@ -349,6 +359,19 @@ function dashboardQueryString(query: DailyNutrientTotalsQuery): string {
   return value === '' ? '' : `?${value}`;
 }
 
+function reportingQueryString(query: ReportingQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) params.set('date', query.date);
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
+function reportsQueryString(query: ReportsQuery): string {
+  const params = new URLSearchParams({ period: query.period });
+  if (query.date !== undefined) params.set('date', query.date);
+  return `?${params.toString()}`;
+}
+
 function weightLogsQueryString(query: WeightLogsQuery): string {
   const params = new URLSearchParams();
   if (query.date !== undefined) {
@@ -371,6 +394,14 @@ export const api = {
     dailyNutrients: (query: DailyNutrientTotalsQuery = {}) =>
       request<DailyNutrientTotals>(
         `/analytics/nutrients/daily${dashboardQueryString(query)}`,
+      ),
+    progress: (query: ReportingQuery = {}) =>
+      request<ProgressResponse>(
+        `/analytics/progress${reportingQueryString(query)}`,
+      ),
+    reports: (query: ReportsQuery) =>
+      request<ReportsResponse>(
+        `/analytics/reports${reportsQueryString(query)}`,
       ),
   },
   dashboard: {
