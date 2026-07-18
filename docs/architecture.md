@@ -45,8 +45,9 @@ scripts, not inside Docker. Prisma handles database access and migrations.
 
 The backend owns validation, business logic, analytics, and recommendation
 decisions. The frontend owns UI and local state. Current authentication still
-uses the fixed mock/dev-user boundary. Real authentication is planned for
-later, likely through Supabase Auth.
+uses the fixed mock/dev-user boundary. The authentication provider remains
+undecided until Phase 19 planning; authentication and authorization remain
+separate boundaries.
 
 ## Implemented Manual Food Logging
 
@@ -67,8 +68,9 @@ Frontend
 
 The implemented logging flow supports manual entry, reusable foods, saved and
 recent foods, barcode scanning with backend-owned Open Food Facts lookup, and
-AI-assisted text parsing. Phase 14 Slice 1 adds a backend-only photo analysis
-and trusted-matching path; mobile capture and review remain Slice 2.
+AI-assisted text parsing. Phase 14 adds photo capture, trusted matching,
+quantity-aware review, and server-authoritative mixed confirmation through the
+existing FoodLog flows.
 `FoodLog` now has an optional `foodItemId` relation for future log-from-food
 flows, but the current food-log API remains snapshot-based and does not require
 or expose that relation.
@@ -133,7 +135,7 @@ Photo logging belongs after the food database and retrieval foundations. See
 [food-data-and-ai-strategy.md](food-data-and-ai-strategy.md) for the detailed
 direction.
 
-### Phase 14 Slice 1 Photo Analysis
+### Phase 14 Photo Food Logging
 
 Photo analysis accepts only a route-local raw `image/jpeg` body up to exactly
 5 MiB. The image is validated in memory, passed through a separate
@@ -148,10 +150,13 @@ One photo may produce up to eight independent recognition rows. Each row is
 matched through the existing deterministic retrieval and candidate-ranking
 system, then its provisional serving is checked with the existing serving
 resolution system. Vision identity confidence, vision portion confidence, and
-trusted candidate confidence remain separate. Low-confidence, ambiguous, or
-unsupported results stay review-required. The endpoint performs no writes;
-Slice 2 will submit user-confirmed candidate references to the existing
-transactional `/food-logs/from-candidates` path.
+trusted candidate confidence remain separate. Observed quantity, normalized
+grams or millilitres, and selected serving remain separate. Low-confidence,
+ambiguous, or unsupported results retain the appropriate review or estimate
+state. Validated external records may become canonical FoodItems; analysis
+does not create FoodLogs, image records, or review sessions. Mixed confirmation
+re-fetches canonical FoodItems and writes trusted and estimated FoodLogs
+atomically.
 
 ---
 
@@ -177,8 +182,10 @@ The API uses REST-style endpoints under `/api/v1` and the standard success/error
 
 The current development implementation uses a fixed mock user through mock auth
 context. Authenticated endpoints operate on the current user, and clients never
-send `userId`. Supabase Auth is the intended later authentication provider. Do
-not implement custom password authentication or a custom auth system.
+send `userId`. The authentication provider is undecided until Phase 19 planning.
+Authentication establishes identity; authorization controls resource access. Do
+not implement custom password authentication or a provider integration through
+this documentation update.
 
 ---
 

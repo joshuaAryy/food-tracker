@@ -23,12 +23,16 @@ Use a local `User` model in the application database.
 Foundation decision, still active until real authentication is implemented:
 - Authentication is mocked.
 - `User.id` may be generated with `uuid()` for the fixed mock user.
-- Do not implement Supabase Auth.
+- Do not implement a provider integration through this schema decision.
 
 Long-term:
-- `User.id` should align with the Supabase Auth user ID.
+- The authentication provider and external identity mapping are selected during
+  Phase 19 planning; `User.id` is not assumed to equal an external identity.
 - Do not build custom password authentication.
 - Do not store password credentials in the application database.
+
+The earlier Supabase-specific alignment was a historical decision and is
+superseded by TD-023. The local User ownership model remains unchanged.
 
 ## MVP Models
 

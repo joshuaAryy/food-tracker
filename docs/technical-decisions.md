@@ -34,7 +34,7 @@ Reason: `pnpm` workspaces are sufficient for the current phase. Additional monor
 
 ## TD-002: Authentication
 
-Status: Locked
+Status: Superseded on 2026-07-18 by TD-023; retained as historical context
 
 - Supabase Auth is the intended authentication provider.
 - The current development implementation uses a fixed mock user through mock auth context.
@@ -43,6 +43,10 @@ Status: Locked
 - User identity should eventually come from Supabase Auth.
 - User-owned records reference the local `User.id`; long-term, that ID aligns with the Supabase Auth user ID.
 - Do not build custom password authentication or a custom auth system.
+
+The provider-specific selection above is historical. The current provider-
+neutral direction is defined by TD-023; the stable local-user ownership
+boundary and no-client-`userId` rule remain active.
 
 ## TD-003: Phase 2 Food Logging
 
@@ -181,6 +185,10 @@ Status: Locked
 - Use the field types, enums, constraints, indexes, relations, and cascade-delete rules defined in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 - Do not include `DailySummary`, raw/parsed food logs, or other future models
   without explicit approval.
+
+The provider-specific long-term identity-alignment clause above is historical
+and superseded by TD-023. The local UUID ownership boundary and all other
+schema decisions remain current.
 
 ## TD-010: Hybrid Food Database Direction
 
@@ -450,7 +458,7 @@ vector search, recipes, and additional providers are future targeted work.
 
 ## TD-015: Photo Logging Sequencing
 
-Status: Implemented for backend Slice 1; mobile Slice 2 pending
+Status: Implemented and merged through PR #1 in Phase 14
 
 Photo food logging should come after food database and RAG foundations. It
 should eventually support image capture/upload, food recognition, portion
@@ -511,8 +519,9 @@ Slice 1 locks the following implementation details:
 - Existing deterministic retrieval/ranking and serving resolution remain the
   only trusted candidate and portion authorities. Vision portions are
   provisional and never infer density or universal household weights.
-- Analysis is no-write. Final saving remains the existing transactional
-  `/food-logs/from-candidates` contract.
+- Analysis creates no FoodLogs, image records, or review sessions. Validated
+  external candidates may be materialized into canonical FoodItems before
+  review; final mixed saving remains transactional and server-authoritative.
 - Phase 14 Slice 14.2B1 adds optional bounded candidate adjudication after
   deterministic retrieval. Only active ambiguous rows enter one text-only
   batch, capped at three eligible candidates per row and eight rows per
@@ -529,7 +538,7 @@ Slice 1 locks the following implementation details:
 
 Status: Implemented in the read-only analysis response
 
-Photo nutrition fallback extends the existing Phase 14 bounded text-only
+Photo nutrition fallback extended the existing Phase 14 bounded text-only
 adjudication batch; it never adds a second provider call or resends the image.
 Only unresolved active rows may receive an estimate after deterministic
 retrieval and candidate decisions. Strong deterministic and high-confidence
@@ -542,8 +551,9 @@ backend validates finite bounded values and conservative macro-energy
 consistency, rounds them, derives a structured-quantity or portion-shown
 basis, and adds low-trust provenance metadata. Micronutrients, serving
 weights, density, conversions, rewritten identities, and database references
-are rejected. Estimates remain read-only photo metadata; FoodItem/FoodLog
-persistence and mixed trusted/estimated confirmation remain future work.
+are rejected. Estimates remain unlinked and low-trust; reviewed estimates use
+the secure mixed-confirmation route described in TD-020 and TD-021 and never
+become canonical FoodItems.
 The shared assistance sub-budget is 2.5 seconds by default, capped below the
 overall photo-analysis timeout; the increase from 1.5 seconds was justified by
 measured three-row mixed-batch latency and remains within the mobile budget.
@@ -645,14 +655,35 @@ The Food Log's current one-page logging-method list remains intentionally
 temporary. A future interactive multi-screen or curved-control selector is
 deferred and is not part of Phase 12.9.
 
-## TD-015: Skeleton Loading
+## TD-022: Skeleton Loading
 
-Status: Planned
+Status: Planned; identifier corrected on 2026-07-18 because the historical
+document contained a duplicate TD-015 identifier
 
 Phase 7 should add skeleton loading where appropriate. Skeletons should match
 the page layout, preserve layout shape, reduce perceived loading time, avoid
 jarring layout jumps, follow the Phase 6 white/charcoal visual standard, use
 subtle neutral placeholder shapes, and avoid heavy animation.
+
+## TD-023: Authentication Provider Selection Deferred
+
+Status: Current and locked, dated 2026-07-18
+
+This decision supersedes the provider-specific portions of TD-002 and TD-009;
+those decisions remain in this document as historical context.
+
+- The authentication provider will be researched and selected during Phase 19
+  planning. The current documentation does not select Supabase or any other
+  provider.
+- The local `User` model and current-user ownership boundary remain stable.
+- Future external identity mapping is a Phase 19 design decision and is not
+  assumed to equal the local `User.id`.
+- Clients never send `userId`; the backend derives identity from its auth
+  boundary.
+- Authentication determines who the user is. Authorization determines which
+  resources that user may access. Both checks remain required.
+- Do not add custom password authentication or a provider integration through
+  this documentation decision.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate

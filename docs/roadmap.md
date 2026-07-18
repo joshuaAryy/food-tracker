@@ -381,102 +381,313 @@ and manual ingredients both passed automated and physical-device validation.
 - Physical-device validation passed.
 - The deferred multi-method Food Log selector redesign remains future work.
 
-The next roadmap phase is Phase 14 — Photo Food Logging.
+## Phase 14 — Photo Food Logging — Complete
 
-## Phase 14 — Photo Food Logging
+Phase 14 was completed and merged to `main` through PR #1 at merge commit
+`e47287c`. C2 represents the completed Phase 14 photo food logging scope.
+Automated validation passed with 44 test files and 899 passing tests. The
+paired-iPhone validation was performed and confirmed by the user; Codex did not
+operate the device. No photos are persisted.
 
-- image capture/upload
-- food recognition
-- portion estimation
-- retrieval matching against trusted food data
-- confidence/review state
-- user edits before saving
-- Simple confirmation UI
-- Complex nutrient detail review
+Completed scope includes image capture and upload, food recognition,
+independent component/composite review, portion estimation, trusted retrieval,
+canonical external materialization, AI-estimate fallback, quantity
+normalization, flexible compatible servings, trusted/estimated mixed review,
+server-authoritative atomic save, History persistence, canonical local reuse,
+and safe Back/Close navigation.
 
-### C2 checkpoint
+The next feature phase is Phase 15 — Streaks and Better Reporting.
 
-C2 is implemented and checkpoint-ready on branch
-`phase-14-photo-food-logging`. The paired-iPhone physical validation was
-user-confirmed; Codex did not operate the device. Confirmed coverage includes
-component decomposition, trusted external materialization, AI-estimate fallback,
-structured component quantities, backend gram normalization, flexible serving
-selection, trusted/estimated mixed review, atomic server-authoritative save,
-History persistence, canonical local reuse, and deterministic Back/Close
-navigation without a GO_BACK warning. Observed quantity, normalized grams, and
-selected serving remain separate, and canonical trusted rows do not require a
-second trust confirmation. No photos are persisted.
+## Phase 15 — Streaks and Better Reporting
 
-Phase 14 remains open for any roadmap slices after C2; this checkpoint does not
-claim overall Phase 14 completion.
-
-Photo logging comes after food database and RAG foundations.
-
-## Phase 15 — Streaks + Better Reporting
-
-- logging streaks
-- weekly consistency
+- current and longest logging streaks
+- weekly logging consistency
 - calorie adherence
 - protein adherence
-- weight trend
+- weight trends
 - goal progress
 - weekly reports
 - monthly reports
-- Simple mode summaries
-- Complex mode deeper reporting
+- Simple-mode summaries
+- deeper Complex-mode reporting
+- data-coverage and incomplete-data handling
 
-## Phase 16 — Custom Graphs + Complex Analytics
+## Phase 16 — Custom Graphs and Complex Analytics
 
 - customizable graphs
-- graph metric selection
-- 7-day, 30-day, 90-day, and custom ranges
-- compare metrics
+- metric selection
+- standard and custom date ranges
+- metric comparisons
 - saved graph preferences
+- calorie, protein, macro, weight, and goal trends
 - micronutrient patterns
-- caffeine trends
-- sodium, fiber, and sugar patterns
+- caffeine, sodium, fiber, and sugar analysis
+- future compatibility with water, supplement, and wearable data
 
-Charts should follow the Phase 6 visual standard and avoid generic dashboard
-card spam.
+## Phase 17 — Deployment and Security Foundations
 
-## Phase 17 — Recommendation Engine 2.0
+This phase remains provider-neutral. The provider decision will be researched
+during Phase 17 planning.
 
-- recommendations informed by richer nutrient summaries
-- better confidence and evidence display
-- better Simple/Complex recommendation density
-- optional AI wording over backend-decided facts only
+- hosted backend
+- managed production-style database
+- development, test, staging, and production environment separation
+- secure secret management
+- deployment workflow and automation
+- production database migration workflow
+- backups and recovery
+- health checks
+- monitoring and sanitized diagnostics
+- dependency and vulnerability checks
+- least-privilege access
+- request validation
+- authentication-ready security boundaries
+- rate limiting
+- abuse prevention
+- AI guardrails
+- image and upload guardrails
+- secure headers, HTTPS, and network security
+- production engineering documentation
+- internal TestFlight engineering build
 
-AI must not calculate analytics, identify deficits, decide recommendations, or
-query the database directly.
+This phase has two explicit goals: product and infrastructure readiness, and
+learning production engineering, security, guardrails, and sound
+infrastructure decision-making. The internal TestFlight build is an
+engineering smoke build, not the external MVP beta.
 
-## Phase 18 — Real Auth + User Accounts
+## Phase 18 — Additional Food Providers
 
-- Supabase Auth integration at the existing current-user boundary
+- evaluate provider options
+- improve Canadian food coverage
+- improve branded-food coverage
+- investigate restaurant-food coverage
+- improve serving and nutrient completeness
+- provider-neutral normalization
+- deduplication
+- source attribution
+- caching
+- failure handling
+- legal terms, cost, quotas, and rate-limit review
+
+## Phase 19 — Real Accounts and User Isolation
+
+The authentication provider remains undecided and will be selected during Phase
+19 planning.
+
+- account registration
+- sign-in and sign-out
+- persistent sessions
+- server-side authentication verification
+- recovery behaviour
+- account deletion behaviour
+- authentication and authorization boundaries
+- strict resource ownership
 - user-isolation regression coverage
-- account lifecycle behavior
-- CI pinned to Node 22
-- repeatable development-build and environment guidance
+- replacement of fixed mock-user runtime behaviour
+- secure staging and production configuration
 
-Do not build custom password authentication or production-scale infrastructure.
+Authentication determines who the user is. Authorization determines which
+resources the user may access.
 
-## Phase 19 — Deployment / TestFlight Readiness
+## Phase 20 — Semantic Search, Typo Handling and Expanded Retrieval
 
-- deployment hardening
-- environment configuration
-- TestFlight readiness
-- production database and migration workflow
-- observability and diagnostics
-- limited-beta release checklist
+- typo tolerance
+- spelling correction
+- aliases
+- semantic similarity
+- embeddings
+- vector-assisted candidate retrieval
+- compound-food understanding
+- unusual phrase handling
+- expanded result retrieval
+- pagination or cursor-based loading
+- incremental result chunks
+- source-aware search
+- deterministic ranking and trust gates
 
-## Deferred
+Semantic systems retrieve candidates; they do not independently decide that a
+candidate is trusted. Backend retrieval and pagination belong in this phase.
+The dedicated search page and final visual interaction belong in Phase 24.
 
-The following remain future work:
+## Phase 21 — Water and Supplement Tracking
 
-- wearable integration
-- grocery recommendations
+Water and supplements remain separate domain models.
+
+Water:
+
+- quick-add amounts
+- reusable container sizes
+- daily goal and progress
+- History
+- edit and delete
+- reporting and graph integration
+
+Supplements:
+
+- reusable supplement entries
+- dosage amount and unit
+- logged time
+- optional nutrient contribution
+- History
+- edit and delete
+- protection against nutrient double counting
+
+Water must not be represented as a fake FoodLog. Supplements must not be
+treated as normal meals or expanded into medication management.
+
+## Phase 22 — Full Complex-Mode Micronutrient Editing
+
+- fuller vitamin and mineral control
+- caffeine
+- sodium
+- fiber
+- sugar
+- nutrient search
+- FoodLog-level overrides
+- richer user-created food authoring
+- explicit unknown-versus-zero behaviour
+- protection against accidental mutation of trusted provider records
+
+## Phase 23 — Recommendation Engine 2.0
+
+This is the last item in the original top-priority feature group, not the final
+phase in the roadmap. It follows water, supplements, and complete Complex-mode
+nutrient editing so recommendations can use the fuller MVP data foundation.
+
+- richer evidence
+- confidence based on data coverage
+- prioritization
+- deduplication
+- recommendation lifecycle
+- improving and resolved states
+- positive reinforcement
+- Simple-mode restraint
+- Complex-mode evidence
+- optional AI wording only after deterministic backend decisions
+
+AI must not independently calculate analytics, identify deficiencies, query the
+database, or decide recommendations.
+
+## Phase 24 — Frontend and Logging-Flow Redesign
+
+This phase reviews the application areas affected by the completed MVP feature
+set. It is broader than search and food logging, but it is not automatically a
+full rewrite of every screen.
+
+- logging-method navigation
+- Food Log entry structure
+- dedicated food search page
+- expanded-search interaction
+- result loading and source presentation
+- reports and graphs
+- water and supplement logging
+- Complex micronutrient editing
+- recommendation presentation
+- information hierarchy
+- navigation and floating actions where needed
+- Simple and Complex mode consistency
+- accessibility fundamentals
+- loading, empty, and error states
+- physical-device usability
+
+The redesign is placed after the required MVP features so it can account for
+the actual product instead of being repeatedly redone after each feature.
+
+## Phase 25 — External TestFlight Beta
+
+This is the official MVP completion milestone. The MVP is complete once the
+external TestFlight beta is prepared and distributed.
+
+- App Store Connect readiness
+- external tester configuration
+- privacy and beta disclosures
+- release configuration
+- tester instructions
+- feedback process
+- crash and error monitoring
+- account and data-isolation validation
+- staged tester rollout
+- upgrade testing
+- beta iteration
+- MVP release retrospective
+
+## Post-MVP Roadmap
+
+### Phase 26 — Offline Logging and Synchronization
+
+- offline food logging
+- local pending records
+- reconnect synchronization
+- retry behaviour
+- conflict handling
+- duplicate prevention
+- visible sync state
+- safe account-change handling
+- explicit offline limitations for AI, provider, barcode, and photo workflows
+
+### Phase 27 — Frequent Foods, Meal Shortcuts and Lightweight Saved Meals
+
+- frequency-aware ranking
+- recency and meal-time ranking
+- common repeated combinations
+- usual breakfast or lunch shortcuts
+- same-as-yesterday actions
+- lightweight saved meals
+- clear distinction between saved meals and recipes
+
+### Phase 28 — Experimental Grocery Recommendations
+
+- suggestions based on tracked patterns
+- foods already used by the user
+- nutrient-oriented shopping ideas
+- optional relation to saved meals
+- user-controlled output
+- no medical claims
+
+This phase is experimental and non-MVP.
+
+### Phase 29 — Wearable and Health Data Integration
+
+- steps
+- workouts
+- active energy
+- weight
+- permission management
+- source attribution
+- duplicate handling
+- imported-versus-manual distinction
+- reporting and graph integration
+
+This is the final numbered post-MVP phase currently planned. It does not commit
+the roadmap to every wearable ecosystem.
+
+## Deferred Without Phase Numbers
+
+- contextual tracking
 - smart meal planning
-- water and note logging
-- supplements and custom nutrients beyond the core nutrition model
+- nutrient-score concept
+- meal and logging reminders
+- push notifications
+- broader accessibility improvements beyond required fundamentals
+- account data download
+- broader data export
 
-AI must not calculate analytics, identify deficits, decide recommendations, or
-query the database.
+Contextual tracking must not be implemented as a basic notes box. It should
+only be reconsidered when the captured context produces a meaningful
+user-facing insight. Smart meal planning remains deferred rather than numbered.
+
+## Eventual Release Milestone
+
+A public App Store launch is the eventual release milestone after TestFlight.
+It is intentionally not assigned a phase. Timing and requirements depend on
+beta feedback, critical fixes, legal/privacy readiness, and product quality.
+
+## Not Currently Planned
+
+- dietary preference and restriction systems
+- allergy handling
+- tablet-specific support
+- Android beta or release
+- meal-photo galleries
+- progress-photo storage
+- social sharing

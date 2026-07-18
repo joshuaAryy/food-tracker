@@ -9,14 +9,15 @@ Normalized values are rounded before storage. Analytics sums stored values.
 ## MVP Tables
 
 ### User
-- id (UUID; currently mock-generated and aligned with Supabase Auth user ID later)
+- id (UUID; currently mock-generated; future external identity mapping is
+  selected during Phase 19)
 - email (optional)
 - createdAt
 - updatedAt
 
 The current development implementation uses mocked auth and a local `User`
-record. Supabase Auth is the intended later identity provider. Do not store
-custom password credentials.
+record. The authentication provider remains undecided until Phase 19 planning.
+Do not store custom password credentials.
 
 ---
 

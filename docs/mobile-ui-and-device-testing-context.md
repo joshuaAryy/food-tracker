@@ -686,7 +686,7 @@ tab or a cache-wide USDA browser. Default servings are editable prefills using
 the existing ServingAmountControl; every use still goes through serving
 validation. The multi-method Food Log selector redesign remains deferred.
 
-# Phase 14 Slice 2 Photo Logging
+# Phase 14 Photo Logging — Complete
 
 Photo Logging is available from the current temporary Food Log method list;
 the deferred selector redesign remains deferred. The flow uses `/photo-log`
@@ -707,7 +707,7 @@ blocks navigation or replaces the primary error. No photo is retained after
 completion, failure, cancellation, or reset.
 
 The mobile client sends the normalized file as a raw `image/jpeg` request to
-the Slice 1 endpoint with an abort signal and a 17-second client budget. It
+the photo-analysis endpoint with an abort signal and a 17-second client budget. It
 does not send multipart, base64 JSON, provider payloads, photo URIs, or
 nutrition data. The Expo development client must be rebuilt after adding the
 approved image packages and permission/config changes.
@@ -721,13 +721,13 @@ quantity state: an estimated amount using the constrained photo vocabulary, or
 `no_responsible_estimate`. Observed count labels remain provisional and do not
 authorize a candidate conversion. Representation groups may expose active
 component rows or one active composite row; inactive alternatives remain
-backend metadata and never render as active rows. Unsupported servings,
-unresolved candidates, unreviewed low-confidence matches, and pending rows
-block continuation. Bounded backend candidate adjudication may mark a trusted
+  backend metadata and never render as active rows. Unsupported servings and
+  unresolved amounts retain amount-specific review states; unresolved
+  candidates and pending rows block continuation. Bounded backend candidate
+  adjudication may mark a trusted
 candidate as AI-adjudicated, but medium/low confidence, reject-all,
 no-decision, and unavailable outcomes remain editable review rows.
-Natural-serving defaults and alternative-selection UI are later slices. Simple
-mode shows concise trusted calories/protein; Detailed/Complex mode also shows
+Simple mode shows concise trusted calories/protein; Detailed/Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
 unknown, and provider nutrition is never displayed or used. Invalid optional
 provider regions are dropped before the mobile response because the review UI
@@ -774,9 +774,25 @@ temporary files without touching library originals, marks the existing shared
 History/Dashboard/Insights refresh signal, and returns to the existing
 post-save destination.
 
-Natural-serving changes remain pending. Final Phase 14 physical-device
-closeout remains pending and must verify camera and photo-library capture,
-trusted-only, estimated-only, mixed plus excluded save, candidate replacement,
-restoration, unresolved blocking, controlled proof errors, repeated taps,
-network failure warning, refreshes, and temporary-file cleanup on a rebuilt
-Expo development client.
+The paired-iPhone validation was performed and confirmed by the user; Codex did
+not operate the device. It covered camera and photo-library capture,
+independent decomposition, trusted external materialization, AI-estimate
+fallback, trusted/estimated mixed review, structured quantity recognition,
+backend gram normalization, flexible compatible serving selection, amount
+editing and preview nutrition, atomic save, History persistence, canonical
+local reuse, temporary-file cleanup, and deterministic Back/Close navigation
+without the GO_BACK warning. No photos are persisted.
+
+Permanent mobile rules from this phase:
+
+- observed quantity remains paired with its original unit;
+- normalized grams or millilitres remain separate calculation state;
+- compatible household and provider servings remain selectable;
+- canonical trusted rows do not require a second trust-confirmation action;
+- missing or incompatible amounts ask for amount correction, not food
+  replacement;
+- Back and Close actions use deterministic route-specific fallbacks.
+
+Future complex mobile workflows require physical-device validation before
+closeout, including loading, empty, error, repeated-submit, navigation,
+review-state, persistence, and reuse behaviour where applicable.

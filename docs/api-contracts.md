@@ -48,14 +48,17 @@ Do not introduce other response envelope formats. Error codes are stable upperca
 ## Authentication Boundary
 
 The current development implementation uses mocked auth only. This boundary was
-introduced during the foundation phase and remains in place until Supabase Auth
-is implemented.
+introduced during the foundation phase and remains in place until the
+authentication provider is selected and implemented during Phase 19 planning.
 
 - The backend may assume a fixed mock user ID through mock user context.
 - Authenticated endpoints operate on the current user.
 - The client never sends `userId`.
 - The backend applies the current user ID when reading or writing user-owned records.
-- Real authentication will later replace mock context with Supabase Auth identity.
+- Real authentication will later replace mock context with the provider selected
+  during Phase 19 planning.
+- Authentication identifies the current user; authorization controls access to
+  that user's resources.
 - Do not replace this boundary with custom password authentication.
 - Do not implement custom password authentication or a custom auth system.
 
@@ -1435,7 +1438,7 @@ unusable. A quantity-only AI count may use the candidate's one safe
 `defaultWholeItemServing` internally, but the editable serving request uses
 the resulting physical amount and unit.
 
-### `POST /api/v1/ai/photo-analysis` (Phase 14 Slice 1)
+### `POST /api/v1/ai/photo-analysis` (Phase 14, complete)
 
 This is a read-only backend analysis route. It accepts a normalized JPEG as
 raw request bytes, not JSON, multipart form data, a URL, or a file-system path.
@@ -1487,12 +1490,13 @@ does not overlap or provide a required reference for a valid group; if all
 groups are invalid, the response remains an AI-unavailable semantic error.
 
 The route never returns raw provider payloads, prompts, internal reasoning,
-credentials, or provider nutrition. It creates no FoodItems, FoodLogs, image
-records, USDA cache rows, or review sessions. Natural-serving defaults,
-AI-estimated nutrition fallback, and alternative selection UI remain later
-Phase 14 slices. The current Slice 2 save path still
-saves only reviewed candidate references and servings through
-`POST /api/v1/food-logs/from-candidates`.
+credentials, or provider nutrition. It creates no FoodLogs, image records, or
+review sessions. A validated high-confidence external candidate may be
+materialized into a canonical FoodItem before review; this uses the same
+provider-neutral materialization service as manual selection. AI-estimated
+rows remain unlinked and proof-bound. Mixed confirmation uses
+`POST /api/v1/food-logs/from-photo-analysis` and re-fetches canonical FoodItems
+before one atomic save.
 
 When `PHOTO_CANDIDATE_ADJUDICATION_ENABLED=true`, deterministic retrieval
 completes before an optional bounded text-only adjudication step. Only active
@@ -1506,9 +1510,9 @@ Medium/low selections, `reject_all`, `no_decision`, invalid output, timeout,
 429, 503, cancellation, or malformed output preserve deterministic review
 rows and require user review. Strong deterministic matches make zero
 adjudication calls. Optional row `adjudication` metadata reports source,
-status, confidence, and a safe review reason. The B1 slice adds no estimated
-nutrition, persistence, or confirmation behavior; automatic AI nutrition
-fallback remains Slice 14.2B2.
+status, confidence, and a safe review reason. The bounded adjudication step
+adds no image retry or provider-side persistence. The same bounded assistance
+batch may also supply the completed Phase 14 estimate fallback described below.
 
 When `PHOTO_NUTRITION_ESTIMATION_ENABLED=true`, the same single bounded
 text-only batch may also return a low-trust core-macro estimate for unresolved
@@ -1518,10 +1522,10 @@ confidence. The backend derives either a `structured_quantity` or
 `portion_shown` basis and user-facing label; the provider cannot invent
 serving weights, density, conversions, micronutrients, or food identities.
 Trusted selections always suppress estimates. Valid estimates are unlinked,
-editable, low-trust read-only metadata and never enter trusted confirmation,
-FoodItems, FoodLogs, caches, or search results. Invalid or unavailable
-estimates leave the recognition row and candidates unresolved. Mixed
-trusted/estimated review and save remain a later slice.
+editable, low-trust metadata and never enter trusted FoodItems or search
+results. Invalid or unavailable estimates leave the recognition row and
+candidates unresolved. Mixed trusted/estimated review and save use the
+completed `/food-logs/from-photo-analysis` contract above.
 The expanded assistance timeout defaults to 2.5 seconds (and remains capped
 below the overall photo-analysis timeout); this was measured against the
 three-row mixed estimate batch while preserving the mobile budget.
