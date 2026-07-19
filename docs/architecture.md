@@ -215,6 +215,20 @@ Responsibilities:
 - goal adherence
 - recommendation source facts
 
+Phase 15 adds a focused deterministic reporting service under
+`apps/api/src/modules/analytics/reporting/`. It derives streaks, consistency,
+adherence, weight facts, period reports, and equivalent elapsed comparisons on
+demand from current-user FoodLogs and WeightLogs. `GET /analytics/progress`
+serves the focused Progress view and `GET /analytics/reports?period=week|month`
+serves Insights. The existing dashboard and advanced analytics endpoints remain
+backward compatible. Reporting does not persist snapshots or introduce a
+second analytics engine.
+
+Calendar weeks are Sunday through Saturday. Current-period comparisons use the
+same elapsed local dates in the preceding week or month, with the prior-month
+window capped at its last day. The API returns both comparison boundaries so
+mobile does not infer them.
+
 Analytics computes facts only. It queries food and weight records and performs all calculations deterministically.
 
 Inputs are normalized and rounded before storage. Analytics sums stored normalized values. Calories and sodium use whole stored values; macros and body weight use one decimal place.

@@ -35,6 +35,8 @@ The implemented baseline includes:
 - Timezone-aware food and weight history
 - Deterministic recommendation generation and dismissal
 - Advanced calorie, protein, macro, consistency, and weight analytics
+- Deterministic streaks, logging consistency, adherence, weight reporting, and
+  Sunday–Saturday weekly/monthly reports on the Phase 15 branch
 - Mobile Insights presentation
 - Dedicated sequential first-run onboarding with deterministic target personalization
 - Mode-aware food forms and Insights presentation
@@ -53,7 +55,9 @@ database reuse, barcode lookup, AI-assisted text parsing with USDA generic
 nutrition fallback, USDA-backed normal food search, AI-estimated nutrition for
 unresolved text-logging rows, completed Phase 14 photo food logging, mode-aware
 analytics, and real onboarding with deterministic calorie and protein target
-calculation. Phase 15 — Streaks and Better Reporting — is next.
+calculation. Phase 15 — Streaks and Better Reporting — is implemented on the
+feature branch; physical-device validation and documentation closeout remain
+before merge.
 
 ## Current Limitations
 

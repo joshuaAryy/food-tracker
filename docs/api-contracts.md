@@ -1268,6 +1268,54 @@ Trend confidence requires food logs on at least half of the calendar days in a
 window. Weight change and slope values are `null` when insufficient data
 exists.
 
+### `GET /api/v1/analytics/progress`
+
+Optional query parameter:
+- `date`: local tracking date in `YYYY-MM-DD`; defaults to today in the user's
+  timezone
+
+This focused response supports the current Progress experience. It contains
+the current and longest actual-logged-day streak, grace-day state, rolling
+7-day and 30-day consistency, current-week calorie/protein adherence, and
+weight facts. Unavailable metrics use `{ "available": false, "reason": ... }`
+for client branching; mobile omits them and never displays the reason.
+
+Streak headlines count actual FoodLog days only. A single grace day can bridge
+one missed local day and contributes to span metadata, not the headline count.
+Weight availability is latest with one WeightLog, change with two, and trend
+rate with three or more.
+
+### `GET /api/v1/analytics/reports?period=week|month`
+
+Required query parameter:
+- `period`: `week` or `month`
+
+Optional query parameter:
+- `date`: local elapsed-through date in `YYYY-MM-DD`; defaults to today in the
+  user's timezone
+
+Reports return the current in-progress period, the full immediately previous
+completed period, and an equivalent elapsed comparison object. Calendar weeks
+are Sunday through Saturday. For example, a Wednesday weekly comparison is
+Sunday–Wednesday against the preceding Sunday–Wednesday. Monthly comparisons
+use the same local ordinal day and cap the previous window at the previous
+month's final day. `comparison.currentBoundary` and
+`comparison.previousEquivalentBoundary` are authoritative and must not be
+inferred by mobile.
+
+The report includes logged-day counts, consistency, current-target calorie and
+protein adherence, averages, weight facts, daily logged-day rows, and
+mode-scoped nutrients. The full previous report remains separate from the
+equivalent comparison. Comparisons are omitted per metric unless both windows
+meet that metric's threshold. All values are deterministic and based on
+recorded FoodLogs; the API does not claim that a logged day contains every
+food consumed.
+
+Current calorie targets use `UserGoal.goalType`: gain 95–115%, maintain
+90–110%, and lose 85–105%. Protein is adherent at 90% or higher, independently
+of calorie adherence. Reports use current goals for historical periods; they do
+not recreate prior target versions.
+
 ### `GET /api/v1/analytics/nutrients/daily`
 
 Returns daily nutrient totals for the selected local date. The response

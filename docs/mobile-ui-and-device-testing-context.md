@@ -5,7 +5,8 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-Phase 7 is complete enough to move into Phase 8. Phase 6 established the
+Phase 15 reporting implementation is underway on the feature branch. Phase 6
+established the
 current mobile visual-system blueprint across
 onboarding, Progress, History, logging, Insights, Recommendations,
 Profile/Settings, bottom navigation, floating add behavior, logo rendering,
@@ -796,3 +797,30 @@ Permanent mobile rules from this phase:
 Future complex mobile workflows require physical-device validation before
 closeout, including loading, empty, error, repeated-submit, navigation,
 review-state, persistence, and reuse behaviour where applicable.
+
+## Phase 15 Reporting Validation Context
+
+Phase 15 keeps the existing Progress and Insights tabs. Progress preserves the
+daily calorie hero and adds open full-width reporting sections for actual
+logged-day streaks, rolling consistency, current-week adherence, and supported
+weight facts, followed by a quiet link to Insights. Insights owns the compact
+Week/Month control, in-progress period, explicit equivalent elapsed comparison,
+full previous completed period, day-status strip, nutrition adherence, weight,
+and mode-scoped nutrient rows. Recommendations remain below reporting and load
+or fail independently.
+
+The approved visual direction strongly avoids repeated cards and dashboard
+grids. Use typography, whitespace, thin dividers, rows, inline rails, and
+compact day strips. Do not add charts, gradients, giant rings, decorative
+illustrations, or technical threshold/confidence wording. A contained surface
+requires UX review explaining its hierarchy or interaction need before use.
+
+Physical iPhone validation must cover: Progress daily hero plus reporting
+sections; current streak copy for available/used grace and open today;
+threshold-hidden consistency/adherence/weight states; Insights Week/Month
+switching; Sunday–Saturday and explicit equivalent boundaries; shorter prior
+months; long values and text wrapping; day strips; Simple and Complex nutrient
+scope; food-only and weight-only states; independent reporting and
+recommendation failures with contextual retries; refresh preserving loaded
+content; scrolling, navigation, and timezone-sensitive current-day copy. No
+chart geometry or card-grid regression is acceptable.

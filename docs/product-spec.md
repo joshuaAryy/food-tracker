@@ -179,11 +179,18 @@ server-authoritative mixed saving without persisting photos.
 
 ### Reporting
 
-Progress and Insights should improve as backend data gets richer. Future
-reporting should include streaks, consistency, calorie/protein adherence,
-micronutrient patterns, caffeine trends, sodium/fiber/sugar patterns, weight
-trend, goal progress, weekly/monthly reports, customizable graphs, metric
-selection, ranges, comparisons, and saved graph preferences.
+Phase 15 reporting keeps Progress focused on current state and uses Insights
+for deeper week/month reports. It includes actual-logged-day streaks with one
+non-inflating grace day, logging consistency, explicit goal-direction calorie
+adherence, independent protein adherence, deterministic weight facts, full
+previous periods, equivalent elapsed comparisons, and recorded-nutrient
+summaries. Missing or threshold-unavailable metrics are omitted rather than
+described with backend confidence language. Current targets are used for
+historical reports until reliable goal history exists.
+
+Custom charts, metric selection, custom ranges, saved graph preferences,
+recommendations generated from report comparisons, reminders, notifications,
+exports, and persisted report snapshots remain deferred.
 
 ## Later Ideas
 - wearable integration

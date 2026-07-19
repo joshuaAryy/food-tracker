@@ -684,6 +684,31 @@ those decisions remain in this document as historical context.
   resources that user may access. Both checks remain required.
 - Do not add custom password authentication or a provider integration through
   this documentation decision.
+
+## TD-024: Phase 15 Deterministic Reporting
+
+Status: Implemented on the Phase 15 branch; physical validation pending
+
+- Reporting facts are calculated on demand from authoritative FoodLogs and
+  WeightLogs. No report snapshots, daily-summary source of truth, or new
+  persistence model is introduced.
+- Logging streak, logging consistency, calorie adherence, protein adherence,
+  and weight progress remain separate metrics.
+- A logging streak counts actual logged FoodLog days. One missed local day may
+  bridge a streak, but the grace day contributes only to the elapsed span and
+  never increases the headline or wins a longest-streak comparison.
+- Weeks are Sunday through Saturday. Current in-progress period comparisons
+  use equivalent elapsed local windows; the API returns explicit boundaries for
+  both windows and caps a prior-month comparison at that month's final day.
+- Calorie adherence uses the explicit `UserGoal.goalType` ranges (gain
+  95–115%, maintain 90–110%, lose 85–105%); protein adherence is at least 90%
+  of the current target. Reports use current targets and do not claim to
+  reconstruct historical goal versions.
+- Threshold-unavailable metrics carry internal availability metadata and are
+  omitted by mobile presentation. Technical reason strings are not user copy.
+- Simple mode exposes calories, protein, primary macros, fiber, sugar, and
+  sodium when recorded. Complex mode exposes the same foundation plus
+  available normalized nutrients; water is not a Phase 15 tracked nutrient.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate
