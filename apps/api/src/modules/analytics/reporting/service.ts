@@ -248,7 +248,7 @@ function weightFacts(
   const latestWeightLb = latest.weightLb.toNumber();
   const first = ordered[0];
   const changeLb =
-    first === undefined
+    first === undefined || ordered.length < 2
       ? null
       : roundTo(latestWeightLb - first.weightLb.toNumber(), 1);
   let trendRateLbPerWeek: number | null = null;

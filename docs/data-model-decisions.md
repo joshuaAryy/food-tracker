@@ -137,6 +137,15 @@ The MVP `mealType` values are:
 - Group food logs into tracking days by converting `loggedAt` into the user's stored IANA timezone and using the resulting local date.
 - Use `America/Toronto` as the default timezone for now.
 - Tracking-day analytics must not group records by UTC calendar date.
+
+## Phase 15 Reporting Without New Persistence
+
+Phase 15 adds no Prisma model, migration, or stored report snapshot. Streaks,
+consistency, adherence, period comparisons, and weight facts are recalculated
+from the current user's FoodLogs, WeightLogs, timezone, current UserGoal, and
+TrackingPreference. The first WeightLog is the fallback progress baseline when
+an active goal does not provide a reliable starting weight; existing
+`UserProfile.startingWeightLb` is not treated as historical goal versioning.
 # Phase 13 decisions
 
 Saved/favorite remains a SavedFoodItem relation, independent from default

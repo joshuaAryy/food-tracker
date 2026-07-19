@@ -396,9 +396,15 @@ normalization, flexible compatible servings, trusted/estimated mixed review,
 server-authoritative atomic save, History persistence, canonical local reuse,
 and safe Back/Close navigation.
 
-The next feature phase is Phase 15 — Streaks and Better Reporting.
+Phase 15 — Streaks and Better Reporting — is implemented on the feature branch;
+physical-device validation and documentation closeout remain before merge.
 
 ## Phase 15 — Streaks and Better Reporting
+
+Implementation scope is locked and in progress. Reporting is calculated on
+demand from authoritative FoodLogs and WeightLogs; no report snapshots or
+schema changes are introduced. Physical iPhone validation is still required
+before this phase can be marked complete.
 
 - current and longest logging streaks
 - weekly logging consistency
@@ -410,7 +416,13 @@ The next feature phase is Phase 15 — Streaks and Better Reporting.
 - monthly reports
 - Simple-mode summaries
 - deeper Complex-mode reporting
-- data-coverage and incomplete-data handling
+- deterministic data thresholds and omission of unavailable metrics
+- Sunday-through-Saturday calendar weeks
+- equivalent elapsed current/previous comparison windows
+- one grace day per streak without increasing the logged-day headline
+- independent Progress and Insights loading/error boundaries
+- Simple-mode focused nutrients and deeper Complex-mode available nutrients
+- charts, custom ranges, notifications, exports, and historical goal versioning remain deferred
 
 ## Phase 16 — Custom Graphs and Complex Analytics
 

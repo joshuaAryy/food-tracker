@@ -158,4 +158,156 @@ describe('reporting API', () => {
       },
     });
   });
+
+  it('recalculates streak facts after backdating and deleting the final log for a day', async () => {
+    await seedProfile();
+    const log = await seedFoodLog({
+      loggedAt: await timestampFor('America/Toronto', '2026-07-15'),
+    });
+
+    expect(
+      (
+        await api
+          .get('/api/v1/analytics/progress')
+          .query({ date: '2026-07-15' })
+      ).body.data.currentStreak,
+    ).toMatchObject({ loggedDays: 1, longestLoggedDays: 1 });
+
+    await prisma.foodLog.update({
+      where: { id: log.id },
+      data: { loggedAt: await timestampFor('America/Toronto', '2026-07-14') },
+    });
+    expect(
+      (
+        await api
+          .get('/api/v1/analytics/progress')
+          .query({ date: '2026-07-15' })
+      ).body.data.currentStreak,
+    ).toMatchObject({ loggedDays: 1, todayLogged: false, todayOpen: true });
+
+    await prisma.foodLog.delete({ where: { id: log.id } });
+    expect(
+      (
+        await api
+          .get('/api/v1/analytics/progress')
+          .query({ date: '2026-07-15' })
+      ).body.data.currentStreak,
+    ).toMatchObject({ loggedDays: 0, longestLoggedDays: 0 });
+  });
+
+  it('keeps goal-dependent adherence unavailable while showing unrelated streak and weight facts', async () => {
+    await seedProfile();
+    await seedFoodLog({
+      loggedAt: await timestampFor('America/Toronto', '2026-07-15'),
+    });
+    await prisma.weightLog.create({
+      data: {
+        userId: (await prisma.userProfile.findFirstOrThrow()).userId,
+        weightLb: 180,
+        loggedAt: await timestampFor('America/Toronto', '2026-07-15'),
+      },
+    });
+
+    const response = await api
+      .get('/api/v1/analytics/progress')
+      .query({ date: '2026-07-15' })
+      .expect(200);
+
+    expect(response.body.data.currentStreak.loggedDays).toBe(1);
+    expect(response.body.data.calorieAdherence).toMatchObject({
+      available: false,
+      reason: 'missing_goal',
+    });
+    expect(response.body.data.weight).toMatchObject({
+      available: true,
+      value: { latestWeightLb: 180 },
+    });
+  });
+
+  it('uses local dates across the spring DST transition', async () => {
+    await seedProfile({ timezone: 'America/Toronto' });
+    const first = await timestampFor('America/Toronto', '2026-03-08');
+    const second = await timestampFor('America/Toronto', '2026-03-09');
+    await seedFoodLog({ loggedAt: first });
+    await seedFoodLog({ loggedAt: second });
+
+    const response = await api
+      .get('/api/v1/analytics/progress')
+      .query({ date: '2026-03-09' })
+      .expect(200);
+
+    expect(response.body.data.currentStreak).toMatchObject({
+      loggedDays: 2,
+      longestLoggedDays: 2,
+      todayLogged: true,
+    });
+  });
+
+  it('gates comparison metrics when the equivalent elapsed window misses its threshold', async () => {
+    await seedProfile();
+    await seedGoals({ targetCalories: 2000, targetProteinGrams: 100 });
+    await Promise.all(
+      ['2026-07-12', '2026-07-13', '2026-07-14'].map(async (date) =>
+        seedFoodLog({ loggedAt: await timestampFor('America/Toronto', date) }),
+      ),
+    );
+    await seedFoodLog({
+      loggedAt: await timestampFor('America/Toronto', '2026-07-05'),
+    });
+
+    const response = await api
+      .get('/api/v1/analytics/reports')
+      .query({ period: 'week', date: '2026-07-15' })
+      .expect(200);
+
+    expect(response.body.data.comparison.loggedDays).toBeDefined();
+    expect(response.body.data.comparison.averageCalories).toBeUndefined();
+    expect(response.body.data.comparison.calorieAdherence).toBeUndefined();
+  });
+
+  it('reveals weight facts at one, two, and three-log thresholds', async () => {
+    await seedProfile();
+    await seedGoals({ targetWeightLb: 190 });
+    const userId = (await prisma.userProfile.findFirstOrThrow()).userId;
+    const createWeight = async (date: string, weightLb: number) =>
+      prisma.weightLog.create({
+        data: {
+          userId,
+          weightLb,
+          loggedAt: await timestampFor('America/Toronto', date),
+        },
+      });
+
+    await createWeight('2026-07-13', 180);
+    let response = await api
+      .get('/api/v1/analytics/progress')
+      .query({ date: '2026-07-15' })
+      .expect(200);
+    expect(response.body.data.weight.value).toMatchObject({
+      latestWeightLb: 180,
+      changeLb: null,
+      trendRateLbPerWeek: null,
+    });
+
+    await createWeight('2026-07-14', 181);
+    response = await api
+      .get('/api/v1/analytics/progress')
+      .query({ date: '2026-07-15' })
+      .expect(200);
+    expect(response.body.data.weight.value.changeLb).toBe(1);
+    expect(response.body.data.weight.value.trendRateLbPerWeek).toBeNull();
+
+    await createWeight('2026-07-15', 182);
+    response = await api
+      .get('/api/v1/analytics/progress')
+      .query({ date: '2026-07-15' })
+      .expect(200);
+    expect(response.body.data.weight.value).toMatchObject({
+      latestWeightLb: 182,
+      direction: 'gaining',
+      progressFromBaselineLb: 2,
+      progressToTargetPercent: 20,
+    });
+    expect(response.body.data.weight.value.trendRateLbPerWeek).not.toBeNull();
+  });
 });
