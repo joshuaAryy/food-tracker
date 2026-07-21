@@ -1,8 +1,12 @@
 import {
   DEFAULT_TIMEZONE,
+  NUTRIENT_CATALOG,
+  reportingNutrientCatalogEntry,
   type AdherenceResult,
+  type AverageCalorieStatus,
   type ProgressResponse,
   type ReportPeriod,
+  type ReportingNutrientDetails,
   type ReportsResponse,
   type ReportingMetricReason,
   type WeightResult,
@@ -19,6 +23,7 @@ import {
   calculateStreak,
   type ReportingDay,
 } from './facts.js';
+import { acceptedCalorieRange } from './calendar-facts.js';
 import {
   comparisonWindows,
   periodBoundaries,
@@ -41,6 +46,7 @@ type ReportFoodLog = {
   nutrients: Array<{
     nutrientKey: string;
     amount: { toNumber(): number };
+    unit: string;
   }>;
 };
 
@@ -64,6 +70,11 @@ interface ReportWindowFacts {
   averageCalories: number;
   averageProteinGrams: number;
   nutrients: Record<string, number>;
+  nutrientDetails: ReportingNutrientDetails;
+  calorieTarget: number | null;
+  proteinTargetGrams: number | null;
+  acceptedCalorieRange: ReturnType<typeof acceptedCalorieRange>;
+  averageCalorieStatus: AverageCalorieStatus;
   weight: WeightResult;
   dailyBreakdown: Array<{
     date: string;
@@ -127,6 +138,7 @@ function dailyAdherence(
   const adherentDays = amounts.filter((value) =>
     qualifies(value.calories, target),
   ).length;
+
   return {
     available: true,
     value: {
@@ -190,48 +202,132 @@ function calorieAdherence(
   );
 }
 
-function nutrientAverages(
+interface NutrientAccumulator {
+  total: number;
+  dates: Set<string>;
+  unit: string;
+}
+
+function nutrientReportFacts(
   logs: ReportFoodLog[],
   timezone: string,
   mode: 'simple' | 'complex',
-): Record<string, number> {
-  const loggedDays = localDatesForLogs(logs, timezone).size;
-  if (loggedDays === 0) return {};
-  const totals = new Map<string, number>();
-  for (const log of logs) {
-    const values: Record<string, number | null> = {
-      calories: log.calories,
-      protein: log.protein.toNumber(),
-      carbs: log.carbs?.toNumber() ?? null,
-      fat: log.fat?.toNumber() ?? null,
-      fiber: log.fiber?.toNumber() ?? null,
-      sugar: log.sugar?.toNumber() ?? null,
-      sodium: log.sodium,
-    };
-    for (const [key, value] of Object.entries(values)) {
-      if (value !== null) totals.set(key, (totals.get(key) ?? 0) + value);
-    }
-    for (const nutrient of log.nutrients) {
-      if (nutrient.nutrientKey === 'water') continue;
-      totals.set(
-        nutrient.nutrientKey,
-        (totals.get(nutrient.nutrientKey) ?? 0) + nutrient.amount.toNumber(),
-      );
-    }
-  }
-
+): {
+  nutrients: Record<string, number>;
+  nutrientDetails: ReportingNutrientDetails;
+} {
+  const totals = new Map<string, NutrientAccumulator>();
   const allowed =
     mode === 'simple'
       ? new Set(['calories', 'protein', 'carbs', 'fat', ...NUTRIENT_COLUMNS])
       : null;
-  return Object.fromEntries(
-    [...totals.entries()]
-      .filter(([key]) => allowed === null || allowed.has(key))
-      .map(([key, value]) => [
+  const add = (
+    key: string,
+    amount: number | null,
+    unit: string,
+    date: string,
+  ) => {
+    if (amount === null || (allowed !== null && !allowed.has(key))) return;
+    const entry = reportingNutrientCatalogEntry(key);
+    if (entry === null) return;
+    const current = totals.get(key) ?? {
+      total: 0,
+      dates: new Set<string>(),
+      unit,
+    };
+    current.total += amount;
+    current.dates.add(date);
+    totals.set(key, current);
+  };
+
+  for (const log of logs) {
+    const date = localDate(log.loggedAt, timezone);
+    add('calories', log.calories, NUTRIENT_CATALOG.calories.defaultUnit, date);
+    add(
+      'protein',
+      log.protein.toNumber(),
+      NUTRIENT_CATALOG.protein.defaultUnit,
+      date,
+    );
+    add(
+      'carbs',
+      log.carbs?.toNumber() ?? null,
+      NUTRIENT_CATALOG.carbs.defaultUnit,
+      date,
+    );
+    add(
+      'fat',
+      log.fat?.toNumber() ?? null,
+      NUTRIENT_CATALOG.fat.defaultUnit,
+      date,
+    );
+    add(
+      'fiber',
+      log.fiber?.toNumber() ?? null,
+      NUTRIENT_CATALOG.fiber.defaultUnit,
+      date,
+    );
+    add(
+      'sugar',
+      log.sugar?.toNumber() ?? null,
+      NUTRIENT_CATALOG.sugar.defaultUnit,
+      date,
+    );
+    add('sodium', log.sodium, NUTRIENT_CATALOG.sodium.defaultUnit, date);
+    for (const nutrient of log.nutrients) {
+      if (nutrient.nutrientKey === 'water') continue;
+      add(
+        nutrient.nutrientKey,
+        nutrient.amount.toNumber(),
+        nutrient.unit,
+        date,
+      );
+    }
+  }
+
+  const nutrientDetails = Object.fromEntries(
+    [...totals.entries()].map(([key, value]) => {
+      const entry = reportingNutrientCatalogEntry(key);
+      if (entry === null) return [key, undefined];
+      const recordedDayCount = value.dates.size;
+      const precision = value.unit === 'mg' || value.unit === 'mcg' ? 0 : 1;
+      return [
         key,
-        roundTo(value / loggedDays, key === 'sodium' ? 0 : 1),
-      ]),
+        {
+          displayName: entry.displayName,
+          category: entry.category,
+          total: roundTo(value.total, precision),
+          averagePerLoggedDay: roundTo(
+            value.total / recordedDayCount,
+            precision,
+          ),
+          unit: value.unit,
+          recordedDayCount,
+        },
+      ];
+    }),
+  ) as ReportingNutrientDetails;
+  const nutrients = Object.fromEntries(
+    Object.entries(nutrientDetails).map(([key, value]) => [
+      key,
+      value.averagePerLoggedDay,
+    ]),
   );
+  return { nutrients, nutrientDetails };
+}
+
+function averageCalorieStatus(
+  averageCalories: number,
+  loggedDays: number,
+  goalType: 'lose' | 'maintain' | 'gain' | null,
+  targetCalories: number | null,
+): AverageCalorieStatus {
+  if (loggedDays === 0) return 'no_data';
+  const range = acceptedCalorieRange(goalType, targetCalories);
+  if (range === null) return 'no_target';
+  if (averageCalories < range.lowerCalories) return 'below_range';
+  if (averageCalories > range.upperCalories) return 'over_range';
+  return 'within_range';
 }
 
 function weightFacts(
@@ -366,6 +462,11 @@ function buildWindowFacts(input: {
     const date = localDate(log.loggedAt, input.timezone);
     return date >= window.startDate && date <= window.endDate;
   });
+  const nutrientFacts = nutrientReportFacts(
+    input.logs,
+    input.timezone,
+    input.mode,
+  );
 
   return {
     boundary: input.boundary,
@@ -396,7 +497,20 @@ function buildWindowFacts(input: {
     ),
     averageCalories,
     averageProteinGrams,
-    nutrients: nutrientAverages(input.logs, input.timezone, input.mode),
+    nutrients: nutrientFacts.nutrients,
+    nutrientDetails: nutrientFacts.nutrientDetails,
+    calorieTarget: input.targetCalories,
+    proteinTargetGrams: input.targetProtein,
+    acceptedCalorieRange: acceptedCalorieRange(
+      input.goalType,
+      input.targetCalories,
+    ),
+    averageCalorieStatus: averageCalorieStatus(
+      averageCalories,
+      loggedDays,
+      input.goalType,
+      input.targetCalories,
+    ),
     dailyBreakdown,
     weight: weightFacts(
       windowWeightLogs,
@@ -437,7 +551,7 @@ export async function computeReports(
         fiber: true,
         sugar: true,
         sodium: true,
-        nutrients: { select: { nutrientKey: true, amount: true } },
+        nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
       orderBy: { loggedAt: 'asc' },
     }),
@@ -620,6 +734,11 @@ export async function computeReports(
       averageProteinGrams: current.averageProteinGrams,
       weight: current.weight,
       nutrients: current.nutrients,
+      nutrientDetails: current.nutrientDetails,
+      calorieTarget: current.calorieTarget,
+      proteinTargetGrams: current.proteinTargetGrams,
+      acceptedCalorieRange: current.acceptedCalorieRange,
+      averageCalorieStatus: current.averageCalorieStatus,
     },
     previousCompleted: {
       boundaries: boundaries.previousCompleted,
@@ -633,6 +752,11 @@ export async function computeReports(
       averageProteinGrams: previousCompleted.averageProteinGrams,
       weight: previousCompleted.weight,
       nutrients: previousCompleted.nutrients,
+      nutrientDetails: previousCompleted.nutrientDetails,
+      calorieTarget: previousCompleted.calorieTarget,
+      proteinTargetGrams: previousCompleted.proteinTargetGrams,
+      acceptedCalorieRange: previousCompleted.acceptedCalorieRange,
+      averageCalorieStatus: previousCompleted.averageCalorieStatus,
     },
     comparison,
   };
@@ -664,7 +788,7 @@ export async function computeProgress(
         fiber: true,
         sugar: true,
         sodium: true,
-        nutrients: { select: { nutrientKey: true, amount: true } },
+        nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
     }),
     prisma.weightLog.findMany({

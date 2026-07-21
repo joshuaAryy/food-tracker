@@ -22,6 +22,7 @@ import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { StreakEntryAction } from '@/components/streak-entry-action';
 import {
   SkeletonLine,
   SkeletonPill,
@@ -680,6 +681,10 @@ export default function ProgressScreen() {
           onPress={() => void toggleMode()}
         />
       </View>
+
+      {reporting === null ? null : (
+        <StreakEntryAction currentStreak={reporting.currentStreak.loggedDays} />
+      )}
 
       {error === null ? null : (
         <ErrorState title="Couldn’t refresh progress" message={error} />

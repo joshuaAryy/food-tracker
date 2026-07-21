@@ -13,6 +13,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="streaks" />
         <Stack.Screen
           name="food-log"
           options={{ presentation: 'modal', gestureEnabled: true }}

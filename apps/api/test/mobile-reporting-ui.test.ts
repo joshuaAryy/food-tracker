@@ -8,6 +8,12 @@ import {
   streakHeadline,
   streakSupportingCopy,
 } from '../../mobile/src/lib/reporting-ui.js';
+import {
+  consumingCharcoalFraction,
+  semanticDayLabel,
+  shiftMonth,
+  STREAKS_ROUTE,
+} from '../../mobile/src/lib/streak-calendar-ui.js';
 
 const unavailable = {
   available: false as const,
@@ -79,5 +85,67 @@ describe('mobile reporting presentation helpers', () => {
         loggedDays: { current: 3, previous: 1, delta: 2 },
       }),
     ).toEqual(['Logged 2 days more.']);
+  });
+
+  it('consumes the former gold ring with charcoal above the backend upper ratio', () => {
+    expect(consumingCharcoalFraction(1.1, 1.05)).toBeCloseTo(0.25);
+    expect(consumingCharcoalFraction(1.2, 1.05)).toBeCloseTo(0.75);
+    expect(consumingCharcoalFraction(1.25, 1.05)).toBe(1);
+    expect(consumingCharcoalFraction(1.5, 1.05)).toBe(1);
+    expect(consumingCharcoalFraction(-1, 1.05)).toBe(0);
+  });
+
+  it('uses semantic day labels and the nested streak route', () => {
+    expect(STREAKS_ROUTE).toBe('/streaks');
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+    expect(shiftMonth('2026-12', 1)).toBe('2027-01');
+    expect(
+      semanticDayLabel({
+        date: '2026-07-18',
+        monthRelation: 'current',
+        phase: 'past',
+        logged: true,
+        grace: false,
+        missed: false,
+        open: false,
+        streakState: 'over_target',
+        calories: 2300,
+        calorieRatio: 1.15,
+        calorieStatus: 'over_range',
+        goldDay: false,
+      }),
+    ).toContain('over target');
+    expect(
+      semanticDayLabel({
+        date: '2026-07-20',
+        monthRelation: 'current',
+        phase: 'today',
+        logged: false,
+        grace: false,
+        missed: false,
+        open: true,
+        streakState: 'open',
+        calories: null,
+        calorieRatio: null,
+        calorieStatus: 'not_logged',
+        goldDay: false,
+      }),
+    ).toContain('non-breaking until the local day ends');
+    expect(
+      semanticDayLabel({
+        date: '2026-07-21',
+        monthRelation: 'current',
+        phase: 'future',
+        logged: false,
+        grace: false,
+        missed: false,
+        open: false,
+        streakState: 'future',
+        calories: null,
+        calorieRatio: null,
+        calorieStatus: 'not_logged',
+        goldDay: false,
+      }),
+    ).toContain('excluded from streak evaluation');
   });
 });

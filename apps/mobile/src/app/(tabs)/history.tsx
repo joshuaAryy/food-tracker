@@ -10,7 +10,6 @@ import {
   Weight,
   Wheat,
 } from 'lucide-react-native';
-import Svg, { Circle } from 'react-native-svg';
 import {
   DEFAULT_TIMEZONE,
   MEAL_TYPES,
@@ -21,6 +20,7 @@ import {
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
+import { RadialProgressRing } from '@/components/radial-progress-ring';
 import { ErrorState } from '@/components/error-state';
 import {
   SkeletonBlock,
@@ -163,50 +163,23 @@ function CalorieRing({
 }) {
   const size = 48;
   const strokeWidth = 3;
-  const center = size / 2;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
   const hasCalories = calories > 0;
   const progress =
     target === null || target <= 0
       ? 0
       : Math.min(Math.max(calories / target, 0), 1);
-  const progressOffset = circumference * (1 - progress);
   const emptyStroke = selected ? 'rgba(255,255,255,0.34)' : '#D9D9D7';
   const trackStroke = selected ? 'rgba(255,255,255,0.20)' : '#ECECEA';
 
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      pointerEvents="none"
-    >
-      <Circle
-        cx={center}
-        cy={center}
-        r={radius}
-        fill="none"
-        stroke={hasCalories ? trackStroke : emptyStroke}
-        strokeLinecap="round"
-        strokeWidth={strokeWidth}
-        {...(hasCalories ? {} : { strokeDasharray: [2.5, 5] })}
-      />
-      {hasCalories && target !== null && target > 0 ? (
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="none"
-          stroke={accent}
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={progressOffset}
-          strokeLinecap="round"
-          strokeWidth={strokeWidth}
-          transform={`rotate(-90 ${center} ${center})`}
-        />
-      ) : null}
-    </Svg>
+    <RadialProgressRing
+      progress={progress}
+      size={size}
+      strokeWidth={strokeWidth}
+      trackColor={hasCalories ? trackStroke : emptyStroke}
+      progressColor={accent}
+      {...(hasCalories ? {} : { trackDasharray: [2.5, 5] })}
+    />
   );
 }
 

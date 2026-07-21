@@ -29,6 +29,37 @@ function loggedDates(days: ReportingDay[]): string[] {
   ].sort();
 }
 
+export function deriveGraceDates(days: ReportingDay[]): Set<string> {
+  const dates = loggedDates(days);
+  const graceDates = new Set<string>();
+  let graceUsedInSegment = false;
+  let previousDate: string | undefined;
+
+  for (const date of dates) {
+    if (previousDate === undefined) {
+      previousDate = date;
+      graceUsedInSegment = false;
+      continue;
+    }
+
+    const gap = localDateDifference(date, previousDate);
+    if (gap === 1) {
+      previousDate = date;
+      continue;
+    }
+    if (gap === 2 && !graceUsedInSegment) {
+      graceDates.add(addLocalDays(date, -1));
+      graceUsedInSegment = true;
+      previousDate = date;
+      continue;
+    }
+    previousDate = date;
+    graceUsedInSegment = false;
+  }
+
+  return graceDates;
+}
+
 function segmentSpan(segment: StreakSegment): number {
   return localDateDifference(segment.endDate, segment.startDate) + 1;
 }
@@ -37,7 +68,7 @@ export function calculateStreak(
   days: ReportingDay[],
   today: string,
 ): StreakFacts {
-  const dates = loggedDates(days);
+  const dates = loggedDates(days).filter((date) => date <= today);
   const segments: StreakSegment[] = [];
 
   for (const date of dates) {
