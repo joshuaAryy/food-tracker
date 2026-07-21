@@ -3,8 +3,12 @@ import {
   availableValue,
   calorieAdherenceStatus,
   comparisonSentences,
+  energyStatusLabel,
+  nutrientDetailsForMode,
   nutrientKeysForMode,
+  nutrientGroupLabel,
   proteinAdherenceStatus,
+  reportWindowTitle,
   streakHeadline,
   streakSupportingCopy,
 } from '../../mobile/src/lib/reporting-ui.js';
@@ -85,6 +89,64 @@ describe('mobile reporting presentation helpers', () => {
         loggedDays: { current: 3, previous: 1, delta: 2 },
       }),
     ).toEqual(['Logged 2 days more.']);
+  });
+
+  it('keeps reporting presentation scoped to recorded nutrient details', () => {
+    const report = {
+      nutrientDetails: {
+        fiber: {
+          displayName: 'Fiber',
+          category: 'macro' as const,
+          total: 40,
+          averagePerLoggedDay: 20,
+          unit: 'g' as const,
+          recordedDayCount: 2,
+        },
+        vitaminC: {
+          displayName: 'Vitamin C',
+          category: 'vitamin' as const,
+          total: 80,
+          averagePerLoggedDay: 40,
+          unit: 'mg' as const,
+          recordedDayCount: 2,
+        },
+      },
+    };
+
+    expect(
+      nutrientDetailsForMode(report, 'simple').map((entry) => entry.key),
+    ).toEqual(['fiber']);
+    expect(
+      nutrientDetailsForMode(report, 'complex').map((entry) => entry.key),
+    ).toEqual(['fiber', 'vitaminC']);
+    expect(nutrientGroupLabel('protein_amino_acid')).toBe(
+      'Protein and amino acids',
+    );
+  });
+
+  it('labels energy states without exposing backend reason codes', () => {
+    expect(energyStatusLabel('no_data')).toBe('No logged energy yet');
+    expect(energyStatusLabel('no_target')).toBe('Target not set');
+    expect(energyStatusLabel('below_range')).toBe('Below target range');
+    expect(energyStatusLabel('within_range')).toBe('Within target range');
+    expect(energyStatusLabel('over_range')).toBe('Above target range');
+  });
+
+  it('names current and full-period report windows separately', () => {
+    expect(
+      reportWindowTitle('week', 'current', {
+        startDate: '2026-07-12',
+        endDate: '2026-07-18',
+        elapsedThroughDate: '2026-07-15',
+      }),
+    ).toBe('Current week so far · Jul 12 – Jul 15');
+    expect(
+      reportWindowTitle('week', 'previous', {
+        startDate: '2026-07-05',
+        endDate: '2026-07-11',
+        elapsedThroughDate: '2026-07-11',
+      }),
+    ).toBe('Previous full week · Jul 5 – Jul 11');
   });
 
   it('consumes the former gold ring with charcoal above the backend upper ratio', () => {

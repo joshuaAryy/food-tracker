@@ -3,25 +3,26 @@ import { useCallback, useState } from 'react';
 import { Pressable, View, type DimensionValue } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
+  DailyNutrientTotals,
   DashboardSummary,
   Profile,
   ProgressResponse,
+  ReportsResponse,
   TrackingMode,
   TrackingPreferences,
 } from '@food-tracker/shared';
 import {
-  ArrowRight,
   Beef,
   Flame,
   Scale,
   SlidersHorizontal,
-  TrendingUp,
   Utensils,
 } from 'lucide-react-native';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { ProgressReportingSummary } from '@/components/progress-reporting-summary';
 import { StreakEntryAction } from '@/components/streak-entry-action';
 import {
   SkeletonLine,
@@ -30,13 +31,6 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
-import {
-  availableValue,
-  calorieAdherenceStatus,
-  proteinAdherenceStatus,
-  streakHeadline,
-  streakSupportingCopy,
-} from '@/lib/reporting-ui';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
@@ -347,173 +341,6 @@ function ProgressSkeleton() {
   );
 }
 
-function ReportingRow({
-  icon: Icon,
-  accent,
-  label,
-  value,
-  detail,
-}: {
-  icon: LucideIcon;
-  accent: string;
-  label: string;
-  value: string;
-  detail?: string | undefined;
-}) {
-  return (
-    <View className="flex-row items-center gap-3 border-t border-line py-4">
-      <Icon color={accent} size={17} strokeWidth={2.2} />
-      <View className="min-w-0 flex-1 gap-0.5">
-        <AppText variant="label" className="text-ink">
-          {label}
-        </AppText>
-        {detail === undefined ? null : (
-          <AppText variant="caption" className="text-muted">
-            {detail}
-          </AppText>
-        )}
-      </View>
-      <AppText variant="label" className="text-ink tabular-nums">
-        {value}
-      </AppText>
-    </View>
-  );
-}
-
-function ProgressReporting({
-  reporting,
-  onReports,
-}: {
-  reporting: ProgressResponse;
-  onReports: () => void;
-}) {
-  const consistency = availableValue(reporting.consistency7Days);
-  const calories = availableValue(reporting.calorieAdherence);
-  const protein = availableValue(reporting.proteinAdherence);
-  const weight = availableValue(reporting.weight);
-  const streak = reporting.currentStreak;
-
-  return (
-    <View className="gap-5 border-t border-line pt-6">
-      <View className="gap-1">
-        <AppText
-          variant="caption"
-          className="text-muted uppercase tracking-[1.2px]"
-        >
-          Logging streak
-        </AppText>
-        <AppText variant="display" className="text-ink tabular-nums">
-          {streakHeadline(streak.loggedDays)}
-        </AppText>
-        <AppText className="text-muted">{streakSupportingCopy(streak)}</AppText>
-        {streak.graceUsed && streak.graceDate !== null ? (
-          <AppText variant="caption" className="text-muted">
-            One grace day was used in this streak.
-          </AppText>
-        ) : streak.loggedDays > 0 && !streak.todayLogged ? (
-          <AppText variant="caption" className="text-muted">
-            One grace day is available if you miss a local day.
-          </AppText>
-        ) : null}
-      </View>
-
-      {consistency === null ? null : (
-        <View className="gap-2 border-t border-line pt-5">
-          <View className="flex-row items-center justify-between gap-3">
-            <AppText variant="label" className="text-ink">
-              Recent consistency
-            </AppText>
-            <AppText variant="label" className="text-ink tabular-nums">
-              {consistency.percentage}%
-            </AppText>
-          </View>
-          <View className="h-1.5 overflow-hidden rounded-full bg-[#E9E7E2]">
-            <View
-              className="h-full rounded-full bg-[#6F927A]"
-              style={{ width: `${consistency.percentage}%` }}
-            />
-          </View>
-          <AppText variant="caption" className="text-muted">
-            {consistency.loggedDays} of {consistency.eligibleDays} eligible days
-            logged
-          </AppText>
-        </View>
-      )}
-
-      {calories === null && protein === null ? null : (
-        <View className="gap-1">
-          {calories === null ? null : (
-            <ReportingRow
-              icon={Flame}
-              accent={CALORIE}
-              label="Calorie adherence"
-              value={`${Math.round(calories.percentage)}%`}
-              detail={
-                calorieAdherenceStatus(
-                  reporting.calorieAdherence,
-                  reporting.goalDirection,
-                ) ?? undefined
-              }
-            />
-          )}
-          {protein === null ? null : (
-            <ReportingRow
-              icon={Beef}
-              accent={PROTEIN}
-              label="Protein adherence"
-              value={`${Math.round(protein.percentage)}%`}
-              detail={
-                proteinAdherenceStatus(reporting.proteinAdherence) ?? undefined
-              }
-            />
-          )}
-        </View>
-      )}
-
-      {weight === null ? null : (
-        <View className="gap-1">
-          <ReportingRow
-            icon={Scale}
-            accent={WEIGHT}
-            label="Weight"
-            value={
-              weight.latestWeightLb === null
-                ? '—'
-                : `${weight.latestWeightLb.toFixed(1)} lb`
-            }
-            detail={
-              weight.direction === null
-                ? 'Since tracking began'
-                : `${weight.direction[0]?.toUpperCase()}${weight.direction.slice(1)}`
-            }
-          />
-          {weight.changeLb === null ? null : (
-            <ReportingRow
-              icon={TrendingUp}
-              accent={WEIGHT}
-              label="Change"
-              value={`${weight.changeLb > 0 ? '+' : ''}${weight.changeLb.toFixed(1)} lb`}
-              detail="In the available period"
-            />
-          )}
-        </View>
-      )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="View reports in Insights"
-        className="flex-row items-center justify-between border-t border-line pt-5 active:opacity-70"
-        onPress={onReports}
-      >
-        <AppText variant="label" className="text-ink">
-          View reports
-        </AppText>
-        <ArrowRight color={INK} size={18} strokeWidth={2.1} />
-      </Pressable>
-    </View>
-  );
-}
-
 export default function ProgressScreen() {
   const router = useRouter();
   const dataVersion = useAppStore((state) => state.dataVersion);
@@ -530,6 +357,17 @@ export default function ProgressScreen() {
   const [reporting, setReporting] = useState<ProgressResponse | null>(null);
   const [reportingError, setReportingError] = useState<string | null>(null);
   const [reportingLoading, setReportingLoading] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState<ReportsResponse | null>(
+    null,
+  );
+  const [weeklyReportError, setWeeklyReportError] = useState<string | null>(
+    null,
+  );
+  const [dailyNutrients, setDailyNutrients] =
+    useState<DailyNutrientTotals | null>(null);
+  const [dailyNutrientsError, setDailyNutrientsError] = useState<string | null>(
+    null,
+  );
 
   const loadSummary = useCallback(async (asRefresh = false) => {
     if (asRefresh) {
@@ -539,8 +377,11 @@ export default function ProgressScreen() {
     }
     setError(null);
     setReportingError(null);
+    setWeeklyReportError(null);
+    setDailyNutrientsError(null);
     setReportingLoading(true);
 
+    let loadedSummary: DashboardSummary | null = null;
     try {
       const [nextSummary, nextProfile, nextPreferences] = await Promise.all([
         api.dashboard.summary(),
@@ -548,6 +389,7 @@ export default function ProgressScreen() {
         api.trackingPreferences.get(),
       ]);
       setSummary(nextSummary);
+      loadedSummary = nextSummary;
       setProfile(nextProfile);
       setPreferences(nextPreferences);
       void syncLauncherIconToMode(nextPreferences.mode).catch(
@@ -561,15 +403,36 @@ export default function ProgressScreen() {
       setLoading(false);
     }
 
-    try {
-      const nextReporting = await api.analytics.progress();
-      setReporting(nextReporting);
-    } catch (loadError) {
-      setReportingError(errorMessage(loadError));
-    } finally {
+    if (loadedSummary === null) {
       setReportingLoading(false);
       setRefreshing(false);
+      return;
     }
+
+    const [progressResult, weeklyResult, dailyResult] =
+      await Promise.allSettled([
+        api.analytics.progress(),
+        api.analytics.reports({ period: 'week' }),
+        api.analytics.dailyNutrients({ date: loadedSummary.date }),
+      ]);
+
+    if (progressResult.status === 'fulfilled') {
+      setReporting(progressResult.value);
+    } else {
+      setReportingError(errorMessage(progressResult.reason));
+    }
+    if (weeklyResult.status === 'fulfilled') {
+      setWeeklyReport(weeklyResult.value);
+    } else {
+      setWeeklyReportError(errorMessage(weeklyResult.reason));
+    }
+    if (dailyResult.status === 'fulfilled') {
+      setDailyNutrients(dailyResult.value);
+    } else {
+      setDailyNutrientsError(errorMessage(dailyResult.reason));
+    }
+    setReportingLoading(false);
+    setRefreshing(false);
   }, []);
 
   useFocusEffect(
@@ -785,8 +648,14 @@ export default function ProgressScreen() {
           />
         </View>
       ) : reporting === null ? null : (
-        <ProgressReporting
+        <ProgressReportingSummary
+          summary={summary}
           reporting={reporting}
+          weeklyReport={weeklyReport}
+          dailyNutrients={dailyNutrients}
+          weeklyReportError={weeklyReportError}
+          dailyNutrientsError={dailyNutrientsError}
+          onRetry={() => void loadSummary(true)}
           onReports={() => router.push('/(tabs)/insights')}
         />
       )}

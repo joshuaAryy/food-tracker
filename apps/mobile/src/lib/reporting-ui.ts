@@ -1,9 +1,14 @@
 import type {
   AdherenceResult,
+  AverageCalorieStatus,
   ProgressResponse,
   ReportMode,
+  ReportPeriod,
   ReportsResponse,
+  ReportingNutrientDetail,
+  ReportingNutrientGroup,
 } from '@food-tracker/shared';
+import { reportingNutrientGroupForCategory } from '@food-tracker/shared';
 
 export function availableValue<T>(
   metric: { available: true; value: T } | { available: false },
@@ -54,6 +59,98 @@ export function proteinAdherenceStatus(metric: AdherenceResult): string | null {
 export function nutrientKeysForMode(mode: ReportMode): string[] {
   if (mode === 'simple') return ['fiber', 'sugar', 'sodium'];
   return [];
+}
+
+export function nutrientDetailsForMode(
+  report: Pick<ReportsResponse['current'], 'nutrientDetails'>,
+  mode: ReportMode,
+): Array<{ key: string; detail: ReportingNutrientDetail }> {
+  const details = report.nutrientDetails ?? {};
+  const keys =
+    mode === 'simple'
+      ? nutrientKeysForMode(mode)
+      : Object.keys(details).sort((left, right) =>
+          (details[left]?.displayName ?? left).localeCompare(
+            details[right]?.displayName ?? right,
+          ),
+        );
+
+  return keys.flatMap((key) => {
+    const detail = details[key];
+    return detail === undefined ? [] : [{ key, detail }];
+  });
+}
+
+export function nutrientGroupForDetail(
+  detail: ReportingNutrientDetail,
+): ReportingNutrientGroup {
+  return reportingNutrientGroupForCategory(detail.category);
+}
+
+export function nutrientGroupLabel(group: ReportingNutrientGroup): string {
+  switch (group) {
+    case 'general':
+      return 'General and energy';
+    case 'carbohydrate_fiber':
+      return 'Carbohydrates and fiber';
+    case 'lipids':
+      return 'Fats and lipids';
+    case 'protein_amino_acid':
+      return 'Protein and amino acids';
+    case 'vitamins':
+      return 'Vitamins';
+    case 'minerals':
+      return 'Minerals';
+    case 'other':
+      return 'Other recorded nutrients';
+  }
+}
+
+export function energyStatusLabel(status: AverageCalorieStatus): string {
+  switch (status) {
+    case 'no_data':
+      return 'No logged energy yet';
+    case 'no_target':
+      return 'Target not set';
+    case 'below_range':
+      return 'Below target range';
+    case 'within_range':
+      return 'Within target range';
+    case 'over_range':
+      return 'Above target range';
+  }
+}
+
+type ReportWindowKind = 'current' | 'previous' | 'equivalent';
+type ReportBoundary = ReportsResponse['current']['boundaries'];
+
+function shortDate(value: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T12:00:00.000Z`));
+}
+
+function shortRange(startDate: string, endDate: string): string {
+  return `${shortDate(startDate)} – ${shortDate(endDate)}`;
+}
+
+export function reportWindowTitle(
+  period: ReportPeriod,
+  kind: ReportWindowKind,
+  boundary: ReportBoundary,
+): string {
+  const periodLabel = period === 'week' ? 'week' : 'month';
+  const title =
+    kind === 'current'
+      ? `Current ${periodLabel} so far`
+      : kind === 'equivalent'
+        ? `Equivalent previous ${periodLabel}`
+        : `Previous full ${periodLabel}`;
+  const endDate =
+    kind === 'current' ? boundary.elapsedThroughDate : boundary.endDate;
+  return `${title} · ${shortRange(boundary.startDate, endDate)}`;
 }
 
 export function comparisonSentences(
