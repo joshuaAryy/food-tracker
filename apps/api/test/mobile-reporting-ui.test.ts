@@ -13,11 +13,18 @@ import {
   streakSupportingCopy,
 } from '../../mobile/src/lib/reporting-ui.js';
 import {
+  calendarDayAppearance,
   consumingCharcoalFraction,
+  DAY_CELL_SIZE,
+  DAY_RING_SIZE,
+  DAY_RING_STROKE,
+  isPreTrackingCalendar,
   semanticDayLabel,
   shiftMonth,
   STREAKS_ROUTE,
+  type StreakCalendarDay,
 } from '../../mobile/src/lib/streak-calendar-ui.js';
+import type { StreakCalendarResponse } from '@food-tracker/shared';
 
 const unavailable = {
   available: false as const,
@@ -32,6 +39,125 @@ const available = {
     adherentDays: 3,
     loggedDays: 3,
   },
+};
+
+function calendarDay(overrides: Partial<StreakCalendarDay>): StreakCalendarDay {
+  return {
+    date: '2026-07-12',
+    monthRelation: 'current',
+    phase: 'past',
+    logged: false,
+    grace: false,
+    missed: true,
+    open: false,
+    streakState: 'missed',
+    calories: null,
+    calorieRatio: null,
+    calorieStatus: 'not_logged',
+    goldDay: false,
+    ...overrides,
+  };
+}
+
+const preTrackingDay = calendarDay({ date: '2026-07-05' });
+const openDay = calendarDay({
+  date: '2026-07-20',
+  phase: 'today',
+  missed: false,
+  open: true,
+  streakState: 'open',
+});
+const futureDay = calendarDay({
+  date: '2026-07-21',
+  phase: 'future',
+  missed: false,
+  streakState: 'future',
+});
+const missedDay = calendarDay({ date: '2026-07-19' });
+const loggedPartialDay = calendarDay({
+  date: '2026-07-11',
+  logged: true,
+  missed: false,
+  streakState: 'partial',
+  calories: 1700,
+  calorieRatio: 0.85,
+  calorieStatus: 'below_range',
+});
+const loggedNoTargetDay = calendarDay({
+  date: '2026-07-10',
+  logged: true,
+  missed: false,
+  streakState: 'logged_without_target',
+  calories: 2000,
+  calorieStatus: 'no_target',
+});
+const goldDay = calendarDay({
+  date: '2026-07-09',
+  logged: true,
+  missed: false,
+  streakState: 'gold',
+  calories: 2000,
+  calorieRatio: 1,
+  calorieStatus: 'within_range',
+  goldDay: true,
+});
+const overTargetDay = calendarDay({
+  date: '2026-07-08',
+  logged: true,
+  missed: false,
+  streakState: 'over_target',
+  calories: 2300,
+  calorieRatio: 1.15,
+  calorieStatus: 'over_range',
+});
+const graceDay = calendarDay({
+  date: '2026-07-07',
+  logged: true,
+  grace: true,
+  missed: false,
+  streakState: 'grace',
+  calories: 1900,
+  calorieRatio: 0.95,
+  calorieStatus: 'within_range',
+});
+const calendar: StreakCalendarResponse = {
+  timezone: 'America/Toronto',
+  requestedMonth: '2026-07',
+  monthBoundary: { startDate: '2026-07-01', endDate: '2026-07-31' },
+  displayBoundary: { startDate: '2026-06-28', endDate: '2026-08-01' },
+  goalDirection: 'maintain',
+  activeCalorieTarget: 2000,
+  acceptedCalorieRange: {
+    lowerRatio: 0.9,
+    upperRatio: 1.1,
+    lowerCalories: 1800,
+    upperCalories: 2200,
+  },
+  currentStreak: {
+    loggedDays: 1,
+    spanDays: 1,
+    longestLoggedDays: 1,
+    graceUsed: false,
+    graceDate: null,
+    todayLogged: false,
+    todayOpen: true,
+  },
+  weeks: [
+    {
+      startDate: '2026-07-05',
+      endDate: '2026-07-11',
+      goldWeek: false,
+      days: [
+        graceDay,
+        overTargetDay,
+        goldDay,
+        loggedNoTargetDay,
+        loggedPartialDay,
+        preTrackingDay,
+        missedDay,
+      ],
+    },
+  ],
 };
 
 describe('mobile reporting presentation helpers', () => {
@@ -209,5 +335,47 @@ describe('mobile reporting presentation helpers', () => {
         goldDay: false,
       }),
     ).toContain('excluded from streak evaluation');
+  });
+
+  it('maps calendar facts to the shared visual families without losing semantics', () => {
+    expect(DAY_CELL_SIZE).toBe(44);
+    expect(DAY_RING_SIZE).toBe(34);
+    expect(DAY_RING_STROKE).toBe(3);
+    expect(calendarDayAppearance(preTrackingDay, true).visual).toBe('plain');
+    expect(calendarDayAppearance(openDay).visual).toBe('dotted');
+    expect(calendarDayAppearance(futureDay).visual).toBe('dotted');
+    expect(calendarDayAppearance(missedDay).visual).toBe('dotted');
+    expect(calendarDayAppearance(loggedPartialDay).visual).toBe(
+      'green-progress',
+    );
+    expect(calendarDayAppearance(loggedNoTargetDay).visual).toBe(
+      'green-complete',
+    );
+    expect(calendarDayAppearance(goldDay).visual).toBe('gold');
+    expect(calendarDayAppearance(overTargetDay).visual).toBe('over-target');
+    expect(calendarDayAppearance(graceDay).visual).toBe('grace');
+    expect(
+      isPreTrackingCalendar({
+        ...calendar,
+        currentStreak: { ...calendar.currentStreak, longestLoggedDays: 0 },
+      }),
+    ).toBe(true);
+    expect(
+      isPreTrackingCalendar({
+        ...calendar,
+        currentStreak: { ...calendar.currentStreak, longestLoggedDays: 1 },
+      }),
+    ).toBe(false);
+
+    expect(semanticDayLabel(openDay)).toContain('open for logging');
+    expect(semanticDayLabel(futureDay)).toContain('excluded from streak');
+    expect(semanticDayLabel(missedDay)).toContain('missed;');
+    expect(semanticDayLabel(graceDay)).toContain('grace day;');
+    expect(semanticDayLabel(goldDay)).toContain('gold, inside');
+    expect(semanticDayLabel(loggedNoTargetDay)).toContain(
+      'logged without a calorie target',
+    );
+    expect(semanticDayLabel(loggedPartialDay)).toContain('partial, below');
+    expect(semanticDayLabel(overTargetDay)).toContain('over target, above');
   });
 });

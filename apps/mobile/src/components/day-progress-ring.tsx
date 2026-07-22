@@ -1,59 +1,99 @@
+import { View } from 'react-native';
 import { AppText } from './app-text';
+import { GraceLaurelIcon } from './grace-laurel-icon';
 import { RadialProgressRing } from './radial-progress-ring';
-import type { StreakCalendarDay } from '@/lib/streak-calendar-ui';
+import { StreakGoldBand } from './streak-gold-band';
 import {
+  calendarDayAppearance,
+  clamp,
   consumingCharcoalFraction,
-  semanticDayLabel,
+  DAY_RING_SIZE,
+  DAY_RING_STROKE,
+  shortDayNumber,
+  type StreakCalendarDay,
 } from '@/lib/streak-calendar-ui';
 import { colors } from '@/theme/tokens';
-
-const stateAppearance: Record<
-  StreakCalendarDay['streakState'],
-  { color: string; cue: string }
-> = {
-  future: { color: colors.light.border, cue: '·' },
-  open: { color: colors.light.subtle, cue: '○' },
-  missed: { color: colors.light.error, cue: '×' },
-  logged_without_target: { color: colors.light.water, cue: '•' },
-  partial: { color: colors.light.carbs, cue: '◐' },
-  gold: { color: colors.light.sageDark, cue: '✓' },
-  over_target: { color: colors.light.ink, cue: '↑' },
-  grace: { color: colors.light.muted, cue: 'G' },
-};
 
 interface DayProgressRingProps {
   day: StreakCalendarDay;
   acceptedUpperRatio: number | null;
+  preTracking?: boolean;
   size?: number;
+}
+
+function DayNumber({ day }: { day: StreakCalendarDay }) {
+  return (
+    <AppText
+      variant="caption"
+      className="text-[12px] font-semibold leading-4 text-ink"
+    >
+      {shortDayNumber(day.date)}
+    </AppText>
+  );
 }
 
 export function DayProgressRing({
   day,
   acceptedUpperRatio,
-  size = 32,
+  preTracking = false,
+  size = DAY_RING_SIZE,
 }: DayProgressRingProps) {
-  const appearance = stateAppearance[day.streakState];
-  const progress =
-    day.calorieRatio === null ? 0 : Math.min(day.calorieRatio, 1);
+  const appearance = calendarDayAppearance(day, preTracking);
+  const progress = clamp(day.calorieRatio ?? 0);
   const charcoalFraction =
     acceptedUpperRatio === null
       ? 0
       : consumingCharcoalFraction(day.calorieRatio, acceptedUpperRatio);
 
+  if (appearance.visual === 'plain') {
+    return (
+      <View
+        className="items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <DayNumber day={day} />
+      </View>
+    );
+  }
+
+  if (appearance.visual === 'gold') {
+    return (
+      <StreakGoldBand variant="day" size={size}>
+        <DayNumber day={day} />
+      </StreakGoldBand>
+    );
+  }
+
+  if (appearance.visual === 'grace') {
+    return (
+      <View
+        className="items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <GraceLaurelIcon size={size} />
+        <View className="absolute items-center justify-center">
+          <DayNumber day={day} />
+        </View>
+      </View>
+    );
+  }
+
+  const isDotted = appearance.visual === 'dotted';
+  const isComplete = appearance.visual === 'green-complete';
+  const isOverTarget = appearance.visual === 'over-target';
+
   return (
     <RadialProgressRing
-      progress={progress}
+      progress={isDotted ? 0 : isComplete || isOverTarget ? 1 : progress}
       size={size}
-      strokeWidth={4}
-      progressColor={appearance.color}
-      trackColor={colors.light.line}
-      charcoalFraction={charcoalFraction}
+      strokeWidth={DAY_RING_STROKE}
+      trackColor={isDotted ? colors.light.line : colors.light.primarySoft}
+      {...(isDotted ? { trackDasharray: [1, 4] } : {})}
+      progressColor={colors.light.sageDark}
+      charcoalFraction={isOverTarget ? charcoalFraction : 0}
       charcoalColor={colors.light.ink}
-      accessibilityLabel={semanticDayLabel(day)}
     >
-      <AppText variant="caption" className="text-[10px] leading-3 text-ink">
-        {day.streakState === 'future' ? '·' : appearance.cue}
-      </AppText>
+      <DayNumber day={day} />
     </RadialProgressRing>
   );
 }

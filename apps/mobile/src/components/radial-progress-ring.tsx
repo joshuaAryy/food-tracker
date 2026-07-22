@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { clamp } from '@/lib/streak-calendar-ui';
 import { colors } from '@/theme/tokens';
 
@@ -13,6 +13,8 @@ interface RadialProgressRingProps extends PropsWithChildren {
   progressColor?: string;
   charcoalFraction?: number;
   charcoalColor?: string;
+  centerColor?: string;
+  goldGradient?: boolean;
   accessibilityLabel?: string;
   testID?: string;
 }
@@ -27,16 +29,23 @@ export function RadialProgressRing({
   progressColor = colors.light.sageDark,
   charcoalFraction = 0,
   charcoalColor = colors.light.ink,
+  centerColor = colors.light.surface,
+  goldGradient = false,
   accessibilityLabel,
   testID,
 }: RadialProgressRingProps) {
   const normalizedProgress = clamp(progress);
   const normalizedCharcoal = clamp(charcoalFraction);
   const radius = (size - strokeWidth) / 2;
+  const center = size / 2;
+  const centerRadius = Math.max(radius - strokeWidth / 2, 0);
   const circumference = 2 * Math.PI * radius;
   const progressLength = circumference * normalizedProgress;
   const charcoalLength = progressLength * normalizedCharcoal;
-  const charcoalOffset = circumference - (progressLength - charcoalLength);
+  const charcoalOffset = circumference - progressLength + charcoalLength;
+  const progressStroke = goldGradient
+    ? 'url(#radial-progress-gold)'
+    : progressColor;
 
   return (
     <View
@@ -53,9 +62,25 @@ export function RadialProgressRing({
         pointerEvents="none"
         accessibilityElementsHidden
       >
+        {goldGradient ? (
+          <Defs>
+            <LinearGradient
+              id="radial-progress-gold"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+              <Stop offset="0" stopColor="#F5E9B9" />
+              <Stop offset="0.45" stopColor="#D8B75D" />
+              <Stop offset="1" stopColor="#B58C32" />
+            </LinearGradient>
+          </Defs>
+        ) : null}
+        <Circle cx={center} cy={center} r={centerRadius} fill={centerColor} />
         <Circle
-          cx={size / 2}
-          cy={size / 2}
+          cx={center}
+          cy={center}
           r={radius}
           fill="none"
           stroke={trackColor}
@@ -67,23 +92,23 @@ export function RadialProgressRing({
         />
         {normalizedProgress > 0 ? (
           <Circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
-            stroke={progressColor}
+            stroke={progressStroke}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={`${progressLength} ${circumference}`}
             strokeDashoffset={0}
             rotation={-90}
-            origin={`${size / 2}, ${size / 2}`}
+            origin={`${center}, ${center}`}
           />
         ) : null}
         {charcoalLength > 0 ? (
           <Circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={center}
+            cy={center}
             r={radius}
             fill="none"
             stroke={charcoalColor}
@@ -92,7 +117,7 @@ export function RadialProgressRing({
             strokeDasharray={`${charcoalLength} ${circumference}`}
             strokeDashoffset={charcoalOffset}
             rotation={-90}
-            origin={`${size / 2}, ${size / 2}`}
+            origin={`${center}, ${center}`}
           />
         ) : null}
       </Svg>
