@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented and committed as `016fd96` (`feat: align Progress reporting with approved design`).
+Implemented and finalized at Task 4 head `2ea777a` (`feat: align Progress reporting with approved design`).
 
 ## Delivered
 
@@ -13,23 +13,27 @@ Implemented and committed as `016fd96` (`feat: align Progress reporting with app
 - Kept the shared flame-and-number streak action uncontained, compact, and
   singular-aware while preserving its existing `/streaks` navigation.
 - Converged the Progress reporting summary on an open white hierarchy: the
-  calorie amount is the hero, the accepted range and remaining/exceeded context
-  are visible, and the target rail remains the only reporting rail.
+  calorie amount is the one hero, the accepted target range is the only
+  reporting rail, and remaining/exceeded context is visible.
 - Reworked daily nutrient presentation into protein-first rows followed by
   carbohydrates, fat, fiber, sugar, and sodium. Missing nutrient facts remain
   omitted rather than becoming invented zeroes.
 - Rendered weekly momentum's latest-day note only from the existing report
   `dailyBreakdown`; no placeholder disks, raw-log analytics, new endpoint, or
   contract field was added.
-- Preserved the existing Progress loading, independent `Promise.allSettled`
-  failure branches, refresh behavior, Simple/Complex mode switch, and Insights
-  navigation. No Progress screen source change was necessary.
+- Used final-day momentum text from the returned `dailyBreakdown`, with compact
+  calorie and protein facts and no invented day state.
+- Used an em dash for unavailable or invalid calorie targets.
+- Preserved non-reporting food-entry, latest-weight, and Detailed tracking rows,
+  independent `Promise.allSettled` failure branches, refresh behavior,
+  Simple/Complex mode switching, and Insights navigation.
 
 ## Scope
 
 Changed only these Task 4 files:
 
 - `apps/api/test/mobile-reporting-ui.test.ts`
+- `apps/mobile/src/app/(tabs)/progress.tsx`
 - `apps/mobile/src/components/progress-reporting-summary.tsx`
 - `apps/mobile/src/components/streak-entry-action.tsx`
 - `apps/mobile/src/lib/reporting-ui.ts`
@@ -61,13 +65,13 @@ Vitest loaded tests by Prisma `P1001` because PostgreSQL was unreachable at
 
 ## Commands And Results
 
-| Command | Result |
-| --- | --- |
+| Command                                                                                              | Result                                                                                    |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `corepack pnpm --filter @food-tracker/api test -- mobile-reporting-ui.test.ts reporting-api.test.ts` | Blocked before test execution by Prisma `P1001` at `localhost:5432`; no API tests loaded. |
-| Isolated focused Vitest for `mobile-reporting-ui.test.ts` without repository PostgreSQL setup | Passed: 1 file, 18 tests. |
-| Modified-file `corepack pnpm exec prettier --check ...` | Passed. |
-| `corepack pnpm --filter @food-tracker/mobile typecheck` | Passed. |
-| `git diff --check` and staged `git diff --cached --check` | Passed. |
+| Isolated focused Vitest for `mobile-reporting-ui.test.ts` without repository PostgreSQL setup        | Passed: 1 file, 18 tests.                                                                 |
+| Modified-file `corepack pnpm exec prettier --check ...`                                              | Passed.                                                                                   |
+| `corepack pnpm --filter @food-tracker/mobile typecheck`                                              | Passed.                                                                                   |
+| `git diff --check` and staged `git diff --cached --check`                                            | Passed.                                                                                   |
 
 ## Manual Validation
 
