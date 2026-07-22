@@ -1,7 +1,7 @@
 export const colors = {
   light: {
-    canvas: '#F2F2F0',
-    surface: '#F7F7F4',
+    canvas: '#FFFFFF',
+    surface: '#FFFFFF',
     surfaceRaised: '#FFFFFF',
     module: '#FFFFFF',
     moduleMuted: '#ECECEA',

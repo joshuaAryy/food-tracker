@@ -44,7 +44,7 @@ export function AppScreen({
 
   return (
     <SafeAreaView
-      className="flex-1 bg-canvas"
+      className="flex-1"
       edges={['top']}
       style={{ backgroundColor }}
     >
@@ -75,7 +75,7 @@ export function AppScreen({
           content
         )}
         {footer === undefined ? null : (
-          <View className="bg-canvas/95 px-5 py-3" style={{ backgroundColor }}>
+          <View className="px-5 py-3" style={{ backgroundColor }}>
             <View className="w-full max-w-[480px] self-center">{footer}</View>
           </View>
         )}

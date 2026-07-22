@@ -49,8 +49,8 @@ use, but theme switching is not part of this phase.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `canvas` | `#F2F2F0` |
-| Standard surface | `surface` | `#F7F7F4` |
+| App background | `canvas` | `#FFFFFF` |
+| Standard surface | `surface` | `#FFFFFF` |
 | Raised surface | `surfaceRaised` | `#FFFFFF` |
 | Product module | `module` | `#FFFFFF` |
 | Muted module | `moduleMuted` | `#ECECEA` |
@@ -89,7 +89,8 @@ use, but theme switching is not part of this phase.
 Colors are centralized in `apps/mobile/src/theme/tokens.ts` and mirrored in
 the NativeWind theme.
 
-NativeWind uses semantic class aliases for the same roles. Notable aliases:
+NativeWind uses semantic class aliases for the same roles. `bg-canvas` and
+`bg-surface` are pure white for affected app surfaces. Other notable aliases:
 `bg-primary`, `bg-primary-soft`, `bg-sage-soft`, `bg-water-soft`,
 `bg-gold-soft`, `bg-clay-soft`, and `bg-error-soft`.
 
@@ -117,7 +118,7 @@ Hierarchy:
 - Hero: 52px bold for the most important daily number
 - Display: 42px bold for prominent data values
 - Title: 32px bold for screen names and key onboarding questions
-- Heading: 22px bold for modules and section titles
+- Heading: 22px semibold for modules and section titles
 - Body: 16px regular with 24px line height
 - Label: 14px semibold for controls and important metadata
 - Caption: 12px medium for dates, units, and secondary labels
@@ -157,7 +158,7 @@ The product remains mobile-first on every platform.
 
 - Inputs and buttons: 14px
 - Product modules: 32px
-- Cards: 30px
+- Cards: 20px
 - Pills and circular controls: fully rounded
 - Borders: rare and purposeful. Prefer spacing, soft fills, selected bands, and
   typography before adding visible outlines.
@@ -167,9 +168,9 @@ button. Surface contrast should do most of the separation work.
 
 ## Cards
 
-`AppCard` is a legacy reusable surface primitive, not the default Phase 6.5
-visual language. New onboarding and Progress/Home surfaces should prefer
-open layouts, purpose-built modules, rows, dividers, pills, and rails.
+`AppCard` is a 20px, white, quietly bordered supporting surface, not the
+default Phase 6.5 visual language. New onboarding and reporting surfaces should
+prefer open layouts, purpose-built modules, rows, dividers, pills, and rails.
 
 - Use a raised surface only when the card has a clear job.
 - Prefer one clear purpose per card.

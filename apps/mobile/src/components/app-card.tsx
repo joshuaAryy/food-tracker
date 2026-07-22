@@ -17,7 +17,7 @@ export function AppCard({
 }: AppCardProps) {
   return (
     <View
-      className={`rounded-app border border-border bg-surface-raised ${
+      className={`rounded-[20px] border border-border bg-surface ${
         elevated ? 'shadow-sm shadow-ink/10' : ''
       } ${compact ? 'p-4' : 'p-[18px]'} ${className}`}
       style={style}
