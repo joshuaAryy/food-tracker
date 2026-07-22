@@ -1,8 +1,9 @@
-import { Pressable, View } from 'react-native';
+import { Pressable } from 'react-native';
 import { AppText } from './app-text';
 import { StreakFlame } from './streak-flame';
-import { STREAKS_ROUTE } from '@/lib/streak-calendar-ui';
 import { router } from 'expo-router';
+import { streakEntryLabel } from '@/lib/reporting-ui';
+import { STREAKS_ROUTE } from '@/lib/streak-calendar-ui';
 
 interface StreakEntryActionProps {
   currentStreak: number;
@@ -16,19 +17,14 @@ export function StreakEntryAction({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open streak calendar. Current streak ${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}.`}
+      accessibilityLabel={`Open streak calendar. ${streakEntryLabel(currentStreak)}.`}
       className="min-h-[44px] self-start flex-row items-center gap-2 py-2 active:opacity-75"
       onPress={onPress}
     >
       <StreakFlame size={24} />
-      <View className="flex-row items-baseline gap-1">
-        <AppText variant="label" className="text-ink tabular-nums">
-          {currentStreak}
-        </AppText>
-        <AppText variant="caption" className="text-muted">
-          day{currentStreak === 1 ? '' : 's'} logged
-        </AppText>
-      </View>
+      <AppText variant="label" className="text-ink tabular-nums">
+        {streakEntryLabel(currentStreak)}
+      </AppText>
     </Pressable>
   );
 }

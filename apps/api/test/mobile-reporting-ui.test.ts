@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availableValue,
   calorieAdherenceStatus,
+  calorieHeroContext,
   comparisonSentences,
   energyStatusLabel,
   nutrientDetailsForMode,
@@ -10,8 +11,10 @@ import {
   nutrientGroupLabel,
   proteinAdherenceStatus,
   reportWindowTitle,
+  streakEntryLabel,
   streakHeadline,
   streakSupportingCopy,
+  weeklyMomentumDayFacts,
 } from '../../mobile/src/lib/reporting-ui.js';
 import {
   calendarDayAppearance,
@@ -204,6 +207,55 @@ function detailsFor(day: StreakCalendarDay, goldWeek = false): DayDetailFacts {
 }
 
 describe('mobile reporting presentation helpers', () => {
+  it('keeps the Progress streak action compact and singular-aware', () => {
+    expect(streakEntryLabel(1)).toBe('1 day logged');
+    expect(streakEntryLabel(7)).toBe('7 days logged');
+  });
+
+  it('keeps calorie hero context factual and complete', () => {
+    expect(
+      calorieHeroContext({
+        caloriesConsumed: 2100,
+        calorieTarget: 2000,
+        caloriesRemaining: -100,
+        acceptedCalorieRange: {
+          lowerRatio: 0.9,
+          upperRatio: 1.1,
+          lowerCalories: 1800,
+          upperCalories: 2200,
+        },
+      }),
+    ).toEqual({
+      amount: '2,100 kcal',
+      range: '1,800–2,200 kcal accepted range',
+      context: '100 kcal exceeded',
+    });
+
+    expect(
+      calorieHeroContext({
+        caloriesConsumed: 1200,
+        calorieTarget: null,
+        caloriesRemaining: null,
+        acceptedCalorieRange: {
+          lowerRatio: 0.9,
+          upperRatio: 1.1,
+          lowerCalories: 1800,
+          upperCalories: 2200,
+        },
+      }),
+    ).toEqual({ amount: '1,200 kcal', range: '—', context: '—' });
+  });
+
+  it('passes through only returned weekly day facts', () => {
+    const days = [
+      { date: '2026-07-20', logged: true, calories: 2000, proteinGrams: 120 },
+      { date: '2026-07-21', logged: false, calories: 0, proteinGrams: 0 },
+    ];
+
+    expect(weeklyMomentumDayFacts({ dailyBreakdown: days })).toEqual(days);
+    expect(weeklyMomentumDayFacts({ dailyBreakdown: [] })).toEqual([]);
+  });
+
   it('derives complete in-range details for a selected gold day', () => {
     expect(detailsFor(goldDay, true)).toEqual({
       fullDate: 'Thursday, July 9, 2026',

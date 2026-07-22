@@ -6,9 +6,9 @@ import type {
 } from '@food-tracker/shared';
 import { ArrowRight, Beef, Flame, Sparkles } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
-import { AppCard } from './app-card';
 import { AppText } from './app-text';
 import { ErrorState } from './error-state';
+import { calorieHeroContext, weeklyMomentumDayFacts } from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
 
 function clamp(value: number): number {
@@ -51,9 +51,15 @@ function ProgressTargetBand({
     lower === null || upper === null || maximum <= minimum
       ? 0
       : clamp((upper - lower) / (maximum - minimum));
+  const calorieContext = calorieHeroContext({
+    caloriesConsumed: summary.caloriesConsumed,
+    calorieTarget: summary.calorieTarget,
+    caloriesRemaining: summary.caloriesRemaining,
+    acceptedCalorieRange: range,
+  });
 
   return (
-    <AppCard compact className="gap-4">
+    <View className="gap-4">
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-row items-center gap-2">
           <Flame color={colors.light.carbs} size={18} strokeWidth={2.2} />
@@ -67,17 +73,14 @@ function ProgressTargetBand({
       </View>
       <View className="flex-row items-end justify-between gap-3">
         <View className="min-w-0 flex-1">
-          <AppText variant="number" className="text-ink">
-            {Math.round(summary.caloriesConsumed).toLocaleString('en-US')} kcal
+          <AppText
+            variant="hero"
+            className="text-[52px] leading-[56px] text-ink tabular-nums"
+          >
+            {calorieContext.amount.replace(' kcal', '')}
           </AppText>
           <AppText variant="caption" className="text-muted">
-            {summary.caloriesRemaining === null
-              ? target === null
-                ? 'No calorie target yet.'
-                : `${Math.round(target).toLocaleString('en-US')} kcal target`
-              : summary.caloriesRemaining >= 0
-                ? `${Math.round(summary.caloriesRemaining).toLocaleString('en-US')} kcal remaining`
-                : `${Math.round(Math.abs(summary.caloriesRemaining)).toLocaleString('en-US')} kcal above target`}
+            {calorieContext.context}
           </AppText>
         </View>
         <AppText variant="caption" className="text-muted">
@@ -104,22 +107,14 @@ function ProgressTargetBand({
         </View>
         <View className="flex-row justify-between gap-3">
           <AppText variant="caption" className="text-muted">
-            {lower === null
-              ? 'No range'
-              : hasRange
-                ? `${Math.round(lower)} kcal lower`
-                : `${Math.round(lower)} kcal target`}
+            {calorieContext.range}
           </AppText>
           <AppText variant="caption" className="text-muted">
-            {upper === null
-              ? 'Add a goal for a range'
-              : hasRange
-                ? `${Math.round(upper)} kcal accepted upper`
-                : `${Math.round(upper)} kcal target`}
+            {hasRange ? 'Accepted range' : target === null ? '—' : 'Target'}
           </AppText>
         </View>
       </View>
-    </AppCard>
+    </View>
   );
 }
 
@@ -158,25 +153,29 @@ function DailyNutrientBand({
           Today’s nutrition
         </AppText>
       </View>
-      <View className="mt-2 flex-row flex-wrap gap-x-4 gap-y-3">
+      <View className="mt-2">
         {entries.map(({ key, value }) => (
-          <View key={key} className="min-w-[44%] flex-1 gap-0.5">
-            <AppText variant="caption" className="text-muted">
-              {key === 'carbs'
-                ? 'Carbohydrates'
-                : key[0]?.toUpperCase() + key.slice(1)}
-            </AppText>
-            <AppText
-              variant={key === 'protein' ? 'number' : 'label'}
-              className="text-ink tabular-nums"
-            >
+          <View
+            key={key}
+            className="flex-row items-center justify-between gap-4 border-t border-line py-3"
+          >
+            <View className="min-w-0 flex-1 gap-0.5">
+              <AppText variant="label" className="text-ink">
+                {key === 'protein'
+                  ? 'Protein priority'
+                  : key === 'carbs'
+                    ? 'Carbohydrates'
+                    : key[0]?.toUpperCase() + key.slice(1)}
+              </AppText>
+              {key === 'protein' && summary.proteinTarget !== null ? (
+                <AppText variant="caption" className="text-muted">
+                  of {Math.round(summary.proteinTarget)} g target
+                </AppText>
+              ) : null}
+            </View>
+            <AppText variant="label" className="text-ink tabular-nums">
               {formatAmount(value.amount, value.unit)}
             </AppText>
-            {key === 'protein' && summary.proteinTarget !== null ? (
-              <AppText variant="caption" className="text-muted">
-                of {Math.round(summary.proteinTarget)} g target
-              </AppText>
-            ) : null}
           </View>
         ))}
       </View>
@@ -206,6 +205,9 @@ export function ProgressReportingSummary({
   const consistency = reporting.consistency7Days.available
     ? reporting.consistency7Days.value
     : null;
+  const momentumDays =
+    weeklyReport === null ? [] : weeklyMomentumDayFacts(weeklyReport.current);
+  const finalMomentumDay = momentumDays.at(-1);
 
   return (
     <View className="gap-5 border-t border-line pt-6">
@@ -217,7 +219,7 @@ export function ProgressReportingSummary({
         />
       )}
       <ProgressTargetBand summary={summary} weeklyReport={weeklyReport} />
-      <View className="gap-3">
+      <View className="gap-3 border-t border-line pt-5">
         <View className="flex-row items-center gap-2">
           <Beef color={colors.light.sageDark} size={18} strokeWidth={2.2} />
           <AppText variant="heading" className="text-ink">
@@ -246,6 +248,12 @@ export function ProgressReportingSummary({
               />
             </View>
           </View>
+        )}
+        {finalMomentumDay === undefined ? null : (
+          <AppText variant="caption" className="text-muted">
+            Most recent reported day:{' '}
+            {finalMomentumDay.logged ? 'logged' : 'not logged'}
+          </AppText>
         )}
       </View>
       {dailyNutrientsError === null ? null : (

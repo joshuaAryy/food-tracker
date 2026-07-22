@@ -1,5 +1,6 @@
 import type {
   AdherenceResult,
+  AcceptedCalorieRange,
   AverageCalorieStatus,
   ProgressResponse,
   ReportMode,
@@ -14,6 +15,51 @@ export function availableValue<T>(
   metric: { available: true; value: T } | { available: false },
 ): T | null {
   return metric.available ? metric.value : null;
+}
+
+export function streakEntryLabel(currentStreak: number): string {
+  const days = Math.max(0, Math.round(currentStreak));
+  return `${days} day${days === 1 ? '' : 's'} logged`;
+}
+
+function formatCalories(value: number): string {
+  return `${Math.round(value).toLocaleString('en-US')} kcal`;
+}
+
+export function calorieHeroContext({
+  caloriesConsumed,
+  calorieTarget,
+  caloriesRemaining,
+  acceptedCalorieRange,
+}: {
+  caloriesConsumed: number;
+  calorieTarget: number | null;
+  caloriesRemaining: number | null;
+  acceptedCalorieRange: AcceptedCalorieRange | null;
+}): { amount: string; range: string; context: string } {
+  const range =
+    calorieTarget === null || acceptedCalorieRange === null
+      ? '—'
+      : `${formatCalories(acceptedCalorieRange.lowerCalories).replace(' kcal', '')}–${formatCalories(acceptedCalorieRange.upperCalories)}` +
+        ' accepted range';
+  const context =
+    calorieTarget === null || caloriesRemaining === null
+      ? '—'
+      : caloriesRemaining < 0
+        ? `${formatCalories(Math.abs(caloriesRemaining))} exceeded`
+        : `${formatCalories(caloriesRemaining)} remaining`;
+
+  return {
+    amount: formatCalories(caloriesConsumed),
+    range,
+    context,
+  };
+}
+
+export function weeklyMomentumDayFacts(
+  report: Pick<ReportsResponse['current'], 'dailyBreakdown'>,
+): ReportsResponse['current']['dailyBreakdown'] {
+  return report.dailyBreakdown;
 }
 
 export function streakHeadline(loggedDays: number): string {
