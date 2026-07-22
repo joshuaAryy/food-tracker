@@ -8,7 +8,12 @@ import { ArrowRight, Beef, Flame, Sparkles } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { AppText } from './app-text';
 import { ErrorState } from './error-state';
-import { calorieHeroContext, weeklyMomentumDayFacts } from '@/lib/reporting-ui';
+import {
+  calorieHeroContext,
+  calorieHeroTargetLabel,
+  weeklyMomentumDayState,
+  weeklyMomentumFinalDay,
+} from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
 
 function clamp(value: number): number {
@@ -19,16 +24,18 @@ function formatAmount(amount: number, unit: string): string {
   return `${amount.toLocaleString('en-US', { maximumFractionDigits: unit === 'mg' || unit === 'mcg' ? 0 : 1 })} ${unit}`;
 }
 
-function ProgressTargetBand({
+export function ProgressCalorieHero({
   summary,
   weeklyReport,
 }: {
   summary: DashboardSummary;
   weeklyReport: ReportsResponse | null;
 }) {
-  const target = summary.calorieTarget;
+  const target =
+    summary.calorieTarget !== null && summary.calorieTarget > 0
+      ? summary.calorieTarget
+      : null;
   const range = weeklyReport?.current.acceptedCalorieRange ?? null;
-  const hasRange = range !== null;
   const lower = range?.lowerCalories ?? target;
   const upper = range?.upperCalories ?? target;
   const span =
@@ -53,10 +60,14 @@ function ProgressTargetBand({
       : clamp((upper - lower) / (maximum - minimum));
   const calorieContext = calorieHeroContext({
     caloriesConsumed: summary.caloriesConsumed,
-    calorieTarget: summary.calorieTarget,
+    calorieTarget: target,
     caloriesRemaining: summary.caloriesRemaining,
     acceptedCalorieRange: range,
   });
+  const railLabel =
+    calorieContext.range === '—'
+      ? calorieHeroTargetLabel(target)
+      : calorieContext.range;
 
   return (
     <View className="gap-4">
@@ -77,43 +88,41 @@ function ProgressTargetBand({
             variant="hero"
             className="text-[52px] leading-[56px] text-ink tabular-nums"
           >
-            {calorieContext.amount.replace(' kcal', '')}
+            {calorieContext.amount}
           </AppText>
           <AppText variant="caption" className="text-muted">
             {calorieContext.context}
           </AppText>
         </View>
-        <AppText variant="caption" className="text-muted">
-          {target === null ? 'Target —' : `Target ${Math.round(target)} kcal`}
-        </AppText>
       </View>
-      <View className="gap-2">
-        <View className="relative h-3 overflow-hidden rounded-full bg-primary-soft">
-          {targetWidth > 0 ? (
-            <View
-              className="absolute bottom-0 top-0 rounded-full bg-sage-soft"
-              style={{
-                left: `${targetStart * 100}%`,
-                width: `${targetWidth * 100}%`,
-              }}
-            />
-          ) : null}
-          {target !== null ? (
+      {target === null ? (
+        <AppText variant="caption" className="text-muted">
+          {railLabel}
+        </AppText>
+      ) : (
+        <View className="gap-2">
+          <View className="relative h-3 overflow-hidden rounded-full bg-primary-soft">
+            {targetWidth > 0 ? (
+              <View
+                className="absolute bottom-0 top-0 rounded-full bg-sage-soft"
+                style={{
+                  left: `${targetStart * 100}%`,
+                  width: `${targetWidth * 100}%`,
+                }}
+              />
+            ) : null}
             <View
               className="absolute -top-1 h-5 w-1.5 rounded-full bg-ink"
               style={{ left: `${marker * 100}%` }}
             />
-          ) : null}
+          </View>
+          <View className="flex-row justify-between gap-3">
+            <AppText variant="caption" className="text-muted">
+              {railLabel}
+            </AppText>
+          </View>
         </View>
-        <View className="flex-row justify-between gap-3">
-          <AppText variant="caption" className="text-muted">
-            {calorieContext.range}
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            {hasRange ? 'Accepted range' : target === null ? '—' : 'Target'}
-          </AppText>
-        </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -167,7 +176,9 @@ function DailyNutrientBand({
                     ? 'Carbohydrates'
                     : key[0]?.toUpperCase() + key.slice(1)}
               </AppText>
-              {key === 'protein' && summary.proteinTarget !== null ? (
+              {key === 'protein' &&
+              summary.proteinTarget !== null &&
+              summary.proteinTarget > 0 ? (
                 <AppText variant="caption" className="text-muted">
                   of {Math.round(summary.proteinTarget)} g target
                 </AppText>
@@ -205,9 +216,10 @@ export function ProgressReportingSummary({
   const consistency = reporting.consistency7Days.available
     ? reporting.consistency7Days.value
     : null;
-  const momentumDays =
-    weeklyReport === null ? [] : weeklyMomentumDayFacts(weeklyReport.current);
-  const finalMomentumDay = momentumDays.at(-1);
+  const finalMomentumDay =
+    weeklyReport === null ? null : weeklyMomentumFinalDay(weeklyReport.current);
+  const finalMomentumState =
+    finalMomentumDay === null ? null : weeklyMomentumDayState(finalMomentumDay);
 
   return (
     <View className="gap-5 border-t border-line pt-6">
@@ -218,7 +230,6 @@ export function ProgressReportingSummary({
           onRetry={onRetry}
         />
       )}
-      <ProgressTargetBand summary={summary} weeklyReport={weeklyReport} />
       <View className="gap-3 border-t border-line pt-5">
         <View className="flex-row items-center gap-2">
           <Beef color={colors.light.sageDark} size={18} strokeWidth={2.2} />
@@ -231,29 +242,45 @@ export function ProgressReportingSummary({
             Keep logging to unlock a weekly consistency signal.
           </AppText>
         ) : (
-          <View className="gap-2">
+          <AppText variant="caption" className="text-muted">
+            {consistency.loggedDays} of {consistency.eligibleDays} eligible days
+            logged.
+          </AppText>
+        )}
+        {finalMomentumDay === null || finalMomentumState === null ? null : (
+          <View className="gap-2 border-t border-line pt-3">
             <View className="flex-row items-center justify-between gap-3">
-              <AppText variant="label" className="text-ink">
-                {consistency.loggedDays} of {consistency.eligibleDays} eligible
-                days logged
+              <View className="min-w-0 flex-1">
+                <AppText variant="label" className="text-ink">
+                  {new Intl.DateTimeFormat('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    timeZone: 'UTC',
+                  }).format(new Date(`${finalMomentumDay.date}T12:00:00Z`))}
+                </AppText>
+                <AppText variant="caption" className="text-muted">
+                  Most recent returned day · {finalMomentumState.status}
+                </AppText>
+              </View>
+            </View>
+            <View className="flex-row items-center justify-between gap-3">
+              <AppText variant="caption" className="text-muted">
+                Calories
               </AppText>
               <AppText variant="label" className="text-ink tabular-nums">
-                {consistency.percentage}%
+                {finalMomentumState.calories}
               </AppText>
             </View>
-            <View className="h-2 overflow-hidden rounded-full bg-primary-soft">
-              <View
-                className="h-full rounded-full bg-sage-dark"
-                style={{ width: `${consistency.percentage}%` }}
-              />
+            <View className="flex-row items-center justify-between gap-3">
+              <AppText variant="caption" className="text-muted">
+                Protein
+              </AppText>
+              <AppText variant="label" className="text-ink tabular-nums">
+                {finalMomentumState.protein}
+              </AppText>
             </View>
           </View>
-        )}
-        {finalMomentumDay === undefined ? null : (
-          <AppText variant="caption" className="text-muted">
-            Most recent reported day:{' '}
-            {finalMomentumDay.logged ? 'logged' : 'not logged'}
-          </AppText>
         )}
       </View>
       {dailyNutrientsError === null ? null : (

@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { useCallback, useState } from 'react';
-import { Pressable, View, type DimensionValue } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
   DailyNutrientTotals,
@@ -11,17 +11,12 @@ import type {
   TrackingMode,
   TrackingPreferences,
 } from '@food-tracker/shared';
-import {
-  Beef,
-  Flame,
-  Scale,
-  SlidersHorizontal,
-  Utensils,
-} from 'lucide-react-native';
+import { Scale, SlidersHorizontal, Utensils } from 'lucide-react-native';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { ProgressCalorieHero } from '@/components/progress-reporting-summary';
 import { ProgressReportingSummary } from '@/components/progress-reporting-summary';
 import { StreakEntryAction } from '@/components/streak-entry-action';
 import {
@@ -35,9 +30,6 @@ import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
 const INK = colors.light.ink;
-const RAIL = '#E9E7E2';
-const CALORIE = '#B86F5F';
-const PROTEIN = '#6F927A';
 const WEIGHT = '#637D96';
 const WARM = '#B18A50';
 
@@ -47,115 +39,12 @@ type LucideIcon = ComponentType<{
   strokeWidth?: number;
 }>;
 
-type DailyStatus = {
-  number: string;
-  unit: string;
-  phrase: string;
-  detail: string;
-};
-
 function formattedDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   }).format(new Date(`${value}T12:00:00`));
-}
-
-function formatWhole(value: number): string {
-  return Math.round(value).toLocaleString('en-US');
-}
-
-function formatGrams(value: number): string {
-  return `${Math.round(value).toLocaleString('en-US')} g`;
-}
-
-function boundedProgress(value: number | null): number {
-  if (value === null || Number.isNaN(value)) return 0;
-  return Math.max(0, Math.min(value, 1));
-}
-
-function calorieProgress(summary: DashboardSummary): number {
-  if (summary.calorieTarget === null || summary.calorieTarget <= 0) {
-    return 0;
-  }
-
-  return boundedProgress(summary.caloriesConsumed / summary.calorieTarget);
-}
-
-function proteinProgress(summary: DashboardSummary): number {
-  if (summary.proteinTarget === null || summary.proteinTarget <= 0) {
-    return 0;
-  }
-
-  return boundedProgress(summary.proteinConsumed / summary.proteinTarget);
-}
-
-function dailyStatus(summary: DashboardSummary): DailyStatus {
-  if (summary.calorieTarget === null || summary.calorieTarget <= 0) {
-    return {
-      number: formatWhole(summary.caloriesConsumed),
-      unit: 'kcal logged',
-      phrase:
-        summary.foodLogCount === 0
-          ? 'Day is still building'
-          : 'Your day is taking shape',
-      detail:
-        summary.foodLogCount === 0
-          ? 'Add your first meal to start the day.'
-          : `${formatWhole(summary.caloriesConsumed)} kcal logged so far.`,
-    };
-  }
-
-  if (summary.caloriesRemaining === null) {
-    return {
-      number: formatWhole(summary.caloriesConsumed),
-      unit: 'kcal logged',
-      phrase: 'Your day is taking shape',
-      detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-        summary.calorieTarget,
-      )} kcal logged.`,
-    };
-  }
-
-  if (summary.caloriesRemaining < 0) {
-    return {
-      number: formatWhole(Math.abs(summary.caloriesRemaining)),
-      unit: 'kcal over',
-      phrase: 'Over today’s target',
-      detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-        summary.calorieTarget,
-      )} kcal logged.`,
-    };
-  }
-
-  if (summary.foodLogCount === 0) {
-    return {
-      number: formatWhole(summary.calorieTarget),
-      unit: 'kcal target',
-      phrase: 'Day is still building',
-      detail: 'No food logged yet.',
-    };
-  }
-
-  const progress = summary.caloriesConsumed / summary.calorieTarget;
-  const phrase =
-    progress >= 1
-      ? 'Goal reached'
-      : progress >= 0.82
-        ? 'Almost there'
-        : progress >= 0.35
-          ? 'You’re on track'
-          : 'Day is still building';
-
-  return {
-    number: formatWhole(summary.caloriesRemaining),
-    unit: 'kcal left',
-    phrase,
-    detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-      summary.calorieTarget,
-    )} kcal logged.`,
-  };
 }
 
 function ModeBadge({
@@ -189,66 +78,18 @@ function ModeBadge({
   );
 }
 
-function StatusPill({ children }: { children: string }) {
-  return (
-    <View className="self-start rounded-full border border-line bg-white px-3 py-1.5">
-      <AppText variant="caption" className="text-ink">
-        {children}
-      </AppText>
-    </View>
-  );
-}
-
-function ProgressRail({
-  progress,
-  color,
-  startLabel,
-  endLabel,
-}: {
-  progress: number;
-  color: string;
-  startLabel: string;
-  endLabel: string;
-}) {
-  const width = `${boundedProgress(progress) * 100}%` as DimensionValue;
-
-  return (
-    <View className="gap-3">
-      <View
-        className="h-2.5 overflow-hidden rounded-full"
-        style={{ backgroundColor: RAIL }}
-      >
-        <View
-          className="h-full rounded-full"
-          style={{ width, backgroundColor: color }}
-        />
-      </View>
-      <View className="flex-row justify-between gap-3">
-        <AppText variant="caption" className="text-muted">
-          {startLabel}
-        </AppText>
-        <AppText variant="caption" className="text-muted">
-          {endLabel}
-        </AppText>
-      </View>
-    </View>
-  );
-}
-
 function SignalRow({
   icon: Icon,
   accent,
   label,
   detail,
   value,
-  progress,
 }: {
   icon: LucideIcon;
   accent: string;
   label: string;
   detail: string;
   value: string;
-  progress?: number;
 }) {
   return (
     <View className="border-t border-line py-4">
@@ -271,20 +112,6 @@ function SignalRow({
           {value}
         </AppText>
       </View>
-      {progress === undefined ? null : (
-        <View
-          className="ml-12 mt-3 h-1.5 overflow-hidden rounded-full"
-          style={{ backgroundColor: RAIL }}
-        >
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${boundedProgress(progress) * 100}%` as DimensionValue,
-              backgroundColor: accent,
-            }}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -319,7 +146,7 @@ function ProgressSkeleton() {
       </View>
 
       <View className="gap-1">
-        {Array.from({ length: 4 }, (_, index) => (
+        {Array.from({ length: 3 }, (_, index) => (
           <View key={index} className="border-t border-line py-4">
             <View className="flex-row items-center gap-3">
               <SkeletonPill width={36} height={36} />
@@ -329,11 +156,6 @@ function ProgressSkeleton() {
               </View>
               <SkeletonLine width={74} height={14} />
             </View>
-            {index === 1 ? (
-              <View className="ml-12 mt-3">
-                <SkeletonRail height={6} />
-              </View>
-            ) : null}
           </View>
         ))}
       </View>
@@ -503,7 +325,6 @@ export default function ProgressScreen() {
     }
   };
 
-  const status = dailyStatus(summary);
   const entriesLabel =
     summary.foodLogCount === 1
       ? '1 entry'
@@ -512,20 +333,6 @@ export default function ProgressScreen() {
     summary.latestWeightLb === null
       ? 'No entry'
       : `${summary.latestWeightLb.toFixed(1)} lb`;
-  const calorieTargetLabel =
-    summary.calorieTarget === null || summary.calorieTarget <= 0
-      ? 'Target'
-      : `${formatWhole(summary.calorieTarget)} kcal`;
-  const proteinTargetLabel =
-    summary.proteinTarget === null || summary.proteinTarget <= 0
-      ? 'No target'
-      : `${formatGrams(summary.proteinTarget)} target`;
-  const proteinDetail =
-    summary.proteinRemaining === null
-      ? proteinTargetLabel
-      : summary.proteinRemaining <= 0
-        ? 'Protein target reached'
-        : `${formatGrams(summary.proteinRemaining)} left`;
   const modeIsDetailed = summary.trackingMode === 'complex';
 
   return (
@@ -553,57 +360,9 @@ export default function ProgressScreen() {
         <ErrorState title="Couldn’t refresh progress" message={error} />
       )}
 
-      <View className="gap-6">
-        <View className="gap-4">
-          <StatusPill>{status.phrase}</StatusPill>
-          <View className="gap-1">
-            <View className="flex-row items-end gap-2">
-              <AppText
-                variant="hero"
-                className="text-[64px] leading-[68px] text-ink tabular-nums"
-              >
-                {status.number}
-              </AppText>
-              <AppText variant="label" className="pb-3 text-muted">
-                {status.unit}
-              </AppText>
-            </View>
-            <AppText className="max-w-[300px] text-muted">
-              {status.detail}
-            </AppText>
-          </View>
-        </View>
-
-        <ProgressRail
-          progress={calorieProgress(summary)}
-          color={CALORIE}
-          startLabel={summary.foodLogCount === 0 ? 'Not started' : 'Logged'}
-          endLabel={calorieTargetLabel}
-        />
-      </View>
+      <ProgressCalorieHero summary={summary} weeklyReport={weeklyReport} />
 
       <View className="gap-1">
-        <SignalRow
-          icon={Flame}
-          accent={CALORIE}
-          label="Calories"
-          detail={
-            summary.caloriesRemaining === null
-              ? 'Food energy logged today'
-              : summary.caloriesRemaining < 0
-                ? `${formatWhole(Math.abs(summary.caloriesRemaining))} kcal over`
-                : `${formatWhole(summary.caloriesRemaining)} kcal left`
-          }
-          value={`${formatWhole(summary.caloriesConsumed)} kcal`}
-        />
-        <SignalRow
-          icon={Beef}
-          accent={PROTEIN}
-          label="Protein"
-          detail={proteinDetail}
-          value={formatGrams(summary.proteinConsumed)}
-          progress={proteinProgress(summary)}
-        />
         <SignalRow
           icon={Utensils}
           accent={WARM}

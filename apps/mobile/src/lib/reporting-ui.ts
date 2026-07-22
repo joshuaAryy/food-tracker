@@ -26,6 +26,16 @@ function formatCalories(value: number): string {
   return `${Math.round(value).toLocaleString('en-US')} kcal`;
 }
 
+function formatGrams(value: number): string {
+  return `${Math.round(value).toLocaleString('en-US')} g`;
+}
+
+export function calorieHeroTargetLabel(calorieTarget: number | null): string {
+  return calorieTarget === null || calorieTarget <= 0
+    ? '—'
+    : `${formatCalories(calorieTarget)} target`;
+}
+
 export function calorieHeroContext({
   caloriesConsumed,
   calorieTarget,
@@ -37,13 +47,14 @@ export function calorieHeroContext({
   caloriesRemaining: number | null;
   acceptedCalorieRange: AcceptedCalorieRange | null;
 }): { amount: string; range: string; context: string } {
+  const hasTarget = calorieTarget !== null && calorieTarget > 0;
   const range =
-    calorieTarget === null || acceptedCalorieRange === null
+    !hasTarget || acceptedCalorieRange === null
       ? '—'
       : `${formatCalories(acceptedCalorieRange.lowerCalories).replace(' kcal', '')}–${formatCalories(acceptedCalorieRange.upperCalories)}` +
         ' accepted range';
   const context =
-    calorieTarget === null || caloriesRemaining === null
+    !hasTarget || caloriesRemaining === null
       ? '—'
       : caloriesRemaining < 0
         ? `${formatCalories(Math.abs(caloriesRemaining))} exceeded`
@@ -60,6 +71,22 @@ export function weeklyMomentumDayFacts(
   report: Pick<ReportsResponse['current'], 'dailyBreakdown'>,
 ): ReportsResponse['current']['dailyBreakdown'] {
   return report.dailyBreakdown;
+}
+
+export function weeklyMomentumFinalDay(
+  report: Pick<ReportsResponse['current'], 'dailyBreakdown'>,
+): ReportsResponse['current']['dailyBreakdown'][number] | null {
+  return report.dailyBreakdown.at(-1) ?? null;
+}
+
+export function weeklyMomentumDayState(
+  day: ReportsResponse['current']['dailyBreakdown'][number],
+): { status: string; calories: string; protein: string } {
+  return {
+    status: day.logged ? 'Logged' : 'Not logged',
+    calories: formatCalories(day.calories),
+    protein: formatGrams(day.proteinGrams),
+  };
 }
 
 export function streakHeadline(loggedDays: number): string {

@@ -4,6 +4,7 @@ import {
   availableValue,
   calorieAdherenceStatus,
   calorieHeroContext,
+  calorieHeroTargetLabel,
   comparisonSentences,
   energyStatusLabel,
   nutrientDetailsForMode,
@@ -15,6 +16,8 @@ import {
   streakHeadline,
   streakSupportingCopy,
   weeklyMomentumDayFacts,
+  weeklyMomentumDayState,
+  weeklyMomentumFinalDay,
 } from '../../mobile/src/lib/reporting-ui.js';
 import {
   calendarDayAppearance,
@@ -246,6 +249,12 @@ describe('mobile reporting presentation helpers', () => {
     ).toEqual({ amount: '1,200 kcal', range: '—', context: '—' });
   });
 
+  it('uses an em dash for unavailable calorie targets', () => {
+    expect(calorieHeroTargetLabel(null)).toBe('—');
+    expect(calorieHeroTargetLabel(0)).toBe('—');
+    expect(calorieHeroTargetLabel(2000)).toBe('2,000 kcal target');
+  });
+
   it('passes through only returned weekly day facts', () => {
     const days = [
       { date: '2026-07-20', logged: true, calories: 2000, proteinGrams: 120 },
@@ -254,6 +263,21 @@ describe('mobile reporting presentation helpers', () => {
 
     expect(weeklyMomentumDayFacts({ dailyBreakdown: days })).toEqual(days);
     expect(weeklyMomentumDayFacts({ dailyBreakdown: [] })).toEqual([]);
+  });
+
+  it('uses the final returned day for compact weekly momentum state', () => {
+    const days = [
+      { date: '2026-07-20', logged: true, calories: 2000, proteinGrams: 120 },
+      { date: '2026-07-21', logged: false, calories: 0, proteinGrams: 0 },
+    ];
+
+    expect(weeklyMomentumFinalDay({ dailyBreakdown: days })).toEqual(days[1]);
+    expect(weeklyMomentumFinalDay({ dailyBreakdown: [] })).toBeNull();
+    expect(weeklyMomentumDayState(days[1])).toEqual({
+      status: 'Not logged',
+      calories: '0 kcal',
+      protein: '0 g',
+    });
   });
 
   it('derives complete in-range details for a selected gold day', () => {
