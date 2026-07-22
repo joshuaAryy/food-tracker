@@ -47,6 +47,7 @@ No file under `apps/api/src`, `packages/shared/src`, Prisma, migrations, native 
 **Files:**
 
 - Modify: `apps/mobile/src/theme/tokens.ts`
+- Modify: `apps/mobile/tailwind.config.js`
 - Modify: `apps/mobile/src/components/app-text.tsx`
 - Modify: `apps/mobile/src/components/app-screen.tsx`
 - Modify: `apps/mobile/src/components/app-card.tsx`
@@ -64,7 +65,7 @@ No file under `apps/api/src`, `packages/shared/src`, Prisma, migrations, native 
 
 - [ ] **Step 2: Implement the smallest token and typography change**
 
-  Set the affected light page/surface roles to white, retain charcoal primary structure, expose no new font dependency, and update `AppText` variants so `caption` is medium rather than bold while `label` remains semibold. Keep `tabular-nums` on numeric variants and do not change dark-mode behavior.
+  Set the affected light page/surface roles and their NativeWind aliases (`canvas`, `surface`) to white, retain charcoal primary structure, expose no new font dependency, and update `AppText` variants so `caption` is medium rather than bold while `label` remains semibold. Keep `tabular-nums` on numeric variants and do not change dark-mode behavior.
 
 - [ ] **Step 3: Remove default card/canvas styling from the shared shell only where reporting screens depend on it**
 
@@ -82,7 +83,7 @@ No file under `apps/api/src`, `packages/shared/src`, Prisma, migrations, native 
 - [ ] **Step 5: Commit**
 
   ```bash
-  git add apps/mobile/src/theme/tokens.ts apps/mobile/src/components/app-text.tsx apps/mobile/src/components/app-screen.tsx apps/mobile/src/components/app-card.tsx docs/design-system.md
+  git add apps/mobile/src/theme/tokens.ts apps/mobile/tailwind.config.js apps/mobile/src/components/app-text.tsx apps/mobile/src/components/app-screen.tsx apps/mobile/src/components/app-card.tsx docs/design-system.md
   git commit -m "refactor: align mobile visual foundations"
   ```
 
