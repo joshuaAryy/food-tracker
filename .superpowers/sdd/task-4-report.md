@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented and finalized at Task 4 head `2ea777a` (`feat: align Progress reporting with approved design`).
+Implemented and finalized at Task 4 head `0dc5306` (`feat: align Progress reporting with approved design`).
 
 ## Delivered
 
@@ -92,11 +92,12 @@ Vitest loaded tests by Prisma `P1001` because PostgreSQL was unreachable at
   declaring the reporting phase complete.
 - The pre-existing worktree changes in `.gitignore`, `.agents/`, `.aidesigner/`,
   `.codex/`, and `docs/design-references/current images/` were preserved and
-  excluded from commit `016fd96`.
+  excluded from the final report artifact commit `0dc5306`; the product
+  implementation is in commit `2ea777a`.
 
 ## Review Fix Follow-up (2026-07-22)
 
-The reviewed base/head was `567f9dc..016fd96`. This follow-up corrected all
+The reviewed base/head was `567f9dc..0dc5306`. This follow-up corrected all
 listed Task 4 Progress findings in the authorized Progress files and
 `apps/api/test/mobile-reporting-ui.test.ts`:
 
@@ -138,4 +139,5 @@ listed Task 4 Progress findings in the authorized Progress files and
 
 The follow-up was run under Node.js `v22.23.0` and pnpm `10.34.3`. The
 pre-existing `.gitignore`, `.agents/`, `.aidesigner/`, `.codex/`, and design
-reference changes remain preserved and excluded from the follow-up commit.
+reference changes remain preserved and excluded from the final report artifact
+commit `0dc5306`; the product implementation remains in commit `2ea777a`.
