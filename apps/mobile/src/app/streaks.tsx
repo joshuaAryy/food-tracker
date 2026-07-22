@@ -16,21 +16,6 @@ import { api, errorMessage } from '@/lib/api-client';
 import { monthLabel, shiftMonth } from '@/lib/streak-calendar-ui';
 import { colors } from '@/theme/tokens';
 
-const legendItems: Array<{
-  state: StreakCalendarResponse['weeks'][number]['days'][number]['streakState'];
-  label: string;
-  cue: string;
-}> = [
-  { state: 'future', label: 'Future', cue: '·' },
-  { state: 'open', label: 'Open', cue: '○' },
-  { state: 'missed', label: 'Missed', cue: '×' },
-  { state: 'logged_without_target', label: 'Logged, no target', cue: '•' },
-  { state: 'partial', label: 'Partial', cue: '◐' },
-  { state: 'gold', label: 'Gold day', cue: '✓' },
-  { state: 'over_target', label: 'Over target', cue: '↑' },
-  { state: 'grace', label: 'Grace, not gold', cue: 'G' },
-];
-
 function currentMonth(): string {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -198,21 +183,6 @@ export default function StreaksScreen() {
           </Pressable>
         </View>
         <MonthlyStreakCalendar calendar={calendar} />
-        <View className="flex-row flex-wrap gap-x-4 gap-y-2 border-t border-line pt-3">
-          {legendItems.map((item) => (
-            <View
-              key={item.state}
-              className="min-h-[24px] flex-row items-center gap-1.5"
-            >
-              <AppText variant="label" className="w-4 text-center text-ink">
-                {item.cue}
-              </AppText>
-              <AppText variant="caption" muted>
-                {item.label}
-              </AppText>
-            </View>
-          ))}
-        </View>
       </AppCard>
 
       {calendar.activeCalorieTarget === null ? (
