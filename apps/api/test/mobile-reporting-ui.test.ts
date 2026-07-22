@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import {
   availableValue,
@@ -161,6 +162,40 @@ const calendar: StreakCalendarResponse = {
 };
 
 describe('mobile reporting presentation helpers', () => {
+  it('uses the shared compact flame in the streak header', async () => {
+    const source = await readFile(
+      new URL('../../mobile/src/app/streaks.tsx', import.meta.url),
+      'utf8',
+    );
+
+    expect(source).toContain(
+      "import { StreakFlame } from '@/components/streak-flame';",
+    );
+    expect(source).toContain('<StreakFlame size={24} />');
+    expect(source).not.toMatch(/\bFlame\b/);
+  });
+
+  it('keeps calendar dates non-pressable when no day handler is supplied', async () => {
+    const source = await readFile(
+      new URL(
+        '../../mobile/src/components/monthly-streak-calendar.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(source.match(/if \(onDayPress === undefined\)/g)).toHaveLength(2);
+    expect(
+      source.match(
+        /accessible\n        accessibilityLabel=\{semanticDayLabel\(day\)\}/g,
+      ),
+    ).toHaveLength(2);
+    expect(source.match(/accessibilityRole="button"/g)).toHaveLength(2);
+    expect(source.match(/onPress=\{\(\) => onDayPress\(day\)\}/g)).toHaveLength(
+      2,
+    );
+  });
+
   it('hides unavailable metrics without exposing technical availability wording', () => {
     expect(availableValue(unavailable)).toBeNull();
     expect(String(availableValue(unavailable))).not.toContain(

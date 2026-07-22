@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { ChevronLeft, ChevronRight, Flame } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { StreakCalendarResponse } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { LoadingState } from '@/components/loading-state';
 import { MonthlyStreakCalendar } from '@/components/monthly-streak-calendar';
+import { StreakFlame } from '@/components/streak-flame';
 import { api, errorMessage } from '@/lib/api-client';
 import { monthLabel, shiftMonth } from '@/lib/streak-calendar-ui';
 import { colors } from '@/theme/tokens';
@@ -131,7 +132,7 @@ export default function StreaksScreen() {
             Your logging rhythm
           </AppText>
         </View>
-        <Flame color={colors.light.ink} size={22} strokeWidth={2.2} />
+        <StreakFlame size={24} />
       </View>
 
       {error === null ? null : (

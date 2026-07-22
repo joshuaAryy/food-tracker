@@ -33,6 +33,29 @@ function CalendarDayPressable({
   preTracking,
   onDayPress,
 }: CalendarDayPressableProps) {
+  const content = (
+    <View style={{ position: 'absolute', top: 5, left: 5 }}>
+      <DayProgressRing
+        day={day}
+        acceptedUpperRatio={acceptedUpperRatio}
+        preTracking={preTracking}
+      />
+    </View>
+  );
+
+  if (onDayPress === undefined) {
+    return (
+      <View
+        accessible
+        accessibilityLabel={semanticDayLabel(day)}
+        className="items-center justify-start"
+        style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
+      >
+        {content}
+      </View>
+    );
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -40,15 +63,9 @@ function CalendarDayPressable({
       hitSlop={6}
       className="items-center justify-start active:opacity-75"
       style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
-      onPress={onDayPress === undefined ? undefined : () => onDayPress(day)}
+      onPress={() => onDayPress(day)}
     >
-      <View style={{ position: 'absolute', top: 5, left: 5 }}>
-        <DayProgressRing
-          day={day}
-          acceptedUpperRatio={acceptedUpperRatio}
-          preTracking={preTracking}
-        />
-      </View>
+      {content}
     </Pressable>
   );
 }
@@ -57,6 +74,33 @@ function GoldWeekDayPressable({
   day,
   onDayPress,
 }: Pick<CalendarDayPressableProps, 'day' | 'onDayPress'>) {
+  const content = (
+    <View
+      className="items-center justify-center"
+      style={{ position: 'absolute', top: 5, left: 5, width: 34, height: 34 }}
+    >
+      <AppText
+        variant="caption"
+        className="text-[12px] font-semibold leading-4 text-ink"
+      >
+        {shortDayNumber(day.date)}
+      </AppText>
+    </View>
+  );
+
+  if (onDayPress === undefined) {
+    return (
+      <View
+        accessible
+        accessibilityLabel={semanticDayLabel(day)}
+        className="items-center justify-start"
+        style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
+      >
+        {content}
+      </View>
+    );
+  }
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -64,19 +108,9 @@ function GoldWeekDayPressable({
       hitSlop={6}
       className="items-center justify-start active:opacity-75"
       style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
-      onPress={onDayPress === undefined ? undefined : () => onDayPress(day)}
+      onPress={() => onDayPress(day)}
     >
-      <View
-        className="items-center justify-center"
-        style={{ position: 'absolute', top: 5, left: 5, width: 34, height: 34 }}
-      >
-        <AppText
-          variant="caption"
-          className="text-[12px] font-semibold leading-4 text-ink"
-        >
-          {shortDayNumber(day.date)}
-        </AppText>
-      </View>
+      {content}
     </Pressable>
   );
 }
