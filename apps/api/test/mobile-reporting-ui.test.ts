@@ -25,6 +25,7 @@ import {
   STREAKS_ROUTE,
   type StreakCalendarDay,
 } from '../../mobile/src/lib/streak-calendar-ui.js';
+import * as streakCalendarUi from '../../mobile/src/lib/streak-calendar-ui.js';
 import type { StreakCalendarResponse } from '@food-tracker/shared';
 
 const unavailable = {
@@ -161,8 +162,130 @@ const calendar: StreakCalendarResponse = {
   ],
 };
 
+type DayDetailFacts = {
+  fullDate: string;
+  caloriesLogged: string;
+  activeTarget: string;
+  acceptedRange: string;
+  status: string;
+  targetDifference: string;
+  loggedMeaning: string;
+  goldMeaning: string;
+  perfectWeekMeaning: string;
+  graceExplanation: string | null;
+};
+
+type DayDetailFactsHelper = (
+  day: StreakCalendarDay,
+  activeCalorieTarget: number | null,
+  acceptedCalorieRange: StreakCalendarResponse['acceptedCalorieRange'],
+  goldWeek: boolean,
+) => DayDetailFacts;
+
+const dayDetailFacts = (
+  streakCalendarUi as typeof streakCalendarUi & {
+    dayDetailFacts?: DayDetailFactsHelper;
+  }
+).dayDetailFacts;
+
+function detailsFor(day: StreakCalendarDay, goldWeek = false): DayDetailFacts {
+  expect(dayDetailFacts).toBeTypeOf('function');
+
+  if (dayDetailFacts === undefined) {
+    throw new Error('dayDetailFacts is unavailable');
+  }
+
+  return dayDetailFacts(
+    day,
+    calendar.activeCalorieTarget,
+    calendar.acceptedCalorieRange,
+    goldWeek,
+  );
+}
+
 describe('mobile reporting presentation helpers', () => {
-  it('uses the shared compact flame in the streak header', async () => {
+  it('derives complete in-range details for a selected gold day', () => {
+    expect(detailsFor(goldDay, true)).toEqual({
+      fullDate: 'Thursday, July 9, 2026',
+      caloriesLogged: '2,000 kcal',
+      activeTarget: '2,000 kcal',
+      acceptedRange: '1,800–2,200 kcal',
+      status: 'Within target range',
+      targetDifference: 'On target',
+      loggedMeaning: 'Counts as a logged day.',
+      goldMeaning: 'Counts as a gold day.',
+      perfectWeekMeaning: 'Contributes to this perfect week.',
+      graceExplanation: null,
+    });
+  });
+
+  it('uses calendar-specific unavailable and state copy without report fallbacks', () => {
+    const noTargetDetails = dayDetailFacts?.(
+      loggedNoTargetDay,
+      null,
+      null,
+      false,
+    );
+    expect(noTargetDetails).toMatchObject({
+      caloriesLogged: '2,000 kcal',
+      activeTarget: '—',
+      acceptedRange: '—',
+      status: 'Target not set',
+      targetDifference: '—',
+      loggedMeaning: 'Counts as a logged day.',
+      goldMeaning: 'Not a gold day because no target is set.',
+      perfectWeekMeaning: 'Does not contribute to a perfect week.',
+    });
+
+    expect(detailsFor(loggedPartialDay)).toMatchObject({
+      status: 'Below target range',
+      targetDifference: '300 kcal remaining to target',
+    });
+    expect(detailsFor(overTargetDay)).toMatchObject({
+      status: 'Above target range',
+      targetDifference: '300 kcal above target',
+    });
+    expect(detailsFor(openDay)).toMatchObject({
+      caloriesLogged: '—',
+      targetDifference: '—',
+      status: 'Open for logging',
+      loggedMeaning: 'Today remains non-breaking until the local day ends.',
+    });
+    expect(detailsFor(futureDay)).toMatchObject({
+      caloriesLogged: '—',
+      status: 'Future day',
+      loggedMeaning: 'Future dates are excluded from streak evaluation.',
+    });
+    expect(detailsFor(missedDay)).toMatchObject({
+      caloriesLogged: '—',
+      status: 'Missed day',
+      loggedMeaning: 'Breaks logging continuity.',
+    });
+
+    for (const details of [
+      noTargetDetails,
+      detailsFor(openDay),
+      detailsFor(futureDay),
+      detailsFor(missedDay),
+    ]) {
+      expect(Object.values(details ?? {}).join(' ')).not.toMatch(
+        /previous|no data/i,
+      );
+    }
+  });
+
+  it('keeps grace span and perfect-week contribution separate from logging counts', () => {
+    expect(detailsFor(graceDay)).toMatchObject({
+      status: 'Grace day',
+      loggedMeaning: 'Preserves the streak span without adding a logged day.',
+      goldMeaning: 'Grace days are never gold.',
+      perfectWeekMeaning: 'Does not contribute to a perfect week.',
+      graceExplanation:
+        'A grace day bridges one missed day in the streak span.',
+    });
+  });
+
+  it('uses the split hero flame and opens details from calendar day presses', async () => {
     const source = await readFile(
       new URL('../../mobile/src/app/streaks.tsx', import.meta.url),
       'utf8',
@@ -171,7 +294,11 @@ describe('mobile reporting presentation helpers', () => {
     expect(source).toContain(
       "import { StreakFlame } from '@/components/streak-flame';",
     );
-    expect(source).toContain('<StreakFlame size={24} />');
+    expect(source).toContain('<StreakFlame size={88} />');
+    expect(source).toMatch(
+      /<MonthlyStreakCalendar\s+calendar=\{calendar\}\s+onDayPress=\{setSelectedDay\}/,
+    );
+    expect(source).toContain('<StreakDayDetailSheet');
     expect(source).not.toMatch(/\bFlame\b/);
   });
 

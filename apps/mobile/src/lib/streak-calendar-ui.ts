@@ -21,6 +21,19 @@ export interface CalendarDayAppearance {
   visual: CalendarDayVisual;
 }
 
+export interface StreakDayDetailFacts {
+  fullDate: string;
+  caloriesLogged: string;
+  activeTarget: string;
+  acceptedRange: string;
+  status: string;
+  targetDifference: string;
+  loggedMeaning: string;
+  goldMeaning: string;
+  perfectWeekMeaning: string;
+  graceExplanation: string | null;
+}
+
 export function clamp(value: number, min = 0, max = 1): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -82,6 +95,110 @@ function displayDate(date: string): string {
     day: 'numeric',
     timeZone: 'UTC',
   }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function fullDisplayDate(date: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function formatCalories(value: number | null): string {
+  if (value === null) return '—';
+  return `${Math.round(value).toLocaleString('en-US')} kcal`;
+}
+
+function calendarStatus(day: StreakCalendarDay): string {
+  switch (day.streakState) {
+    case 'future':
+      return 'Future day';
+    case 'open':
+      return 'Open for logging';
+    case 'missed':
+      return 'Missed day';
+    case 'grace':
+      return 'Grace day';
+    case 'logged_without_target':
+      return 'Target not set';
+    case 'partial':
+      return 'Below target range';
+    case 'gold':
+      return 'Within target range';
+    case 'over_target':
+      return 'Above target range';
+  }
+}
+
+function loggedMeaning(day: StreakCalendarDay): string {
+  switch (day.streakState) {
+    case 'future':
+      return 'Future dates are excluded from streak evaluation.';
+    case 'open':
+      return 'Today remains non-breaking until the local day ends.';
+    case 'missed':
+      return 'Breaks logging continuity.';
+    case 'grace':
+      return 'Preserves the streak span without adding a logged day.';
+    default:
+      return 'Counts as a logged day.';
+  }
+}
+
+function goldMeaning(day: StreakCalendarDay): string {
+  if (day.goldDay) return 'Counts as a gold day.';
+  if (day.streakState === 'grace') return 'Grace days are never gold.';
+  if (day.calorieStatus === 'no_target') {
+    return 'Not a gold day because no target is set.';
+  }
+  if (day.logged) {
+    return 'Not a gold day because calories were outside the accepted range.';
+  }
+  return 'Not a gold day.';
+}
+
+export function dayDetailFacts(
+  day: StreakCalendarDay,
+  activeCalorieTarget: number | null,
+  acceptedCalorieRange: StreakCalendarResponse['acceptedCalorieRange'],
+  goldWeek: boolean,
+): StreakDayDetailFacts {
+  const difference =
+    day.calories === null || activeCalorieTarget === null
+      ? null
+      : activeCalorieTarget - day.calories;
+
+  return {
+    fullDate: fullDisplayDate(day.date),
+    caloriesLogged: formatCalories(day.calories),
+    activeTarget: formatCalories(activeCalorieTarget),
+    acceptedRange:
+      acceptedCalorieRange === null
+        ? '—'
+        : `${formatCalories(acceptedCalorieRange.lowerCalories).replace(' kcal', '')}–${formatCalories(acceptedCalorieRange.upperCalories)}`,
+    status: calendarStatus(day),
+    targetDifference:
+      difference === null
+        ? '—'
+        : difference === 0
+          ? 'On target'
+          : difference > 0
+            ? `${Math.round(difference).toLocaleString('en-US')} kcal remaining to target`
+            : `${Math.round(Math.abs(difference)).toLocaleString('en-US')} kcal above target`,
+    loggedMeaning: loggedMeaning(day),
+    goldMeaning: goldMeaning(day),
+    perfectWeekMeaning:
+      goldWeek && day.goldDay
+        ? 'Contributes to this perfect week.'
+        : 'Does not contribute to a perfect week.',
+    graceExplanation:
+      day.streakState === 'grace'
+        ? 'A grace day bridges one missed day in the streak span.'
+        : null,
+  };
 }
 
 const stateWords: Record<StreakCalendarDay['streakState'], string> = {

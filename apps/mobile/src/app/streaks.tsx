@@ -1,19 +1,22 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { StreakCalendarResponse } from '@food-tracker/shared';
-import { AppButton } from '@/components/app-button';
-import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
-import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
+import { GraceLaurelIcon } from '@/components/grace-laurel-icon';
 import { LoadingState } from '@/components/loading-state';
 import { MonthlyStreakCalendar } from '@/components/monthly-streak-calendar';
+import { StreakDayDetailSheet } from '@/components/streak-day-detail-sheet';
 import { StreakFlame } from '@/components/streak-flame';
 import { api, errorMessage } from '@/lib/api-client';
-import { monthLabel, shiftMonth } from '@/lib/streak-calendar-ui';
+import {
+  monthLabel,
+  shiftMonth,
+  type StreakCalendarDay,
+} from '@/lib/streak-calendar-ui';
 import { colors } from '@/theme/tokens';
 
 function currentMonth(): string {
@@ -21,8 +24,43 @@ function currentMonth(): string {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function boundaryLabel(calendar: StreakCalendarResponse): string {
-  return `${calendar.monthBoundary.startDate} – ${calendar.monthBoundary.endDate}`;
+function supportingStatus(calendar: StreakCalendarResponse): {
+  title: string;
+  message: string;
+} {
+  const { currentStreak } = calendar;
+
+  if (!currentStreak.graceUsed) {
+    return {
+      title: 'Grace day available',
+      message:
+        'One missed day can preserve a streak span, but it never adds a logged day.',
+    };
+  }
+
+  if (currentStreak.todayOpen) {
+    return {
+      title: 'Today is still open',
+      message: 'Your streak stays non-breaking until your local day ends.',
+    };
+  }
+
+  const distance = Math.max(
+    currentStreak.longestLoggedDays - currentStreak.loggedDays,
+    0,
+  );
+
+  if (distance === 0) {
+    return {
+      title: 'At your longest streak',
+      message: 'Keep logging to extend your personal best.',
+    };
+  }
+
+  return {
+    title: `${distance} ${distance === 1 ? 'day' : 'days'} to your longest streak`,
+    message: `Your longest streak is ${currentStreak.longestLoggedDays} ${currentStreak.longestLoggedDays === 1 ? 'day' : 'days'}.`,
+  };
 }
 
 export default function StreaksScreen() {
@@ -32,6 +70,9 @@ export default function StreaksScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<StreakCalendarDay | null>(
+    null,
+  );
   const hasLoaded = useRef(false);
 
   const load = useCallback(
@@ -59,13 +100,10 @@ export default function StreaksScreen() {
     }, [load]),
   );
 
-  const days = useMemo(
-    () => calendar?.weeks.flatMap((week) => week.days) ?? [],
-    [calendar],
-  );
-  const hasLoggedDayInView = days.some((day) => day.logged);
-  const goldDays = days.filter((day) => day.goldDay).length;
-  const goldWeeks = calendar?.weeks.filter((week) => week.goldWeek).length ?? 0;
+  const changeMonth = (delta: number) => {
+    setSelectedDay(null);
+    setMonth((value) => shiftMonth(value, delta));
+  };
 
   if (loading && calendar === null) {
     return (
@@ -89,6 +127,17 @@ export default function StreaksScreen() {
 
   if (calendar === null) return null;
 
+  const status = supportingStatus(calendar);
+  const graceAvailable = !calendar.currentStreak.graceUsed;
+  const selectedGoldWeek =
+    selectedDay === null
+      ? false
+      : calendar.weeks.some(
+          (week) =>
+            week.goldWeek &&
+            week.days.some((day) => day.date === selectedDay.date),
+        );
+
   return (
     <AppScreen
       refreshing={refreshing}
@@ -102,128 +151,139 @@ export default function StreaksScreen() {
           className="min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-border bg-surface-raised active:opacity-70"
           onPress={() => router.back()}
         >
-          <AppText variant="heading" className="text-ink">
-            ‹
-          </AppText>
+          <ChevronLeft color={colors.light.ink} size={20} />
         </Pressable>
         <View className="min-w-0 flex-1">
-          <AppText
-            variant="caption"
-            className="uppercase tracking-[1.2px] text-muted"
-          >
-            Streaks
-          </AppText>
           <AppText variant="heading" className="text-ink">
-            Your logging rhythm
+            Your logging streak
           </AppText>
         </View>
-        <StreakFlame size={24} />
       </View>
 
       {error === null ? null : (
         <ErrorState title="Couldn’t refresh your streak" message={error} />
       )}
 
-      <View className="flex-row gap-3">
-        <AppCard compact className="min-w-0 flex-1">
-          <AppText
-            variant="caption"
-            className="uppercase tracking-[1px] text-muted"
-          >
-            Current logging streak
-          </AppText>
-          <AppText variant="display" className="text-ink tabular-nums">
-            {calendar.currentStreak.loggedDays}
-          </AppText>
-          <AppText variant="caption" muted>
-            {calendar.currentStreak.loggedDays === 1 ? 'day' : 'days'} logged
-          </AppText>
-        </AppCard>
-        <AppCard compact className="min-w-0 flex-1">
-          <AppText
-            variant="caption"
-            className="uppercase tracking-[1px] text-muted"
-          >
-            Longest logging streak
-          </AppText>
-          <AppText variant="display" className="text-ink tabular-nums">
-            {calendar.currentStreak.longestLoggedDays}
-          </AppText>
-          <AppText variant="caption" muted>
-            independent of calorie gold
-          </AppText>
-        </AppCard>
+      <View className="gap-5">
+        <View className="flex-row flex-wrap items-center justify-between gap-4">
+          <View className="min-w-[176px] flex-1 gap-1">
+            <AppText
+              variant="caption"
+              className="uppercase tracking-[1.2px] text-muted"
+            >
+              Current streak
+            </AppText>
+            <View className="flex-row flex-wrap items-end gap-x-3 gap-y-1">
+              <AppText variant="hero" className="text-ink tabular-nums">
+                {calendar.currentStreak.loggedDays}
+              </AppText>
+              <AppText
+                variant="label"
+                className="max-w-[150px] pb-1 text-muted"
+              >
+                day logging streak
+              </AppText>
+            </View>
+          </View>
+          <View style={{ width: 88, height: 88 }}>
+            <StreakFlame size={88} />
+          </View>
+        </View>
+
+        <View className="flex-row flex-wrap border-y border-line py-4">
+          <View className="min-w-[132px] flex-1 gap-1 pr-4">
+            <AppText
+              variant="caption"
+              className="uppercase tracking-[1px] text-muted"
+            >
+              Longest
+            </AppText>
+            <AppText variant="number" className="text-ink">
+              {calendar.currentStreak.longestLoggedDays}{' '}
+              {calendar.currentStreak.longestLoggedDays === 1 ? 'day' : 'days'}
+            </AppText>
+          </View>
+          <View className="min-w-[132px] flex-1 flex-row items-center gap-2 border-l border-line pl-4">
+            <GraceLaurelIcon size={32} />
+            <View className="min-w-0 flex-1 gap-1">
+              <AppText
+                variant="caption"
+                className="uppercase tracking-[1px] text-muted"
+              >
+                Grace
+              </AppText>
+              <AppText variant="label" className="text-ink">
+                {graceAvailable ? 'Available' : 'Used'}
+              </AppText>
+            </View>
+          </View>
+        </View>
       </View>
 
-      <AppCard compact className="gap-4">
+      <View
+        accessible
+        accessibilityLabel={`${status.title}. ${status.message}`}
+        className="gap-1 rounded-control border border-border px-4 py-3"
+      >
+        <AppText variant="label" className="text-ink">
+          {status.title}
+        </AppText>
+        <AppText variant="caption" className="text-muted">
+          {status.message}
+        </AppText>
+      </View>
+
+      <View className="gap-4">
         <View className="flex-row items-center justify-between gap-3">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Previous month"
             className="min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-border active:opacity-70"
-            onPress={() => setMonth((value) => shiftMonth(value, -1))}
+            onPress={() => changeMonth(-1)}
           >
             <ChevronLeft color={colors.light.ink} size={20} />
           </Pressable>
-          <View className="items-center">
+          <View className="min-w-0 flex-1 items-center px-2">
             <AppText variant="heading" className="text-ink">
               {monthLabel(calendar.requestedMonth)}
-            </AppText>
-            <AppText variant="caption" muted>
-              {boundaryLabel(calendar)} · Sunday–Saturday
             </AppText>
           </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Next month"
             className="min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-border active:opacity-70"
-            onPress={() => setMonth((value) => shiftMonth(value, 1))}
+            onPress={() => changeMonth(1)}
           >
             <ChevronRight color={colors.light.ink} size={20} />
           </Pressable>
         </View>
-        <MonthlyStreakCalendar calendar={calendar} />
-      </AppCard>
+        <View style={{ marginHorizontal: -16 }}>
+          <MonthlyStreakCalendar
+            calendar={calendar}
+            onDayPress={setSelectedDay}
+          />
+        </View>
+      </View>
 
-      {calendar.activeCalorieTarget === null ? (
-        <EmptyState
-          title="No calorie target yet"
-          message="Logging still counts toward your streak. Add a goal to see partial, gold, and over-target calorie states."
-          symbol="○"
-        />
-      ) : (
-        <AppCard compact className="gap-1">
-          <AppText variant="label" className="text-ink">
-            Calorie completion
-          </AppText>
-          <AppText variant="caption" muted>
-            Gold days are inside the accepted range of{' '}
-            {calendar.acceptedCalorieRange?.lowerCalories.toLocaleString(
-              'en-US',
-            )}
-            –
-            {calendar.acceptedCalorieRange?.upperCalories.toLocaleString(
-              'en-US',
-            )}{' '}
-            kcal. Grace preserves logging continuity but never becomes gold.
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            {goldDays} gold day{goldDays === 1 ? '' : 's'} · {goldWeeks} perfect
-            week{goldWeeks === 1 ? '' : 's'} this view
-          </AppText>
-        </AppCard>
-      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Refresh streak"
+        className="min-h-[44px] self-center justify-center px-3 active:opacity-70"
+        onPress={() => void load(true)}
+      >
+        <AppText variant="caption" className="text-muted">
+          Refresh streak
+        </AppText>
+      </Pressable>
 
-      {!hasLoggedDayInView ? (
-        <EmptyState
-          title="No logs in this month yet"
-          message="Your calendar is ready. Log a meal to start building a logging streak."
-        />
-      ) : null}
-
-      <AppButton variant="ghost" onPress={() => void load(true)}>
-        Refresh streak
-      </AppButton>
+      <StreakDayDetailSheet
+        day={selectedDay}
+        visible={selectedDay !== null}
+        activeCalorieTarget={calendar.activeCalorieTarget}
+        acceptedCalorieRange={calendar.acceptedCalorieRange}
+        goldWeek={selectedGoldWeek}
+        onClose={() => setSelectedDay(null)}
+      />
     </AppScreen>
   );
 }
