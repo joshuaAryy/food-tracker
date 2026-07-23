@@ -79,6 +79,14 @@
 
 **Files:** Update only owned documentation/tests or user-facing mode labels; create evidence outside the repository at `/private/tmp/food-tracker-phase15.5.1-native-parity/`.
 
+**Validation checkpoint (2026-07-23):** Node `v22.23.0`, pnpm `10.34.3`, Prisma
+validation, lint, typecheck, build, modified-file Prettier, focused tests, and
+the full 51-file/971-test suite pass. Root `format:check` remains blocked by
+pre-existing/protected `.agents/`, `.superpowers/`, and `apps/mobile/app.json`
+format warnings; none were edited. `xcode-select -p`, `xcrun swiftc --version`,
+and `xcrun simctl list devices` pass, but native build/simulator evidence is
+pending because free space is 7.3 GiB, below the required 10 GiB gate.
+
 - [x] Run `rg -n -i "Detailed|detailed|DETAIL" .`, classify each match, and update only mode-name uses. Do not touch protected current-image baselines, unrelated adjectives, or protected local files.
 - [ ] Run under the same Node 22 environment: `node -v`, `corepack pnpm -v`, `corepack pnpm prisma:validate`, `corepack pnpm format:check`, `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm build`, `corepack pnpm test`, modified-file Prettier, `git diff --check`.
 - [ ] Before native work, require `df -h /` to show at least 10GiB free; then run `xcrun swiftc --version`, `xcode-select -p`, and `xcrun simctl list devices` without changing global Xcode configuration.
