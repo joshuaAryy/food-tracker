@@ -28,6 +28,7 @@ import type {
   FoodLogInput,
   FoodLogUpdateInput,
   Goals,
+  GoalsInput,
   Profile,
   Recommendation,
   RecommendationStatus,
@@ -624,7 +625,7 @@ export const api = {
   },
   goals: {
     get: () => request<Goals>('/goals', {}, goalsSchema),
-    update: (goals: Goals) =>
+    update: (goals: GoalsInput) =>
       request<Goals>('/goals', { method: 'PUT', body: goals }, goalsSchema),
   },
   trackingPreferences: {

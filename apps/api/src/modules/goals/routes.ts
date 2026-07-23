@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { goalsSchema, type GoalsInput } from '@food-tracker/shared';
+import { goalsInputSchema, type GoalsInput } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
 import { notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
@@ -22,26 +22,51 @@ goalsRouter.get('/', async (_request, response) => {
   sendSuccess(response, serializeGoals(goals));
 });
 
-goalsRouter.put('/', validateBody(goalsSchema), async (_request, response) => {
-  const userId = currentUserId(response);
-  const input = validatedBody<GoalsInput>(response);
-  const roundOptional = (value: number | null | undefined, places: number) =>
-    value === null || value === undefined ? value : roundTo(value, places);
-  const data = {
-    ...input,
-    targetWeightLb: roundTo(input.targetWeightLb, 1),
-    targetProteinGrams: roundTo(input.targetProteinGrams, 1),
-    targetCarbsGrams: roundOptional(input.targetCarbsGrams, 1),
-    targetFatGrams: roundOptional(input.targetFatGrams, 1),
-    targetFiberGrams: roundOptional(input.targetFiberGrams, 1),
-    limitSugarGrams: roundOptional(input.limitSugarGrams, 1),
-    limitSodiumMg: roundOptional(input.limitSodiumMg, 0),
-  };
-  const goals = await prisma.userGoal.upsert({
-    where: { userId },
-    update: data,
-    create: { userId, ...data },
-  });
+goalsRouter.put(
+  '/',
+  validateBody(goalsInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const input = validatedBody<GoalsInput>(response);
+    const roundOptional = (
+      value: number | null,
+      places: number,
+    ): number | null => (value === null ? null : roundTo(value, places));
+    const {
+      targetCarbsGrams,
+      targetFatGrams,
+      targetFiberGrams,
+      limitSugarGrams,
+      limitSodiumMg,
+    } = input;
+    const data = {
+      goalType: input.goalType,
+      goalPace: input.goalPace,
+      targetWeightLb: roundTo(input.targetWeightLb, 1),
+      targetCalories: input.targetCalories,
+      targetProteinGrams: roundTo(input.targetProteinGrams, 1),
+      ...(targetCarbsGrams === undefined
+        ? {}
+        : { targetCarbsGrams: roundOptional(targetCarbsGrams, 1) }),
+      ...(targetFatGrams === undefined
+        ? {}
+        : { targetFatGrams: roundOptional(targetFatGrams, 1) }),
+      ...(targetFiberGrams === undefined
+        ? {}
+        : { targetFiberGrams: roundOptional(targetFiberGrams, 1) }),
+      ...(limitSugarGrams === undefined
+        ? {}
+        : { limitSugarGrams: roundOptional(limitSugarGrams, 1) }),
+      ...(limitSodiumMg === undefined
+        ? {}
+        : { limitSodiumMg: roundOptional(limitSodiumMg, 0) }),
+    };
+    const goals = await prisma.userGoal.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+    });
 
-  sendSuccess(response, serializeGoals(goals));
-});
+    sendSuccess(response, serializeGoals(goals));
+  },
+);

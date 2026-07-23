@@ -13,6 +13,7 @@ import {
   TRACKING_MODES,
   TRAINING_STYLES,
 } from './enums.js';
+import type { GoalPace, GoalType } from './enums.js';
 import {
   NORMALIZED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
@@ -115,21 +116,41 @@ const goalsBaseSchema = z.strictObject({
   limitSodiumMg: z.number().int().positive().nullable().optional(),
 });
 
-export const goalsSchema = goalsBaseSchema.refine(
-  ({ goalType, goalPace }) =>
-    (goalType === 'maintain' && goalPace === null) ||
-    (goalType === 'lose' &&
-      (goalPace === 'slow' ||
-        goalPace === 'moderate' ||
-        goalPace === 'aggressive')) ||
-    (goalType === 'gain' &&
-      (goalPace === 'lean_bulk' ||
-        goalPace === 'moderate_bulk' ||
-        goalPace === 'aggressive_bulk')),
-  {
-    message: 'goalPace must match goalType',
-    path: ['goalPace'],
-  },
+const goalsMatchType = ({
+  goalType,
+  goalPace,
+}: {
+  goalType: GoalType;
+  goalPace: GoalPace | null;
+}) =>
+  (goalType === 'maintain' && goalPace === null) ||
+  (goalType === 'lose' &&
+    (goalPace === 'slow' ||
+      goalPace === 'moderate' ||
+      goalPace === 'aggressive')) ||
+  (goalType === 'gain' &&
+    (goalPace === 'lean_bulk' ||
+      goalPace === 'moderate_bulk' ||
+      goalPace === 'aggressive_bulk'));
+
+const goalsMatchTypeMessage = {
+  message: 'goalPace must match goalType',
+  path: ['goalPace'],
+};
+
+export const goalsSchema = goalsBaseSchema
+  .extend({
+    targetCarbsGrams: z.number().positive().nullable(),
+    targetFatGrams: z.number().positive().nullable(),
+    targetFiberGrams: z.number().positive().nullable(),
+    limitSugarGrams: z.number().positive().nullable(),
+    limitSodiumMg: z.number().int().positive().nullable(),
+  })
+  .refine(goalsMatchType, goalsMatchTypeMessage);
+
+export const goalsInputSchema = goalsBaseSchema.refine(
+  goalsMatchType,
+  goalsMatchTypeMessage,
 );
 
 export const trackingPreferencesSchema = z.strictObject({
