@@ -12,6 +12,8 @@ import {
   nutrientGroupLabel,
   nutrientPercentageAccessibilityLabel,
   nutrientPercentageLabel,
+  nutrientPresentation,
+  highlightedNutrientEntries,
   nutrientRowCopy,
   previousPeriodNoDataLabel,
   proteinAdherenceStatus,
@@ -295,7 +297,7 @@ describe('mobile reporting presentation helpers', () => {
         average: 1.6,
         report: noTargetReport,
       }),
-    ).toBe('—');
+    ).toBe('No goal set');
     expect(
       nutrientRowCopy({
         key: 'omega3',
@@ -309,7 +311,102 @@ describe('mobile reporting presentation helpers', () => {
         average: 1.6,
         report: noTargetReport,
       }),
-    ).toBe('No target available for this nutrient');
+    ).toBe('No goal set');
+  });
+
+  it('keeps recorded, target, unrecorded, setup, and zero nutrient states distinct', () => {
+    const recordedProtein = {
+      displayName: 'Protein',
+      category: 'macro' as const,
+      total: 0,
+      averagePerLoggedDay: 0,
+      unit: 'g' as const,
+      recordedDayCount: 2,
+    };
+    const recordedFiber = {
+      displayName: 'Fiber',
+      category: 'macro' as const,
+      total: 40,
+      averagePerLoggedDay: 20,
+      unit: 'g' as const,
+      recordedDayCount: 2,
+    };
+    const proteinReport = {
+      proteinTargetGrams: 100,
+      proteinAdherence: {
+        available: true as const,
+        value: {
+          averageAmount: 0,
+          targetAmount: 100,
+          percentage: 0,
+          adherentDays: 0,
+          loggedDays: 2,
+        },
+      },
+    };
+
+    expect(
+      nutrientPresentation({
+        key: 'protein',
+        detail: recordedProtein,
+        report: proteinReport,
+      }),
+    ).toMatchObject({
+      state: 'recorded',
+      totalLabel: '0 g',
+      percentageLabel: '0%',
+    });
+    expect(
+      nutrientPresentation({
+        key: 'fiber',
+        detail: recordedFiber,
+        report: { proteinTargetGrams: null, proteinAdherence: unavailable },
+      }),
+    ).toMatchObject({ state: 'no_goal', statusLabel: 'No goal set' });
+    expect(
+      nutrientPresentation({
+        key: 'fiber',
+        detail: null,
+        report: { proteinTargetGrams: null, proteinAdherence: unavailable },
+      }),
+    ).toMatchObject({
+      state: 'not_recorded',
+      statusLabel: 'Not recorded in this period',
+    });
+    expect(
+      nutrientPresentation({
+        key: 'protein',
+        detail: null,
+        report: { proteinTargetGrams: null, proteinAdherence: unavailable },
+        setupComplete: false,
+      }),
+    ).toMatchObject({
+      state: 'setup_incomplete',
+      statusLabel: 'Complete setup to see nutrient goals',
+    });
+  });
+
+  it('keeps highlighted nutrient cards present when a known nutrient was not recorded', () => {
+    const entries = highlightedNutrientEntries({
+      nutrientDetails: {
+        fiber: {
+          displayName: 'Fiber',
+          category: 'macro',
+          total: 0,
+          averagePerLoggedDay: 0,
+          unit: 'g',
+          recordedDayCount: 1,
+        },
+      },
+    });
+
+    expect(entries.map((entry) => entry.key)).toEqual([
+      'fiber',
+      'sugar',
+      'sodium',
+    ]);
+    expect(entries.find((entry) => entry.key === 'sugar')?.detail).toBeNull();
+    expect(entries.find((entry) => entry.key === 'sodium')?.detail).toBeNull();
   });
 
   it('keeps prior-period no-data copy compact and boundary-aware', () => {
@@ -368,17 +465,51 @@ describe('mobile reporting presentation helpers', () => {
     expect(source).toContain('Set<ReportingNutrientGroup>');
     expect(source).toContain('Expand all');
     expect(source).toContain('Collapse all');
-    expect(source).not.toContain('import { AppCard }');
-    expect(source).toContain('nutrientPercentageLabel');
+    expect(source).toContain("import { AppCard } from './app-card';");
+    expect(source).toContain('nutrientPresentation');
     expect(contentSource).not.toContain('DayStrip');
-    expect(contentSource).not.toContain('import { AppCard }');
+    expect(contentSource).toContain("import { AppCard } from './app-card';");
     expect(contentSource).not.toContain('bg-sage-dark');
     expect(insightsSource).not.toContain('@/components/empty-state');
     expect(insightsSource).not.toContain('◔');
     expect(dayRingSource).toContain(
       'progressColor={colors.light.loggedProgress}',
     );
-    expect(tokenSource).toContain("loggedProgress: '#76dba0'");
+    expect(tokenSource).toContain("loggedProgress: '#76DBA0'");
+  });
+
+  it('keeps approved flame, laurel, and reporting artwork as shared SVG vectors', async () => {
+    const flameSource = await readFile(
+      new URL('../../mobile/src/components/streak-flame.tsx', import.meta.url),
+      'utf8',
+    );
+    const laurelSource = await readFile(
+      new URL(
+        '../../mobile/src/components/grace-laurel-icon.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const iconSource = await readFile(
+      new URL(
+        '../../mobile/src/components/reporting-icon.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(flameSource).toContain("from 'react-native-svg'");
+    expect(flameSource).toContain('fill="#EA1226"');
+    expect(flameSource).not.toContain('.png');
+    expect(laurelSource).toContain('fill="#171717"');
+    expect(laurelSource).not.toContain('<Circle');
+    expect(laurelSource).not.toContain('.png');
+    expect(iconSource).toContain("from 'react-native-svg'");
+    expect(iconSource).toContain("'energy'");
+    expect(iconSource).toContain("'macros'");
+    expect(iconSource).toContain("'nutrients'");
+    expect(iconSource).toContain("'compare'");
+    expect(iconSource).not.toContain('lucide');
   });
 
   it('keeps elapsed comparison graph-free and visibly separate from the full period', async () => {
@@ -392,8 +523,8 @@ describe('mobile reporting presentation helpers', () => {
 
     expect(source).not.toContain('GitCompareArrows');
     expect(source).not.toContain('h-2 w-2');
-    expect(source).toContain('Equivalent comparison');
-    expect(source).toContain('Same elapsed window');
+    expect(source).toContain('Period comparison');
+    expect(source).toContain('equivalent elapsed period');
   });
 
   it('preserves recommendation metadata, dismissal wording, and flat reports', async () => {
@@ -532,7 +663,7 @@ describe('mobile reporting presentation helpers', () => {
     expect(source).toContain(
       "import { StreakFlame } from '@/components/streak-flame';",
     );
-    expect(source).toContain('<StreakFlame size={88} />');
+    expect(source).toContain('<StreakFlame size={78} />');
     expect(source).toMatch(
       /<MonthlyStreakCalendar\s+calendar=\{calendar\}\s+onDayPress=\{setSelectedDay\}/,
     );

@@ -185,6 +185,19 @@ type NutrientPercentageReport = {
   nutrientDetails?: ReportsResponse['current']['nutrientDetails'] | undefined;
 };
 
+export type NutrientPresentationState =
+  | 'no_goal'
+  | 'not_recorded'
+  | 'recorded'
+  | 'setup_incomplete';
+
+export type NutrientPresentation = {
+  state: NutrientPresentationState;
+  totalLabel: string;
+  percentageLabel: string;
+  statusLabel: string;
+};
+
 export function nutrientPercentageLabel({
   key,
   average,
@@ -194,7 +207,7 @@ export function nutrientPercentageLabel({
   average: number;
   report: NutrientPercentageReport;
 }): string {
-  if (key !== 'protein') return '—';
+  if (key !== 'protein') return 'No goal set';
 
   if (report.proteinAdherence?.available) {
     return `${Math.round(report.proteinAdherence.value.percentage)}%`;
@@ -202,7 +215,7 @@ export function nutrientPercentageLabel({
 
   const target = report.proteinTargetGrams ?? null;
   if (target === null || target <= 0 || !Number.isFinite(average)) {
-    return '—';
+    return 'No goal set';
   }
   return `${Math.round((average / target) * 100)}%`;
 }
@@ -217,9 +230,9 @@ export function nutrientPercentageAccessibilityLabel({
   report: NutrientPercentageReport;
 }): string {
   const label = nutrientPercentageLabel({ key, average, report });
-  return label === '—'
-    ? 'No target available for this nutrient'
-    : `${label} of the available nutrient target`;
+  return label.endsWith('%')
+    ? `${label} of the available nutrient target`
+    : label;
 }
 
 function formatNutrientAmount(value: number, unit: string): string {
@@ -235,7 +248,89 @@ export function nutrientRowCopy({
   detail: ReportingNutrientDetail;
   report: NutrientPercentageReport;
 }): string {
-  return `Total ${formatNutrientAmount(detail.total, detail.unit)} · recorded on ${detail.recordedDayCount} ${detail.recordedDayCount === 1 ? 'day' : 'days'}`;
+  return formatNutrientAmount(detail.total, detail.unit);
+}
+
+export function nutrientPresentation({
+  key,
+  detail,
+  report,
+  setupComplete = true,
+}: {
+  key: string;
+  detail: ReportingNutrientDetail | null;
+  report: NutrientPercentageReport;
+  setupComplete?: boolean;
+}): NutrientPresentation {
+  if (detail === null) {
+    const state = setupComplete ? 'not_recorded' : 'setup_incomplete';
+    return {
+      state,
+      totalLabel:
+        state === 'setup_incomplete' ? 'Setup incomplete' : 'Not recorded',
+      percentageLabel:
+        state === 'setup_incomplete'
+          ? 'Complete setup to see nutrient goals'
+          : 'Not recorded in this period',
+      statusLabel:
+        state === 'setup_incomplete'
+          ? 'Complete setup to see nutrient goals'
+          : 'Not recorded in this period',
+    };
+  }
+
+  const percentageLabel = nutrientPercentageLabel({
+    key,
+    average: detail.averagePerLoggedDay,
+    report,
+  });
+  const hasProteinTarget =
+    key === 'protein' &&
+    report.proteinTargetGrams !== null &&
+    report.proteinTargetGrams !== undefined &&
+    report.proteinTargetGrams > 0;
+  const state: NutrientPresentationState =
+    !setupComplete && key === 'protein' && !hasProteinTarget
+      ? 'setup_incomplete'
+      : hasProteinTarget
+        ? 'recorded'
+        : 'no_goal';
+
+  return {
+    state,
+    totalLabel: formatNutrientAmount(detail.total, detail.unit),
+    percentageLabel:
+      state === 'setup_incomplete'
+        ? 'Complete setup to see nutrient goals'
+        : percentageLabel,
+    statusLabel:
+      state === 'setup_incomplete'
+        ? 'Complete setup to see nutrient goals'
+        : state === 'no_goal'
+          ? 'No goal set'
+          : percentageLabel,
+  };
+}
+
+const highlightedNutrientKeys = [
+  ['fiber', 'Fiber'],
+  ['sugar', 'Sugar'],
+  ['sodium', 'Sodium'],
+] as const;
+
+export function highlightedNutrientEntries(
+  report: Pick<ReportsResponse['current'], 'nutrientDetails'>,
+): Array<{
+  key: string;
+  displayName: string;
+  detail: ReportingNutrientDetail | null;
+}> {
+  const details = report.nutrientDetails ?? {};
+  return highlightedNutrientKeys.map(([key, displayName]) => ({
+    key,
+    displayName,
+    detail: details[key] ?? null,
+  }));
 }
 
 export function previousPeriodNoDataLabel(boundary: {

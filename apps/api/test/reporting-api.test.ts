@@ -139,6 +139,62 @@ describe('reporting API', () => {
     });
   });
 
+  it('preserves recorded zero, nullable nutrient, partial-period, and previous-period facts', async () => {
+    await seedProfile();
+    await seedGoals({
+      goalType: 'maintain',
+      targetCalories: 2000,
+      targetProteinGrams: 100,
+    });
+    await seedPreferences();
+
+    const currentLog = await seedFoodLog({
+      loggedAt: await timestampFor('America/Toronto', '2026-07-13'),
+      calories: 2000,
+      protein: 100,
+    });
+    await prisma.foodLog.update({
+      where: { id: currentLog.id },
+      data: {
+        carbs: 0,
+        fat: 25,
+        fiber: 0,
+        sugar: null,
+        sodium: 0,
+      },
+    });
+
+    const previousLog = await seedFoodLog({
+      loggedAt: await timestampFor('America/Toronto', '2026-07-06'),
+      calories: 1800,
+      protein: 90,
+    });
+    await prisma.foodLog.update({
+      where: { id: previousLog.id },
+      data: { carbs: 100, fat: 40, fiber: 12, sugar: 8, sodium: 500 },
+    });
+
+    const response = await api
+      .get('/api/v1/analytics/reports')
+      .query({ period: 'week', date: '2026-07-15' })
+      .expect(200);
+    const parsed = reportsResponseSchema.parse(response.body.data);
+
+    expect(parsed.current.nutrientDetails).toMatchObject({
+      carbs: { total: 0, averagePerLoggedDay: 0, recordedDayCount: 1 },
+      fiber: { total: 0, averagePerLoggedDay: 0, recordedDayCount: 1 },
+      fat: { total: 25, averagePerLoggedDay: 25, recordedDayCount: 1 },
+      sodium: { total: 0, averagePerLoggedDay: 0, recordedDayCount: 1 },
+    });
+    expect(parsed.current.nutrientDetails?.sugar).toBeUndefined();
+    expect(parsed.previousCompleted.nutrientDetails).toMatchObject({
+      carbs: { total: 100, averagePerLoggedDay: 100, recordedDayCount: 1 },
+      sugar: { total: 8, averagePerLoggedDay: 8, recordedDayCount: 1 },
+    });
+    expect(parsed.current.loggedDays).toBe(1);
+    expect(parsed.previousCompleted.loggedDays).toBe(1);
+  });
+
   it('keeps logged-without-target days factual when goals are missing', async () => {
     await seedProfile();
     await seedFoodLog({
