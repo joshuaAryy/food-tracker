@@ -15,6 +15,7 @@ import {
   nutrientPresentation,
   highlightedNutrientEntries,
   nutrientRowCopy,
+  trackingModeLabel,
   previousPeriodNoDataLabel,
   proteinAdherenceStatus,
   reportWindowTitle,
@@ -282,6 +283,14 @@ describe('mobile reporting presentation helpers', () => {
       averagePerLoggedDay: 1.6,
       unit: 'g' as const,
       recordedDayCount: 3,
+      goal: {
+        value: null,
+        unit: 'g' as const,
+        direction: 'target' as const,
+        source: 'missing' as const,
+      },
+      periodGoal: null,
+      percentage: null,
     };
 
     expect(
@@ -322,6 +331,14 @@ describe('mobile reporting presentation helpers', () => {
       averagePerLoggedDay: 0,
       unit: 'g' as const,
       recordedDayCount: 2,
+      goal: {
+        value: 100,
+        unit: 'g' as const,
+        direction: 'minimum' as const,
+        source: 'user' as const,
+      },
+      periodGoal: 200,
+      percentage: 0,
     };
     const recordedFiber = {
       displayName: 'Fiber',
@@ -330,6 +347,14 @@ describe('mobile reporting presentation helpers', () => {
       averagePerLoggedDay: 20,
       unit: 'g' as const,
       recordedDayCount: 2,
+      goal: {
+        value: null,
+        unit: 'g' as const,
+        direction: 'target' as const,
+        source: 'missing' as const,
+      },
+      periodGoal: null,
+      percentage: null,
     };
     const proteinReport = {
       proteinTargetGrams: 100,
@@ -362,7 +387,10 @@ describe('mobile reporting presentation helpers', () => {
         detail: recordedFiber,
         report: { proteinTargetGrams: null, proteinAdherence: unavailable },
       }),
-    ).toMatchObject({ state: 'no_goal', statusLabel: 'No goal set' });
+    ).toMatchObject({
+      state: 'setup_incomplete',
+      statusLabel: 'Complete setup to see nutrient goals',
+    });
     expect(
       nutrientPresentation({
         key: 'fiber',
@@ -386,6 +414,91 @@ describe('mobile reporting presentation helpers', () => {
     });
   });
 
+  it('renders every goal-backed nutrient percentage and truthful limit copy', () => {
+    const report = {
+      proteinTargetGrams: 100,
+      proteinAdherence: unavailable,
+      reportingGoals: {
+        fiber: {
+          value: 25,
+          unit: 'g' as const,
+          direction: 'minimum' as const,
+          source: 'derived' as const,
+        },
+        sugar: {
+          value: 50,
+          unit: 'g' as const,
+          direction: 'limit' as const,
+          source: 'user' as const,
+        },
+        sodium: {
+          value: 1000,
+          unit: 'mg' as const,
+          direction: 'limit' as const,
+          source: 'user' as const,
+        },
+      },
+    };
+
+    expect(
+      nutrientPresentation({
+        key: 'fiber',
+        detail: {
+          displayName: 'Fiber',
+          category: 'macro',
+          total: 23,
+          averagePerLoggedDay: 23,
+          unit: 'g',
+          recordedDayCount: 1,
+          goal: report.reportingGoals.fiber,
+          periodGoal: 25,
+          percentage: 92,
+        },
+        report,
+      }),
+    ).toMatchObject({
+      state: 'recorded',
+      totalLabel: '23 g',
+      percentageLabel: '92%',
+      statusLabel: '92%',
+    });
+
+    expect(
+      nutrientPresentation({
+        key: 'sugar',
+        detail: {
+          displayName: 'Sugar',
+          category: 'macro',
+          total: 60,
+          averagePerLoggedDay: 60,
+          unit: 'g',
+          recordedDayCount: 1,
+          goal: report.reportingGoals.sugar,
+          periodGoal: 50,
+          percentage: 120,
+        },
+        report,
+      }),
+    ).toMatchObject({
+      state: 'recorded',
+      percentageLabel: '120% of limit',
+      statusLabel: '120% of limit',
+    });
+
+    expect(
+      nutrientPresentation({
+        key: 'sodium',
+        detail: null,
+        report,
+      }),
+    ).toMatchObject({
+      state: 'not_recorded',
+      statusLabel: 'Not recorded in this period',
+    });
+    expect(trackingModeLabel('simple')).toBe('Simple');
+    expect(trackingModeLabel('complex')).toBe('Complex');
+  });
+
   it('keeps highlighted nutrient cards present when a known nutrient was not recorded', () => {
     const entries = highlightedNutrientEntries({
       nutrientDetails: {
@@ -396,6 +509,14 @@ describe('mobile reporting presentation helpers', () => {
           averagePerLoggedDay: 0,
           unit: 'g',
           recordedDayCount: 1,
+          goal: {
+            value: 25,
+            unit: 'g',
+            direction: 'minimum',
+            source: 'derived',
+          },
+          periodGoal: 25,
+          percentage: 0,
         },
       },
     });
@@ -476,6 +597,24 @@ describe('mobile reporting presentation helpers', () => {
       'progressColor={colors.light.loggedProgress}',
     );
     expect(tokenSource).toContain("loggedProgress: '#76DBA0'");
+  });
+
+  it('keeps user-facing mode labels on the Simple and Complex vocabulary', async () => {
+    const sources = await Promise.all(
+      [
+        '../../mobile/src/app/onboarding.tsx',
+        '../../mobile/src/components/onboarding-plan-preview.tsx',
+        '../../mobile/src/app/(tabs)/profile.tsx',
+        '../../mobile/src/app/(tabs)/progress.tsx',
+      ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')),
+    );
+
+    for (const source of sources) {
+      expect(source).not.toMatch(
+        /Detailed tracking|Detailed mode|Start detailed/,
+      );
+      expect(source).not.toMatch(/['"]Detailed['"]/);
+    }
   });
 
   it('keeps approved flame, laurel, and reporting artwork as shared SVG vectors', async () => {
@@ -758,6 +897,14 @@ describe('mobile reporting presentation helpers', () => {
           averagePerLoggedDay: 20,
           unit: 'g' as const,
           recordedDayCount: 2,
+          goal: {
+            value: 25,
+            unit: 'g' as const,
+            direction: 'minimum' as const,
+            source: 'derived' as const,
+          },
+          periodGoal: 50,
+          percentage: 80,
         },
         vitaminC: {
           displayName: 'Vitamin C',
@@ -766,6 +913,14 @@ describe('mobile reporting presentation helpers', () => {
           averagePerLoggedDay: 40,
           unit: 'mg' as const,
           recordedDayCount: 2,
+          goal: {
+            value: 90,
+            unit: 'mg' as const,
+            direction: 'minimum' as const,
+            source: 'default' as const,
+          },
+          periodGoal: 180,
+          percentage: 44.4,
         },
       },
     };

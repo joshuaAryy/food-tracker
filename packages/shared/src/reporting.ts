@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { reportingGoalsSchema } from './reporting-goals.js';
 import { reportingNutrientDetailsSchema } from './reporting-nutrients.js';
 
 export const reportPeriodSchema = z.enum(['week', 'month']);
@@ -119,6 +120,7 @@ const reportTargetMetadataShape = {
   acceptedCalorieRange: acceptedCalorieRangeSchema.nullable().optional(),
   averageCalorieStatus: averageCalorieStatusSchema.optional(),
   nutrientDetails: reportingNutrientDetailsSchema.optional(),
+  reportingGoals: reportingGoalsSchema,
 };
 
 export const comparisonMetricSchema = z.object({

@@ -170,7 +170,12 @@ Success `data`:
   "age": 30,
   "calculatedTargets": {
     "targetCalories": 2200,
-    "targetProteinGrams": 150.0
+    "targetProteinGrams": 150.0,
+    "targetCarbsGrams": 200.0,
+    "targetFatGrams": 67.8,
+    "targetFiberGrams": 30.8,
+    "limitSugarGrams": 55.0,
+    "limitSodiumMg": 2300
   }
 }
 ```
@@ -591,6 +596,26 @@ Request:
   "nutrients": {
     "caffeine": { "amount": 95, "unit": "mg" },
     "vitaminC": { "amount": 60, "unit": "mg" }
+  },
+  "reportingGoals": {
+    "caffeine": {
+      "value": 400,
+      "unit": "mg",
+      "direction": "limit",
+      "source": "default"
+    },
+    "vitaminC": {
+      "value": 90,
+      "unit": "mg",
+      "direction": "minimum",
+      "source": "default"
+    }
+  },
+  "percentages": {
+    "calories": null,
+    "protein": null,
+    "caffeine": 35.0,
+    "vitaminC": 66.7
   }
 }
 ```

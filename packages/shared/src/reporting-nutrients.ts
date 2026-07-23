@@ -7,6 +7,7 @@ import {
   type NutrientKey,
   type NutrientUnit,
 } from './nutrients.js';
+import { reportingGoalSchema, type ReportingGoal } from './reporting-goals.js';
 
 export const reportingNutrientCategorySchema = z.enum(NUTRIENT_CATEGORIES);
 export const reportingNutrientUnitSchema = z.enum(NUTRIENT_UNITS);
@@ -18,6 +19,9 @@ export const reportingNutrientDetailSchema = z.object({
   averagePerLoggedDay: z.number().nonnegative(),
   unit: reportingNutrientUnitSchema,
   recordedDayCount: z.number().int().nonnegative(),
+  goal: reportingGoalSchema,
+  periodGoal: z.number().nonnegative().nullable(),
+  percentage: z.number().nonnegative().nullable(),
 });
 
 export const reportingNutrientDetailsSchema = z.record(
@@ -41,6 +45,7 @@ export type ReportingNutrientCategory = NutrientCategory;
 export type ReportingNutrientDetail = z.infer<
   typeof reportingNutrientDetailSchema
 >;
+export type { ReportingGoal };
 export type ReportingNutrientDetails = z.infer<
   typeof reportingNutrientDetailsSchema
 >;

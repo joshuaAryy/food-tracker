@@ -41,6 +41,7 @@ import type {
   PHOTO_QUANTITY_STATES,
   PHOTO_QUANTITY_UNITS,
 } from './constants.js';
+import type { ReportingGoals } from './reporting-goals.js';
 
 export interface SuccessResponse<T> {
   success: true;
@@ -656,6 +657,8 @@ export interface AdvancedAnalytics {
 export interface DailyNutrientTotals {
   date: string;
   nutrients: Partial<Record<NutrientKey, NutrientAmount>>;
+  reportingGoals: ReportingGoals;
+  percentages: Partial<Record<NutrientKey, number | null>>;
 }
 
 export interface Recommendation {

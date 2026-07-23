@@ -51,6 +51,11 @@ export async function seedGoals(
     targetWeightLb: number;
     targetCalories: number;
     targetProteinGrams: number;
+    targetCarbsGrams: number | null;
+    targetFatGrams: number | null;
+    targetFiberGrams: number | null;
+    limitSugarGrams: number | null;
+    limitSodiumMg: number | null;
   }> = {},
 ) {
   const goalType = overrides.goalType ?? 'gain';

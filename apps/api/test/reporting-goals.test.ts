@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   resolveReportingGoals,
   type ReportingGoalInputs,
-} from '../../packages/shared/src/reporting-goals.js';
+} from '../../../packages/shared/src/reporting-goals.js';
 
 const completeInputs: ReportingGoalInputs = {
   targetCalories: 2000,

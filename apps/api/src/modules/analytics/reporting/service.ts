@@ -6,7 +6,11 @@ import {
   type AverageCalorieStatus,
   type ProgressResponse,
   type ReportPeriod,
+  reportingGoalForKey,
+  resolveReportingGoals,
   type ReportingNutrientDetails,
+  type ReportingGoals,
+  type ReportingGoal,
   type ReportsResponse,
   type ReportingMetricReason,
   type WeightResult,
@@ -71,6 +75,7 @@ interface ReportWindowFacts {
   averageProteinGrams: number;
   nutrients: Record<string, number>;
   nutrientDetails: ReportingNutrientDetails;
+  reportingGoals: ReportingGoals;
   calorieTarget: number | null;
   proteinTargetGrams: number | null;
   acceptedCalorieRange: ReturnType<typeof acceptedCalorieRange>;
@@ -212,6 +217,8 @@ function nutrientReportFacts(
   logs: ReportFoodLog[],
   timezone: string,
   mode: 'simple' | 'complex',
+  reportingGoals: ReportingGoals,
+  eligibleDays: number,
 ): {
   nutrients: Record<string, number>;
   nutrientDetails: ReportingNutrientDetails;
@@ -291,6 +298,19 @@ function nutrientReportFacts(
       if (entry === null) return [key, undefined];
       const recordedDayCount = value.dates.size;
       const precision = value.unit === 'mg' || value.unit === 'mcg' ? 0 : 1;
+      const resolvedGoal =
+        reportingGoalForKey(
+          reportingGoals,
+          key as keyof typeof NUTRIENT_CATALOG,
+        ) ?? missingReportingGoal(value.unit);
+      const periodGoal =
+        resolvedGoal.value !== null && eligibleDays > 0
+          ? roundTo(resolvedGoal.value * eligibleDays, precision)
+          : null;
+      const percentage =
+        periodGoal !== null && periodGoal > 0
+          ? roundTo((value.total / periodGoal) * 100, 1)
+          : null;
       return [
         key,
         {
@@ -303,6 +323,9 @@ function nutrientReportFacts(
           ),
           unit: value.unit,
           recordedDayCount,
+          goal: resolvedGoal,
+          periodGoal,
+          percentage,
         },
       ];
     }),
@@ -314,6 +337,19 @@ function nutrientReportFacts(
     ]),
   );
   return { nutrients, nutrientDetails };
+}
+
+function missingReportingGoal(unit: string): ReportingGoal {
+  const normalizedUnit =
+    unit === 'kcal' || unit === 'g' || unit === 'mg' || unit === 'mcg'
+      ? unit
+      : 'g';
+  return {
+    value: null,
+    unit: normalizedUnit,
+    direction: 'target',
+    source: 'missing',
+  };
 }
 
 function averageCalorieStatus(
@@ -424,6 +460,7 @@ function buildWindowFacts(input: {
   targetWeight: number | null;
   baselineWeight: number | null;
   mode: 'simple' | 'complex';
+  reportingGoals: ReportingGoals;
   firstLoggedDate: string | undefined;
 }): ReportWindowFacts {
   const window = periodWindow(
@@ -466,6 +503,8 @@ function buildWindowFacts(input: {
     input.logs,
     input.timezone,
     input.mode,
+    input.reportingGoals,
+    consistency.eligibleDays,
   );
 
   return {
@@ -499,6 +538,7 @@ function buildWindowFacts(input: {
     averageProteinGrams,
     nutrients: nutrientFacts.nutrients,
     nutrientDetails: nutrientFacts.nutrientDetails,
+    reportingGoals: input.reportingGoals,
     calorieTarget: input.targetCalories,
     proteinTargetGrams: input.targetProtein,
     acceptedCalorieRange: acceptedCalorieRange(
@@ -563,6 +603,15 @@ export async function computeReports(
   ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = requestedDate ?? localDate(now, timezone);
+  const reportingGoals = resolveReportingGoals({
+    targetCalories: goal?.targetCalories ?? null,
+    targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
+    targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
+    targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
+    targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
+    limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
+    limitSodiumMg: goal?.limitSodiumMg ?? null,
+  });
   const boundaries = periodBoundaries(period, today);
   const comparisons = comparisonWindows(period, today);
   const firstLoggedDate =
@@ -603,6 +652,7 @@ export async function computeReports(
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
+    reportingGoals,
     firstLoggedDate,
   });
   const previousCompleted = buildWindowFacts({
@@ -616,6 +666,7 @@ export async function computeReports(
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
+    reportingGoals,
     firstLoggedDate,
   });
   const equivalent = buildWindowFacts({
@@ -633,6 +684,7 @@ export async function computeReports(
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
+    reportingGoals,
     firstLoggedDate,
   });
 
@@ -735,6 +787,7 @@ export async function computeReports(
       weight: current.weight,
       nutrients: current.nutrients,
       nutrientDetails: current.nutrientDetails,
+      reportingGoals: current.reportingGoals,
       calorieTarget: current.calorieTarget,
       proteinTargetGrams: current.proteinTargetGrams,
       acceptedCalorieRange: current.acceptedCalorieRange,
@@ -753,6 +806,7 @@ export async function computeReports(
       weight: previousCompleted.weight,
       nutrients: previousCompleted.nutrients,
       nutrientDetails: previousCompleted.nutrientDetails,
+      reportingGoals: previousCompleted.reportingGoals,
       calorieTarget: previousCompleted.calorieTarget,
       proteinTargetGrams: previousCompleted.proteinTargetGrams,
       acceptedCalorieRange: previousCompleted.acceptedCalorieRange,

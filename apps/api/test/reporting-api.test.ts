@@ -139,6 +139,107 @@ describe('reporting API', () => {
     });
   });
 
+  it('returns a finite period goal and percentage for every supported nutrient', async () => {
+    await seedProfile();
+    await seedGoals({
+      goalType: 'maintain',
+      targetCalories: 2000,
+      targetProteinGrams: 100,
+      targetCarbsGrams: 200,
+      targetFatGrams: 80,
+      targetFiberGrams: 25,
+      limitSugarGrams: 50,
+      limitSodiumMg: 1000,
+    });
+    await seedPreferences({ mode: 'complex' });
+
+    for (const date of ['2026-07-13', '2026-07-14', '2026-07-15']) {
+      const log = await seedFoodLog({
+        loggedAt: await timestampFor('America/Toronto', date),
+        calories: 2000,
+        protein: 120,
+      });
+      await prisma.foodLog.update({
+        where: { id: log.id },
+        data: {
+          carbs: 200,
+          fat: 80,
+          fiber: 25,
+          sugar: 60,
+          sodium: 1200,
+        },
+      });
+    }
+
+    const response = await api
+      .get('/api/v1/analytics/reports')
+      .query({ period: 'week', date: '2026-07-15' })
+      .expect(200);
+    const current = response.body.data.current as {
+      eligibleDays: number;
+      reportingGoals?: Record<string, unknown>;
+      nutrientDetails?: Record<string, Record<string, unknown>>;
+    };
+
+    expect(current.eligibleDays).toBe(3);
+    expect(current.reportingGoals).toMatchObject({
+      calories: {
+        value: 2000,
+        unit: 'kcal',
+        direction: 'target',
+        source: 'user',
+      },
+      protein: {
+        value: 100,
+        unit: 'g',
+        direction: 'minimum',
+        source: 'user',
+      },
+      sugar: {
+        value: 50,
+        unit: 'g',
+        direction: 'limit',
+        source: 'user',
+      },
+      sodium: {
+        value: 1000,
+        unit: 'mg',
+        direction: 'limit',
+        source: 'user',
+      },
+    });
+
+    for (const key of [
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'fiber',
+      'sugar',
+      'sodium',
+    ]) {
+      expect(current.nutrientDetails?.[key]).toMatchObject({
+        periodGoal: expect.any(Number),
+        percentage: expect.any(Number),
+      });
+      expect(Number.isFinite(current.nutrientDetails?.[key]?.percentage)).toBe(
+        true,
+      );
+    }
+    expect(current.nutrientDetails?.protein).toMatchObject({
+      periodGoal: 300,
+      percentage: 120,
+    });
+    expect(current.nutrientDetails?.sugar).toMatchObject({
+      periodGoal: 150,
+      percentage: 120,
+    });
+    expect(current.nutrientDetails?.sodium).toMatchObject({
+      periodGoal: 3000,
+      percentage: 120,
+    });
+  });
+
   it('preserves recorded zero, nullable nutrient, partial-period, and previous-period facts', async () => {
     await seedProfile();
     await seedGoals({
