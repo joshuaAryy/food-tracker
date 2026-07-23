@@ -401,7 +401,6 @@ export default function ProgressScreen() {
         </View>
       ) : reporting === null ? null : (
         <ProgressReportingSummary
-          summary={summary}
           reporting={reporting}
           weeklyReport={weeklyReport}
           dailyNutrients={dailyNutrients}

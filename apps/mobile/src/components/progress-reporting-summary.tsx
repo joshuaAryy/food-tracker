@@ -121,10 +121,8 @@ export function ProgressCalorieHero({
 }
 
 function DailyNutrientBand({
-  summary,
   dailyNutrients,
 }: {
-  summary: DashboardSummary;
   dailyNutrients: DailyNutrientTotals | null;
 }) {
   const nutrients = dailyNutrients?.nutrients ?? {};
@@ -180,7 +178,6 @@ function DailyNutrientBand({
 }
 
 export function ProgressReportingSummary({
-  summary,
   reporting,
   weeklyReport,
   dailyNutrients,
@@ -189,7 +186,6 @@ export function ProgressReportingSummary({
   onRetry,
   onReports,
 }: {
-  summary: DashboardSummary;
   reporting: ProgressResponse;
   weeklyReport: ReportsResponse | null;
   dailyNutrients: DailyNutrientTotals | null;
@@ -267,7 +263,7 @@ export function ProgressReportingSummary({
           onRetry={onRetry}
         />
       )}
-      <DailyNutrientBand summary={summary} dailyNutrients={dailyNutrients} />
+      <DailyNutrientBand dailyNutrients={dailyNutrients} />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open detailed reports in Insights"

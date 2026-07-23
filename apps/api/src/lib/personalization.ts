@@ -1,7 +1,4 @@
-import {
-  resolveReportingGoals,
-  type SetupInput,
-} from '@food-tracker/shared';
+import { resolveReportingGoals, type SetupInput } from '@food-tracker/shared';
 import { roundTo } from './serializers.js';
 
 const activityMultipliers = {
