@@ -24,6 +24,7 @@ export const colors = {
     sage: '#7A9B76',
     sageDark: '#506D4F',
     sageSoft: '#DDE7D8',
+    loggedProgress: '#76dba0',
     water: '#7895A6',
     waterSoft: '#DCE8ED',
     carbs: '#B59A5B',

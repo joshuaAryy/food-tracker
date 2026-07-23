@@ -1,16 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   ReportsResponse,
   ReportingNutrientGroup,
 } from '@food-tracker/shared';
 import { ChevronDown, ChevronUp, ListTree } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
-import { AppCard } from './app-card';
 import { AppText } from './app-text';
 import {
+  initialExpandedGroups,
   nutrientDetailsForMode,
   nutrientGroupForDetail,
   nutrientGroupLabel,
+  nutrientPercentageAccessibilityLabel,
+  nutrientPercentageLabel,
+  nutrientRowCopy,
+  toggleExpandedGroup,
 } from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
 
@@ -24,10 +28,6 @@ const groupOrder: ReportingNutrientGroup[] = [
   'other',
 ];
 
-function formatAmount(value: number, unit: string): string {
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: unit === 'mg' || unit === 'mcg' ? 0 : 1 })} ${unit}`;
-}
-
 export function CompleteNutrientReport({
   report,
   title = 'Complete nutrient report',
@@ -35,7 +35,10 @@ export function CompleteNutrientReport({
   report: Pick<ReportsResponse['current'], 'nutrientDetails'>;
   title?: string;
 }) {
-  const entries = nutrientDetailsForMode(report, 'complex');
+  const entries = useMemo(
+    () => nutrientDetailsForMode(report, 'complex'),
+    [report.nutrientDetails],
+  );
   const grouped = useMemo(() => {
     const result = new Map<ReportingNutrientGroup, typeof entries>();
     for (const group of groupOrder) result.set(group, []);
@@ -45,31 +48,62 @@ export function CompleteNutrientReport({
     }
     return result;
   }, [entries]);
-  const visibleGroups = groupOrder.filter(
-    (group) => (grouped.get(group)?.length ?? 0) > 0,
+  const visibleGroups = useMemo(
+    () => groupOrder.filter((group) => (grouped.get(group)?.length ?? 0) > 0),
+    [grouped],
   );
-  const [expanded, setExpanded] = useState<ReportingNutrientGroup | null>(
-    visibleGroups[0] ?? null,
-  );
+  const [expandedGroups, setExpandedGroups] = useState<
+    Set<ReportingNutrientGroup>
+  >(() => new Set(initialExpandedGroups(visibleGroups)));
+
+  useEffect(() => {
+    setExpandedGroups(new Set(initialExpandedGroups(visibleGroups)));
+  }, [visibleGroups]);
 
   if (visibleGroups.length === 0) return null;
 
   return (
-    <AppCard compact className="gap-3">
-      <View className="flex-row items-center gap-2">
-        <ListTree color={colors.light.ink} size={18} strokeWidth={2.2} />
-        <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            {title}
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            Recorded nutrients only · totals and averages per logged day.
-          </AppText>
+    <View className="gap-3 border-t border-line pt-5">
+      <View className="gap-3">
+        <View className="flex-row items-center gap-2">
+          <ListTree color={colors.light.ink} size={18} strokeWidth={2.2} />
+          <View className="min-w-0 flex-1">
+            <AppText variant="heading" className="text-ink">
+              {title}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              Recorded nutrients only · totals per logged day.
+            </AppText>
+          </View>
+        </View>
+        <View className="flex-row gap-4">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Expand all nutrient categories"
+            className="min-h-10 justify-center py-1 active:opacity-70"
+            onPress={() =>
+              setExpandedGroups(new Set(initialExpandedGroups(visibleGroups)))
+            }
+          >
+            <AppText variant="caption" className="text-ink">
+              Expand all
+            </AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Collapse all nutrient categories"
+            className="min-h-10 justify-center py-1 active:opacity-70"
+            onPress={() => setExpandedGroups(new Set())}
+          >
+            <AppText variant="caption" className="text-muted">
+              Collapse all
+            </AppText>
+          </Pressable>
         </View>
       </View>
       <View>
         {visibleGroups.map((group) => {
-          const isExpanded = expanded === group;
+          const isExpanded = expandedGroups.has(group);
           const groupEntries = grouped.get(group) ?? [];
           return (
             <View key={group} className="border-t border-line">
@@ -78,7 +112,12 @@ export function CompleteNutrientReport({
                 accessibilityState={{ expanded: isExpanded }}
                 accessibilityLabel={`${nutrientGroupLabel(group)} category`}
                 className="min-h-12 flex-row items-center gap-3 py-3"
-                onPress={() => setExpanded(isExpanded ? null : group)}
+                onPress={() =>
+                  setExpandedGroups(
+                    (current) =>
+                      new Set(toggleExpandedGroup([...current], group)),
+                  )
+                }
               >
                 <AppText variant="label" className="min-w-0 flex-1 text-ink">
                   {nutrientGroupLabel(group)}
@@ -94,38 +133,44 @@ export function CompleteNutrientReport({
               </Pressable>
               {isExpanded ? (
                 <View className="gap-3 pb-3">
-                  {groupEntries.map(({ key, detail }) => (
-                    <View key={key} className="gap-1 pl-2">
-                      <View className="flex-row items-start gap-3">
+                  {groupEntries.map(({ key, detail }) => {
+                    const percentageInput = {
+                      key,
+                      average: detail.averagePerLoggedDay,
+                      report,
+                    };
+                    return (
+                      <View
+                        key={key}
+                        className="flex-row items-start gap-3 pl-2"
+                      >
+                        <View className="min-w-0 flex-1 gap-0.5">
+                          <AppText variant="label" className="text-ink">
+                            {detail.displayName}
+                          </AppText>
+                          <AppText variant="caption" className="text-muted">
+                            {nutrientRowCopy({ key, detail, report })}
+                          </AppText>
+                        </View>
                         <AppText
-                          variant="label"
-                          className="min-w-0 flex-1 text-ink"
-                        >
-                          {detail.displayName}
-                        </AppText>
-                        <AppText
-                          variant="label"
-                          className="text-ink tabular-nums"
-                        >
-                          {formatAmount(
-                            detail.averagePerLoggedDay,
-                            detail.unit,
+                          accessible
+                          accessibilityLabel={nutrientPercentageAccessibilityLabel(
+                            percentageInput,
                           )}
+                          variant="label"
+                          className="pt-0.5 text-ink tabular-nums"
+                        >
+                          {nutrientPercentageLabel(percentageInput)}
                         </AppText>
                       </View>
-                      <AppText variant="caption" className="text-muted">
-                        Total {formatAmount(detail.total, detail.unit)} ·
-                        recorded on {detail.recordedDayCount}{' '}
-                        {detail.recordedDayCount === 1 ? 'day' : 'days'}
-                      </AppText>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : null}
             </View>
           );
         })}
       </View>
-    </AppCard>
+    </View>
   );
 }

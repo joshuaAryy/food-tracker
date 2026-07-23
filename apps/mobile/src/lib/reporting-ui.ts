@@ -179,6 +179,87 @@ export function nutrientGroupLabel(group: ReportingNutrientGroup): string {
   }
 }
 
+type NutrientPercentageReport = {
+  proteinTargetGrams?: number | null | undefined;
+  proteinAdherence?: ReportsResponse['current']['proteinAdherence'] | undefined;
+  nutrientDetails?: ReportsResponse['current']['nutrientDetails'] | undefined;
+};
+
+export function nutrientPercentageLabel({
+  key,
+  average,
+  report,
+}: {
+  key: string;
+  average: number;
+  report: NutrientPercentageReport;
+}): string {
+  if (key !== 'protein') return '—';
+
+  if (report.proteinAdherence?.available) {
+    return `${Math.round(report.proteinAdherence.value.percentage)}%`;
+  }
+
+  const target = report.proteinTargetGrams ?? null;
+  if (target === null || target <= 0 || !Number.isFinite(average)) {
+    return '—';
+  }
+  return `${Math.round((average / target) * 100)}%`;
+}
+
+export function nutrientPercentageAccessibilityLabel({
+  key,
+  average,
+  report,
+}: {
+  key: string;
+  average: number;
+  report: NutrientPercentageReport;
+}): string {
+  const label = nutrientPercentageLabel({ key, average, report });
+  return label === '—'
+    ? 'No target available for this nutrient'
+    : `${label} of the available nutrient target`;
+}
+
+function formatNutrientAmount(value: number, unit: string): string {
+  return `${value.toLocaleString('en-US', {
+    maximumFractionDigits: unit === 'mg' || unit === 'mcg' ? 0 : 1,
+  })} ${unit}`;
+}
+
+export function nutrientRowCopy({
+  detail,
+}: {
+  key: string;
+  detail: ReportingNutrientDetail;
+  report: NutrientPercentageReport;
+}): string {
+  return `Total ${formatNutrientAmount(detail.total, detail.unit)} · recorded on ${detail.recordedDayCount} ${detail.recordedDayCount === 1 ? 'day' : 'days'}`;
+}
+
+export function previousPeriodNoDataLabel(boundary: {
+  startDate: string;
+  endDate: string;
+}): string {
+  return `No logged data for ${compactShortRange(boundary.startDate, boundary.endDate)}`;
+}
+
+export function initialExpandedGroups(
+  groups: ReportingNutrientGroup[],
+): ReportingNutrientGroup[] {
+  return [...groups];
+}
+
+export function toggleExpandedGroup(
+  groups: ReportingNutrientGroup[],
+  group: ReportingNutrientGroup,
+): ReportingNutrientGroup[] {
+  return groups.includes(group)
+    ? groups.filter((current) => current !== group)
+    : [...groups, group];
+}
+
 export function energyStatusLabel(status: AverageCalorieStatus): string {
   switch (status) {
     case 'no_data':
@@ -207,6 +288,10 @@ function shortDate(value: string): string {
 
 function shortRange(startDate: string, endDate: string): string {
   return `${shortDate(startDate)} – ${shortDate(endDate)}`;
+}
+
+function compactShortRange(startDate: string, endDate: string): string {
+  return `${shortDate(startDate)}–${shortDate(endDate)}`;
 }
 
 export function reportWindowTitle(

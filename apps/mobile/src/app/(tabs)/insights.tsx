@@ -20,7 +20,6 @@ import type {
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
-import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { InsightsReportContent } from '@/components/insights-report-content';
 import { ReportPeriodSelector } from '@/components/report-period-selector';
@@ -187,6 +186,23 @@ function InsightsSkeleton() {
   );
 }
 
+function ReportEmptyState({
+  title,
+  message,
+}: {
+  title: string;
+  message: string;
+}) {
+  return (
+    <View className="gap-1 border-t border-line py-5">
+      <AppText variant="heading" className="text-ink">
+        {title}
+      </AppText>
+      <AppText muted>{message}</AppText>
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
@@ -308,18 +324,16 @@ export default function InsightsScreen() {
       )}
       {report === null ? (
         reportError === null ? (
-          <EmptyState
+          <ReportEmptyState
             title="No report yet"
             message="Log a meal to begin a useful period summary."
-            symbol="◔"
           />
         ) : null
       ) : report.current.loggedDays === 0 &&
         report.previousCompleted.loggedDays === 0 ? (
-        <EmptyState
+        <ReportEmptyState
           title="Start with your first log"
           message="Log a meal to make energy, macro, consistency, and comparison reports visible here."
-          symbol="◔"
         />
       ) : (
         <InsightsReportContent report={report} />

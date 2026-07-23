@@ -260,7 +260,17 @@ export function ProgressReportingSummary({
                   }).format(new Date(`${finalMomentumDay.date}T12:00:00Z`))}
                 </AppText>
                 <AppText variant="caption" className="text-muted">
-                  Most recent returned day · {finalMomentumState.status}
+                  Most recent returned day ·{' '}
+                  <AppText
+                    variant="caption"
+                    style={{
+                      color: finalMomentumDay.logged
+                        ? colors.light.loggedProgress
+                        : colors.light.muted,
+                    }}
+                  >
+                    {finalMomentumState.status}
+                  </AppText>
                 </AppText>
               </View>
             </View>

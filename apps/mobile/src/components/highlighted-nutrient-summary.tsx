@@ -1,9 +1,13 @@
 import type { ReportsResponse } from '@food-tracker/shared';
 import { Sparkles } from 'lucide-react-native';
 import { View } from 'react-native';
-import { AppCard } from './app-card';
 import { AppText } from './app-text';
-import { nutrientDetailsForMode } from '@/lib/reporting-ui';
+import {
+  nutrientDetailsForMode,
+  nutrientPercentageAccessibilityLabel,
+  nutrientPercentageLabel,
+  nutrientRowCopy,
+} from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
 
 export function HighlightedNutrientSummary({
@@ -17,7 +21,7 @@ export function HighlightedNutrientSummary({
   if (entries.length === 0) return null;
 
   return (
-    <AppCard compact className="gap-3">
+    <View className="gap-3 border-t border-line pt-5">
       <View className="flex-row items-center gap-2">
         <Sparkles color={colors.light.ink} size={18} strokeWidth={2.2} />
         <View className="min-w-0 flex-1">
@@ -30,33 +34,39 @@ export function HighlightedNutrientSummary({
         </View>
       </View>
       <View>
-        {entries.map(({ key, detail }) => (
-          <View
-            key={key}
-            className="flex-row items-center gap-3 border-t border-line py-3"
-          >
+        {entries.map(({ key, detail }) => {
+          const percentageInput = {
+            key,
+            average: detail.averagePerLoggedDay,
+            report,
+          };
+          return (
             <View
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: colors.light.sageDark }}
-            />
-            <View className="min-w-0 flex-1 gap-0.5">
-              <AppText variant="label" className="text-ink">
-                {detail.displayName}
-              </AppText>
-              <AppText variant="caption" className="text-muted">
-                Recorded on {detail.recordedDayCount}{' '}
-                {detail.recordedDayCount === 1 ? 'day' : 'days'}
+              key={key}
+              className="flex-row items-start gap-4 border-t border-line py-3"
+            >
+              <View className="min-w-0 flex-1 gap-0.5">
+                <AppText variant="label" className="text-ink">
+                  {detail.displayName}
+                </AppText>
+                <AppText variant="caption" className="text-muted">
+                  {nutrientRowCopy({ key, detail, report })}
+                </AppText>
+              </View>
+              <AppText
+                accessible
+                accessibilityLabel={nutrientPercentageAccessibilityLabel(
+                  percentageInput,
+                )}
+                variant="label"
+                className="pt-0.5 text-ink tabular-nums"
+              >
+                {nutrientPercentageLabel(percentageInput)}
               </AppText>
             </View>
-            <AppText variant="label" className="text-ink tabular-nums">
-              {detail.averagePerLoggedDay.toLocaleString('en-US', {
-                maximumFractionDigits: detail.unit === 'mg' ? 0 : 1,
-              })}{' '}
-              {detail.unit}
-            </AppText>
-          </View>
-        ))}
+          );
+        })}
       </View>
-    </AppCard>
+    </View>
   );
 }

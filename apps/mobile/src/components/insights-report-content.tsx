@@ -1,7 +1,6 @@
 import type { ReportsResponse } from '@food-tracker/shared';
-import { CalendarCheck, Scale, TrendingUp } from 'lucide-react-native';
+import { Scale, TrendingUp } from 'lucide-react-native';
 import { View } from 'react-native';
-import { AppCard } from './app-card';
 import { AppText } from './app-text';
 import { CompleteNutrientReport } from './complete-nutrient-report';
 import { EnergyReportSummary } from './energy-report-summary';
@@ -16,55 +15,22 @@ function formatWeight(value: number | null): string {
   return value === null ? '—' : `${value.toFixed(1)} lb`;
 }
 
-function DayStrip({
-  days,
-}: {
-  days: ReportsResponse['current']['dailyBreakdown'];
-}) {
-  return (
-    <View className="gap-2">
-      <View className="flex-row justify-between gap-2">
-        {days.map((day) => (
-          <View key={day.date} className="min-w-0 flex-1 items-center gap-1">
-            <View
-              className={`h-2.5 w-full rounded-sm ${day.logged ? 'bg-sage-dark' : 'bg-primary-soft'}`}
-            />
-            <AppText variant="caption" className="text-muted">
-              {new Intl.DateTimeFormat('en-US', {
-                weekday: 'narrow',
-                timeZone: 'UTC',
-              }).format(new Date(`${day.date}T12:00:00.000Z`))}
-            </AppText>
-          </View>
-        ))}
-      </View>
-      <AppText variant="caption" className="text-muted">
-        Filled marks a logged day; the current window ends at the local date
-        shown above.
-      </AppText>
-    </View>
-  );
-}
-
 function CurrentWindowSummary({ report }: { report: ReportsResponse }) {
   const streak = report.current.streak;
   return (
-    <AppCard compact className="gap-3">
-      <View className="flex-row items-center gap-2">
-        <CalendarCheck color={colors.light.ink} size={18} strokeWidth={2.2} />
-        <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            {reportWindowTitle(
-              report.period,
-              'current',
-              report.current.boundaries,
-            )}
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            Sunday–Saturday rhythm · {report.current.loggedDays} logged{' '}
-            {report.current.loggedDays === 1 ? 'day' : 'days'}
-          </AppText>
-        </View>
+    <View className="gap-3 border-t border-line pt-5">
+      <View className="gap-1">
+        <AppText variant="heading" className="text-ink">
+          {reportWindowTitle(
+            report.period,
+            'current',
+            report.current.boundaries,
+          )}
+        </AppText>
+        <AppText variant="caption" className="text-muted">
+          {report.current.loggedDays} logged{' '}
+          {report.current.loggedDays === 1 ? 'day' : 'days'} in this window
+        </AppText>
       </View>
       <View className="flex-row gap-3 border-t border-line pt-3">
         <View className="min-w-0 flex-1">
@@ -94,10 +60,7 @@ function CurrentWindowSummary({ report }: { report: ReportsResponse }) {
           </AppText>
         </View>
       </View>
-      <View className="border-t border-line pt-3">
-        <DayStrip days={report.current.dailyBreakdown} />
-      </View>
-    </AppCard>
+    </View>
   );
 }
 

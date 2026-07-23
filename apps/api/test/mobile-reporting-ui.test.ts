@@ -10,11 +10,17 @@ import {
   nutrientDetailsForMode,
   nutrientKeysForMode,
   nutrientGroupLabel,
+  nutrientPercentageAccessibilityLabel,
+  nutrientPercentageLabel,
+  nutrientRowCopy,
+  previousPeriodNoDataLabel,
   proteinAdherenceStatus,
   reportWindowTitle,
   streakEntryLabel,
   streakHeadline,
   streakSupportingCopy,
+  initialExpandedGroups,
+  toggleExpandedGroup,
   weeklyMomentumDayFacts,
   weeklyMomentumDayState,
   weeklyMomentumFinalDay,
@@ -249,6 +255,159 @@ describe('mobile reporting presentation helpers', () => {
     ).toEqual({ amount: '1,200 kcal', range: '—', context: '—' });
   });
 
+  it('aligns nutrient percentages to returned target facts', () => {
+    const proteinReport = {
+      proteinTargetGrams: 130,
+      proteinAdherence: {
+        available: true as const,
+        value: {
+          averageAmount: 118,
+          targetAmount: 130,
+          percentage: 90,
+          adherentDays: 3,
+          loggedDays: 3,
+        },
+      },
+    };
+    const noTargetReport = {
+      proteinTargetGrams: null,
+      proteinAdherence: unavailable,
+    };
+    const noTargetNutrient = {
+      displayName: 'Omega-3',
+      category: 'fat_subtype' as const,
+      total: 4.8,
+      averagePerLoggedDay: 1.6,
+      unit: 'g' as const,
+      recordedDayCount: 3,
+    };
+
+    expect(
+      nutrientPercentageLabel({
+        key: 'protein',
+        average: 118,
+        report: proteinReport,
+      }),
+    ).toBe('90%');
+    expect(
+      nutrientPercentageLabel({
+        key: 'omega3',
+        average: 1.6,
+        report: noTargetReport,
+      }),
+    ).toBe('—');
+    expect(
+      nutrientRowCopy({
+        key: 'omega3',
+        detail: noTargetNutrient,
+        report: noTargetReport,
+      }),
+    ).not.toContain('target');
+    expect(
+      nutrientPercentageAccessibilityLabel({
+        key: 'omega3',
+        average: 1.6,
+        report: noTargetReport,
+      }),
+    ).toBe('No target available for this nutrient');
+  });
+
+  it('keeps prior-period no-data copy compact and boundary-aware', () => {
+    expect(
+      previousPeriodNoDataLabel({
+        startDate: '2026-06-01',
+        endDate: '2026-06-30',
+      }),
+    ).toBe('No logged data for Jun 1–Jun 30');
+  });
+
+  it('expands every visible Complex nutrient group independently', () => {
+    expect(initialExpandedGroups(['general', 'vitamins'])).toEqual([
+      'general',
+      'vitamins',
+    ]);
+    expect(toggleExpandedGroup(['general', 'vitamins'], 'general')).toEqual([
+      'vitamins',
+    ]);
+    expect(toggleExpandedGroup(['general', 'vitamins'], 'vitamins')).toEqual([
+      'general',
+    ]);
+  });
+
+  it('keeps Complex ledgers open by default without card or graph remnants', async () => {
+    const source = await readFile(
+      new URL(
+        '../../mobile/src/components/complete-nutrient-report.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const contentSource = await readFile(
+      new URL(
+        '../../mobile/src/components/insights-report-content.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const insightsSource = await readFile(
+      new URL('../../mobile/src/app/(tabs)/insights.tsx', import.meta.url),
+      'utf8',
+    );
+    const dayRingSource = await readFile(
+      new URL(
+        '../../mobile/src/components/day-progress-ring.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const tokenSource = await readFile(
+      new URL('../../mobile/src/theme/tokens.ts', import.meta.url),
+      'utf8',
+    );
+
+    expect(source).toContain('Set<ReportingNutrientGroup>');
+    expect(source).toContain('Expand all');
+    expect(source).toContain('Collapse all');
+    expect(source).not.toContain('import { AppCard }');
+    expect(source).toContain('nutrientPercentageLabel');
+    expect(contentSource).not.toContain('DayStrip');
+    expect(contentSource).not.toContain('import { AppCard }');
+    expect(contentSource).not.toContain('bg-sage-dark');
+    expect(insightsSource).not.toContain('@/components/empty-state');
+    expect(insightsSource).not.toContain('◔');
+    expect(dayRingSource).toContain(
+      'progressColor={colors.light.loggedProgress}',
+    );
+    expect(tokenSource).toContain("loggedProgress: '#76dba0'");
+  });
+
+  it('keeps elapsed comparison graph-free and visibly separate from the full period', async () => {
+    const source = await readFile(
+      new URL(
+        '../../mobile/src/components/equivalent-period-comparison.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(source).not.toContain('GitCompareArrows');
+    expect(source).not.toContain('h-2 w-2');
+    expect(source).toContain('Equivalent comparison');
+    expect(source).toContain('Same elapsed window');
+  });
+
+  it('preserves recommendation metadata, dismissal wording, and flat reports', async () => {
+    const source = await readFile(
+      new URL('../../mobile/src/app/(tabs)/insights.tsx', import.meta.url),
+      'utf8',
+    );
+    expect(source).toContain('High priority');
+    expect(source).toContain('Dismiss recommendation: ${recommendation.title}');
+    expect(source).toContain('No recommendations right now');
+    expect(source).toContain('Refresh');
+    expect(source).not.toContain('RadialProgressRing');
+  });
+
   it('uses an em dash for unavailable calorie targets', () => {
     expect(calorieHeroTargetLabel(null)).toBe('—');
     expect(calorieHeroTargetLabel(0)).toBe('—');
@@ -273,7 +432,10 @@ describe('mobile reporting presentation helpers', () => {
 
     expect(weeklyMomentumFinalDay({ dailyBreakdown: days })).toEqual(days[1]);
     expect(weeklyMomentumFinalDay({ dailyBreakdown: [] })).toBeNull();
-    expect(weeklyMomentumDayState(days[1])).toEqual({
+    const finalDay = days.at(-1);
+    expect(finalDay).toBeDefined();
+    if (finalDay === undefined) return;
+    expect(weeklyMomentumDayState(finalDay)).toEqual({
       status: 'Not logged',
       calories: '0 kcal',
       protein: '0 g',
@@ -390,7 +552,7 @@ describe('mobile reporting presentation helpers', () => {
     expect(source.match(/if \(onDayPress === undefined\)/g)).toHaveLength(2);
     expect(
       source.match(
-        /accessible\n        accessibilityLabel=\{semanticDayLabel\(day\)\}/g,
+        /accessible\s+accessibilityLabel=\{semanticDayLabel\(day\)\}/g,
       ),
     ).toHaveLength(2);
     expect(source.match(/accessibilityRole="button"/g)).toHaveLength(2);

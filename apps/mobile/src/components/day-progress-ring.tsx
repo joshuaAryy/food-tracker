@@ -89,7 +89,7 @@ export function DayProgressRing({
       strokeWidth={DAY_RING_STROKE}
       trackColor={isDotted ? colors.light.line : colors.light.primarySoft}
       {...(isDotted ? { trackDasharray: [1, 4] } : {})}
-      progressColor={colors.light.sageDark}
+      progressColor={colors.light.loggedProgress}
       charcoalFraction={isOverTarget ? charcoalFraction : 0}
       charcoalColor={colors.light.ink}
     >

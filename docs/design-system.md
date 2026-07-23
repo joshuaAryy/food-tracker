@@ -65,6 +65,7 @@ use, but theme switching is not part of this phase.
 | Legacy sage | `sage` | `#7A9B76` |
 | Legacy sage dark | `sageDark` | `#506D4F` |
 | Legacy sage soft | `sageSoft` | `#DDE7D8` |
+| Logged progress | `loggedProgress` | `#76dba0` |
 | Water | `water` | `#7895A6` |
 | Water soft | `waterSoft` | `#DCE8ED` |
 | Carbs | `carbs` | `#B59A5B` |

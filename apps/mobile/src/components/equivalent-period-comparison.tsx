@@ -1,10 +1,7 @@
 import type { ReportsResponse } from '@food-tracker/shared';
-import { ArrowDown, ArrowUp, GitCompareArrows } from 'lucide-react-native';
 import { View } from 'react-native';
-import { AppCard } from './app-card';
 import { AppText } from './app-text';
 import { reportWindowTitle } from '@/lib/reporting-ui';
-import { colors } from '@/theme/tokens';
 
 function formatMetric(value: number, unit: string): string {
   return `${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`;
@@ -51,27 +48,22 @@ export function EquivalentPeriodComparison({
   );
 
   return (
-    <AppCard compact className="gap-4">
-      <View className="flex-row items-center gap-2">
-        <GitCompareArrows
-          color={colors.light.ink}
-          size={18}
-          strokeWidth={2.2}
-        />
-        <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            Equivalent comparison
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            Same elapsed window, kept separate from the full previous period.
-          </AppText>
-        </View>
+    <View className="gap-4 border-t border-line pt-5">
+      <View className="gap-1">
+        <AppText variant="heading" className="text-ink">
+          Equivalent comparison
+        </AppText>
+        <AppText variant="caption" className="text-muted">
+          Same elapsed window, kept separate from the full previous period.
+        </AppText>
       </View>
       <View className="gap-1 border-t border-line pt-2">
         <AppText variant="caption" className="text-muted">
-          {reportWindowTitle(report.period, 'current', {
-            ...report.current.boundaries,
-          })}
+          {reportWindowTitle(
+            report.period,
+            'current',
+            report.current.boundaries,
+          )}
         </AppText>
         <AppText variant="caption" className="text-muted">
           compared with{' '}
@@ -88,32 +80,23 @@ export function EquivalentPeriodComparison({
         </AppText>
       ) : (
         <View>
-          {metrics.map((metric) => {
-            const improved = metric.value >= 0;
-            const Icon = improved ? ArrowUp : ArrowDown;
-            return (
-              <View
-                key={metric.label}
-                className="flex-row items-center gap-3 border-t border-line py-3"
-              >
-                <Icon
-                  color={improved ? colors.light.sageDark : colors.light.muted}
-                  size={16}
-                  strokeWidth={2.4}
-                />
-                <AppText variant="label" className="min-w-0 flex-1 text-ink">
-                  {metric.label}
-                </AppText>
-                <AppText variant="label" className="text-ink tabular-nums">
-                  {metric.value === 0
-                    ? 'No change'
-                    : `${metric.value > 0 ? '+' : '−'}${formatMetric(metric.value, metric.unit)}`}
-                </AppText>
-              </View>
-            );
-          })}
+          {metrics.map((metric) => (
+            <View
+              key={metric.label}
+              className="flex-row items-center gap-3 border-t border-line py-3"
+            >
+              <AppText variant="label" className="min-w-0 flex-1 text-ink">
+                {metric.label}
+              </AppText>
+              <AppText variant="label" className="text-ink tabular-nums">
+                {metric.value === 0
+                  ? 'No change'
+                  : `${metric.value > 0 ? '+' : '−'}${formatMetric(metric.value, metric.unit)}`}
+              </AppText>
+            </View>
+          ))}
         </View>
       )}
-    </AppCard>
+    </View>
   );
 }
