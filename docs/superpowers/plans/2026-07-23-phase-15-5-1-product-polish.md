@@ -93,17 +93,19 @@
 
 **Files:** Update only owned documentation/tests or user-facing mode labels; create evidence outside the repository at `/private/tmp/food-tracker-phase15.5.1-native-parity/`.
 
-**Validation checkpoint (2026-07-23):** Node `v22.23.0`, pnpm `10.34.3`, Prisma
-validation, lint, typecheck, build, modified-file Prettier, focused tests, and
-the full 51-file/972-test suite pass. Root `format:check` remains blocked by
-pre-existing/protected `.agents/`, `.superpowers/`, and `apps/mobile/app.json`
-format warnings; none were edited. `xcode-select -p`, `xcrun swiftc --version`,
-and `xcrun simctl list devices` pass, but native build/simulator evidence is
-pending because free space is 7.3 GiB, below the required 10 GiB gate.
+**Validation checkpoint (2026-07-24):** Node `v22.23.0`, pnpm `10.34.3`, Prisma
+validation, lint, typecheck, build, modified-file Prettier, the focused
+mobile-reporting suite (32/32), and the full 51-file/973-test suite pass. Root
+`format:check` remains blocked by pre-existing/protected `.agents/`,
+`.superpowers/`, and `apps/mobile/app.json` format warnings; none were edited.
+`xcode-select -p`, `xcrun swiftc --version`, and `xcrun simctl list devices`
+pass, with an iPhone 17 Pro simulator booted, but native build/simulator and
+physical-device evidence remain pending because free space is 5.5 GiB, below
+the required 10 GiB gate. No cleanup was attempted.
 
 - [x] Run `rg -n -i "Detailed|detailed|DETAIL" .`, classify each match, and update only mode-name uses. Do not touch protected current-image baselines, unrelated adjectives, or protected local files.
-- [ ] Run under the same Node 22 environment: `node -v`, `corepack pnpm -v`, `corepack pnpm prisma:validate`, `corepack pnpm format:check`, `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm build`, `corepack pnpm test`, modified-file Prettier, `git diff --check`.
-- [ ] Before native work, require `df -h /` to show at least 10GiB free; then run `xcrun swiftc --version`, `xcode-select -p`, and `xcrun simctl list devices` without changing global Xcode configuration.
+- [x] Run under the same Node 22 environment: `node -v`, `corepack pnpm -v`, `corepack pnpm prisma:validate`, `corepack pnpm format:check`, `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm build`, `corepack pnpm test`, modified-file Prettier, and `git diff --check`. Root format remains blocked only by the protected/pre-existing warnings listed above.
+- [x] Check `df -h /` before native work. With 5.5 GiB free, the 10 GiB gate is not met; do not build or clean storage. Read-only `xcrun swiftc --version`, `xcode-select -p`, and `xcrun simctl list devices` diagnostics pass without changing global Xcode configuration.
 - [ ] Once the storage gate passes, run `corepack pnpm --filter @food-tracker/mobile ios:dev-build:device` with bundle identifier `ca.joshuaaryeetey.foodtracker` and Apple team `6JMW7252B6`, then use the existing simulator workflow.
 - [ ] Capture Simple/Complex Progress and Insights, the Complex ledger, limit-over-100%, setup-incomplete, Streak/grace/perfect-week, 320-point layout, and large Dynamic Type evidence outside the repository. Physical-device approval remains a user gate if not available.
 - [ ] Run `git status --short --branch`, `git branch -vv`, `git log --oneline main..HEAD`, and `git diff --check`; confirm protected state is unchanged and nothing was pushed or merged.
