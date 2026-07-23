@@ -83,9 +83,9 @@
 - [x] Give Protein, Carbohydrates, and Fat the same mint progress-rail
   structure in current and previous MacroReportSummary instances. Keep the
   Complete nutrient ledger and highlight cards as bar-free reading surfaces.
-- [x] Restore inset neutral separators between category headers and expanded
-  nutrient rows without adding a final trailing divider or changing the
-  approved card hierarchy.
+- [x] Keep inset neutral separators between category headers only; expanded
+  nutrient rows use consistent spacing without row-level dividers, and the
+  approved card hierarchy remains unchanged.
 - [x] Preserve the existing Progress limit copy path while applying the
   uniform primary percentage rule to the Insights presentation helpers.
 

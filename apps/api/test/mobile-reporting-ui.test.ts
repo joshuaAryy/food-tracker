@@ -594,8 +594,15 @@ describe('mobile reporting presentation helpers', () => {
     expect(highlightSource).not.toContain('loggedProgress');
     expect(highlightSource).toContain('const small = width <= 340;');
     expect(completeSource).toContain('groupIndex === 0');
-    expect(completeSource).toContain('index === 0');
     expect(completeSource).toContain('border-t border-line');
+    expect(completeSource).toContain('<View className="gap-3 pt-3">');
+    expect(completeSource).toContain(
+      '<View key={key} className="flex-row items-start gap-3">',
+    );
+    expect(completeSource).not.toContain('index === 0');
+    expect(completeSource).not.toContain(
+      "'flex-row items-start gap-3 border-t border-line py-3'",
+    );
     expect(completeSource).not.toContain('loggedProgress');
     expect(insightsSource.match(/<MacroReportSummary/g)).toHaveLength(2);
   });

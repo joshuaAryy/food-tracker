@@ -783,7 +783,8 @@ Status: Locked for implementation on 2026-07-23; validation pending
   append `of limit`. Limit percentages above 100% remain truthful. Macro
   summaries alone use per-item mint progress rails; nutrient highlights and the
   Complete nutrient ledger remain compact, bar-free surfaces. The ledger uses
-  subtle inset separators between category headers and expanded nutrient rows.
+  subtle inset separators between category headers only; expanded nutrient rows
+  use consistent spacing without row-level dividers.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate

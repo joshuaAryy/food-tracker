@@ -135,8 +135,8 @@ export function CompleteNutrientReport({
                 )}
               </Pressable>
               {isExpanded ? (
-                <View className="pt-3">
-                  {groupEntries.map(({ key, detail }, index) => {
+                <View className="gap-3 pt-3">
+                  {groupEntries.map(({ key, detail }) => {
                     const presentation = nutrientPresentation({
                       key,
                       detail,
@@ -144,14 +144,7 @@ export function CompleteNutrientReport({
                       setupComplete,
                     });
                     return (
-                      <View
-                        key={key}
-                        className={
-                          index === 0
-                            ? 'flex-row items-start gap-3 pb-3'
-                            : 'flex-row items-start gap-3 border-t border-line py-3'
-                        }
-                      >
+                      <View key={key} className="flex-row items-start gap-3">
                         <View className="min-w-0 flex-1 gap-1">
                           <AppText variant="label" className="text-ink">
                             {detail.displayName}
