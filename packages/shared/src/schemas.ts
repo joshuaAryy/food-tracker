@@ -180,6 +180,11 @@ export const setupInputSchema = z
     goals: goalsBaseSchema.omit({
       targetCalories: true,
       targetProteinGrams: true,
+      targetCarbsGrams: true,
+      targetFatGrams: true,
+      targetFiberGrams: true,
+      limitSugarGrams: true,
+      limitSodiumMg: true,
     }),
     preferences: trackingPreferencesSchema,
   })

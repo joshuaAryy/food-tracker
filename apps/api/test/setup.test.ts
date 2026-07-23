@@ -260,6 +260,27 @@ describe('setup API', () => {
     ).toEqual([null, null, null]);
   });
 
+  it('rejects client-supplied nutrient targets during setup', async () => {
+    const response = await api
+      .post('/api/v1/setup/preview')
+      .send({
+        ...setupInput,
+        goals: {
+          ...setupInput.goals,
+          targetCalories: 2200,
+          targetProteinGrams: 150,
+          targetCarbsGrams: 200,
+          targetFatGrams: 70,
+          targetFiberGrams: 30,
+          limitSugarGrams: 55,
+          limitSodiumMg: 2300,
+        },
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+  });
+
   it('rejects arbitrary sex values because sex affects target calculation', async () => {
     const response = await api
       .post('/api/v1/setup/preview')
