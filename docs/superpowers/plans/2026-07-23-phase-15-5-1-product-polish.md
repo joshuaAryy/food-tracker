@@ -81,7 +81,7 @@
 
 **Validation checkpoint (2026-07-23):** Node `v22.23.0`, pnpm `10.34.3`, Prisma
 validation, lint, typecheck, build, modified-file Prettier, focused tests, and
-the full 51-file/971-test suite pass. Root `format:check` remains blocked by
+the full 51-file/972-test suite pass. Root `format:check` remains blocked by
 pre-existing/protected `.agents/`, `.superpowers/`, and `apps/mobile/app.json`
 format warnings; none were edited. `xcode-select -p`, `xcrun swiftc --version`,
 and `xcrun simctl list devices` pass, but native build/simulator evidence is
