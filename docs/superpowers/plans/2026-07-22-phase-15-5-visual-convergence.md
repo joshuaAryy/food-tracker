@@ -23,6 +23,28 @@
 - Every behavior/helper change follows TDD: write one focused failing test, run it and observe the expected failure, implement the smallest change, run it green, then refactor while green.
 - Use focused commits and never push or merge.
 
+## 2026-07-23 Approved Figma Production Checkpoint
+
+The approved `Food Tracker — Phase 15.5 Reporting Redesign` Figma is locked
+for implementation. This pass must match the current contents of the linked
+nodes and must not reopen visual exploration, reinterpret the layout, or
+replace approved artwork with approximations.
+
+- File: `GFLStsF0ADwaizoVKGeLny`
+- Product masters: Progress `200:3146`, Insights 390 `200:3228`, Insights
+  320 `200:3364`, Streak `200:3500`
+- Shared references: reporting icons `181:1078`, exact grace laurel `79:859`,
+  calendar grace `49:46`, calendar laurel `195:928`, shared artwork `204:1354`,
+  parity gate `204:2137`, and implementation rules `204:2180`
+- Exact solid sRGB values: `#FFFFFF`, `#0E0E0E`, `#76DBA0`, `#EA1226`, and
+  `#FFB80D`. Semantic artwork must not be dimmed or tinted.
+- Flame, laurel, reporting icons, and metallic completion states use shared
+  `react-native-svg` artwork derived from the approved vector nodes.
+- Missing macro/nutrient states require a full persistence-to-rendering audit;
+  a missing value must not be hidden with a generic visual placeholder.
+- Phase 15.5 remains open until code, focused tests, full database-backed tests,
+  native parity, and physical-iPhone visual approval pass.
+
 ## Approved Figma Mapping And File Inventory
 
 The approved final-refinements node is `GFLStsF0ADwaizoVKGeLny`, node `142:912`. Its selected decisions map as follows:

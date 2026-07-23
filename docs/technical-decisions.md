@@ -709,6 +709,35 @@ Status: Implemented on the Phase 15 branch; physical validation pending
 - Simple mode exposes calories, protein, primary macros, fiber, sugar, and
   sodium when recorded. Complex mode exposes the same foundation plus
   available normalized nutrients; water is not a Phase 15 tracked nutrient.
+
+## TD-025: Phase 15.5 Approved Figma Production Implementation
+
+Status: Locked for implementation on 2026-07-23; validation pending
+
+- The approved `Food Tracker — Phase 15.5 Reporting Redesign` Figma is the
+  visual source of truth. Codex implementation is limited to matching the
+  approved nodes and must not reopen visual exploration or reinterpret them.
+- The authoritative product masters are Progress `200:3146`, Insights 390
+  `200:3228`, Insights 320 `200:3364`, and Streak `200:3500` in file
+  `GFLStsF0ADwaizoVKGeLny`. Supporting references are reporting icons
+  `181:1078`, exact grace laurel `79:859`, calendar grace `49:46`, calendar
+  laurel `195:928`, shared artwork `204:1354`, parity gate `204:2137`, and
+  implementation rules `204:2180`.
+- Affected surfaces use exact solid sRGB values: white `#FFFFFF`, primary ink
+  `#0E0E0E`, logged-progress mint `#76DBA0`, flame red `#EA1226`, and
+  completion amber `#FFB80D`. Semantic colors must not be dimmed by wrapper or
+  pressable opacity, translucent substitutes, tinting, or material effects.
+- Shared flame, laurel, reporting-icon, ring, and metallic completion artwork
+  must remain shared components. Approved vector geometry is implemented with
+  `react-native-svg`; temporary raster screenshots, emoji, Unicode pictographs,
+  remote images, and platform symbols are not substitutes.
+- Missing macro and nutrient information is a product-data-path issue. The
+  implementation must distinguish valid targets, missing goals, unrecorded
+  nutrients, setup incompleteness, genuine zeroes, invalid denominators, and
+  unavailable API fields without manufacturing percentages or hiding defects.
+- Phase 15.5 remains open until implementation, focused tests, full
+  database-backed tests, native parity checks, and physical-iPhone visual
+  approval are complete. Nothing is pushed or merged as part of this decision.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate
