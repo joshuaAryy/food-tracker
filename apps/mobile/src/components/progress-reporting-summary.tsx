@@ -4,10 +4,12 @@ import type {
   ProgressResponse,
   ReportsResponse,
 } from '@food-tracker/shared';
-import { ArrowRight, Beef, Flame, Sparkles } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
 import { ErrorState } from './error-state';
+import { ReportingIcon } from './reporting-icon';
+import { ReportingSectionHeading } from './reporting-section-heading';
 import {
   calorieHeroContext,
   calorieHeroTargetLabel,
@@ -70,59 +72,49 @@ export function ProgressCalorieHero({
       : calorieContext.range;
 
   return (
-    <View className="gap-4">
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-row items-center gap-2">
-          <Flame color={colors.light.carbs} size={18} strokeWidth={2.2} />
-          <AppText variant="heading" className="text-ink">
-            Today’s energy
-          </AppText>
-        </View>
-        <AppText variant="caption" className="text-muted">
-          {summary.foodLogCount === 0 ? 'Not started' : 'In progress'}
+    <View className="gap-3">
+      <ReportingSectionHeading icon="energy" title="Today’s energy" />
+      <AppCard elevated className="gap-3">
+        <AppText
+          variant="number"
+          className="text-[44px] leading-[52px] text-ink tabular-nums"
+        >
+          {calorieContext.amount}
         </AppText>
-      </View>
-      <View className="flex-row items-end justify-between gap-3">
-        <View className="min-w-0 flex-1">
+        <AppText variant="caption" className="text-muted">
+          {calorieContext.context}
+        </AppText>
+        {target === null ? (
           <AppText
-            variant="hero"
-            className="text-[52px] leading-[56px] text-ink tabular-nums"
+            variant="caption"
+            className="border-t border-line pt-3 text-muted"
           >
-            {calorieContext.amount}
+            {railLabel}
           </AppText>
-          <AppText variant="caption" className="text-muted">
-            {calorieContext.context}
-          </AppText>
-        </View>
-      </View>
-      {target === null ? (
-        <AppText variant="caption" className="text-muted">
-          {railLabel}
-        </AppText>
-      ) : (
-        <View className="gap-2">
-          <View className="relative h-3 overflow-hidden rounded-full bg-primary-soft">
-            {targetWidth > 0 ? (
+        ) : (
+          <View className="gap-2 border-t border-line pt-3">
+            <View className="relative h-2 overflow-hidden rounded-full bg-primary-soft">
+              {targetWidth > 0 ? (
+                <View
+                  className="absolute bottom-0 top-0 rounded-full"
+                  style={{
+                    left: `${targetStart * 100}%`,
+                    width: `${targetWidth * 100}%`,
+                    backgroundColor: colors.light.loggedProgress,
+                  }}
+                />
+              ) : null}
               <View
-                className="absolute bottom-0 top-0 rounded-full bg-sage-soft"
-                style={{
-                  left: `${targetStart * 100}%`,
-                  width: `${targetWidth * 100}%`,
-                }}
+                className="absolute -top-1 h-4 w-1.5 rounded-full bg-ink"
+                style={{ left: `${marker * 100}%` }}
               />
-            ) : null}
-            <View
-              className="absolute -top-1 h-5 w-1.5 rounded-full bg-ink"
-              style={{ left: `${marker * 100}%` }}
-            />
-          </View>
-          <View className="flex-row justify-between gap-3">
+            </View>
             <AppText variant="caption" className="text-muted">
               {railLabel}
             </AppText>
           </View>
-        </View>
-      )}
+        )}
+      </AppCard>
     </View>
   );
 }
@@ -140,56 +132,44 @@ function DailyNutrientBand({
     const value = nutrients[key];
     return value === undefined ? [] : [{ key, value }];
   });
-  if (entries.length === 0) {
-    return (
-      <View className="border-t border-line pt-5">
-        <AppText variant="label" className="text-ink">
-          Nutrition detail
-        </AppText>
-        <AppText variant="caption" className="mt-1 text-muted">
-          Log food with nutrient details to see protein, carbohydrates, fat,
-          fiber, sugar, and sodium here.
-        </AppText>
-      </View>
-    );
-  }
-
   return (
-    <View className="border-t border-line pt-5">
-      <View className="flex-row items-center gap-2">
-        <Sparkles color={colors.light.ink} size={17} strokeWidth={2.2} />
-        <AppText variant="heading" className="text-ink">
-          Today’s nutrition
-        </AppText>
-      </View>
-      <View className="mt-2">
-        {entries.map(({ key, value }) => (
-          <View
-            key={key}
-            className="flex-row items-center justify-between gap-4 border-t border-line py-3"
-          >
-            <View className="min-w-0 flex-1 gap-0.5">
-              <AppText variant="label" className="text-ink">
-                {key === 'protein'
-                  ? 'Protein priority'
-                  : key === 'carbs'
-                    ? 'Carbohydrates'
-                    : key[0]?.toUpperCase() + key.slice(1)}
-              </AppText>
-              {key === 'protein' &&
-              summary.proteinTarget !== null &&
-              summary.proteinTarget > 0 ? (
-                <AppText variant="caption" className="text-muted">
-                  of {Math.round(summary.proteinTarget)} g target
+    <View className="gap-3">
+      <ReportingSectionHeading icon="nutrients" title="Today’s nutrition" />
+      <AppCard elevated>
+        {entries.length === 0 ? (
+          <AppText variant="caption" className="text-muted">
+            Log food with nutrient details to see protein, carbohydrates, fat,
+            fiber, sugar, and sodium here.
+          </AppText>
+        ) : (
+          entries.map(({ key, value }) => (
+            <View
+              key={key}
+              className="flex-row items-center justify-between gap-4 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0"
+            >
+              <View className="min-w-0 flex-1 gap-0.5">
+                <AppText variant="label" className="text-ink">
+                  {key === 'protein'
+                    ? 'Protein priority'
+                    : key === 'carbs'
+                      ? 'Carbohydrates'
+                      : key[0]?.toUpperCase() + key.slice(1)}
                 </AppText>
-              ) : null}
+                {key === 'protein' &&
+                summary.proteinTarget !== null &&
+                summary.proteinTarget > 0 ? (
+                  <AppText variant="caption" className="text-muted">
+                    of {Math.round(summary.proteinTarget)} g goal
+                  </AppText>
+                ) : null}
+              </View>
+              <AppText variant="label" className="text-ink tabular-nums">
+                {formatAmount(value.amount, value.unit)}
+              </AppText>
             </View>
-            <AppText variant="label" className="text-ink tabular-nums">
-              {formatAmount(value.amount, value.unit)}
-            </AppText>
-          </View>
-        ))}
-      </View>
+          ))
+        )}
+      </AppCard>
     </View>
   );
 }
@@ -216,8 +196,10 @@ export function ProgressReportingSummary({
   const consistency = reporting.consistency7Days.available
     ? reporting.consistency7Days.value
     : null;
-  const finalMomentumDay =
-    weeklyReport === null ? null : weeklyMomentumFinalDay(weeklyReport.current);
+  const days = weeklyReport?.current.dailyBreakdown ?? [];
+  const finalMomentumDay = weeklyMomentumFinalDay(
+    weeklyReport?.current ?? { dailyBreakdown: [] },
+  );
   const finalMomentumState =
     finalMomentumDay === null ? null : weeklyMomentumDayState(finalMomentumDay);
 
@@ -230,68 +212,48 @@ export function ProgressReportingSummary({
           onRetry={onRetry}
         />
       )}
-      <View className="gap-3 border-t border-line pt-5">
-        <View className="flex-row items-center gap-2">
-          <Beef color={colors.light.sageDark} size={18} strokeWidth={2.2} />
-          <AppText variant="heading" className="text-ink">
-            Weekly momentum
-          </AppText>
-        </View>
-        {consistency === null ? (
+      <View className="gap-3">
+        <ReportingSectionHeading icon="momentum" title="Weekly momentum" />
+        <AppCard elevated className="gap-3">
           <AppText variant="caption" className="text-muted">
-            Keep logging to unlock a weekly consistency signal.
+            {consistency === null
+              ? 'Keep logging to unlock a weekly consistency signal.'
+              : `${consistency.loggedDays} of ${consistency.eligibleDays} eligible days logged`}
           </AppText>
-        ) : (
-          <AppText variant="caption" className="text-muted">
-            {consistency.loggedDays} of {consistency.eligibleDays} eligible days
-            logged.
-          </AppText>
-        )}
-        {finalMomentumDay === null || finalMomentumState === null ? null : (
-          <View className="gap-2 border-t border-line pt-3">
-            <View className="flex-row items-center justify-between gap-3">
-              <View className="min-w-0 flex-1">
-                <AppText variant="label" className="text-ink">
-                  {new Intl.DateTimeFormat('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    timeZone: 'UTC',
-                  }).format(new Date(`${finalMomentumDay.date}T12:00:00Z`))}
-                </AppText>
-                <AppText variant="caption" className="text-muted">
-                  Most recent returned day ·{' '}
-                  <AppText
-                    variant="caption"
-                    style={{
-                      color: finalMomentumDay.logged
-                        ? colors.light.loggedProgress
-                        : colors.light.muted,
-                    }}
-                  >
-                    {finalMomentumState.status}
+          <View className="flex-row justify-between gap-2">
+            {days.map((day) => (
+              <View key={day.date} className="items-center gap-1">
+                <View
+                  className="h-8 w-8 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: day.logged
+                      ? colors.light.loggedProgress
+                      : colors.light.primarySoft,
+                  }}
+                >
+                  <AppText variant="caption" className="text-[12px] text-ink">
+                    {new Date(`${day.date}T12:00:00Z`).getUTCDate()}
                   </AppText>
-                </AppText>
+                </View>
               </View>
-            </View>
-            <View className="flex-row items-center justify-between gap-3">
-              <AppText variant="caption" className="text-muted">
-                Calories
-              </AppText>
-              <AppText variant="label" className="text-ink tabular-nums">
-                {finalMomentumState.calories}
-              </AppText>
-            </View>
-            <View className="flex-row items-center justify-between gap-3">
-              <AppText variant="caption" className="text-muted">
-                Protein
-              </AppText>
-              <AppText variant="label" className="text-ink tabular-nums">
-                {finalMomentumState.protein}
-              </AppText>
-            </View>
+            ))}
           </View>
-        )}
+          {finalMomentumDay === null || finalMomentumState === null ? null : (
+            <AppText variant="caption" className="border-t border-line pt-3">
+              Most recent returned day ·{' '}
+              <AppText
+                variant="caption"
+                style={{
+                  color: finalMomentumDay.logged
+                    ? '#14733D'
+                    : colors.light.muted,
+                }}
+              >
+                {finalMomentumState.status}
+              </AppText>
+            </AppText>
+          )}
+        </AppCard>
       </View>
       {dailyNutrientsError === null ? null : (
         <ErrorState
@@ -304,18 +266,15 @@ export function ProgressReportingSummary({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open detailed reports in Insights"
-        className="min-h-11 flex-row items-center justify-between border-t border-line pt-4 active:opacity-70"
+        className="min-h-11 flex-row items-center gap-2 border-t border-line pt-4 active:opacity-70"
         onPress={onReports}
       >
         <View className="min-w-0 flex-1">
           <AppText variant="label" className="text-ink">
-            See deeper reports
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            Compare periods and explore recorded nutrients.
+            View full reports
           </AppText>
         </View>
-        <ArrowRight color={colors.light.ink} size={18} strokeWidth={2.1} />
+        <ReportingIcon name="report" size={24} />
       </Pressable>
     </View>
   );

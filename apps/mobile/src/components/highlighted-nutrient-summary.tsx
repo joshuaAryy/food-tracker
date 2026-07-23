@@ -1,69 +1,68 @@
 import type { ReportsResponse } from '@food-tracker/shared';
-import { Sparkles } from 'lucide-react-native';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
+import { ReportingSectionHeading } from './reporting-section-heading';
 import {
-  nutrientDetailsForMode,
-  nutrientPercentageAccessibilityLabel,
-  nutrientPercentageLabel,
-  nutrientRowCopy,
+  highlightedNutrientEntries,
+  nutrientPresentation,
 } from '@/lib/reporting-ui';
-import { colors } from '@/theme/tokens';
 
 export function HighlightedNutrientSummary({
   report,
-  title = 'Highlighted nutrients',
+  title = 'Nutrient highlights',
+  setupComplete = true,
 }: {
   report: Pick<ReportsResponse['current'], 'nutrientDetails'>;
   title?: string;
+  setupComplete?: boolean;
 }) {
-  const entries = nutrientDetailsForMode(report, 'simple');
-  if (entries.length === 0) return null;
+  const { width } = useWindowDimensions();
+  const entries = highlightedNutrientEntries(report);
+  const contentWidth = Math.min(width - 40, 440);
+  const small = width <= 340;
+  const halfWidth = (contentWidth - 12) / 2;
+  const thirdWidth = (contentWidth - 24) / 3;
 
   return (
-    <View className="gap-3 border-t border-line pt-5">
-      <View className="flex-row items-center gap-2">
-        <Sparkles color={colors.light.ink} size={18} strokeWidth={2.2} />
-        <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            {title}
-          </AppText>
-          <AppText variant="caption" className="text-muted">
-            Only nutrients recorded in this period are shown.
-          </AppText>
-        </View>
-      </View>
-      <View>
-        {entries.map(({ key, detail }) => {
-          const percentageInput = {
+    <View className="gap-3">
+      <ReportingSectionHeading icon="nutrients" title={title} />
+      <View className="flex-row flex-wrap gap-3">
+        {entries.map(({ key, displayName, detail }) => {
+          const presentation = nutrientPresentation({
             key,
-            average: detail.averagePerLoggedDay,
+            detail,
             report,
-          };
+            setupComplete,
+          });
+          const cardWidth = small
+            ? key === 'sodium'
+              ? contentWidth
+              : halfWidth
+            : thirdWidth;
           return (
-            <View
+            <AppCard
               key={key}
-              className="flex-row items-start gap-4 border-t border-line py-3"
+              elevated
+              compact
+              accessible
+              accessibilityLabel={`${displayName}: ${presentation.totalLabel}; ${presentation.statusLabel}`}
+              className="gap-2 rounded-[18px]"
+              style={{ width: cardWidth, minHeight: 112 }}
             >
-              <View className="min-w-0 flex-1 gap-0.5">
-                <AppText variant="label" className="text-ink">
-                  {detail.displayName}
-                </AppText>
-                <AppText variant="caption" className="text-muted">
-                  {nutrientRowCopy({ key, detail, report })}
-                </AppText>
-              </View>
-              <AppText
-                accessible
-                accessibilityLabel={nutrientPercentageAccessibilityLabel(
-                  percentageInput,
-                )}
-                variant="label"
-                className="pt-0.5 text-ink tabular-nums"
-              >
-                {nutrientPercentageLabel(percentageInput)}
+              <AppText variant="caption" className="text-[13px] text-ink">
+                {displayName}
               </AppText>
-            </View>
+              <AppText
+                variant="label"
+                className="text-[18px] leading-6 text-ink tabular-nums"
+              >
+                {presentation.totalLabel}
+              </AppText>
+              <AppText variant="caption" className="text-muted">
+                {presentation.statusLabel}
+              </AppText>
+            </AppCard>
           );
         })}
       </View>

@@ -1,16 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import {
-  Beef,
-  CalendarCheck,
-  CheckCircle2,
-  Flame,
-  Lightbulb,
-  RefreshCw,
-  Scale,
-  X,
-} from 'lucide-react-native';
+import { RefreshCw, X } from 'lucide-react-native';
 import type {
   Recommendation,
   RecommendationSeverity,
@@ -24,6 +15,10 @@ import { ErrorState } from '@/components/error-state';
 import { InsightsReportContent } from '@/components/insights-report-content';
 import { ReportPeriodSelector } from '@/components/report-period-selector';
 import {
+  ReportingIcon,
+  type ReportingIconName,
+} from '@/components/reporting-icon';
+import {
   SkeletonLine,
   SkeletonPill,
   SkeletonRail,
@@ -32,18 +27,8 @@ import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
-function IconDot({
-  Icon,
-  color = colors.light.ink,
-}: {
-  Icon: typeof Flame;
-  color?: string;
-}) {
-  return (
-    <View className="h-8 w-8 items-center justify-center">
-      <Icon color={color} size={16} strokeWidth={2.2} />
-    </View>
-  );
+function IconDot({ name }: { name: ReportingIconName }) {
+  return <ReportingIcon name={name} size={32} />;
 }
 
 function severityLabel(severity: RecommendationSeverity): string {
@@ -64,14 +49,30 @@ function recommendationMeta(
         : colors.light.muted;
   switch (type) {
     case 'protein_low':
-      return { color: colors.light.sageDark, label: 'Protein' };
+      return {
+        icon: 'macros' as const,
+        color: colors.light.sageDark,
+        label: 'Protein',
+      };
     case 'calories_under_target':
     case 'calories_over_target':
-      return { color: colors.light.carbs, label: 'Calories' };
+      return {
+        icon: 'energy' as const,
+        color: colors.light.carbs,
+        label: 'Calories',
+      };
     case 'missing_recent_weight_logs':
-      return { color: colors.light.fat, label: 'Weight' };
+      return {
+        icon: 'weight' as const,
+        color: colors.light.fat,
+        label: 'Weight',
+      };
     case 'inconsistent_food_logging':
-      return { color: severityColor, label: 'Consistency' };
+      return {
+        icon: 'momentum' as const,
+        color: severityColor,
+        label: 'Consistency',
+      };
   }
 }
 
@@ -87,17 +88,9 @@ function RecommendationRow({
   onDismiss: () => void;
 }) {
   const meta = recommendationMeta(recommendation.type, recommendation.severity);
-  const Icon =
-    recommendation.type === 'protein_low'
-      ? Beef
-      : recommendation.type === 'missing_recent_weight_logs'
-        ? Scale
-        : recommendation.type === 'inconsistent_food_logging'
-          ? CalendarCheck
-          : Flame;
   return (
     <View className="flex-row items-start gap-3 border-t border-line py-4">
-      <IconDot Icon={Icon} color={meta.color} />
+      <IconDot name={meta.icon} />
       <View className="min-w-0 flex-1 gap-2">
         <AppText variant="caption" className="text-muted">
           {severityLabel(recommendation.severity)} · {meta.label}
@@ -139,7 +132,7 @@ function RecommendationsContent({
   if (recommendations.length === 0) {
     return (
       <View className="flex-row items-start gap-3 border-t border-line py-5">
-        <IconDot Icon={CheckCircle2} color={colors.light.sageDark} />
+        <IconDot name="tips" />
         <View className="min-w-0 flex-1 gap-1">
           <AppText variant="label" className="text-ink">
             No recommendations right now
@@ -201,6 +194,16 @@ function ReportEmptyState({
       <AppText muted>{message}</AppText>
     </View>
   );
+}
+
+function periodHeader(report: ReportsResponse): string {
+  const format = (value: string) =>
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${value}T12:00:00Z`));
+  return `${format(report.current.boundaries.startDate)}–${format(report.current.boundaries.elapsedThroughDate)} · ${report.current.loggedDays} logged ${report.current.loggedDays === 1 ? 'day' : 'days'}`;
 }
 
 export default function InsightsScreen() {
@@ -294,21 +297,22 @@ export default function InsightsScreen() {
       onRefresh={() => void loadInsights(true)}
     >
       <View className="gap-3">
-        <View className="flex-row items-center justify-between gap-3">
-          <View className="min-w-0 flex-1 gap-1">
-            <AppText variant="title" className="text-ink">
-              Insights
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              Recorded FoodLogs, current goals, and clear period boundaries.
-            </AppText>
-          </View>
-          <ReportPeriodSelector
-            period={period}
-            onChange={changePeriod}
-            disabled={reportLoading}
-          />
-        </View>
+        <AppText
+          variant="title"
+          className="text-[38px] leading-[46px] text-ink"
+        >
+          Insights
+        </AppText>
+        <ReportPeriodSelector
+          period={period}
+          onChange={changePeriod}
+          disabled={reportLoading}
+        />
+        {report === null ? null : (
+          <AppText variant="caption" className="text-muted">
+            {periodHeader(report)}
+          </AppText>
+        )}
       </View>
 
       {reportError === null ? null : (
@@ -389,7 +393,7 @@ export default function InsightsScreen() {
       </View>
 
       <View className="flex-row items-start gap-3 border-t border-line py-5">
-        <IconDot Icon={Lightbulb} color={colors.light.ink} />
+        <IconDot name="tips" />
         <View className="min-w-0 flex-1 gap-1">
           <AppText variant="label" className="text-ink">
             Simple tracking, serious insight

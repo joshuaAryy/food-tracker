@@ -1,12 +1,12 @@
 import type { ReportsResponse } from '@food-tracker/shared';
-import { CalendarCheck } from 'lucide-react-native';
 import { View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
+import { ReportingSectionHeading } from './reporting-section-heading';
 import {
   previousPeriodNoDataLabel,
   reportWindowTitle,
 } from '@/lib/reporting-ui';
-import { colors } from '@/theme/tokens';
 
 function valueOrDash(value: number | null): string {
   return value === null ? '—' : Math.round(value).toLocaleString('en-US');
@@ -22,29 +22,21 @@ export function FullPeriodReport({
   const title = reportWindowTitle(period, 'previous', report.boundaries);
 
   return (
-    <View className="gap-3 border-t border-line pt-5">
-      <View className="flex-row items-center gap-2">
-        <CalendarCheck color={colors.light.muted} size={18} strokeWidth={2.2} />
-        <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            {title}
-          </AppText>
+    <View className="gap-3">
+      <ReportingSectionHeading
+        icon="report"
+        title="Previous full period"
+        compact
+        subtitle={title}
+      />
+      <AppCard elevated>
+        {report.loggedDays === 0 ? (
           <AppText variant="caption" className="text-muted">
-            Completed period, shown separately from the elapsed comparison.
+            {previousPeriodNoDataLabel(report.boundaries)}
           </AppText>
-        </View>
-      </View>
-      {report.loggedDays === 0 ? (
-        <AppText
-          variant="caption"
-          className="border-t border-line pt-3 text-muted"
-        >
-          {previousPeriodNoDataLabel(report.boundaries)}
-        </AppText>
-      ) : (
-        <>
-          <View className="flex-row gap-3 border-t border-line pt-3">
-            <View className="min-w-0 flex-1">
+        ) : (
+          <View className="flex-row gap-3">
+            <View className="min-w-0 flex-1 gap-1">
               <AppText variant="caption" className="text-muted">
                 Logged days
               </AppText>
@@ -52,7 +44,7 @@ export function FullPeriodReport({
                 {report.loggedDays}
               </AppText>
             </View>
-            <View className="min-w-0 flex-1">
+            <View className="min-w-0 flex-1 gap-1">
               <AppText variant="caption" className="text-muted">
                 Average energy
               </AppText>
@@ -63,7 +55,7 @@ export function FullPeriodReport({
                 kcal / logged day
               </AppText>
             </View>
-            <View className="min-w-0 flex-1">
+            <View className="min-w-0 flex-1 gap-1">
               <AppText variant="caption" className="text-muted">
                 Average protein
               </AppText>
@@ -75,17 +67,8 @@ export function FullPeriodReport({
               </AppText>
             </View>
           </View>
-          {report.consistency.available ? (
-            <AppText
-              variant="caption"
-              className="border-t border-line pt-3 text-muted"
-            >
-              {report.consistency.value.percentage}% consistency across{' '}
-              {report.consistency.value.eligibleDays} eligible days.
-            </AppText>
-          ) : null}
-        </>
-      )}
+        )}
+      </AppCard>
     </View>
   );
 }

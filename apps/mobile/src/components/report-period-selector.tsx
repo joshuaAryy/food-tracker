@@ -14,7 +14,7 @@ export function ReportPeriodSelector({
   disabled = false,
 }: ReportPeriodSelectorProps) {
   return (
-    <View className="flex-row self-start rounded-full border border-line bg-surface-raised p-1">
+    <View className="w-full flex-row rounded-full border border-line bg-surface-raised p-1">
       {(['week', 'month'] as const).map((option) => {
         const selected = option === period;
         const label = option === 'week' ? 'Week' : 'Month';
@@ -24,7 +24,7 @@ export function ReportPeriodSelector({
             accessibilityRole="tab"
             accessibilityState={{ selected, disabled }}
             accessibilityLabel={`${label} reports`}
-            className={`min-h-10 min-w-[82px] items-center justify-center rounded-full px-4 ${selected ? 'bg-ink' : ''} ${disabled ? 'opacity-50' : ''}`}
+            className={`min-h-10 flex-1 items-center justify-center rounded-full px-4 ${selected ? 'bg-ink' : ''} ${disabled ? 'opacity-50' : ''}`}
             disabled={disabled}
             onPress={() => onChange(option)}
           >

@@ -3,20 +3,19 @@ import type {
   ReportsResponse,
   ReportingNutrientGroup,
 } from '@food-tracker/shared';
-import { ChevronDown, ChevronUp, ListTree } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
+import { ReportingSectionHeading } from './reporting-section-heading';
+import { ReportingChevron } from './reporting-icon';
 import {
   initialExpandedGroups,
   nutrientDetailsForMode,
   nutrientGroupForDetail,
   nutrientGroupLabel,
-  nutrientPercentageAccessibilityLabel,
-  nutrientPercentageLabel,
-  nutrientRowCopy,
+  nutrientPresentation,
   toggleExpandedGroup,
 } from '@/lib/reporting-ui';
-import { colors } from '@/theme/tokens';
 
 const groupOrder: ReportingNutrientGroup[] = [
   'general',
@@ -31,9 +30,14 @@ const groupOrder: ReportingNutrientGroup[] = [
 export function CompleteNutrientReport({
   report,
   title = 'Complete nutrient report',
+  setupComplete = true,
 }: {
-  report: Pick<ReportsResponse['current'], 'nutrientDetails'>;
+  report: Pick<
+    ReportsResponse['current'],
+    'nutrientDetails' | 'proteinTargetGrams' | 'proteinAdherence'
+  >;
   title?: string;
+  setupComplete?: boolean;
 }) {
   const entries = useMemo(
     () => nutrientDetailsForMode(report, 'complex'),
@@ -63,20 +67,15 @@ export function CompleteNutrientReport({
   if (visibleGroups.length === 0) return null;
 
   return (
-    <View className="gap-3 border-t border-line pt-5">
-      <View className="gap-3">
-        <View className="flex-row items-center gap-2">
-          <ListTree color={colors.light.ink} size={18} strokeWidth={2.2} />
-          <View className="min-w-0 flex-1">
-            <AppText variant="heading" className="text-ink">
-              {title}
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              Recorded nutrients only · totals per logged day.
-            </AppText>
-          </View>
-        </View>
-        <View className="flex-row gap-4">
+    <View className="gap-3">
+      <ReportingSectionHeading
+        icon="report"
+        title={title}
+        compact
+        subtitle="Recorded nutrients are grouped by category. Missing goals are labelled clearly."
+      />
+      <AppCard elevated>
+        <View className="mb-2 flex-row justify-end gap-4">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Expand all nutrient categories"
@@ -100,18 +99,19 @@ export function CompleteNutrientReport({
             </AppText>
           </Pressable>
         </View>
-      </View>
-      <View>
         {visibleGroups.map((group) => {
           const isExpanded = expandedGroups.has(group);
           const groupEntries = grouped.get(group) ?? [];
           return (
-            <View key={group} className="border-t border-line">
+            <View
+              key={group}
+              className="border-t border-line py-3 first:border-t-0"
+            >
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: isExpanded }}
                 accessibilityLabel={`${nutrientGroupLabel(group)} category`}
-                className="min-h-12 flex-row items-center gap-3 py-3"
+                className="min-h-10 flex-row items-center gap-3"
                 onPress={() =>
                   setExpandedGroups(
                     (current) =>
@@ -126,41 +126,37 @@ export function CompleteNutrientReport({
                   {groupEntries.length} recorded
                 </AppText>
                 {isExpanded ? (
-                  <ChevronUp color={colors.light.muted} size={18} />
+                  <ReportingChevron direction="up" />
                 ) : (
-                  <ChevronDown color={colors.light.muted} size={18} />
+                  <ReportingChevron direction="down" />
                 )}
               </Pressable>
               {isExpanded ? (
-                <View className="gap-3 pb-3">
+                <View className="gap-3 pt-3">
                   {groupEntries.map(({ key, detail }) => {
-                    const percentageInput = {
+                    const presentation = nutrientPresentation({
                       key,
-                      average: detail.averagePerLoggedDay,
+                      detail,
                       report,
-                    };
+                      setupComplete,
+                    });
                     return (
-                      <View
-                        key={key}
-                        className="flex-row items-start gap-3 pl-2"
-                      >
-                        <View className="min-w-0 flex-1 gap-0.5">
+                      <View key={key} className="flex-row items-start gap-3">
+                        <View className="min-w-0 flex-1 gap-1">
                           <AppText variant="label" className="text-ink">
                             {detail.displayName}
                           </AppText>
                           <AppText variant="caption" className="text-muted">
-                            {nutrientRowCopy({ key, detail, report })}
+                            {presentation.totalLabel}
                           </AppText>
                         </View>
                         <AppText
                           accessible
-                          accessibilityLabel={nutrientPercentageAccessibilityLabel(
-                            percentageInput,
-                          )}
-                          variant="label"
-                          className="pt-0.5 text-ink tabular-nums"
+                          accessibilityLabel={`${detail.displayName}: ${presentation.statusLabel}`}
+                          variant="caption"
+                          className="max-w-[140px] pt-0.5 text-right text-ink"
                         >
-                          {nutrientPercentageLabel(percentageInput)}
+                          {presentation.statusLabel}
                         </AppText>
                       </View>
                     );
@@ -170,7 +166,7 @@ export function CompleteNutrientReport({
             </View>
           );
         })}
-      </View>
+      </AppCard>
     </View>
   );
 }

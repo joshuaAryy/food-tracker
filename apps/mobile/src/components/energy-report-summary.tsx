@@ -1,7 +1,8 @@
 import type { ReportsResponse } from '@food-tracker/shared';
-import { Flame } from 'lucide-react-native';
 import { View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
+import { ReportingSectionHeading } from './reporting-section-heading';
 import { energyStatusLabel } from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
 
@@ -31,8 +32,11 @@ export function EnergyReportSummary({
   const hasData = report.loggedDays > 0;
   const target = report.calorieTarget ?? null;
   const range = report.acceptedCalorieRange ?? null;
-  const status =
+  const rawStatus =
     report.averageCalorieStatus ?? (hasData ? 'no_target' : 'no_data');
+  const status = energyStatusLabel(rawStatus)
+    .replace(' target range', ' range')
+    .replace('Target not set', 'No goal set');
   const difference =
     !hasData || target === null ? null : target - report.averageCalories;
   const span =
@@ -62,63 +66,56 @@ export function EnergyReportSummary({
         );
 
   return (
-    <View className="gap-4 border-t border-line pt-5">
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-row items-center gap-2">
-          <Flame color={colors.light.carbs} size={18} strokeWidth={2.2} />
-          <AppText variant="heading" className="text-ink">
-            {title}
-          </AppText>
-        </View>
+    <View className="gap-3">
+      <ReportingSectionHeading icon="energy" title={title} />
+      <AppCard elevated className="gap-3">
         <AppText variant="caption" className="text-muted">
-          {energyStatusLabel(status)}
+          Average per logged day
         </AppText>
-      </View>
-
-      <View className="gap-1">
-        <AppText variant="caption" className="text-muted">
-          Average recorded per logged day
-        </AppText>
-        <AppText variant="number" className="text-ink">
+        <AppText
+          variant="number"
+          className="text-[40px] leading-[48px] text-ink"
+        >
           {formatEnergy(report.averageCalories, hasData)}
         </AppText>
-        <AppText variant="caption" className="text-muted">
-          {difference === null
-            ? 'Add a target to see remaining energy.'
-            : difference >= 0
-              ? `${Math.round(difference).toLocaleString('en-US')} kcal remaining to target`
-              : `${Math.round(Math.abs(difference)).toLocaleString('en-US')} kcal above target`}
-        </AppText>
-      </View>
-
-      <View className="gap-2 border-t border-line pt-3">
-        <View className="flex-row justify-between gap-3">
-          <AppText variant="caption" className="text-muted">
-            Accepted range
-          </AppText>
-          <AppText
-            variant="caption"
-            className="min-w-0 flex-1 text-right text-ink tabular-nums"
-          >
-            {formatRange(range)}
+        <View className="flex-row items-center gap-3">
+          <View className="rounded-full border border-border px-4 py-2">
+            <AppText variant="caption" className="text-ink">
+              {status}
+            </AppText>
+          </View>
+          <AppText variant="caption" className="min-w-0 flex-1 text-muted">
+            {difference === null
+              ? 'Set a goal to see remaining energy.'
+              : difference >= 0
+                ? `${Math.round(difference).toLocaleString('en-US')} kcal remaining`
+                : `${Math.round(Math.abs(difference)).toLocaleString('en-US')} kcal above goal`}
           </AppText>
         </View>
-        {range === null ? null : (
+        {range === null ? (
+          <AppText
+            variant="caption"
+            className="border-t border-line pt-3 text-muted"
+          >
+            No goal set
+          </AppText>
+        ) : (
           <View
             accessible
             accessibilityLabel={`Average energy rail, ${formatEnergy(report.averageCalories, hasData)}; ${formatRange(range)}`}
-            className="gap-2"
+            className="gap-2 border-t border-line pt-3"
           >
-            <View className="relative h-3 overflow-hidden rounded-full bg-primary-soft">
+            <View className="relative h-2 overflow-hidden rounded-full bg-primary-soft">
               <View
-                className="absolute bottom-0 top-0 rounded-full bg-sage-soft"
+                className="absolute bottom-0 top-0 rounded-full"
                 style={{
                   left: `${rangeStart * 100}%`,
                   width: `${rangeWidth * 100}%`,
+                  backgroundColor: colors.light.loggedProgress,
                 }}
               />
               <View
-                className="absolute -top-1 h-5 w-1.5 rounded-full bg-ink"
+                className="absolute -top-1 h-4 w-1.5 rounded-full bg-ink"
                 style={{ left: `${marker * 100}%` }}
               />
             </View>
@@ -127,7 +124,7 @@ export function EnergyReportSummary({
             </AppText>
           </View>
         )}
-      </View>
+      </AppCard>
     </View>
   );
 }

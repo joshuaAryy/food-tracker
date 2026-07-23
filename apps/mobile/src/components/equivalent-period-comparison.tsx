@@ -1,10 +1,14 @@
 import type { ReportsResponse } from '@food-tracker/shared';
 import { View } from 'react-native';
+import { AppCard } from './app-card';
 import { AppText } from './app-text';
+import { ReportingSectionHeading } from './reporting-section-heading';
 import { reportWindowTitle } from '@/lib/reporting-ui';
 
-function formatMetric(value: number, unit: string): string {
-  return `${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`;
+function metricValue(value: number): string {
+  return Math.abs(value).toLocaleString('en-US', {
+    maximumFractionDigits: 1,
+  });
 }
 
 export function EquivalentPeriodComparison({
@@ -13,90 +17,78 @@ export function EquivalentPeriodComparison({
   report: ReportsResponse;
 }) {
   const comparison = report.comparison;
-  const metrics = [
-    comparison.loggedDays === undefined
+  const loggedDaysDelta = comparison.loggedDays?.delta;
+  const consistencyDelta = comparison.consistency?.delta;
+  const summary =
+    loggedDaysDelta === undefined && consistencyDelta === undefined
       ? null
-      : {
-          label: 'Logged days',
-          value: comparison.loggedDays.delta,
-          unit: 'days',
-        },
-    comparison.consistency === undefined
-      ? null
-      : {
-          label: 'Consistency',
-          value: comparison.consistency.delta,
-          unit: 'points',
-        },
-    comparison.averageCalories === undefined
-      ? null
-      : {
-          label: 'Average calories',
-          value: comparison.averageCalories.delta,
-          unit: 'kcal',
-        },
-    comparison.averageProteinGrams === undefined
-      ? null
-      : {
-          label: 'Average protein',
-          value: comparison.averageProteinGrams.delta,
-          unit: 'g',
-        },
-  ].filter(
-    (metric): metric is { label: string; value: number; unit: string } =>
-      metric !== null,
-  );
+      : `${
+          loggedDaysDelta === undefined
+            ? ''
+            : loggedDaysDelta === 0
+              ? 'Same logged days'
+              : `${metricValue(loggedDaysDelta)} ${loggedDaysDelta > 0 ? 'more' : 'fewer'} logged day${Math.abs(loggedDaysDelta) === 1 ? '' : 's'}`
+        }${
+          loggedDaysDelta !== undefined && consistencyDelta !== undefined
+            ? ' · '
+            : ''
+        }${
+          consistencyDelta === undefined
+            ? ''
+            : `Consistency ${comparison.consistency?.previous}% → ${comparison.consistency?.current}%`
+        }`;
 
   return (
-    <View className="gap-4 border-t border-line pt-5">
-      <View className="gap-1">
-        <AppText variant="heading" className="text-ink">
-          Equivalent comparison
-        </AppText>
-        <AppText variant="caption" className="text-muted">
-          Same elapsed window, kept separate from the full previous period.
-        </AppText>
-      </View>
-      <View className="gap-1 border-t border-line pt-2">
-        <AppText variant="caption" className="text-muted">
-          {reportWindowTitle(
-            report.period,
-            'current',
-            report.current.boundaries,
-          )}
-        </AppText>
-        <AppText variant="caption" className="text-muted">
-          compared with{' '}
-          {reportWindowTitle(report.period, 'equivalent', {
-            ...report.current.boundaries,
-            ...comparison.previousEquivalentBoundary,
-            elapsedThroughDate: comparison.previousEquivalentBoundary.endDate,
-          })}
-        </AppText>
-      </View>
-      {metrics.length === 0 ? (
-        <AppText className="text-muted">
-          Keep logging in both windows to unlock a useful comparison.
-        </AppText>
-      ) : (
-        <View>
-          {metrics.map((metric) => (
-            <View
-              key={metric.label}
-              className="flex-row items-center gap-3 border-t border-line py-3"
-            >
-              <AppText variant="label" className="min-w-0 flex-1 text-ink">
-                {metric.label}
-              </AppText>
-              <AppText variant="label" className="text-ink tabular-nums">
-                {metric.value === 0
-                  ? 'No change'
-                  : `${metric.value > 0 ? '+' : '−'}${formatMetric(metric.value, metric.unit)}`}
-              </AppText>
-            </View>
-          ))}
+    <View className="gap-3">
+      <ReportingSectionHeading
+        icon="compare"
+        title="Period comparison"
+        compact
+      />
+      <AppCard elevated className="gap-4">
+        <View className="flex-row gap-3">
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="caption" className="font-bold text-muted">
+              CURRENT
+            </AppText>
+            <AppText variant="heading" className="text-ink">
+              {comparison.loggedDays?.current ?? report.current.loggedDays}{' '}
+              logged days
+            </AppText>
+          </View>
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="caption" className="font-bold text-muted">
+              PREVIOUS
+            </AppText>
+            <AppText variant="heading" className="text-ink">
+              {comparison.loggedDays?.previous ??
+                report.previousCompleted.loggedDays}{' '}
+              logged days
+            </AppText>
+          </View>
         </View>
-      )}
+        <View className="border-t border-line pt-3">
+          <AppText variant="caption" className="text-muted">
+            {reportWindowTitle(
+              report.period,
+              'current',
+              report.current.boundaries,
+            )}
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            compared with equivalent elapsed period
+          </AppText>
+        </View>
+        {summary === null ? (
+          <AppText variant="caption" className="text-muted">
+            Keep logging in both periods to unlock a useful comparison.
+          </AppText>
+        ) : (
+          <AppText variant="label" className="text-ink">
+            {summary}
+          </AppText>
+        )}
+      </AppCard>
     </View>
   );
 }

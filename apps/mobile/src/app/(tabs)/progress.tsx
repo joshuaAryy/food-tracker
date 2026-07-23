@@ -1,4 +1,3 @@
-import type { ComponentType } from 'react';
 import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -11,13 +10,17 @@ import type {
   TrackingMode,
   TrackingPreferences,
 } from '@food-tracker/shared';
-import { Scale, SlidersHorizontal, Utensils } from 'lucide-react-native';
 import { AppLogo } from '@/components/app-logo';
+import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ProgressCalorieHero } from '@/components/progress-reporting-summary';
 import { ProgressReportingSummary } from '@/components/progress-reporting-summary';
+import {
+  ReportingIcon,
+  type ReportingIconName,
+} from '@/components/reporting-icon';
 import { StreakEntryAction } from '@/components/streak-entry-action';
 import {
   SkeletonLine,
@@ -27,17 +30,6 @@ import {
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
-import { colors } from '@/theme/tokens';
-
-const INK = colors.light.ink;
-const WEIGHT = '#637D96';
-const WARM = '#B18A50';
-
-type LucideIcon = ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
 
 function formattedDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -79,14 +71,12 @@ function ModeBadge({
 }
 
 function SignalRow({
-  icon: Icon,
-  accent,
+  icon,
   label,
   detail,
   value,
 }: {
-  icon: LucideIcon;
-  accent: string;
+  icon: ReportingIconName;
   label: string;
   detail: string;
   value: string;
@@ -94,12 +84,7 @@ function SignalRow({
   return (
     <View className="border-t border-line py-4">
       <View className="flex-row items-center gap-3">
-        <View
-          className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: `${accent}18` }}
-        >
-          <Icon color={accent} size={18} strokeWidth={2.2} />
-        </View>
+        <ReportingIcon name={icon} size={36} />
         <View className="min-w-0 flex-1 gap-0.5">
           <AppText variant="label" className="text-ink">
             {label}
@@ -352,9 +337,19 @@ export default function ProgressScreen() {
         />
       </View>
 
-      {reporting === null ? null : (
-        <StreakEntryAction currentStreak={reporting.currentStreak.loggedDays} />
-      )}
+      <View className="flex-row items-end justify-between gap-3">
+        <AppText
+          variant="title"
+          className="text-[38px] leading-[46px] text-ink"
+        >
+          Progress
+        </AppText>
+        {reporting === null ? null : (
+          <StreakEntryAction
+            currentStreak={reporting.currentStreak.loggedDays}
+          />
+        )}
+      </View>
 
       {error === null ? null : (
         <ErrorState title="Couldn’t refresh progress" message={error} />
@@ -362,10 +357,9 @@ export default function ProgressScreen() {
 
       <ProgressCalorieHero summary={summary} weeklyReport={weeklyReport} />
 
-      <View className="gap-1">
+      <AppCard elevated className="gap-0">
         <SignalRow
-          icon={Utensils}
-          accent={WARM}
+          icon="food"
           label="Food entries"
           detail={
             summary.foodLogCount === 0 ? 'No food logged yet' : 'Logged today'
@@ -373,8 +367,7 @@ export default function ProgressScreen() {
           value={entriesLabel}
         />
         <SignalRow
-          icon={Scale}
-          accent={WEIGHT}
+          icon="weight"
           label="Latest weight"
           detail={
             summary.latestWeightLb === null
@@ -385,14 +378,13 @@ export default function ProgressScreen() {
         />
         {modeIsDetailed ? (
           <SignalRow
-            icon={SlidersHorizontal}
-            accent={INK}
+            icon="detail"
             label="Tracking detail"
             detail="Detailed fields are available when you log food."
             value="Detailed"
           />
         ) : null}
-      </View>
+      </AppCard>
 
       {reportingError === null && reporting === null && reportingLoading ? (
         <View className="border-t border-line pt-6">
