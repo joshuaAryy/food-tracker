@@ -36,7 +36,7 @@ export function AppScreen({
   const content = (
     <View
       className={`w-full self-center gap-6 px-5 pb-28 pt-4 ${contentClassName}`}
-      style={[{ maxWidth: 480 }, contentStyle]}
+      style={[{ maxWidth: 480, backgroundColor }, contentStyle]}
     >
       {children}
     </View>
@@ -56,6 +56,7 @@ export function AppScreen({
           <ScrollView
             className="flex-1"
             style={{ backgroundColor }}
+            contentContainerStyle={{ backgroundColor }}
             contentInsetAdjustmentBehavior="automatic"
             keyboardShouldPersistTaps={keyboardShouldPersistTaps}
             refreshControl={

@@ -32,15 +32,16 @@ export function StreakGoldBand({
         style={{ position: 'absolute', top: visualTop, left: 0 }}
       >
         <Defs>
-          <LinearGradient id="streak-gold-base" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#F4E6B1" />
-            <Stop offset="0.35" stopColor="#D7B457" />
-            <Stop offset="0.7" stopColor="#B48D32" />
-            <Stop offset="1" stopColor="#E5CB7B" />
+          <LinearGradient id="streak-gold-base" x1="0" y1="0" x2="1" y2="0">
+            <Stop offset="0" stopColor="#ED8000" />
+            <Stop offset="0.18" stopColor="#FFC40A" />
+            <Stop offset="0.52" stopColor="#FFED6B" />
+            <Stop offset="0.82" stopColor="#FFB203" />
+            <Stop offset="1" stopColor="#DE6E00" />
           </LinearGradient>
           <LinearGradient id="streak-gold-specular" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.56" />
-            <Stop offset="0.38" stopColor="#FFF7D9" stopOpacity="0.14" />
+            <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.7" />
+            <Stop offset="0.38" stopColor="#FFF7D9" stopOpacity="0.2" />
             <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
           </LinearGradient>
         </Defs>
@@ -51,8 +52,8 @@ export function StreakGoldBand({
           height={size - 1}
           rx={size / 2}
           fill="url(#streak-gold-base)"
-          stroke="#A77F25"
-          strokeOpacity="0.42"
+          stroke="#C26300"
+          strokeOpacity="0.6"
         />
         <Rect
           x="1.5"
