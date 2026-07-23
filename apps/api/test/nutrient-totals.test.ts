@@ -6,6 +6,8 @@ const loggedAt = '2026-06-15T17:00:00.000Z';
 interface NutrientTotalsResponseBody {
   date: string;
   nutrients: Record<string, { amount: number; unit: string }>;
+  percentages: Record<string, number | null>;
+  reportingGoals: Record<string, { value: number | null; unit: string }>;
 }
 
 describe('daily nutrient totals API', () => {
@@ -55,7 +57,7 @@ describe('daily nutrient totals API', () => {
 
     expectSuccessEnvelope(response.body);
     const data = response.body.data as NutrientTotalsResponseBody;
-    expect(response.body.data).toEqual({
+    expect(response.body.data).toMatchObject({
       date: '2026-06-15',
       nutrients: {
         calories: { amount: 205, unit: 'kcal' },
@@ -63,6 +65,24 @@ describe('daily nutrient totals API', () => {
         caffeine: { amount: 140, unit: 'mg' },
         vitaminC: { amount: 60, unit: 'mg' },
       },
+      percentages: {
+        calories: null,
+        protein: null,
+        caffeine: 35,
+        vitaminC: 66.7,
+      },
+    });
+    expect(data.reportingGoals.calories).toMatchObject({
+      value: null,
+      unit: 'kcal',
+    });
+    expect(data.reportingGoals.caffeine).toMatchObject({
+      value: 400,
+      unit: 'mg',
+    });
+    expect(data.reportingGoals.vitaminC).toMatchObject({
+      value: 90,
+      unit: 'mg',
     });
     expect(data.nutrients.carbs).toBeUndefined();
     expect(data.nutrients.sodium).toBeUndefined();

@@ -10,7 +10,7 @@ established the
 current mobile visual-system blueprint across
 onboarding, Progress, History, logging, Insights, Recommendations,
 Profile/Settings, bottom navigation, floating add behavior, logo rendering,
-inputs, Simple/Detailed mode identity, and native iPhone testing. The durable
+inputs, Simple/Complex mode identity, and native iPhone testing. The durable
 lessons from those iterations are captured in `docs/mobile-visual-lessons.md`;
 read it before starting future mobile visual work.
 
@@ -145,7 +145,7 @@ complex-mode identity.
 Launcher icons are configured from tracked assets under
 `apps/mobile/assets/icons/`. The default launcher icon is the simple mark.
 Dynamic launcher-icon switching uses `expo-alternate-app-icons`: Simple mode
-resets to the default icon, and Complex/Detailed mode sets the `ComplexMode`
+resets to the default icon, and Complex mode sets the `ComplexMode`
 alternate icon. Launcher icon config changes require a rebuilt Expo development
 build before they appear on the iPhone home screen.
 
@@ -248,7 +248,7 @@ Major UI work should be judged on physical iPhone before merge. Screens to
 check include first load, loading/error/empty states, pull-to-refresh, keyboard
 behavior, footer overlap, tab spacing, floating add behavior, logo clipping,
 input vertical alignment, icon contrast, white/charcoal consistency, and
-Simple/Detailed mode presentation.
+Simple/Complex mode presentation.
 
 Phase 7 should add skeleton loading for backend-connected mobile screens where
 it improves perceived performance. Skeletons need native iPhone validation
@@ -631,7 +631,7 @@ the white/charcoal open-row visual language.
   remains an unchanged frozen ingredient until the user intentionally replaces
   it.
 - Recipe detail displays backend total, per-portion, and—only when available—
-  per-gram summaries. Simple mode hides normalized nutrients; Detailed mode
+  per-gram summaries. Simple mode hides normalized nutrients; Complex mode
   shows the returned normalized nutrient map without recomputing it.
 - Recipe logging has portion and optional gram modes, uses the existing
   meal/date/time/notes conventions, disables duplicate submissions, and bumps
@@ -666,7 +666,7 @@ protection on a small physical device as part of the Phase 12.9B smoke suite.
 
 All 18 Slice 3/4 physical-device checks passed on the iPhone, including trusted
 FoodItem selection, USDA persistence, manual-food creation/edit/archive,
-serving-details cancellation and edits, mixed-meal preview, Simple/Detailed
+serving-details cancellation and edits, mixed-meal preview, Simple/Complex
 nutrition display, save-as-recipe, error recovery, refresh propagation, and
 rapid repeated taps creating exactly one FoodLog. Phase 12.9B is complete.
 
@@ -728,7 +728,7 @@ component rows or one active composite row; inactive alternatives remain
   adjudication may mark a trusted
 candidate as AI-adjudicated, but medium/low confidence, reject-all,
 no-decision, and unavailable outcomes remain editable review rows.
-Simple mode shows concise trusted calories/protein; Detailed/Complex mode also shows
+Simple mode shows concise trusted calories/protein; Complex mode also shows
 trusted available macros and normalized nutrients. Unknown values remain
 unknown, and provider nutrition is never displayed or used. Invalid optional
 provider regions are dropped before the mobile response because the review UI

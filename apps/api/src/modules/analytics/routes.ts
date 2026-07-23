@@ -5,6 +5,7 @@ import {
   dashboardSummaryQuerySchema,
   DEFAULT_TIMEZONE,
   NUTRIENT_CATALOG,
+  resolveReportingGoals,
   type DashboardSummary,
   type DailyNutrientTotals,
   type NutrientAmount,
@@ -31,10 +32,13 @@ advancedAnalyticsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const query = validatedQuery<DashboardQuery>(response);
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId },
-      select: { timezone: true },
-    });
+    const [profile, goal] = await Promise.all([
+      prisma.userProfile.findUnique({
+        where: { userId },
+        select: { timezone: true },
+      }),
+      prisma.userGoal.findUnique({ where: { userId } }),
+    ]);
     const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
     const date = query.date ?? localDate(new Date(), timezone);
     const range = localDateRange(timezone, { date });
@@ -95,7 +99,34 @@ advancedAnalyticsRouter.get(
       };
     }
 
-    const totals: DailyNutrientTotals = { date, nutrients };
+    const reportingGoals = resolveReportingGoals({
+      targetCalories: goal?.targetCalories ?? null,
+      targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
+      targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
+      targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
+      targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
+      limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
+      limitSodiumMg: goal?.limitSodiumMg ?? null,
+    });
+    const percentages: DailyNutrientTotals['percentages'] = Object.fromEntries(
+      Object.entries(nutrients).map(([key, amount]) => {
+        const resolvedGoal = reportingGoals[key as NutrientKey];
+        const percentage =
+          amount === undefined ||
+          resolvedGoal?.value === null ||
+          resolvedGoal?.value === undefined ||
+          resolvedGoal.value <= 0
+            ? null
+            : roundTo((amount.amount / resolvedGoal.value) * 100, 1);
+        return [key, percentage];
+      }),
+    );
+    const totals: DailyNutrientTotals = {
+      date,
+      nutrients,
+      reportingGoals,
+      percentages,
+    };
 
     sendSuccess(response, totals);
   },

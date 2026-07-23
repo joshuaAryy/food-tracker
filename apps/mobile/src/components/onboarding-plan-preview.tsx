@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import type { TrackingMode } from '@food-tracker/shared';
 import { AppText } from './app-text';
+import { trackingModeLabel } from '@/lib/reporting-ui';
 
 interface OnboardingPlanPreviewProps {
   calories: string;
@@ -57,7 +58,7 @@ export function OnboardingPlanPreview({
         </View>
         <View className="rounded-full bg-onboarding-surface-muted px-3 py-1">
           <AppText variant="caption" className="text-onboarding-text">
-            {mode === 'simple' ? 'Simple' : 'Detailed'}
+            {trackingModeLabel(mode)}
           </AppText>
         </View>
       </View>

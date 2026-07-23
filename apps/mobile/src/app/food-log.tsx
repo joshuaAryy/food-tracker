@@ -1583,7 +1583,7 @@ export default function FoodLogScreen() {
             </Pressable>
             {trackingMode === 'complex' ? (
               <AppText variant="caption" className="text-muted">
-                Detailed mode can use richer nutrient data when a saved food
+                Complex mode can use richer nutrient data when a saved food
                 includes it.
               </AppText>
             ) : null}
@@ -2028,7 +2028,7 @@ export default function FoodLogScreen() {
               {showMore
                 ? 'Hide optional details'
                 : trackingMode === 'complex'
-                  ? 'Show detailed nutrition'
+                  ? 'Show complex nutrition'
                   : 'More details'}
             </AppText>
             <AppText variant="caption" muted>
@@ -2102,7 +2102,7 @@ export default function FoodLogScreen() {
             {trackingMode === 'complex' ? (
               <View className="gap-3 border-t border-line pt-4">
                 <View className="gap-0.5">
-                  <AppText variant="label">Detailed nutrients</AppText>
+                  <AppText variant="label">Complex nutrients</AppText>
                   <AppText variant="caption" muted>
                     Complex mode edits apply only to this food log.
                   </AppText>

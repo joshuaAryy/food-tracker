@@ -67,6 +67,11 @@ setupRouter.post(
       calculatedTargets: {
         targetCalories: calculatedTargets.targetCalories,
         targetProteinGrams: calculatedTargets.targetProteinGrams,
+        targetCarbsGrams: calculatedTargets.targetCarbsGrams,
+        targetFatGrams: calculatedTargets.targetFatGrams,
+        targetFiberGrams: calculatedTargets.targetFiberGrams,
+        limitSugarGrams: calculatedTargets.limitSugarGrams,
+        limitSodiumMg: calculatedTargets.limitSodiumMg,
       },
     });
   },
@@ -90,6 +95,11 @@ setupRouter.put(
       targetWeightLb: roundTo(input.goals.targetWeightLb, 1),
       targetCalories: calculatedTargets.targetCalories,
       targetProteinGrams: calculatedTargets.targetProteinGrams,
+      targetCarbsGrams: calculatedTargets.targetCarbsGrams,
+      targetFatGrams: calculatedTargets.targetFatGrams,
+      targetFiberGrams: calculatedTargets.targetFiberGrams,
+      limitSugarGrams: calculatedTargets.limitSugarGrams,
+      limitSodiumMg: calculatedTargets.limitSodiumMg,
     };
 
     const [profile, goals, preferences] = await prisma.$transaction([
@@ -120,6 +130,11 @@ setupRouter.put(
       calculatedTargets: {
         targetCalories: calculatedTargets.targetCalories,
         targetProteinGrams: calculatedTargets.targetProteinGrams,
+        targetCarbsGrams: calculatedTargets.targetCarbsGrams,
+        targetFatGrams: calculatedTargets.targetFatGrams,
+        targetFiberGrams: calculatedTargets.targetFiberGrams,
+        limitSugarGrams: calculatedTargets.limitSugarGrams,
+        limitSodiumMg: calculatedTargets.limitSodiumMg,
       },
       status: setupStatus(true, true, true),
     });

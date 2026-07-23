@@ -118,7 +118,7 @@ with borders as the main visual language.
 - Floating plus as the primary create action.
 - Actual simple and complex PNG brand icons instead of drawn View logos.
 - Proper clipping/masking for in-app logo marks inside circular containers.
-- Dynamic launcher icon switching between Simple and Complex/Detailed mode.
+- Dynamic launcher icon switching between Simple and Complex mode.
 - Progress/Home daily energy hero direction.
 - Progress as a calm daily check-in: date/mode context, one large kcal status,
   one human status phrase, restrained rails, and open supporting rows.
@@ -305,7 +305,7 @@ Recommendations should feel like useful guidance, not alert cards. Rows with an
 icon dot, priority pill, clear title, short body, and quiet dismiss action fit
 the current product direction better than stacked cards with severity labels.
 Simple mode should stay focused on calories, protein, consistency, weight, and
-direct guidance. Complex/Detailed mode can show macro and nutrient detail, but
+direct guidance. Complex mode can show macro and nutrient detail, but
 it still needs to remain calm and easy to scan.
 
 ## Progress Lessons
@@ -329,7 +329,7 @@ content on iPhone.
 
 Protein, food entries, and latest weight should support the main daily status
 with quiet dividers, icons, short values, and restrained accent colors. Simple
-mode should stay fast and focused. Detailed mode may acknowledge richer logging
+mode should stay fast and focused. Complex mode may acknowledge richer logging
 without inventing macro totals or adding noisy panels.
 
 Future Progress improvements should come from better available product data,
@@ -344,8 +344,8 @@ stack of form cards. The screen works best as a personal control center: white
 canvas, strong header, compact summary, icon-supported rows, quiet dividers,
 and a stable save/cancel area.
 
-Tracking mode should use the real Simple and Complex/Detailed marks when it is
-presented as a preference. Simple should feel fast and focused; Detailed should
+Tracking mode should use the real Simple and Complex marks when it is
+presented as a preference. Simple should feel fast and focused; Complex should
 feel more capable without adding visual noise. Unit labels should stay clear in
 the existing fields unless real unit preference behavior is explicitly added.
 
@@ -359,7 +359,7 @@ Use actual provided PNG brand assets. Do not redraw or recreate the logo with
 React Native View shapes.
 
 - Simple mode icon is the default and new-user identity.
-- Complex/Detailed mode icon is for complex mode identity.
+- Complex mode icon is for complex mode identity.
 - In-app mode badges should use the real icons and feel intentionally tappable.
 - Dynamic launcher icon switching is native config/plugin-dependent.
 - Launcher icon and native config changes require rebuilding/reinstalling the

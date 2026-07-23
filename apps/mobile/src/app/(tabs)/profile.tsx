@@ -49,6 +49,7 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
+import { trackingModeLabel } from '@/lib/reporting-ui';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
@@ -94,6 +95,11 @@ const defaultGoals: Goals = {
   targetWeightLb: 170,
   targetCalories: 2000,
   targetProteinGrams: 120,
+  targetCarbsGrams: null,
+  targetFatGrams: null,
+  targetFiberGrams: null,
+  limitSugarGrams: null,
+  limitSodiumMg: null,
 };
 
 const defaultPreferences: TrackingPreferences = {
@@ -147,7 +153,7 @@ function label(value: string): string {
 }
 
 function modeLabel(mode: TrackingMode): string {
-  return mode === 'simple' ? 'Simple' : 'Detailed';
+  return trackingModeLabel(mode);
 }
 
 function goalLabel(value: GoalType): string {
@@ -328,7 +334,7 @@ function ModeOption({
     >
       <AppLogo mode={simple ? 'simple' : 'complex'} size={24} />
       <AppText variant="label" className={selected ? 'text-white' : 'text-ink'}>
-        {simple ? 'Simple' : 'Detailed'}
+        {trackingModeLabel(simple ? 'simple' : 'complex')}
       </AppText>
     </Pressable>
   );
@@ -421,7 +427,7 @@ function ProfileOverview({ values }: { values: ProfileForm }) {
           <AppText variant="caption" className="text-muted">
             {isSimple
               ? 'Fast, focused tracking is active.'
-              : 'Detailed tracking is active.'}
+              : 'Complex tracking is active.'}
           </AppText>
         </View>
         <View className="rounded-full bg-primary px-3 py-1.5">
@@ -1023,12 +1029,12 @@ export default function ProfileScreen() {
         />
         <SettingsRow
           Icon={SlidersHorizontal}
-          label="Tracking detail"
+          label="Tracking mode"
           value={modeLabel(watchedValues.mode)}
           detail={
             watchedValues.mode === 'simple'
               ? 'Fast and focused'
-              : 'Detailed but organized'
+              : 'Complex but organized'
           }
         />
         <SettingsRow

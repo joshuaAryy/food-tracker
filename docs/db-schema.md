@@ -44,6 +44,25 @@ Do not store custom password credentials.
 - targetWeightLb (optional decimal pounds, one decimal place)
 - targetCalories (integer kcal)
 - targetProteinGrams (optional decimal grams, one decimal place)
+- targetCarbsGrams (nullable decimal grams, one decimal place)
+- targetFatGrams (nullable decimal grams, one decimal place)
+- targetFiberGrams (nullable decimal grams, one decimal place)
+- limitSugarGrams (nullable decimal grams, one decimal place)
+- limitSodiumMg (nullable integer milligrams)
+
+The five new fields are nullable for backward-compatible migration and
+legacy setup-incomplete rows. The reporting goal resolver uses explicit stored
+values first, derives missing values deterministically from the existing
+calorie/protein targets next, and applies the documented product default for
+sodium when no explicit value exists. New onboarding persists all derived
+values. Existing rows are repaired lazily when goals or reports are read; no
+destructive one-time backfill is required.
+
+The supported reporting directions are target (calories), minimum (protein,
+carbohydrates, fat, fiber), and limit (sugar, sodium). Period percentages use
+the existing report eligible-day count as the applicable day count. Weight
+continues to use `targetWeightLb` and is not duplicated in the nutrient goal
+model.
 
 ---
 

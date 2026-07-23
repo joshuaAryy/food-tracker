@@ -98,6 +98,11 @@ describe('goals API', () => {
       targetWeightLb: 190,
       targetCalories: 2400,
       targetProteinGrams: 150,
+      targetCarbsGrams: null,
+      targetFatGrams: null,
+      targetFiberGrams: null,
+      limitSugarGrams: null,
+      limitSodiumMg: null,
     });
   });
 
@@ -119,9 +124,40 @@ describe('goals API', () => {
       ...input,
       targetWeightLb: 170,
       targetProteinGrams: 160.1,
+      targetCarbsGrams: null,
+      targetFatGrams: null,
+      targetFiberGrams: null,
+      limitSugarGrams: null,
+      limitSodiumMg: null,
     });
     expect(persisted?.goalType).toBe('lose');
     expect(persisted?.targetCalories).toBe(2100);
+  });
+
+  it('accepts explicit nutrient goal overrides', async () => {
+    const response = await api
+      .put('/api/v1/goals')
+      .send({
+        goalType: 'maintain',
+        goalPace: null,
+        targetWeightLb: 190,
+        targetCalories: 2200,
+        targetProteinGrams: 150,
+        targetCarbsGrams: 210,
+        targetFatGrams: 75,
+        targetFiberGrams: 32,
+        limitSugarGrams: 45,
+        limitSodiumMg: 1800,
+      })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      targetCarbsGrams: 210,
+      targetFatGrams: 75,
+      targetFiberGrams: 32,
+      limitSugarGrams: 45,
+      limitSodiumMg: 1800,
+    });
   });
 
   it('rejects an invalid goal type', async () => {

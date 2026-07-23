@@ -13,6 +13,7 @@ import {
   TRACKING_MODES,
   TRAINING_STYLES,
 } from './enums.js';
+import type { GoalPace, GoalType } from './enums.js';
 import {
   NORMALIZED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
@@ -108,23 +109,48 @@ const goalsBaseSchema = z.strictObject({
   targetWeightLb: z.number().positive(),
   targetCalories: z.number().int().nonnegative(),
   targetProteinGrams: z.number().nonnegative(),
+  targetCarbsGrams: z.number().positive().nullable().optional(),
+  targetFatGrams: z.number().positive().nullable().optional(),
+  targetFiberGrams: z.number().positive().nullable().optional(),
+  limitSugarGrams: z.number().positive().nullable().optional(),
+  limitSodiumMg: z.number().int().positive().nullable().optional(),
 });
 
-export const goalsSchema = goalsBaseSchema.refine(
-  ({ goalType, goalPace }) =>
-    (goalType === 'maintain' && goalPace === null) ||
-    (goalType === 'lose' &&
-      (goalPace === 'slow' ||
-        goalPace === 'moderate' ||
-        goalPace === 'aggressive')) ||
-    (goalType === 'gain' &&
-      (goalPace === 'lean_bulk' ||
-        goalPace === 'moderate_bulk' ||
-        goalPace === 'aggressive_bulk')),
-  {
-    message: 'goalPace must match goalType',
-    path: ['goalPace'],
-  },
+const goalsMatchType = ({
+  goalType,
+  goalPace,
+}: {
+  goalType: GoalType;
+  goalPace: GoalPace | null;
+}) =>
+  (goalType === 'maintain' && goalPace === null) ||
+  (goalType === 'lose' &&
+    (goalPace === 'slow' ||
+      goalPace === 'moderate' ||
+      goalPace === 'aggressive')) ||
+  (goalType === 'gain' &&
+    (goalPace === 'lean_bulk' ||
+      goalPace === 'moderate_bulk' ||
+      goalPace === 'aggressive_bulk'));
+
+const goalsMatchTypeMessage = {
+  message: 'goalPace must match goalType',
+  path: ['goalPace'],
+};
+
+export const goalsSchema = goalsBaseSchema
+  .extend({
+    targetCarbsGrams: z.number().positive().nullable(),
+    targetFatGrams: z.number().positive().nullable(),
+    targetFiberGrams: z.number().positive().nullable(),
+    limitSugarGrams: z.number().positive().nullable(),
+    limitSodiumMg: z.number().int().positive().nullable(),
+  })
+  .refine(goalsMatchType, goalsMatchTypeMessage);
+
+export const goalsInputSchema = goalsBaseSchema.refine(
+  goalsMatchType,
+  goalsMatchTypeMessage,
 );
 
 export const trackingPreferencesSchema = z.strictObject({
@@ -154,6 +180,11 @@ export const setupInputSchema = z
     goals: goalsBaseSchema.omit({
       targetCalories: true,
       targetProteinGrams: true,
+      targetCarbsGrams: true,
+      targetFatGrams: true,
+      targetFiberGrams: true,
+      limitSugarGrams: true,
+      limitSodiumMg: true,
     }),
     preferences: trackingPreferencesSchema,
   })
@@ -181,6 +212,11 @@ export const setupResultSchema = z.strictObject({
   calculatedTargets: z.strictObject({
     targetCalories: z.number().int().nonnegative(),
     targetProteinGrams: z.number().nonnegative(),
+    targetCarbsGrams: z.number().positive(),
+    targetFatGrams: z.number().positive(),
+    targetFiberGrams: z.number().positive(),
+    limitSugarGrams: z.number().positive(),
+    limitSodiumMg: z.number().int().positive(),
   }),
   status: setupStatusSchema,
 });
@@ -192,6 +228,11 @@ export const setupPreviewResultSchema = z.strictObject({
   calculatedTargets: z.strictObject({
     targetCalories: z.number().int().nonnegative(),
     targetProteinGrams: z.number().nonnegative(),
+    targetCarbsGrams: z.number().positive(),
+    targetFatGrams: z.number().positive(),
+    targetFiberGrams: z.number().positive(),
+    limitSugarGrams: z.number().positive(),
+    limitSodiumMg: z.number().int().positive(),
   }),
 });
 

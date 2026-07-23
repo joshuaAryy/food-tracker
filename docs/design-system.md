@@ -49,8 +49,8 @@ use, but theme switching is not part of this phase.
 
 | Role | Token | Value |
 | --- | --- | --- |
-| App background | `canvas` | `#F2F2F0` |
-| Standard surface | `surface` | `#F7F7F4` |
+| App background | `canvas` | `#FFFFFF` |
+| Standard surface | `surface` | `#FFFFFF` |
 | Raised surface | `surfaceRaised` | `#FFFFFF` |
 | Product module | `module` | `#FFFFFF` |
 | Muted module | `moduleMuted` | `#ECECEA` |
@@ -65,6 +65,7 @@ use, but theme switching is not part of this phase.
 | Legacy sage | `sage` | `#7A9B76` |
 | Legacy sage dark | `sageDark` | `#506D4F` |
 | Legacy sage soft | `sageSoft` | `#DDE7D8` |
+| Logged progress | `loggedProgress` | `#76dba0` |
 | Water | `water` | `#7895A6` |
 | Water soft | `waterSoft` | `#DCE8ED` |
 | Carbs | `carbs` | `#B59A5B` |
@@ -89,7 +90,8 @@ use, but theme switching is not part of this phase.
 Colors are centralized in `apps/mobile/src/theme/tokens.ts` and mirrored in
 the NativeWind theme.
 
-NativeWind uses semantic class aliases for the same roles. Notable aliases:
+NativeWind uses semantic class aliases for the same roles. `bg-canvas` and
+`bg-surface` are pure white for affected app surfaces. Other notable aliases:
 `bg-primary`, `bg-primary-soft`, `bg-sage-soft`, `bg-water-soft`,
 `bg-gold-soft`, `bg-clay-soft`, and `bg-error-soft`.
 
@@ -117,7 +119,7 @@ Hierarchy:
 - Hero: 52px bold for the most important daily number
 - Display: 42px bold for prominent data values
 - Title: 32px bold for screen names and key onboarding questions
-- Heading: 22px bold for modules and section titles
+- Heading: 22px semibold for modules and section titles
 - Body: 16px regular with 24px line height
 - Label: 14px semibold for controls and important metadata
 - Caption: 12px medium for dates, units, and secondary labels
@@ -157,7 +159,7 @@ The product remains mobile-first on every platform.
 
 - Inputs and buttons: 14px
 - Product modules: 32px
-- Cards: 30px
+- Cards: 20px
 - Pills and circular controls: fully rounded
 - Borders: rare and purposeful. Prefer spacing, soft fills, selected bands, and
   typography before adding visible outlines.
@@ -167,9 +169,9 @@ button. Surface contrast should do most of the separation work.
 
 ## Cards
 
-`AppCard` is a legacy reusable surface primitive, not the default Phase 6.5
-visual language. New onboarding and Progress/Home surfaces should prefer
-open layouts, purpose-built modules, rows, dividers, pills, and rails.
+`AppCard` is a 20px, white, quietly bordered supporting surface, not the
+default Phase 6.5 visual language. New onboarding and reporting surfaces should
+prefer open layouts, purpose-built modules, rows, dividers, pills, and rails.
 
 - Use a raised surface only when the card has a clear job.
 - Prefer one clear purpose per card.
@@ -295,7 +297,7 @@ Launcher icon and native splash config should only change when explicitly
 approved and reviewed.
 
 The default launcher icon uses the simple mode mark from
-`apps/mobile/assets/icons/simple.png`. Complex/Detailed mode uses the configured
+`apps/mobile/assets/icons/simple.png`. Complex mode uses the configured
 `ComplexMode` alternate launcher icon from
 `apps/mobile/assets/icons/complex.png` through `expo-alternate-app-icons`.
 Changing launcher icon config requires rebuilding the Expo development build.
@@ -413,7 +415,7 @@ results, saved foods, and reusable-food choices should render as open rows with
 thin dividers, compact serving/nutrition metadata, and small save affordances,
 not as stacked cards. Selected foods may use a compact chosen row plus a
 serving multiplier control. Simple mode should keep calories and protein most
-visible; Detailed mode may expose common macros and a quiet indication that
+visible; Complex mode may expose common macros and a quiet indication that
 more nutrients exist, without turning the main logging screen into a full
 micronutrient editor.
 
@@ -446,7 +448,7 @@ rows, and small rings or rails only where they improve scanning. Do not solve
 Insights with repeated bordered `AppCard` stacks.
 
 Simple mode should emphasize calories, protein, logging consistency, weight,
-and direct recommendations. Complex/Detailed mode may show macro split,
+and direct recommendations. Complex mode may show macro split,
 nutrition detail, and completeness signals, but it should still read as a
 quiet report rather than a dense analytics panel.
 
@@ -467,7 +469,7 @@ quiet dividers, icon-supported rows, and a stable save area.
 
 Avoid solving Profile with repeated bordered cards. Settings groups should read
 as headings plus crisp rows, with pills or selected bands for choices. Use the
-real Simple and Complex/Detailed mode marks where tracking mode is shown, and
+real Simple and Complex mode marks where tracking mode is shown, and
 keep the copy focused on what the user can change rather than calculation or
 storage mechanics.
 

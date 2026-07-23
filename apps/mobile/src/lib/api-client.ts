@@ -28,6 +28,7 @@ import type {
   FoodLogInput,
   FoodLogUpdateInput,
   Goals,
+  GoalsInput,
   Profile,
   Recommendation,
   RecommendationStatus,
@@ -48,6 +49,7 @@ import type {
   PhotoAnalysisConfirmationResponse,
   ProgressResponse,
   ReportsResponse,
+  StreakCalendarResponse,
 } from '@food-tracker/shared';
 import {
   API_BASE_PATH,
@@ -372,6 +374,11 @@ function reportsQueryString(query: ReportsQuery): string {
   return `?${params.toString()}`;
 }
 
+function streakCalendarQueryString(month: string): string {
+  const params = new URLSearchParams({ month });
+  return `?${params.toString()}`;
+}
+
 function weightLogsQueryString(query: WeightLogsQuery): string {
   const params = new URLSearchParams();
   if (query.date !== undefined) {
@@ -402,6 +409,10 @@ export const api = {
     reports: (query: ReportsQuery) =>
       request<ReportsResponse>(
         `/analytics/reports${reportsQueryString(query)}`,
+      ),
+    streakCalendar: (month: string) =>
+      request<StreakCalendarResponse>(
+        `/analytics/streak-calendar${streakCalendarQueryString(month)}`,
       ),
   },
   dashboard: {
@@ -614,7 +625,7 @@ export const api = {
   },
   goals: {
     get: () => request<Goals>('/goals', {}, goalsSchema),
-    update: (goals: Goals) =>
+    update: (goals: GoalsInput) =>
       request<Goals>('/goals', { method: 'PUT', body: goals }, goalsSchema),
   },
   trackingPreferences: {

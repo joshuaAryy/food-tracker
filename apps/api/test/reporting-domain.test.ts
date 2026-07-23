@@ -41,6 +41,19 @@ describe('reporting streak and consistency facts', () => {
     });
   });
 
+  it('excludes future logs without changing the current or longest streak', () => {
+    const withoutFuture = calculateStreak(
+      [day('2026-07-10'), day('2026-07-11')],
+      '2026-07-12',
+    );
+    const withFuture = calculateStreak(
+      [day('2026-07-10'), day('2026-07-11'), day('2026-07-20')],
+      '2026-07-12',
+    );
+
+    expect(withFuture).toEqual(withoutFuture);
+  });
+
   it('restores grace for a newly started streak and does not let grace win longest', () => {
     expect(
       calculateStreak(

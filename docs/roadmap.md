@@ -406,6 +406,24 @@ demand from authoritative FoodLogs and WeightLogs; no report snapshots or
 schema changes are introduced. Physical iPhone validation is still required
 before this phase can be marked complete.
 
+### Phase 15.5 — Approved Figma Reporting Implementation
+
+Phase 15.5 is an implementation-only visual convergence pass. The approved
+Figma masters are locked for production implementation and remain open until
+the code, focused and database-backed tests, native validation, and physical
+iPhone visual approval all pass.
+
+- Figma file: `GFLStsF0ADwaizoVKGeLny`
+- Product masters: Progress `200:3146`, Insights 390 `200:3228`, Insights
+  320 `200:3364`, and Streak `200:3500`
+- Shared references: reporting icons `181:1078`, exact grace laurel `79:859`,
+  calendar grace `49:46`, calendar laurel `195:928`, shared artwork `204:1354`,
+  parity gate `204:2137`, and implementation rules `204:2180`
+- Exact implementation colors include white `#FFFFFF`, ink `#0E0E0E`, logged
+  progress `#76DBA0`, flame red `#EA1226`, and completion amber `#FFB80D`.
+- Missing macro or nutrient information requires a data-path audit and
+  precise state handling; it must not be replaced by a visual placeholder.
+
 - current and longest logging streaks
 - weekly logging consistency
 - calorie adherence
@@ -423,6 +441,29 @@ before this phase can be marked complete.
 - independent Progress and Insights loading/error boundaries
 - Simple-mode focused nutrients and deeper Complex-mode available nutrients
 - charts, custom ranges, notifications, exports, and historical goal versioning remain deferred
+
+### Phase 15.5.1 — Reporting Goal And Terminology Polish — In progress
+
+This tightly scoped follow-up preserves the approved Progress, Insights, and
+Streak layouts while closing the reporting data and copy gaps. The existing
+`UserGoal` model is extended with nullable daily carbs, fat, fiber, sugar-limit,
+and sodium-limit values. Onboarding writes deterministic derived values for new
+users; reports lazily derive missing values for legacy rows so existing users
+are not stranded without goals. Explicit values supplied through the goals API
+remain authoritative.
+
+Reporting exposes typed daily goals, direction, source, period-adjusted goals,
+and truthful percentages. Target/minimum metrics are protein, carbohydrates,
+fat, fiber, and calories; sugar and sodium are limit metrics and may exceed
+100% without being presented as positive achievement. The existing report
+eligible-day definition remains the period denominator rule. Missing setup,
+unrecorded nutrients, recorded zeroes, and invalid denominators remain distinct.
+
+The only user-facing tracking mode names are `Simple` and `Complex`. The stored
+`simple`/`complex` enum remains unchanged to avoid an unnecessary migration.
+No new visual design work is included. Completion remains gated on focused and
+full automated validation, native simulator parity, and final physical-device
+visual approval.
 
 ## Phase 16 — Custom Graphs and Complex Analytics
 

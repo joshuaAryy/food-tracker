@@ -1,27 +1,27 @@
-import type { ComponentType } from 'react';
 import { useCallback, useState } from 'react';
-import { Pressable, View, type DimensionValue } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
+  DailyNutrientTotals,
   DashboardSummary,
   Profile,
   ProgressResponse,
+  ReportsResponse,
   TrackingMode,
   TrackingPreferences,
 } from '@food-tracker/shared';
-import {
-  ArrowRight,
-  Beef,
-  Flame,
-  Scale,
-  SlidersHorizontal,
-  TrendingUp,
-  Utensils,
-} from 'lucide-react-native';
 import { AppLogo } from '@/components/app-logo';
+import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { ProgressCalorieHero } from '@/components/progress-reporting-summary';
+import { ProgressReportingSummary } from '@/components/progress-reporting-summary';
+import {
+  ReportingIcon,
+  type ReportingIconName,
+} from '@/components/reporting-icon';
+import { StreakEntryAction } from '@/components/streak-entry-action';
 import {
   SkeletonLine,
   SkeletonPill,
@@ -29,35 +29,8 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
-import {
-  availableValue,
-  calorieAdherenceStatus,
-  proteinAdherenceStatus,
-  streakHeadline,
-  streakSupportingCopy,
-} from '@/lib/reporting-ui';
 import { useAppStore } from '@/store/app-store';
-import { colors } from '@/theme/tokens';
-
-const INK = colors.light.ink;
-const RAIL = '#E9E7E2';
-const CALORIE = '#B86F5F';
-const PROTEIN = '#6F927A';
-const WEIGHT = '#637D96';
-const WARM = '#B18A50';
-
-type LucideIcon = ComponentType<{
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}>;
-
-type DailyStatus = {
-  number: string;
-  unit: string;
-  phrase: string;
-  detail: string;
-};
+import { trackingModeLabel } from '@/lib/reporting-ui';
 
 function formattedDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -65,102 +38,6 @@ function formattedDate(value: string): string {
     month: 'long',
     day: 'numeric',
   }).format(new Date(`${value}T12:00:00`));
-}
-
-function formatWhole(value: number): string {
-  return Math.round(value).toLocaleString('en-US');
-}
-
-function formatGrams(value: number): string {
-  return `${Math.round(value).toLocaleString('en-US')} g`;
-}
-
-function boundedProgress(value: number | null): number {
-  if (value === null || Number.isNaN(value)) return 0;
-  return Math.max(0, Math.min(value, 1));
-}
-
-function calorieProgress(summary: DashboardSummary): number {
-  if (summary.calorieTarget === null || summary.calorieTarget <= 0) {
-    return 0;
-  }
-
-  return boundedProgress(summary.caloriesConsumed / summary.calorieTarget);
-}
-
-function proteinProgress(summary: DashboardSummary): number {
-  if (summary.proteinTarget === null || summary.proteinTarget <= 0) {
-    return 0;
-  }
-
-  return boundedProgress(summary.proteinConsumed / summary.proteinTarget);
-}
-
-function dailyStatus(summary: DashboardSummary): DailyStatus {
-  if (summary.calorieTarget === null || summary.calorieTarget <= 0) {
-    return {
-      number: formatWhole(summary.caloriesConsumed),
-      unit: 'kcal logged',
-      phrase:
-        summary.foodLogCount === 0
-          ? 'Day is still building'
-          : 'Your day is taking shape',
-      detail:
-        summary.foodLogCount === 0
-          ? 'Add your first meal to start the day.'
-          : `${formatWhole(summary.caloriesConsumed)} kcal logged so far.`,
-    };
-  }
-
-  if (summary.caloriesRemaining === null) {
-    return {
-      number: formatWhole(summary.caloriesConsumed),
-      unit: 'kcal logged',
-      phrase: 'Your day is taking shape',
-      detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-        summary.calorieTarget,
-      )} kcal logged.`,
-    };
-  }
-
-  if (summary.caloriesRemaining < 0) {
-    return {
-      number: formatWhole(Math.abs(summary.caloriesRemaining)),
-      unit: 'kcal over',
-      phrase: 'Over today’s target',
-      detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-        summary.calorieTarget,
-      )} kcal logged.`,
-    };
-  }
-
-  if (summary.foodLogCount === 0) {
-    return {
-      number: formatWhole(summary.calorieTarget),
-      unit: 'kcal target',
-      phrase: 'Day is still building',
-      detail: 'No food logged yet.',
-    };
-  }
-
-  const progress = summary.caloriesConsumed / summary.calorieTarget;
-  const phrase =
-    progress >= 1
-      ? 'Goal reached'
-      : progress >= 0.82
-        ? 'Almost there'
-        : progress >= 0.35
-          ? 'You’re on track'
-          : 'Day is still building';
-
-  return {
-    number: formatWhole(summary.caloriesRemaining),
-    unit: 'kcal left',
-    phrase,
-    detail: `${formatWhole(summary.caloriesConsumed)} of ${formatWhole(
-      summary.calorieTarget,
-    )} kcal logged.`,
-  };
 }
 
 function ModeBadge({
@@ -176,9 +53,9 @@ function ModeBadge({
 
   return (
     <Pressable
-      accessibilityLabel={`Switch tracking mode. Current mode is ${
-        simple ? 'Simple' : 'Detailed'
-      }.`}
+      accessibilityLabel={`Switch tracking mode. Current mode is ${trackingModeLabel(
+        simple ? 'simple' : 'complex',
+      )}.`}
       accessibilityRole="button"
       className={`flex-row items-center gap-2 rounded-full border border-line bg-white px-3 py-2 active:opacity-70 ${
         switching ? 'opacity-55' : ''
@@ -188,82 +65,27 @@ function ModeBadge({
     >
       <AppLogo mode={simple ? 'simple' : 'complex'} size={23} />
       <AppText variant="caption" className="text-ink">
-        {simple ? 'Simple' : 'Detailed'}
+        {trackingModeLabel(simple ? 'simple' : 'complex')}
       </AppText>
     </Pressable>
   );
 }
 
-function StatusPill({ children }: { children: string }) {
-  return (
-    <View className="self-start rounded-full border border-line bg-white px-3 py-1.5">
-      <AppText variant="caption" className="text-ink">
-        {children}
-      </AppText>
-    </View>
-  );
-}
-
-function ProgressRail({
-  progress,
-  color,
-  startLabel,
-  endLabel,
-}: {
-  progress: number;
-  color: string;
-  startLabel: string;
-  endLabel: string;
-}) {
-  const width = `${boundedProgress(progress) * 100}%` as DimensionValue;
-
-  return (
-    <View className="gap-3">
-      <View
-        className="h-2.5 overflow-hidden rounded-full"
-        style={{ backgroundColor: RAIL }}
-      >
-        <View
-          className="h-full rounded-full"
-          style={{ width, backgroundColor: color }}
-        />
-      </View>
-      <View className="flex-row justify-between gap-3">
-        <AppText variant="caption" className="text-muted">
-          {startLabel}
-        </AppText>
-        <AppText variant="caption" className="text-muted">
-          {endLabel}
-        </AppText>
-      </View>
-    </View>
-  );
-}
-
 function SignalRow({
-  icon: Icon,
-  accent,
+  icon,
   label,
   detail,
   value,
-  progress,
 }: {
-  icon: LucideIcon;
-  accent: string;
+  icon: ReportingIconName;
   label: string;
   detail: string;
   value: string;
-  progress?: number;
 }) {
   return (
     <View className="border-t border-line py-4">
       <View className="flex-row items-center gap-3">
-        <View
-          className="h-9 w-9 items-center justify-center rounded-full"
-          style={{ backgroundColor: `${accent}18` }}
-        >
-          <Icon color={accent} size={18} strokeWidth={2.2} />
-        </View>
+        <ReportingIcon name={icon} size={36} />
         <View className="min-w-0 flex-1 gap-0.5">
           <AppText variant="label" className="text-ink">
             {label}
@@ -276,20 +98,6 @@ function SignalRow({
           {value}
         </AppText>
       </View>
-      {progress === undefined ? null : (
-        <View
-          className="ml-12 mt-3 h-1.5 overflow-hidden rounded-full"
-          style={{ backgroundColor: RAIL }}
-        >
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${boundedProgress(progress) * 100}%` as DimensionValue,
-              backgroundColor: accent,
-            }}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -324,7 +132,7 @@ function ProgressSkeleton() {
       </View>
 
       <View className="gap-1">
-        {Array.from({ length: 4 }, (_, index) => (
+        {Array.from({ length: 3 }, (_, index) => (
           <View key={index} className="border-t border-line py-4">
             <View className="flex-row items-center gap-3">
               <SkeletonPill width={36} height={36} />
@@ -334,182 +142,10 @@ function ProgressSkeleton() {
               </View>
               <SkeletonLine width={74} height={14} />
             </View>
-            {index === 1 ? (
-              <View className="ml-12 mt-3">
-                <SkeletonRail height={6} />
-              </View>
-            ) : null}
           </View>
         ))}
       </View>
     </AppScreen>
-  );
-}
-
-function ReportingRow({
-  icon: Icon,
-  accent,
-  label,
-  value,
-  detail,
-}: {
-  icon: LucideIcon;
-  accent: string;
-  label: string;
-  value: string;
-  detail?: string | undefined;
-}) {
-  return (
-    <View className="flex-row items-center gap-3 border-t border-line py-4">
-      <Icon color={accent} size={17} strokeWidth={2.2} />
-      <View className="min-w-0 flex-1 gap-0.5">
-        <AppText variant="label" className="text-ink">
-          {label}
-        </AppText>
-        {detail === undefined ? null : (
-          <AppText variant="caption" className="text-muted">
-            {detail}
-          </AppText>
-        )}
-      </View>
-      <AppText variant="label" className="text-ink tabular-nums">
-        {value}
-      </AppText>
-    </View>
-  );
-}
-
-function ProgressReporting({
-  reporting,
-  onReports,
-}: {
-  reporting: ProgressResponse;
-  onReports: () => void;
-}) {
-  const consistency = availableValue(reporting.consistency7Days);
-  const calories = availableValue(reporting.calorieAdherence);
-  const protein = availableValue(reporting.proteinAdherence);
-  const weight = availableValue(reporting.weight);
-  const streak = reporting.currentStreak;
-
-  return (
-    <View className="gap-5 border-t border-line pt-6">
-      <View className="gap-1">
-        <AppText
-          variant="caption"
-          className="text-muted uppercase tracking-[1.2px]"
-        >
-          Logging streak
-        </AppText>
-        <AppText variant="display" className="text-ink tabular-nums">
-          {streakHeadline(streak.loggedDays)}
-        </AppText>
-        <AppText className="text-muted">{streakSupportingCopy(streak)}</AppText>
-        {streak.graceUsed && streak.graceDate !== null ? (
-          <AppText variant="caption" className="text-muted">
-            One grace day was used in this streak.
-          </AppText>
-        ) : streak.loggedDays > 0 && !streak.todayLogged ? (
-          <AppText variant="caption" className="text-muted">
-            One grace day is available if you miss a local day.
-          </AppText>
-        ) : null}
-      </View>
-
-      {consistency === null ? null : (
-        <View className="gap-2 border-t border-line pt-5">
-          <View className="flex-row items-center justify-between gap-3">
-            <AppText variant="label" className="text-ink">
-              Recent consistency
-            </AppText>
-            <AppText variant="label" className="text-ink tabular-nums">
-              {consistency.percentage}%
-            </AppText>
-          </View>
-          <View className="h-1.5 overflow-hidden rounded-full bg-[#E9E7E2]">
-            <View
-              className="h-full rounded-full bg-[#6F927A]"
-              style={{ width: `${consistency.percentage}%` }}
-            />
-          </View>
-          <AppText variant="caption" className="text-muted">
-            {consistency.loggedDays} of {consistency.eligibleDays} eligible days
-            logged
-          </AppText>
-        </View>
-      )}
-
-      {calories === null && protein === null ? null : (
-        <View className="gap-1">
-          {calories === null ? null : (
-            <ReportingRow
-              icon={Flame}
-              accent={CALORIE}
-              label="Calorie adherence"
-              value={`${Math.round(calories.percentage)}%`}
-              detail={
-                calorieAdherenceStatus(
-                  reporting.calorieAdherence,
-                  reporting.goalDirection,
-                ) ?? undefined
-              }
-            />
-          )}
-          {protein === null ? null : (
-            <ReportingRow
-              icon={Beef}
-              accent={PROTEIN}
-              label="Protein adherence"
-              value={`${Math.round(protein.percentage)}%`}
-              detail={
-                proteinAdherenceStatus(reporting.proteinAdherence) ?? undefined
-              }
-            />
-          )}
-        </View>
-      )}
-
-      {weight === null ? null : (
-        <View className="gap-1">
-          <ReportingRow
-            icon={Scale}
-            accent={WEIGHT}
-            label="Weight"
-            value={
-              weight.latestWeightLb === null
-                ? '—'
-                : `${weight.latestWeightLb.toFixed(1)} lb`
-            }
-            detail={
-              weight.direction === null
-                ? 'Since tracking began'
-                : `${weight.direction[0]?.toUpperCase()}${weight.direction.slice(1)}`
-            }
-          />
-          {weight.changeLb === null ? null : (
-            <ReportingRow
-              icon={TrendingUp}
-              accent={WEIGHT}
-              label="Change"
-              value={`${weight.changeLb > 0 ? '+' : ''}${weight.changeLb.toFixed(1)} lb`}
-              detail="In the available period"
-            />
-          )}
-        </View>
-      )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="View reports in Insights"
-        className="flex-row items-center justify-between border-t border-line pt-5 active:opacity-70"
-        onPress={onReports}
-      >
-        <AppText variant="label" className="text-ink">
-          View reports
-        </AppText>
-        <ArrowRight color={INK} size={18} strokeWidth={2.1} />
-      </Pressable>
-    </View>
   );
 }
 
@@ -529,6 +165,17 @@ export default function ProgressScreen() {
   const [reporting, setReporting] = useState<ProgressResponse | null>(null);
   const [reportingError, setReportingError] = useState<string | null>(null);
   const [reportingLoading, setReportingLoading] = useState(true);
+  const [weeklyReport, setWeeklyReport] = useState<ReportsResponse | null>(
+    null,
+  );
+  const [weeklyReportError, setWeeklyReportError] = useState<string | null>(
+    null,
+  );
+  const [dailyNutrients, setDailyNutrients] =
+    useState<DailyNutrientTotals | null>(null);
+  const [dailyNutrientsError, setDailyNutrientsError] = useState<string | null>(
+    null,
+  );
 
   const loadSummary = useCallback(async (asRefresh = false) => {
     if (asRefresh) {
@@ -538,8 +185,11 @@ export default function ProgressScreen() {
     }
     setError(null);
     setReportingError(null);
+    setWeeklyReportError(null);
+    setDailyNutrientsError(null);
     setReportingLoading(true);
 
+    let loadedSummary: DashboardSummary | null = null;
     try {
       const [nextSummary, nextProfile, nextPreferences] = await Promise.all([
         api.dashboard.summary(),
@@ -547,6 +197,7 @@ export default function ProgressScreen() {
         api.trackingPreferences.get(),
       ]);
       setSummary(nextSummary);
+      loadedSummary = nextSummary;
       setProfile(nextProfile);
       setPreferences(nextPreferences);
       void syncLauncherIconToMode(nextPreferences.mode).catch(
@@ -560,15 +211,36 @@ export default function ProgressScreen() {
       setLoading(false);
     }
 
-    try {
-      const nextReporting = await api.analytics.progress();
-      setReporting(nextReporting);
-    } catch (loadError) {
-      setReportingError(errorMessage(loadError));
-    } finally {
+    if (loadedSummary === null) {
       setReportingLoading(false);
       setRefreshing(false);
+      return;
     }
+
+    const [progressResult, weeklyResult, dailyResult] =
+      await Promise.allSettled([
+        api.analytics.progress(),
+        api.analytics.reports({ period: 'week' }),
+        api.analytics.dailyNutrients({ date: loadedSummary.date }),
+      ]);
+
+    if (progressResult.status === 'fulfilled') {
+      setReporting(progressResult.value);
+    } else {
+      setReportingError(errorMessage(progressResult.reason));
+    }
+    if (weeklyResult.status === 'fulfilled') {
+      setWeeklyReport(weeklyResult.value);
+    } else {
+      setWeeklyReportError(errorMessage(weeklyResult.reason));
+    }
+    if (dailyResult.status === 'fulfilled') {
+      setDailyNutrients(dailyResult.value);
+    } else {
+      setDailyNutrientsError(errorMessage(dailyResult.reason));
+    }
+    setReportingLoading(false);
+    setRefreshing(false);
   }, []);
 
   useFocusEffect(
@@ -639,7 +311,6 @@ export default function ProgressScreen() {
     }
   };
 
-  const status = dailyStatus(summary);
   const entriesLabel =
     summary.foodLogCount === 1
       ? '1 entry'
@@ -648,21 +319,7 @@ export default function ProgressScreen() {
     summary.latestWeightLb === null
       ? 'No entry'
       : `${summary.latestWeightLb.toFixed(1)} lb`;
-  const calorieTargetLabel =
-    summary.calorieTarget === null || summary.calorieTarget <= 0
-      ? 'Target'
-      : `${formatWhole(summary.calorieTarget)} kcal`;
-  const proteinTargetLabel =
-    summary.proteinTarget === null || summary.proteinTarget <= 0
-      ? 'No target'
-      : `${formatGrams(summary.proteinTarget)} target`;
-  const proteinDetail =
-    summary.proteinRemaining === null
-      ? proteinTargetLabel
-      : summary.proteinRemaining <= 0
-        ? 'Protein target reached'
-        : `${formatGrams(summary.proteinRemaining)} left`;
-  const modeIsDetailed = summary.trackingMode === 'complex';
+  const modeIsComplex = summary.trackingMode === 'complex';
 
   return (
     <AppScreen
@@ -681,64 +338,29 @@ export default function ProgressScreen() {
         />
       </View>
 
+      <View className="flex-row items-end justify-between gap-3">
+        <AppText
+          variant="title"
+          className="text-[38px] leading-[46px] text-ink"
+        >
+          Progress
+        </AppText>
+        {reporting === null ? null : (
+          <StreakEntryAction
+            currentStreak={reporting.currentStreak.loggedDays}
+          />
+        )}
+      </View>
+
       {error === null ? null : (
         <ErrorState title="Couldn’t refresh progress" message={error} />
       )}
 
-      <View className="gap-6">
-        <View className="gap-4">
-          <StatusPill>{status.phrase}</StatusPill>
-          <View className="gap-1">
-            <View className="flex-row items-end gap-2">
-              <AppText
-                variant="hero"
-                className="text-[64px] leading-[68px] text-ink tabular-nums"
-              >
-                {status.number}
-              </AppText>
-              <AppText variant="label" className="pb-3 text-muted">
-                {status.unit}
-              </AppText>
-            </View>
-            <AppText className="max-w-[300px] text-muted">
-              {status.detail}
-            </AppText>
-          </View>
-        </View>
+      <ProgressCalorieHero summary={summary} weeklyReport={weeklyReport} />
 
-        <ProgressRail
-          progress={calorieProgress(summary)}
-          color={CALORIE}
-          startLabel={summary.foodLogCount === 0 ? 'Not started' : 'Logged'}
-          endLabel={calorieTargetLabel}
-        />
-      </View>
-
-      <View className="gap-1">
+      <AppCard elevated className="gap-0">
         <SignalRow
-          icon={Flame}
-          accent={CALORIE}
-          label="Calories"
-          detail={
-            summary.caloriesRemaining === null
-              ? 'Food energy logged today'
-              : summary.caloriesRemaining < 0
-                ? `${formatWhole(Math.abs(summary.caloriesRemaining))} kcal over`
-                : `${formatWhole(summary.caloriesRemaining)} kcal left`
-          }
-          value={`${formatWhole(summary.caloriesConsumed)} kcal`}
-        />
-        <SignalRow
-          icon={Beef}
-          accent={PROTEIN}
-          label="Protein"
-          detail={proteinDetail}
-          value={formatGrams(summary.proteinConsumed)}
-          progress={proteinProgress(summary)}
-        />
-        <SignalRow
-          icon={Utensils}
-          accent={WARM}
+          icon="food"
           label="Food entries"
           detail={
             summary.foodLogCount === 0 ? 'No food logged yet' : 'Logged today'
@@ -746,8 +368,7 @@ export default function ProgressScreen() {
           value={entriesLabel}
         />
         <SignalRow
-          icon={Scale}
-          accent={WEIGHT}
+          icon="weight"
           label="Latest weight"
           detail={
             summary.latestWeightLb === null
@@ -756,16 +377,15 @@ export default function ProgressScreen() {
           }
           value={weightValue}
         />
-        {modeIsDetailed ? (
+        {modeIsComplex ? (
           <SignalRow
-            icon={SlidersHorizontal}
-            accent={INK}
-            label="Tracking detail"
-            detail="Detailed fields are available when you log food."
-            value="Detailed"
+            icon="detail"
+            label="Tracking mode"
+            detail="Complex fields are available when you log food."
+            value="Complex"
           />
         ) : null}
-      </View>
+      </AppCard>
 
       {reportingError === null && reporting === null && reportingLoading ? (
         <View className="border-t border-line pt-6">
@@ -780,8 +400,13 @@ export default function ProgressScreen() {
           />
         </View>
       ) : reporting === null ? null : (
-        <ProgressReporting
+        <ProgressReportingSummary
           reporting={reporting}
+          weeklyReport={weeklyReport}
+          dailyNutrients={dailyNutrients}
+          weeklyReportError={weeklyReportError}
+          dailyNutrientsError={dailyNutrientsError}
+          onRetry={() => void loadSummary(true)}
           onReports={() => router.push('/(tabs)/insights')}
         />
       )}
