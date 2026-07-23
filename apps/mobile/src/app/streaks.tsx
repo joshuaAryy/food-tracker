@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { StreakCalendarResponse } from '@food-tracker/shared';
+import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
@@ -154,8 +155,8 @@ export default function StreaksScreen() {
           <ChevronLeft color={colors.light.ink} size={20} />
         </Pressable>
         <View className="min-w-0 flex-1">
-          <AppText variant="heading" className="text-ink">
-            Your logging streak
+          <AppText variant="heading" className="text-[24px] leading-8 text-ink">
+            Streak
           </AppText>
         </View>
       </View>
@@ -164,62 +165,54 @@ export default function StreaksScreen() {
         <ErrorState title="Couldn’t refresh your streak" message={error} />
       )}
 
-      <View className="gap-5">
-        <View className="flex-row flex-wrap items-center justify-between gap-4">
-          <View className="min-w-[176px] flex-1 gap-1">
-            <AppText
-              variant="caption"
-              className="uppercase tracking-[1.2px] text-muted"
-            >
-              Current streak
+      <AppCard
+        elevated
+        className="flex-row items-center justify-between gap-4 rounded-[22px]"
+      >
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText
+            variant="hero"
+            className="text-[60px] leading-[64px] text-ink tabular-nums"
+          >
+            {calendar.currentStreak.loggedDays}
+          </AppText>
+          <AppText variant="label" className="text-[16px] text-ink">
+            day logging streak
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            {calendar.currentStreak.todayOpen
+              ? 'Keep today open until you log.'
+              : status.message}
+          </AppText>
+        </View>
+        <StreakFlame size={78} />
+      </AppCard>
+
+      <AppCard elevated className="flex-row items-center gap-4">
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText variant="caption" className="font-bold text-muted">
+            LONGEST
+          </AppText>
+          <AppText variant="number" className="text-[28px] leading-9 text-ink">
+            {calendar.currentStreak.longestLoggedDays}{' '}
+            {calendar.currentStreak.longestLoggedDays === 1 ? 'day' : 'days'}
+          </AppText>
+        </View>
+        <View className="min-w-0 flex-1 flex-row items-center gap-2 border-l border-line pl-4">
+          <GraceLaurelIcon size={44} />
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="caption" className="font-bold text-muted">
+              GRACE DAY
             </AppText>
-            <View className="flex-row flex-wrap items-end gap-x-3 gap-y-1">
-              <AppText variant="hero" className="text-ink tabular-nums">
-                {calendar.currentStreak.loggedDays}
-              </AppText>
-              <AppText
-                variant="label"
-                className="max-w-[150px] pb-1 text-muted"
-              >
-                day logging streak
-              </AppText>
-            </View>
-          </View>
-          <View style={{ width: 88, height: 88 }}>
-            <StreakFlame size={88} />
+            <AppText variant="label" className="text-ink">
+              {graceAvailable ? 'Available' : 'Used'}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              Protects one missed day
+            </AppText>
           </View>
         </View>
-
-        <View className="flex-row flex-wrap border-y border-line py-4">
-          <View className="min-w-[132px] flex-1 gap-1 pr-4">
-            <AppText
-              variant="caption"
-              className="uppercase tracking-[1px] text-muted"
-            >
-              Longest
-            </AppText>
-            <AppText variant="number" className="text-ink">
-              {calendar.currentStreak.longestLoggedDays}{' '}
-              {calendar.currentStreak.longestLoggedDays === 1 ? 'day' : 'days'}
-            </AppText>
-          </View>
-          <View className="min-w-[132px] flex-1 flex-row items-center gap-2 border-l border-line pl-4">
-            <GraceLaurelIcon size={32} />
-            <View className="min-w-0 flex-1 gap-1">
-              <AppText
-                variant="caption"
-                className="uppercase tracking-[1px] text-muted"
-              >
-                Grace
-              </AppText>
-              <AppText variant="label" className="text-ink">
-                {graceAvailable ? 'Available' : 'Used'}
-              </AppText>
-            </View>
-          </View>
-        </View>
-      </View>
-
+      </AppCard>
       <View
         accessible
         accessibilityLabel={`${status.title}. ${status.message}`}
@@ -264,17 +257,6 @@ export default function StreaksScreen() {
           />
         </View>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Refresh streak"
-        className="min-h-[44px] self-center justify-center px-3 active:opacity-70"
-        onPress={() => void load(true)}
-      >
-        <AppText variant="caption" className="text-muted">
-          Refresh streak
-        </AppText>
-      </Pressable>
 
       <StreakDayDetailSheet
         day={selectedDay}

@@ -61,7 +61,7 @@ function CalendarDayPressable({
       accessibilityRole="button"
       accessibilityLabel={semanticDayLabel(day)}
       hitSlop={6}
-      className="items-center justify-start active:opacity-75"
+      className="items-center justify-start"
       style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
       onPress={() => onDayPress(day)}
     >
@@ -106,7 +106,7 @@ function GoldWeekDayPressable({
       accessibilityRole="button"
       accessibilityLabel={semanticDayLabel(day)}
       hitSlop={6}
-      className="items-center justify-start active:opacity-75"
+      className="items-center justify-start"
       style={{ width: DAY_CELL_SIZE, height: DAY_CELL_HEIGHT }}
       onPress={() => onDayPress(day)}
     >
