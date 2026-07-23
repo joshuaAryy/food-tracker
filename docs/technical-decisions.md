@@ -738,6 +738,45 @@ Status: Locked for implementation on 2026-07-23; validation pending
 - Phase 15.5 remains open until implementation, focused tests, full
   database-backed tests, native parity checks, and physical-iPhone visual
   approval are complete. Nothing is pushed or merged as part of this decision.
+
+## TD-026: Phase 15.5.1 Complete Reporting Goals And Mode Terminology
+
+Status: Locked for implementation on 2026-07-23; validation pending
+
+- The existing `UserGoal` record remains the single goal system. It gains
+  nullable `targetCarbsGrams`, `targetFatGrams`, `targetFiberGrams`,
+  `limitSugarGrams`, and `limitSodiumMg` fields. Nullable storage preserves
+  legacy rows and makes setup-incomplete states representable without a
+  destructive backfill.
+- Existing calorie and protein values remain authoritative and stable. New
+  onboarding derives all seven supported nutrient values from the existing
+  calorie/protein pipeline. Legacy rows with missing new fields use the same
+  deterministic resolver at reporting time; explicit values supplied through
+  the goals API override derived values. This is the selected lazy-backfill
+  strategy.
+- The deterministic macro formula reserves 4 kcal per gram of protein, splits
+  remaining target calories equally between carbohydrate (4 kcal/g) and fat
+  (9 kcal/g), and rounds stored grams to one decimal place. Fiber is a minimum
+  of 14 g per 1,000 target kcal. Sugar is a limit of 10% of target calories
+  divided by 4 kcal/g. Sodium uses the documented product default of 2,300 mg
+  unless explicitly configured. These are product tracking defaults, not
+  medical advice.
+- Goal direction is `target` for calories, `minimum` for protein,
+  carbohydrates, fat, and fiber, and `limit` for sugar and sodium. Percentage
+  means recorded period amount divided by `daily goal × applicable eligible
+  days`; limit values above 100% remain truthful and are not achievement
+  states. Invalid or missing denominators produce an explicit unavailable
+  state, never `Infinity`, `NaN`, or a fabricated percentage.
+- Extended normalized nutrients that remain visible in Complex mode use the
+  shared documented product-default threshold catalog, so every displayed
+  nutrient has a goal strategy. Water remains excluded from Phase 15 reports.
+- The persisted tracking enum remains `simple`/`complex`. A centralized
+  user-facing label mapping renders only `Simple` and `Complex`; `Detailed` is
+  not a mode label. Ordinary prose that uses “detailed” as an adjective is not
+  part of this terminology decision.
+- Reporting responses return goal metadata with value, unit, direction, source,
+  period-adjusted goal, and percentage. Mobile renders these facts and does not
+  calculate analytics or infer targets.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate

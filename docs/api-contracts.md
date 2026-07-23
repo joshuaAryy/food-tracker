@@ -236,13 +236,24 @@ Success `data`:
   "goalPace": "moderate",
   "targetWeightLb": 170.0,
   "targetCalories": 2200,
-  "targetProteinGrams": 150.0
+  "targetProteinGrams": 150.0,
+  "targetCarbsGrams": 200.0,
+  "targetFatGrams": 67.8,
+  "targetFiberGrams": 30.8,
+  "limitSugarGrams": 55.0,
+  "limitSodiumMg": 2300
 }
 ```
 
+The five new nutrient fields may be `null` on legacy or incomplete goal rows.
+The reporting endpoints still return a resolved goal or an explicit missing
+state; clients must not manufacture a target from a null goals field.
+
 ### `PUT /api/v1/goals`
 
-Creates or replaces the current user's goals. All fields are required.
+Creates or replaces the current user's goals. Existing goal fields remain
+required. The five nutrient override fields are optional and nullable; omitting
+or sending `null` selects the deterministic reporting derivation.
 
 Request:
 
@@ -252,7 +263,12 @@ Request:
   "goalPace": "moderate",
   "targetWeightLb": 170.0,
   "targetCalories": 2200,
-  "targetProteinGrams": 150.0
+  "targetProteinGrams": 150.0,
+  "targetCarbsGrams": 200.0,
+  "targetFatGrams": 67.8,
+  "targetFiberGrams": 30.8,
+  "limitSugarGrams": 55.0,
+  "limitSodiumMg": 2300
 }
 ```
 
@@ -1315,6 +1331,50 @@ Current calorie targets use `UserGoal.goalType`: gain 95–115%, maintain
 90–110%, and lose 85–105%. Protein is adherent at 90% or higher, independently
 of calorie adherence. Reports use current goals for historical periods; they do
 not recreate prior target versions.
+
+Each `current` and `previousCompleted` report also includes:
+
+```json
+{
+  "reportingGoals": {
+    "protein": {
+      "value": 150.0,
+      "unit": "g",
+      "direction": "minimum",
+      "source": "derived"
+    }
+  },
+  "nutrientDetails": {
+    "protein": {
+      "displayName": "Protein",
+      "category": "macro",
+      "total": 630.0,
+      "averagePerLoggedDay": 157.5,
+      "unit": "g",
+      "recordedDayCount": 4,
+      "goal": {
+        "value": 150.0,
+        "unit": "g",
+        "direction": "minimum",
+        "source": "derived"
+      },
+      "periodGoal": 600.0,
+      "percentage": 105.0
+    }
+  }
+}
+```
+
+`periodGoal` is the daily goal multiplied by the existing applicable eligible
+day count for that report window. Percentages are recorded period amount divided
+by `periodGoal`; they are omitted/null when the nutrient was not recorded, setup
+is incomplete, or the denominator is invalid. `limit` metrics such as sugar and
+sodium may exceed 100%. `source` is one of `user`, `derived`, `default`, or
+`missing`, and `unit` is the stored nutrient unit. The daily nutrient response
+uses the same resolved goal metadata for the approved Progress nutrient rows.
+
+The only user-facing tracking mode labels are `Simple` and `Complex`; the
+stored API enum remains `simple`/`complex`.
 
 ### `GET /api/v1/analytics/nutrients/daily`
 

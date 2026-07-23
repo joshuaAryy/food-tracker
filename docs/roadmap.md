@@ -442,6 +442,29 @@ iPhone visual approval all pass.
 - Simple-mode focused nutrients and deeper Complex-mode available nutrients
 - charts, custom ranges, notifications, exports, and historical goal versioning remain deferred
 
+### Phase 15.5.1 — Reporting Goal And Terminology Polish — In progress
+
+This tightly scoped follow-up preserves the approved Progress, Insights, and
+Streak layouts while closing the reporting data and copy gaps. The existing
+`UserGoal` model is extended with nullable daily carbs, fat, fiber, sugar-limit,
+and sodium-limit values. Onboarding writes deterministic derived values for new
+users; reports lazily derive missing values for legacy rows so existing users
+are not stranded without goals. Explicit values supplied through the goals API
+remain authoritative.
+
+Reporting exposes typed daily goals, direction, source, period-adjusted goals,
+and truthful percentages. Target/minimum metrics are protein, carbohydrates,
+fat, fiber, and calories; sugar and sodium are limit metrics and may exceed
+100% without being presented as positive achievement. The existing report
+eligible-day definition remains the period denominator rule. Missing setup,
+unrecorded nutrients, recorded zeroes, and invalid denominators remain distinct.
+
+The only user-facing tracking mode names are `Simple` and `Complex`. The stored
+`simple`/`complex` enum remains unchanged to avoid an unnecessary migration.
+No new visual design work is included. Completion remains gated on focused and
+full automated validation, native simulator parity, and final physical-device
+visual approval.
+
 ## Phase 16 — Custom Graphs and Complex Analytics
 
 - customizable graphs
