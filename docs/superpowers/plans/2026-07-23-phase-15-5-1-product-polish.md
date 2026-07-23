@@ -33,53 +33,53 @@
 
 **Files:** Create `packages/shared/src/reporting-goals.ts` and `apps/api/test/reporting-goals.test.ts`; modify shared exports only as needed.
 
-- [ ] Write failing tests for complete calorie/protein inputs, explicit-over-derived priority, deterministic 4/9 macro math, fiber/sugar/sodium formulas, all units/directions/sources, and null/zero/negative/NaN invalid inputs.
-- [ ] Run `corepack pnpm --filter @food-tracker/api test -- reporting-goals.test.ts` and confirm the failure is caused by the missing resolver/contract.
-- [ ] Add pure shared types for `ReportingGoal` and `ReportingGoalSource`, plus a resolver that accepts numeric goal fields and returns `{ value, unit, direction, source }` without Prisma, React Native, or time dependencies.
-- [ ] Add the documented product-default threshold catalog for normalized nutrients that the Complex ledger already renders, excluding water; use explicit core `UserGoal` values before derived values before defaults.
-- [ ] Run the focused test again and confirm it passes, then run `git diff --check`.
-- [ ] Commit the shared domain contract and tests as `feat: add complete nutrient goal model`.
+- [x] Write failing tests for complete calorie/protein inputs, explicit-over-derived priority, deterministic 4/9 macro math, fiber/sugar/sodium formulas, all units/directions/sources, and null/zero/negative/NaN invalid inputs.
+- [x] Run `corepack pnpm --filter @food-tracker/api test -- reporting-goals.test.ts` and confirm the failure is caused by the missing resolver/contract.
+- [x] Add pure shared types for `ReportingGoal` and `ReportingGoalSource`, plus a resolver that accepts numeric goal fields and returns `{ value, unit, direction, source }` without Prisma, React Native, or time dependencies.
+- [x] Add the documented product-default threshold catalog for normalized nutrients that the Complex ledger already renders, excluding water; use explicit core `UserGoal` values before derived values before defaults.
+- [x] Run the focused test again and confirm it passes, then run `git diff --check`.
+- [x] Commit the shared domain contract and tests as `feat: add complete nutrient goal model`.
 
 ## Task 2: Additive schema and onboarding/goal APIs
 
 **Files:** Modify `apps/api/prisma/schema.prisma`, `packages/shared/src/types.ts`, `packages/shared/src/schemas.ts`, `apps/api/src/lib/personalization.ts`, `apps/api/src/lib/serializers.ts`, `apps/api/src/lib/setup-completeness.ts`, `apps/api/src/modules/setup/routes.ts`, and `apps/api/src/modules/goals/routes.ts`; create `apps/api/prisma/migrations/20260723120000_complete_reporting_goals/migration.sql`; test setup and goals suites.
 
-- [ ] Add nullable `Decimal(6,1)` fields `targetCarbsGrams`, `targetFatGrams`, `targetFiberGrams`, `limitSugarGrams`, and nullable integer `limitSodiumMg`; write only additive `ALTER TABLE ... ADD COLUMN` migration statements.
-- [ ] Keep setup input free of target fields; have setup calculate and persist all seven supported values. Make the five direct-goal override fields optional/nullable so legacy clients remain valid and null means derive rather than zero.
-- [ ] Add failing setup/goals assertions for persisted derived fields, explicit override persistence, null legacy serialization, and unchanged calorie/protein values. Run the focused suites to observe the contract failures.
-- [ ] Implement serialization, rounding, setup persistence, and direct goals updates while leaving `isCompleteGoals` compatible with legacy rows that are repaired lazily.
-- [ ] Run `corepack pnpm prisma:generate`, the focused setup/goals suites, `corepack pnpm prisma:validate`, and migration deployment against the dedicated test database.
-- [ ] Commit only this boundary as `feat: persist complete nutrient goals`.
+- [x] Add nullable `Decimal(6,1)` fields `targetCarbsGrams`, `targetFatGrams`, `targetFiberGrams`, `limitSugarGrams`, and nullable integer `limitSodiumMg`; write only additive `ALTER TABLE ... ADD COLUMN` migration statements.
+- [x] Keep setup input free of target fields; have setup calculate and persist all seven supported values. Make the five direct-goal override fields optional/nullable so legacy clients remain valid and null means derive rather than zero.
+- [x] Add failing setup/goals assertions for persisted derived fields, explicit override persistence, null legacy serialization, and unchanged calorie/protein values. Run the focused suites to observe the contract failures.
+- [x] Implement serialization, rounding, setup persistence, and direct goals updates while leaving `isCompleteGoals` compatible with legacy rows that are repaired lazily.
+- [x] Run `corepack pnpm prisma:generate`, the focused setup/goals suites, `corepack pnpm prisma:validate`, and migration deployment against the dedicated test database.
+- [x] Commit only this boundary as `feat: persist complete nutrient goals` (with the follow-up input/response contract fix in `5d61cd8`).
 
 ## Task 3: Typed reporting contract and backend percentages (TDD)
 
 **Files:** Modify `packages/shared/src/reporting.ts`, `packages/shared/src/reporting-nutrients.ts`, `packages/shared/src/types.ts`, `apps/api/src/modules/analytics/reporting/service.ts`, and `apps/api/src/modules/analytics/routes.ts`; test `apps/api/test/reporting-api.test.ts` and `apps/api/test/nutrient-totals.test.ts`.
 
-- [ ] Add failing API fixtures for current/previous week, current/previous month, partial periods, no logged days, recorded zero, absent nullable values, explicit overrides, missing setup, and sugar/sodium above 100%.
-- [ ] Require `reportingGoals`, per-detail `goal`, `periodGoal`, and nullable `percentage`; require `periodGoal === daily goal * eligibleDays`, preserve absent nutrients, and assert no `NaN`/`Infinity` values or client-supplied `userId`.
-- [ ] Extend Zod schemas with goal direction/source metadata and response fields without changing existing unavailable metric envelopes.
-- [ ] Resolve goals at the reporting boundary from `UserGoal`, lazily deriving missing legacy fields. Pass the same goal map into current, previous-completed, and equivalent windows.
-- [ ] Calculate each recorded nutrient percentage as `period total / (daily goal * eligible-day count) * 100`; preserve over-limit values and null invalid denominators. Keep the existing Sunday–Saturday, partial-period, and previous-month boundary logic unchanged.
-- [ ] Extend `/analytics/nutrients/daily` with the same resolved goal metadata and one-day percentages so Progress renders backend facts.
-- [ ] Run focused reporting/API, nutrient-total, reporting-domain, and streak-calendar suites; commit as `feat: expose period nutrient goals in reporting`.
+- [x] Add failing API fixtures for current/previous week, current/previous month, partial periods, no logged days, recorded zero, absent nullable values, explicit overrides, missing setup, and sugar/sodium above 100%.
+- [x] Require `reportingGoals`, per-detail `goal`, `periodGoal`, and nullable `percentage`; require `periodGoal === daily goal * eligibleDays`, preserve absent nutrients, and assert no `NaN`/`Infinity` values or client-supplied `userId`.
+- [x] Extend Zod schemas with goal direction/source metadata and response fields without changing existing unavailable metric envelopes.
+- [x] Resolve goals at the reporting boundary from `UserGoal`, lazily deriving missing legacy fields. Pass the same goal map into current, previous-completed, and equivalent windows.
+- [x] Calculate each recorded nutrient percentage as `period total / (daily goal * eligible-day count) * 100`; preserve over-limit values and null invalid denominators. Keep the existing Sunday–Saturday, partial-period, and previous-month boundary logic unchanged.
+- [x] Extend `/analytics/nutrients/daily` with the same resolved goal metadata and one-day percentages so Progress renders backend facts.
+- [x] Run focused reporting/API, nutrient-total, reporting-domain, and streak-calendar suites; commit as `feat: expose period nutrient goals in reporting` (`6e7eb3f`).
 
 ## Task 4: Mobile presentation and mode terminology (TDD)
 
 **Files:** Modify `apps/mobile/src/lib/reporting-ui.ts`, `apps/mobile/src/components/progress-reporting-summary.tsx`, `apps/mobile/src/components/highlighted-nutrient-summary.tsx`, `apps/mobile/src/components/complete-nutrient-report.tsx`, `apps/mobile/src/app/onboarding.tsx`, `apps/mobile/src/components/onboarding-plan-preview.tsx`, `apps/mobile/src/app/(tabs)/profile.tsx`, and `apps/mobile/src/app/(tabs)/progress.tsx`; test `apps/api/test/mobile-reporting-ui.test.ts`.
 
-- [ ] Add failing helper tests for target/minimum/limit percentages, limit copy above 100%, setup-incomplete, not-recorded, genuine zero, invalid-goal states, no fake em dash, and no valid-goal `No goal set`.
-- [ ] Add a source scan test for mode labels that requires `Simple`/`Complex` in onboarding, profile, Progress, and mode-preview labels while allowing ordinary adjective uses of “detailed”.
-- [ ] Run `corepack pnpm --filter @food-tracker/api test -- mobile-reporting-ui.test.ts` and verify RED on the current protein-only helper and hard-coded `Detailed` labels.
-- [ ] Add `trackingModeLabel('simple') === 'Simple'` and `trackingModeLabel('complex') === 'Complex'`; use it for visible/accessibility mode labels without changing internal enum names or logo selection.
-- [ ] Replace protein-only mobile percentage branching with returned goal metadata. Format target/minimum percentages as percentages and limit metrics as `${percentage}% of limit`; render truthful setup/not-recorded copy and do not calculate nutrition facts in React Native.
-- [ ] Render daily returned percentages beside existing Progress nutrient amounts while preserving the approved calorie-first hero, card structure, spacing, artwork, colors, and responsive layout.
-- [ ] Run the focused mobile suite and modified-file Prettier check, then commit as `feat: show complete nutrient goal percentages` and, if separable, `fix: restore complex mode terminology`.
+- [x] Add failing helper tests for target/minimum/limit percentages, limit copy above 100%, setup-incomplete, not-recorded, genuine zero, invalid-goal states, no fake em dash, and no valid-goal `No goal set`.
+- [x] Add a source scan test for mode labels that requires `Simple`/`Complex` in onboarding, profile, Progress, and mode-preview labels while allowing ordinary adjective uses of “detailed”.
+- [x] Run `corepack pnpm --filter @food-tracker/api test -- mobile-reporting-ui.test.ts` and verify RED on the current protein-only helper and hard-coded `Detailed` labels.
+- [x] Add `trackingModeLabel('simple') === 'Simple'` and `trackingModeLabel('complex') === 'Complex'`; use it for visible/accessibility mode labels without changing internal enum names or logo selection.
+- [x] Replace protein-only mobile percentage branching with returned goal metadata. Format target/minimum percentages as percentages and limit metrics as `${percentage}% of limit`; render truthful setup/not-recorded copy and do not calculate nutrition facts in React Native.
+- [x] Render daily returned percentages beside existing Progress nutrient amounts while preserving the approved calorie-first hero, card structure, spacing, artwork, colors, and responsive layout.
+- [x] Run the focused mobile suite and modified-file Prettier check, then commit as `feat: show complete nutrient percentages and complex labels` (`2c77699`).
 
 ## Task 5: Repository scan, validation, and native gates
 
 **Files:** Update only owned documentation/tests or user-facing mode labels; create evidence outside the repository at `/private/tmp/food-tracker-phase15.5.1-native-parity/`.
 
-- [ ] Run `rg -n -i "Detailed|detailed|DETAIL" .`, classify each match, and update only mode-name uses. Do not touch protected current-image baselines, unrelated adjectives, or protected local files.
+- [x] Run `rg -n -i "Detailed|detailed|DETAIL" .`, classify each match, and update only mode-name uses. Do not touch protected current-image baselines, unrelated adjectives, or protected local files.
 - [ ] Run under the same Node 22 environment: `node -v`, `corepack pnpm -v`, `corepack pnpm prisma:validate`, `corepack pnpm format:check`, `corepack pnpm lint`, `corepack pnpm typecheck`, `corepack pnpm build`, `corepack pnpm test`, modified-file Prettier, `git diff --check`.
 - [ ] Before native work, require `df -h /` to show at least 10GiB free; then run `xcrun swiftc --version`, `xcode-select -p`, and `xcrun simctl list devices` without changing global Xcode configuration.
 - [ ] Once the storage gate passes, run `corepack pnpm --filter @food-tracker/mobile ios:dev-build:device` with bundle identifier `ca.joshuaaryeetey.foodtracker` and Apple team `6JMW7252B6`, then use the existing simulator workflow.
