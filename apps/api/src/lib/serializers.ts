@@ -93,6 +93,11 @@ export function serializeGoals(goals: UserGoal): Goals {
     targetWeightLb: decimalToNumber(goals.targetWeightLb) ?? 0,
     targetCalories: goals.targetCalories ?? 0,
     targetProteinGrams: decimalToNumber(goals.targetProteinGrams) ?? 0,
+    targetCarbsGrams: decimalToNumber(goals.targetCarbsGrams),
+    targetFatGrams: decimalToNumber(goals.targetFatGrams),
+    targetFiberGrams: decimalToNumber(goals.targetFiberGrams),
+    limitSugarGrams: decimalToNumber(goals.limitSugarGrams),
+    limitSodiumMg: goals.limitSodiumMg,
   };
 }
 

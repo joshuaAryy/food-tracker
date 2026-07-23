@@ -58,6 +58,11 @@ async function preview(input: typeof setupInput = setupInput) {
     calculatedTargets: {
       targetCalories: number;
       targetProteinGrams: number;
+      targetCarbsGrams: number;
+      targetFatGrams: number;
+      targetFiberGrams: number;
+      limitSugarGrams: number;
+      limitSodiumMg: number;
     };
   };
 }
@@ -161,11 +166,21 @@ describe('setup API', () => {
         targetWeightLb: 172,
         targetCalories: expect.any(Number),
         targetProteinGrams: expect.any(Number),
+        targetCarbsGrams: expect.any(Number),
+        targetFatGrams: expect.any(Number),
+        targetFiberGrams: expect.any(Number),
+        limitSugarGrams: expect.any(Number),
+        limitSodiumMg: expect.any(Number),
       },
       preferences: setupInput.preferences,
       calculatedTargets: {
         targetCalories: expect.any(Number),
         targetProteinGrams: expect.any(Number),
+        targetCarbsGrams: expect.any(Number),
+        targetFatGrams: expect.any(Number),
+        targetFiberGrams: expect.any(Number),
+        limitSugarGrams: expect.any(Number),
+        limitSodiumMg: expect.any(Number),
       },
       status: {
         profileComplete: true,
@@ -197,6 +212,28 @@ describe('setup API', () => {
     expect(preferences?.waterTrackingEnabled).toBe(true);
   });
 
+  it('persists deterministic reporting nutrient targets from onboarding', async () => {
+    const response = await api
+      .put('/api/v1/setup')
+      .send(setupInput)
+      .expect(200);
+
+    expect(response.body.data.goals).toMatchObject({
+      targetCarbsGrams: expect.any(Number),
+      targetFatGrams: expect.any(Number),
+      targetFiberGrams: expect.any(Number),
+      limitSugarGrams: expect.any(Number),
+      limitSodiumMg: expect.any(Number),
+    });
+    expect(response.body.data.calculatedTargets).toMatchObject({
+      targetCarbsGrams: expect.any(Number),
+      targetFatGrams: expect.any(Number),
+      targetFiberGrams: expect.any(Number),
+      limitSugarGrams: expect.any(Number),
+      limitSodiumMg: expect.any(Number),
+    });
+  });
+
   it('previews calculated targets without writing setup rows', async () => {
     const result = await preview();
 
@@ -205,6 +242,11 @@ describe('setup API', () => {
       calculatedTargets: {
         targetCalories: expect.any(Number),
         targetProteinGrams: expect.any(Number),
+        targetCarbsGrams: expect.any(Number),
+        targetFatGrams: expect.any(Number),
+        targetFiberGrams: expect.any(Number),
+        limitSugarGrams: expect.any(Number),
+        limitSodiumMg: expect.any(Number),
       },
     });
     expect(

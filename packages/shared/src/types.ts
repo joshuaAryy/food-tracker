@@ -78,7 +78,31 @@ export interface Goals {
   targetWeightLb: number;
   targetCalories: number;
   targetProteinGrams: number;
+  targetCarbsGrams: number | null;
+  targetFatGrams: number | null;
+  targetFiberGrams: number | null;
+  limitSugarGrams: number | null;
+  limitSodiumMg: number | null;
 }
+
+export type GoalsInput = Omit<
+  Goals,
+  | 'targetCarbsGrams'
+  | 'targetFatGrams'
+  | 'targetFiberGrams'
+  | 'limitSugarGrams'
+  | 'limitSodiumMg'
+> &
+  Partial<
+    Pick<
+      Goals,
+      | 'targetCarbsGrams'
+      | 'targetFatGrams'
+      | 'targetFiberGrams'
+      | 'limitSugarGrams'
+      | 'limitSodiumMg'
+    >
+  >;
 
 export interface TrackingPreferences {
   mode: TrackingMode;
@@ -99,6 +123,11 @@ export interface SetupResult {
   calculatedTargets: {
     targetCalories: number;
     targetProteinGrams: number;
+    targetCarbsGrams: number;
+    targetFatGrams: number;
+    targetFiberGrams: number;
+    limitSugarGrams: number;
+    limitSodiumMg: number;
   };
   status: SetupStatus;
 }
@@ -108,6 +137,11 @@ export interface SetupPreviewResult {
   calculatedTargets: {
     targetCalories: number;
     targetProteinGrams: number;
+    targetCarbsGrams: number;
+    targetFatGrams: number;
+    targetFiberGrams: number;
+    limitSugarGrams: number;
+    limitSodiumMg: number;
   };
 }
 

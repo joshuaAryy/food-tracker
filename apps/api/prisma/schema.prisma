@@ -199,6 +199,11 @@ model UserGoal {
   targetWeightLb     Decimal?  @db.Decimal(5, 1)
   targetCalories     Int?
   targetProteinGrams Decimal?  @db.Decimal(5, 1)
+  targetCarbsGrams   Decimal?  @db.Decimal(6, 1)
+  targetFatGrams     Decimal?  @db.Decimal(6, 1)
+  targetFiberGrams   Decimal?  @db.Decimal(6, 1)
+  limitSugarGrams    Decimal?  @db.Decimal(6, 1)
+  limitSodiumMg      Int?
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

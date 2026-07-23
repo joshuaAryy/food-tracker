@@ -1,4 +1,7 @@
-import type { SetupInput } from '@food-tracker/shared';
+import {
+  resolveReportingGoals,
+  type SetupInput,
+} from '@food-tracker/shared';
 import { roundTo } from './serializers.js';
 
 const activityMultipliers = {
@@ -75,6 +78,11 @@ export function calculatePersonalizedTargets(
   age: number;
   targetCalories: number;
   targetProteinGrams: number;
+  targetCarbsGrams: number;
+  targetFatGrams: number;
+  targetFiberGrams: number;
+  limitSugarGrams: number;
+  limitSodiumMg: number;
 } {
   const age = calculateAge(input.profile.birthDate, today);
   const weightKg = input.profile.startingWeightLb * 0.45359237;
@@ -94,10 +102,31 @@ export function calculatePersonalizedTargets(
     input.profile.startingWeightLb * proteinMultiplier(input),
     1,
   );
+  const reportingGoals = resolveReportingGoals({
+    targetCalories,
+    targetProteinGrams,
+    targetCarbsGrams: null,
+    targetFatGrams: null,
+    targetFiberGrams: null,
+    limitSugarGrams: null,
+    limitSodiumMg: null,
+  });
+  const requiredGoal = (key: keyof typeof reportingGoals): number => {
+    const value = reportingGoals[key]?.value;
+    if (value === null || value === undefined) {
+      throw new Error(`Unable to derive required reporting goal: ${key}`);
+    }
+    return value;
+  };
 
   return {
     age,
     targetCalories,
     targetProteinGrams,
+    targetCarbsGrams: requiredGoal('carbs'),
+    targetFatGrams: requiredGoal('fat'),
+    targetFiberGrams: requiredGoal('fiber'),
+    limitSugarGrams: requiredGoal('sugar'),
+    limitSodiumMg: requiredGoal('sodium'),
   };
 }

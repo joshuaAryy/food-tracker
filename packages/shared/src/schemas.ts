@@ -108,6 +108,11 @@ const goalsBaseSchema = z.strictObject({
   targetWeightLb: z.number().positive(),
   targetCalories: z.number().int().nonnegative(),
   targetProteinGrams: z.number().nonnegative(),
+  targetCarbsGrams: z.number().positive().nullable().optional(),
+  targetFatGrams: z.number().positive().nullable().optional(),
+  targetFiberGrams: z.number().positive().nullable().optional(),
+  limitSugarGrams: z.number().positive().nullable().optional(),
+  limitSodiumMg: z.number().int().positive().nullable().optional(),
 });
 
 export const goalsSchema = goalsBaseSchema.refine(
@@ -181,6 +186,11 @@ export const setupResultSchema = z.strictObject({
   calculatedTargets: z.strictObject({
     targetCalories: z.number().int().nonnegative(),
     targetProteinGrams: z.number().nonnegative(),
+    targetCarbsGrams: z.number().positive(),
+    targetFatGrams: z.number().positive(),
+    targetFiberGrams: z.number().positive(),
+    limitSugarGrams: z.number().positive(),
+    limitSodiumMg: z.number().int().positive(),
   }),
   status: setupStatusSchema,
 });
@@ -192,6 +202,11 @@ export const setupPreviewResultSchema = z.strictObject({
   calculatedTargets: z.strictObject({
     targetCalories: z.number().int().nonnegative(),
     targetProteinGrams: z.number().nonnegative(),
+    targetCarbsGrams: z.number().positive(),
+    targetFatGrams: z.number().positive(),
+    targetFiberGrams: z.number().positive(),
+    limitSugarGrams: z.number().positive(),
+    limitSodiumMg: z.number().int().positive(),
   }),
 });
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { goalsSchema, type Goals } from '@food-tracker/shared';
+import { goalsSchema, type GoalsInput } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
 import { notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
@@ -24,11 +24,18 @@ goalsRouter.get('/', async (_request, response) => {
 
 goalsRouter.put('/', validateBody(goalsSchema), async (_request, response) => {
   const userId = currentUserId(response);
-  const input = validatedBody<Goals>(response);
+  const input = validatedBody<GoalsInput>(response);
+  const roundOptional = (value: number | null | undefined, places: number) =>
+    value === null || value === undefined ? value : roundTo(value, places);
   const data = {
     ...input,
     targetWeightLb: roundTo(input.targetWeightLb, 1),
     targetProteinGrams: roundTo(input.targetProteinGrams, 1),
+    targetCarbsGrams: roundOptional(input.targetCarbsGrams, 1),
+    targetFatGrams: roundOptional(input.targetFatGrams, 1),
+    targetFiberGrams: roundOptional(input.targetFiberGrams, 1),
+    limitSugarGrams: roundOptional(input.limitSugarGrams, 1),
+    limitSodiumMg: roundOptional(input.limitSodiumMg, 0),
   };
   const goals = await prisma.userGoal.upsert({
     where: { userId },
