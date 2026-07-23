@@ -14,6 +14,7 @@ import {
   nutrientGroupForDetail,
   nutrientGroupLabel,
   nutrientPresentation,
+  nutrientPresentationAccessibilityLabel,
   toggleExpandedGroup,
 } from '@/lib/reporting-ui';
 
@@ -99,13 +100,15 @@ export function CompleteNutrientReport({
             </AppText>
           </Pressable>
         </View>
-        {visibleGroups.map((group) => {
+        {visibleGroups.map((group, groupIndex) => {
           const isExpanded = expandedGroups.has(group);
           const groupEntries = grouped.get(group) ?? [];
           return (
             <View
               key={group}
-              className="border-t border-line py-3 first:border-t-0"
+              className={
+                groupIndex === 0 ? 'py-3' : 'border-t border-line py-3'
+              }
             >
               <Pressable
                 accessibilityRole="button"
@@ -132,8 +135,8 @@ export function CompleteNutrientReport({
                 )}
               </Pressable>
               {isExpanded ? (
-                <View className="gap-3 pt-3">
-                  {groupEntries.map(({ key, detail }) => {
+                <View className="pt-3">
+                  {groupEntries.map(({ key, detail }, index) => {
                     const presentation = nutrientPresentation({
                       key,
                       detail,
@@ -141,7 +144,14 @@ export function CompleteNutrientReport({
                       setupComplete,
                     });
                     return (
-                      <View key={key} className="flex-row items-start gap-3">
+                      <View
+                        key={key}
+                        className={
+                          index === 0
+                            ? 'flex-row items-start gap-3 pb-3'
+                            : 'flex-row items-start gap-3 border-t border-line py-3'
+                        }
+                      >
                         <View className="min-w-0 flex-1 gap-1">
                           <AppText variant="label" className="text-ink">
                             {detail.displayName}
@@ -150,14 +160,29 @@ export function CompleteNutrientReport({
                             {presentation.totalLabel}
                           </AppText>
                         </View>
-                        <AppText
-                          accessible
-                          accessibilityLabel={`${detail.displayName}: ${presentation.statusLabel}`}
-                          variant="caption"
-                          className="max-w-[140px] pt-0.5 text-right text-ink"
-                        >
-                          {presentation.statusLabel}
-                        </AppText>
+                        <View className="max-w-[150px] items-end gap-0.5">
+                          <AppText
+                            accessible
+                            accessibilityLabel={nutrientPresentationAccessibilityLabel(
+                              {
+                                displayName: detail.displayName,
+                                presentation,
+                              },
+                            )}
+                            variant="caption"
+                            className="text-right text-ink tabular-nums"
+                          >
+                            {presentation.statusLabel}
+                          </AppText>
+                          {presentation.goalMetadataLabel !== null ? (
+                            <AppText
+                              variant="caption"
+                              className="text-right text-muted tabular-nums"
+                            >
+                              {presentation.goalMetadataLabel}
+                            </AppText>
+                          ) : null}
+                        </View>
                       </View>
                     );
                   })}

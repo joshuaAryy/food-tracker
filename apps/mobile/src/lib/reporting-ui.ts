@@ -199,6 +199,7 @@ export type NutrientPresentation = {
   totalLabel: string;
   percentageLabel: string;
   statusLabel: string;
+  goalMetadataLabel: string | null;
 };
 
 export function trackingModeLabel(mode: TrackingMode | ReportMode): string {
@@ -243,10 +244,11 @@ export function nutrientGoalPercentageLabel(
   percentage: number | null,
   direction: ReportingGoal['direction'] = 'target',
   goalValue?: number | null,
+  options: { includeLimitContext?: boolean } = {},
 ): string {
   if (percentage === null || !Number.isFinite(percentage)) {
     if (goalValue === null || goalValue === undefined) {
-      return 'Complete setup to see nutrient goals';
+      return 'Complete setup to see nutrient goal';
     }
     if (goalValue === 0 && direction === 'limit') {
       return 'Zero limit; track the recorded amount';
@@ -254,7 +256,9 @@ export function nutrientGoalPercentageLabel(
     return 'No goal set';
   }
   const label = `${Math.round(percentage)}%`;
-  return direction === 'limit' ? `${label} of limit` : label;
+  return options.includeLimitContext && direction === 'limit'
+    ? `${label} of limit`
+    : label;
 }
 
 export function nutrientPercentageLabel({
@@ -284,8 +288,9 @@ export function nutrientPercentageAccessibilityLabel({
   report: NutrientPercentageReport;
 }): string {
   const label = nutrientPercentageLabel({ key, average, report });
-  if (label.endsWith('of limit')) {
-    return `${label}; lower is better`;
+  const goal = nutrientGoal(key, report, report.nutrientDetails?.[key]);
+  if (goal?.direction === 'limit' && label.endsWith('%')) {
+    return `${label} of the configured nutrient limit; lower is better`;
   }
   return label.endsWith('%')
     ? `${label} of the available nutrient target`
@@ -296,6 +301,52 @@ function formatNutrientAmount(value: number, unit: string): string {
   return `${value.toLocaleString('en-US', {
     maximumFractionDigits: unit === 'mg' || unit === 'mcg' ? 0 : 1,
   })} ${unit}`;
+}
+
+export function nutrientGoalMetadataLabel(
+  detail: ReportingNutrientDetail | null,
+): string | null {
+  if (detail === null) return null;
+  const { goal, periodGoal } = detail;
+  const hasUsableGoal =
+    goal.value !== null &&
+    goal.value !== undefined &&
+    Number.isFinite(goal.value) &&
+    (goal.value > 0 || goal.direction === 'limit');
+  if (
+    !hasUsableGoal ||
+    periodGoal === null ||
+    !Number.isFinite(periodGoal) ||
+    periodGoal < 0 ||
+    (periodGoal === 0 && goal.direction !== 'limit')
+  ) {
+    return null;
+  }
+
+  const label = goal.direction === 'limit' ? 'Limit' : 'Goal';
+  return `${label} ${formatNutrientAmount(periodGoal, goal.unit)}`;
+}
+
+export function nutrientPresentationAccessibilityLabel({
+  displayName,
+  presentation,
+}: {
+  displayName: string;
+  presentation: NutrientPresentation;
+}): string {
+  if (
+    presentation.state !== 'recorded' ||
+    presentation.goalMetadataLabel === null
+  ) {
+    return `${displayName}, ${presentation.totalLabel}, ${presentation.statusLabel}`;
+  }
+
+  const percentage = presentation.percentageLabel.replace('%', ' percent');
+  const [direction, ...valueParts] = presentation.goalMetadataLabel.split(' ');
+  const value = valueParts.join(' ');
+  const context =
+    direction === 'Limit' ? `of a ${value} limit` : `of a ${value} goal`;
+  return `${displayName}, ${presentation.totalLabel}, ${percentage} ${context}`;
 }
 
 export function nutrientRowCopy({
@@ -327,12 +378,13 @@ export function nutrientPresentation({
         state === 'setup_incomplete' ? 'Setup incomplete' : 'Not recorded',
       percentageLabel:
         state === 'setup_incomplete'
-          ? 'Complete setup to see nutrient goals'
+          ? 'Complete setup to see nutrient goal'
           : 'Not recorded in this period',
       statusLabel:
         state === 'setup_incomplete'
-          ? 'Complete setup to see nutrient goals'
+          ? 'Complete setup to see nutrient goal'
           : 'Not recorded in this period',
+      goalMetadataLabel: null,
     };
   }
 
@@ -358,7 +410,7 @@ export function nutrientPresentation({
   const unavailableGoalLabel =
     goal?.direction === 'limit' && goal.value === 0
       ? 'Zero limit; track the recorded amount'
-      : 'Complete setup to see nutrient goals';
+      : 'Complete setup to see nutrient goal';
 
   return {
     state,
@@ -367,6 +419,8 @@ export function nutrientPresentation({
       state === 'setup_incomplete' ? unavailableGoalLabel : percentageLabel,
     statusLabel:
       state === 'setup_incomplete' ? unavailableGoalLabel : percentageLabel,
+    goalMetadataLabel:
+      state === 'recorded' ? nutrientGoalMetadataLabel(detail) : null,
   };
 }
 

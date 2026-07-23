@@ -162,6 +162,7 @@ function DailyNutrientBand({
                       percentages[key] ?? null,
                       reportingGoals[key]?.direction,
                       reportingGoals[key]?.value,
+                      { includeLimitContext: true },
                     )}
                   </AppText>
                 ) : null}

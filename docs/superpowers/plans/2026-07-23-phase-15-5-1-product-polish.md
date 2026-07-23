@@ -71,9 +71,23 @@
 - [x] Add a source scan test for mode labels that requires `Simple`/`Complex` in onboarding, profile, Progress, and mode-preview labels while allowing ordinary adjective uses of “detailed”.
 - [x] Run `corepack pnpm --filter @food-tracker/api test -- mobile-reporting-ui.test.ts` and verify RED on the current protein-only helper and hard-coded `Detailed` labels.
 - [x] Add `trackingModeLabel('simple') === 'Simple'` and `trackingModeLabel('complex') === 'Complex'`; use it for visible/accessibility mode labels without changing internal enum names or logo selection.
-- [x] Replace protein-only mobile percentage branching with returned goal metadata. Format target/minimum percentages as percentages and limit metrics as `${percentage}% of limit`; render truthful setup/not-recorded copy and do not calculate nutrition facts in React Native.
+- [x] Replace protein-only mobile percentage branching with returned goal metadata. Format every primary Insights percentage as `${percentage}%`; render period-adjusted `Goal …` or `Limit …` metadata separately, preserve truthful setup/not-recorded copy, and do not calculate nutrition facts in React Native.
 - [x] Render daily returned percentages beside existing Progress nutrient amounts while preserving the approved calorie-first hero, card structure, spacing, artwork, colors, and responsive layout.
 - [x] Run the focused mobile suite and modified-file Prettier check, then commit as `feat: show complete nutrient percentages and complex labels` (`2c77699`).
+
+### Phase 15.5.1 Insights consistency follow-up
+
+- [x] Add shared period `Goal …`/`Limit …` metadata to macro summaries,
+  nutrient highlights, and the Complete nutrient ledger; keep setup,
+  not-recorded, zero, and over-limit states truthful.
+- [x] Give Protein, Carbohydrates, and Fat the same mint progress-rail
+  structure in current and previous MacroReportSummary instances. Keep the
+  Complete nutrient ledger and highlight cards as bar-free reading surfaces.
+- [x] Restore inset neutral separators between category headers and expanded
+  nutrient rows without adding a final trailing divider or changing the
+  approved card hierarchy.
+- [x] Preserve the existing Progress limit copy path while applying the
+  uniform primary percentage rule to the Insights presentation helpers.
 
 ## Task 5: Repository scan, validation, and native gates
 

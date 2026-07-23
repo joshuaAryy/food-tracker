@@ -6,6 +6,7 @@ import { ReportingSectionHeading } from './reporting-section-heading';
 import {
   highlightedNutrientEntries,
   nutrientPresentation,
+  nutrientPresentationAccessibilityLabel,
 } from '@/lib/reporting-ui';
 
 export function HighlightedNutrientSummary({
@@ -46,8 +47,11 @@ export function HighlightedNutrientSummary({
               elevated
               compact
               accessible
-              accessibilityLabel={`${displayName}: ${presentation.totalLabel}; ${presentation.statusLabel}`}
-              className="gap-2 rounded-[18px]"
+              accessibilityLabel={nutrientPresentationAccessibilityLabel({
+                displayName,
+                presentation,
+              })}
+              className="gap-1 rounded-[18px]"
               style={{ width: cardWidth, minHeight: 112 }}
             >
               <AppText variant="caption" className="text-[13px] text-ink">
@@ -62,6 +66,11 @@ export function HighlightedNutrientSummary({
               <AppText variant="caption" className="text-muted">
                 {presentation.statusLabel}
               </AppText>
+              {presentation.goalMetadataLabel !== null ? (
+                <AppText variant="caption" className="text-muted tabular-nums">
+                  {presentation.goalMetadataLabel}
+                </AppText>
+              ) : null}
             </AppCard>
           );
         })}

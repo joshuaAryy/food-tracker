@@ -8,6 +8,7 @@ import { AppText } from './app-text';
 import { ReportingSectionHeading } from './reporting-section-heading';
 import {
   nutrientPresentation,
+  nutrientPresentationAccessibilityLabel,
   type NutrientPresentation,
 } from '@/lib/reporting-ui';
 import { colors } from '@/theme/tokens';
@@ -19,28 +20,21 @@ const macroEntries = [
 ] as const;
 
 function MacroRow({
-  keyName,
   label,
   presentation,
   detail,
-  target,
 }: {
-  keyName: string;
   label: string;
   presentation: NutrientPresentation;
   detail: ReportingNutrientDetail | null;
-  target: number | null | undefined;
 }) {
-  const showProteinRail =
-    keyName === 'protein' &&
-    detail !== null &&
-    target !== null &&
-    target !== undefined &&
-    target > 0;
-  const proteinRatio =
-    showProteinRail && detail !== null && target !== null
-      ? Math.min(1, Math.max(0, detail.averagePerLoggedDay / target))
-      : 0;
+  const percentage = detail?.percentage;
+  const progressRatio =
+    percentage === null ||
+    percentage === undefined ||
+    !Number.isFinite(percentage)
+      ? 0
+      : Math.min(100, Math.max(0, percentage));
 
   return (
     <View className="gap-2 border-t border-line py-4 first:border-t-0 first:pt-0 last:pb-0">
@@ -55,30 +49,41 @@ function MacroRow({
               : `${presentation.totalLabel} total`}
           </AppText>
         </View>
-        <AppText
-          accessible
-          accessibilityLabel={`${label}: ${presentation.statusLabel}`}
-          variant="label"
-          className="max-w-[126px] pt-0.5 text-right text-ink tabular-nums"
-        >
-          {presentation.statusLabel}
-        </AppText>
-      </View>
-      {showProteinRail ? (
-        <View
-          accessible
-          accessibilityLabel={`${label} average progress, ${presentation.statusLabel}`}
-          className="h-2 overflow-hidden rounded-full bg-primary-soft"
-        >
-          <View
-            className="h-full rounded-full"
-            style={{
-              width: `${proteinRatio * 100}%`,
-              backgroundColor: colors.light.loggedProgress,
-            }}
-          />
+        <View className="max-w-[150px] items-end gap-0.5">
+          <AppText
+            accessible
+            accessibilityLabel={nutrientPresentationAccessibilityLabel({
+              displayName: label,
+              presentation,
+            })}
+            variant="label"
+            className="text-right text-ink tabular-nums"
+          >
+            {presentation.statusLabel}
+          </AppText>
+          {presentation.goalMetadataLabel !== null ? (
+            <AppText
+              variant="caption"
+              className="text-right text-muted tabular-nums"
+            >
+              {presentation.goalMetadataLabel}
+            </AppText>
+          ) : null}
         </View>
-      ) : null}
+      </View>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        className="h-2 overflow-hidden rounded-full bg-primary-soft"
+      >
+        <View
+          className="h-full rounded-full"
+          style={{
+            width: `${progressRatio}%`,
+            backgroundColor: colors.light.loggedProgress,
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -109,11 +114,9 @@ export function MacroReportSummary({
           return (
             <MacroRow
               key={key}
-              keyName={key}
               label={label}
               presentation={presentation}
               detail={detail}
-              target={key === 'protein' ? report.proteinTargetGrams : null}
             />
           );
         })}

@@ -13,6 +13,7 @@ import {
   nutrientPercentageAccessibilityLabel,
   nutrientPercentageLabel,
   nutrientPresentation,
+  nutrientPresentationAccessibilityLabel,
   highlightedNutrientEntries,
   nutrientRowCopy,
   trackingModeLabel,
@@ -380,6 +381,7 @@ describe('mobile reporting presentation helpers', () => {
       state: 'recorded',
       totalLabel: '0 g',
       percentageLabel: '0%',
+      goalMetadataLabel: 'Goal 200 g',
     });
     expect(
       nutrientPresentation({
@@ -389,7 +391,7 @@ describe('mobile reporting presentation helpers', () => {
       }),
     ).toMatchObject({
       state: 'setup_incomplete',
-      statusLabel: 'Complete setup to see nutrient goals',
+      statusLabel: 'Complete setup to see nutrient goal',
     });
     expect(
       nutrientPresentation({
@@ -410,7 +412,7 @@ describe('mobile reporting presentation helpers', () => {
       }),
     ).toMatchObject({
       state: 'setup_incomplete',
-      statusLabel: 'Complete setup to see nutrient goals',
+      statusLabel: 'Complete setup to see nutrient goal',
     });
   });
 
@@ -461,6 +463,7 @@ describe('mobile reporting presentation helpers', () => {
       totalLabel: '23 g',
       percentageLabel: '92%',
       statusLabel: '92%',
+      goalMetadataLabel: 'Goal 25 g',
     });
 
     expect(
@@ -481,9 +484,30 @@ describe('mobile reporting presentation helpers', () => {
       }),
     ).toMatchObject({
       state: 'recorded',
-      percentageLabel: '120% of limit',
-      statusLabel: '120% of limit',
+      percentageLabel: '120%',
+      statusLabel: '120%',
+      goalMetadataLabel: 'Limit 50 g',
     });
+    expect(
+      nutrientPresentationAccessibilityLabel({
+        displayName: 'Sugar',
+        presentation: nutrientPresentation({
+          key: 'sugar',
+          detail: {
+            displayName: 'Sugar',
+            category: 'macro',
+            total: 60,
+            averagePerLoggedDay: 60,
+            unit: 'g',
+            recordedDayCount: 1,
+            goal: report.reportingGoals.sugar,
+            periodGoal: 50,
+            percentage: 120,
+          },
+          report,
+        }),
+      }),
+    ).toBe('Sugar, 60 g, 120 percent of a 50 g limit');
 
     expect(
       nutrientPresentation({
@@ -528,6 +552,52 @@ describe('mobile reporting presentation helpers', () => {
     ]);
     expect(entries.find((entry) => entry.key === 'sugar')?.detail).toBeNull();
     expect(entries.find((entry) => entry.key === 'sodium')?.detail).toBeNull();
+  });
+
+  it('keeps Insights reporting rows structurally consistent', async () => {
+    const macroSource = await readFile(
+      new URL(
+        '../../mobile/src/components/macro-report-summary.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const highlightSource = await readFile(
+      new URL(
+        '../../mobile/src/components/highlighted-nutrient-summary.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const completeSource = await readFile(
+      new URL(
+        '../../mobile/src/components/complete-nutrient-report.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    const insightsSource = await readFile(
+      new URL(
+        '../../mobile/src/components/insights-report-content.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+
+    expect(macroSource).toContain('macroEntries.map');
+    expect(macroSource).toContain('detail?.percentage');
+    expect(macroSource).toContain('goalMetadataLabel');
+    expect(macroSource).toContain('colors.light.loggedProgress');
+    expect(macroSource).not.toContain('showProteinRail');
+    expect(macroSource).not.toContain('keyName ===');
+    expect(highlightSource).toContain('goalMetadataLabel');
+    expect(highlightSource).not.toContain('loggedProgress');
+    expect(highlightSource).toContain('const small = width <= 340;');
+    expect(completeSource).toContain('groupIndex === 0');
+    expect(completeSource).toContain('index === 0');
+    expect(completeSource).toContain('border-t border-line');
+    expect(completeSource).not.toContain('loggedProgress');
+    expect(insightsSource.match(/<MacroReportSummary/g)).toHaveLength(2);
   });
 
   it('keeps prior-period no-data copy compact and boundary-aware', () => {

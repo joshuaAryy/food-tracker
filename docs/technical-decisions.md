@@ -777,6 +777,13 @@ Status: Locked for implementation on 2026-07-23; validation pending
 - Reporting responses return goal metadata with value, unit, direction, source,
   period-adjusted goal, and percentage. Mobile renders these facts and does not
   calculate analytics or infer targets.
+- Insights presents a valid primary percentage uniformly as `${percentage}%`.
+  Target and minimum metrics show a muted period-adjusted `Goal …` line, while
+  limit metrics show a muted `Limit …` line; the visible percentage does not
+  append `of limit`. Limit percentages above 100% remain truthful. Macro
+  summaries alone use per-item mint progress rails; nutrient highlights and the
+  Complete nutrient ledger remain compact, bar-free surfaces. The ledger uses
+  subtle inset separators between category headers and expanded nutrient rows.
 # Phase 13 — Custom Food Library and Saved Foods
 
 Default servings are validated prefills, not nutrition calculations. Candidate
