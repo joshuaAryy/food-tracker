@@ -30,6 +30,7 @@ import {
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAppStore } from '@/store/app-store';
+import { trackingModeLabel } from '@/lib/reporting-ui';
 
 function formattedDate(value: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -52,9 +53,9 @@ function ModeBadge({
 
   return (
     <Pressable
-      accessibilityLabel={`Switch tracking mode. Current mode is ${
-        simple ? 'Simple' : 'Detailed'
-      }.`}
+      accessibilityLabel={`Switch tracking mode. Current mode is ${trackingModeLabel(
+        simple ? 'simple' : 'complex',
+      )}.`}
       accessibilityRole="button"
       className={`flex-row items-center gap-2 rounded-full border border-line bg-white px-3 py-2 active:opacity-70 ${
         switching ? 'opacity-55' : ''
@@ -64,7 +65,7 @@ function ModeBadge({
     >
       <AppLogo mode={simple ? 'simple' : 'complex'} size={23} />
       <AppText variant="caption" className="text-ink">
-        {simple ? 'Simple' : 'Detailed'}
+        {trackingModeLabel(simple ? 'simple' : 'complex')}
       </AppText>
     </Pressable>
   );
@@ -318,7 +319,7 @@ export default function ProgressScreen() {
     summary.latestWeightLb === null
       ? 'No entry'
       : `${summary.latestWeightLb.toFixed(1)} lb`;
-  const modeIsDetailed = summary.trackingMode === 'complex';
+  const modeIsComplex = summary.trackingMode === 'complex';
 
   return (
     <AppScreen
@@ -376,12 +377,12 @@ export default function ProgressScreen() {
           }
           value={weightValue}
         />
-        {modeIsDetailed ? (
+        {modeIsComplex ? (
           <SignalRow
             icon="detail"
-            label="Tracking detail"
-            detail="Detailed fields are available when you log food."
-            value="Detailed"
+            label="Tracking mode"
+            detail="Complex fields are available when you log food."
+            value="Complex"
           />
         ) : null}
       </AppCard>

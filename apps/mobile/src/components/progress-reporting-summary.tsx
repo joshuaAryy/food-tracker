@@ -13,6 +13,7 @@ import { ReportingSectionHeading } from './reporting-section-heading';
 import {
   calorieHeroContext,
   calorieHeroTargetLabel,
+  nutrientGoalPercentageLabel,
   weeklyMomentumDayState,
   weeklyMomentumFinalDay,
 } from '@/lib/reporting-ui';
@@ -127,6 +128,8 @@ function DailyNutrientBand({
   dailyNutrients: DailyNutrientTotals | null;
 }) {
   const nutrients = dailyNutrients?.nutrients ?? {};
+  const reportingGoals = dailyNutrients?.reportingGoals ?? {};
+  const percentages = dailyNutrients?.percentages ?? {};
   const keys = ['protein', 'carbs', 'fat', 'fiber', 'sugar', 'sodium'] as const;
   const entries = keys.flatMap((key) => {
     const value = nutrients[key];
@@ -155,11 +158,13 @@ function DailyNutrientBand({
                       ? 'Carbohydrates'
                       : key[0]?.toUpperCase() + key.slice(1)}
                 </AppText>
-                {key === 'protein' &&
-                summary.proteinTarget !== null &&
-                summary.proteinTarget > 0 ? (
+                {reportingGoals[key] !== undefined ? (
                   <AppText variant="caption" className="text-muted">
-                    of {Math.round(summary.proteinTarget)} g goal
+                    {nutrientGoalPercentageLabel(
+                      percentages[key] ?? null,
+                      reportingGoals[key]?.direction,
+                      reportingGoals[key]?.value,
+                    )}
                   </AppText>
                 ) : null}
               </View>

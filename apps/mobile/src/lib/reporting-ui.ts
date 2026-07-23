@@ -8,6 +8,8 @@ import type {
   ReportsResponse,
   ReportingNutrientDetail,
   ReportingNutrientGroup,
+  ReportingGoal,
+  TrackingMode,
 } from '@food-tracker/shared';
 import { reportingNutrientGroupForCategory } from '@food-tracker/shared';
 
@@ -183,6 +185,7 @@ type NutrientPercentageReport = {
   proteinTargetGrams?: number | null | undefined;
   proteinAdherence?: ReportsResponse['current']['proteinAdherence'] | undefined;
   nutrientDetails?: ReportsResponse['current']['nutrientDetails'] | undefined;
+  reportingGoals?: ReportsResponse['current']['reportingGoals'] | undefined;
 };
 
 export type NutrientPresentationState =
@@ -198,6 +201,62 @@ export type NutrientPresentation = {
   statusLabel: string;
 };
 
+export function trackingModeLabel(mode: TrackingMode | ReportMode): string {
+  return mode === 'simple' ? 'Simple' : 'Complex';
+}
+
+function nutrientGoal(
+  key: string,
+  report: NutrientPercentageReport,
+  detail?: ReportingNutrientDetail | null,
+) {
+  return detail?.goal ?? report.reportingGoals?.[key];
+}
+
+function nutrientPercentage(
+  key: string,
+  average: number,
+  report: NutrientPercentageReport,
+  detail?: ReportingNutrientDetail | null,
+): number | null {
+  if (detail?.percentage !== null && detail?.percentage !== undefined) {
+    return Number.isFinite(detail.percentage) ? detail.percentage : null;
+  }
+
+  if (key === 'protein' && report.proteinAdherence?.available) {
+    return report.proteinAdherence.value.percentage;
+  }
+
+  const goal = nutrientGoal(key, report, detail);
+  if (
+    goal?.value === null ||
+    goal?.value === undefined ||
+    goal.value <= 0 ||
+    !Number.isFinite(average)
+  ) {
+    return null;
+  }
+  return (average / goal.value) * 100;
+}
+
+export function nutrientGoalPercentageLabel(
+  percentage: number | null,
+  direction: ReportingGoal['direction'] = 'target',
+  goalValue?: number | null,
+): string {
+  if (percentage === null || !Number.isFinite(percentage)) {
+    if (goalValue === null || goalValue === undefined) {
+      return 'Complete setup to see nutrient goals';
+    }
+    if (goalValue === 0 && direction === 'limit') {
+      return 'Zero limit; track the recorded amount';
+    }
+    return 'No goal set';
+  }
+  const label = `${Math.round(percentage)}%`;
+  return direction === 'limit' ? `${label} of limit` : label;
+}
+
 export function nutrientPercentageLabel({
   key,
   average,
@@ -207,17 +266,11 @@ export function nutrientPercentageLabel({
   average: number;
   report: NutrientPercentageReport;
 }): string {
-  if (key !== 'protein') return 'No goal set';
-
-  if (report.proteinAdherence?.available) {
-    return `${Math.round(report.proteinAdherence.value.percentage)}%`;
-  }
-
-  const target = report.proteinTargetGrams ?? null;
-  if (target === null || target <= 0 || !Number.isFinite(average)) {
-    return 'No goal set';
-  }
-  return `${Math.round((average / target) * 100)}%`;
+  const goal = nutrientGoal(key, report, report.nutrientDetails?.[key]);
+  return nutrientGoalPercentageLabel(
+    nutrientPercentage(key, average, report, report.nutrientDetails?.[key]),
+    goal?.direction,
+  );
 }
 
 export function nutrientPercentageAccessibilityLabel({
@@ -230,6 +283,9 @@ export function nutrientPercentageAccessibilityLabel({
   report: NutrientPercentageReport;
 }): string {
   const label = nutrientPercentageLabel({ key, average, report });
+  if (label.endsWith('of limit')) {
+    return `${label}; lower is better`;
+  }
   return label.endsWith('%')
     ? `${label} of the available nutrient target`
     : label;
@@ -279,36 +335,37 @@ export function nutrientPresentation({
     };
   }
 
-  const percentageLabel = nutrientPercentageLabel({
+  const goal = nutrientGoal(key, report, detail);
+  const hasUsableGoal =
+    goal?.value !== null &&
+    goal?.value !== undefined &&
+    Number.isFinite(goal.value) &&
+    (goal.value > 0 || goal.direction === 'limit');
+  const percentage = nutrientPercentage(
     key,
-    average: detail.averagePerLoggedDay,
+    detail.averagePerLoggedDay,
     report,
-  });
-  const hasProteinTarget =
-    key === 'protein' &&
-    report.proteinTargetGrams !== null &&
-    report.proteinTargetGrams !== undefined &&
-    report.proteinTargetGrams > 0;
-  const state: NutrientPresentationState =
-    !setupComplete && key === 'protein' && !hasProteinTarget
-      ? 'setup_incomplete'
-      : hasProteinTarget
-        ? 'recorded'
-        : 'no_goal';
+    detail,
+  );
+  const percentageLabel = nutrientGoalPercentageLabel(
+    percentage,
+    goal?.direction,
+  );
+  const state: NutrientPresentationState = !hasUsableGoal
+    ? 'setup_incomplete'
+    : 'recorded';
+  const unavailableGoalLabel =
+    goal?.direction === 'limit' && goal.value === 0
+      ? 'Zero limit; track the recorded amount'
+      : 'Complete setup to see nutrient goals';
 
   return {
     state,
     totalLabel: formatNutrientAmount(detail.total, detail.unit),
     percentageLabel:
-      state === 'setup_incomplete'
-        ? 'Complete setup to see nutrient goals'
-        : percentageLabel,
+      state === 'setup_incomplete' ? unavailableGoalLabel : percentageLabel,
     statusLabel:
-      state === 'setup_incomplete'
-        ? 'Complete setup to see nutrient goals'
-        : state === 'no_goal'
-          ? 'No goal set'
-          : percentageLabel,
+      state === 'setup_incomplete' ? unavailableGoalLabel : percentageLabel,
   };
 }
 

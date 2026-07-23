@@ -297,7 +297,7 @@ Launcher icon and native splash config should only change when explicitly
 approved and reviewed.
 
 The default launcher icon uses the simple mode mark from
-`apps/mobile/assets/icons/simple.png`. Complex/Detailed mode uses the configured
+`apps/mobile/assets/icons/simple.png`. Complex mode uses the configured
 `ComplexMode` alternate launcher icon from
 `apps/mobile/assets/icons/complex.png` through `expo-alternate-app-icons`.
 Changing launcher icon config requires rebuilding the Expo development build.
@@ -415,7 +415,7 @@ results, saved foods, and reusable-food choices should render as open rows with
 thin dividers, compact serving/nutrition metadata, and small save affordances,
 not as stacked cards. Selected foods may use a compact chosen row plus a
 serving multiplier control. Simple mode should keep calories and protein most
-visible; Detailed mode may expose common macros and a quiet indication that
+visible; Complex mode may expose common macros and a quiet indication that
 more nutrients exist, without turning the main logging screen into a full
 micronutrient editor.
 
@@ -448,7 +448,7 @@ rows, and small rings or rails only where they improve scanning. Do not solve
 Insights with repeated bordered `AppCard` stacks.
 
 Simple mode should emphasize calories, protein, logging consistency, weight,
-and direct recommendations. Complex/Detailed mode may show macro split,
+and direct recommendations. Complex mode may show macro split,
 nutrition detail, and completeness signals, but it should still read as a
 quiet report rather than a dense analytics panel.
 
@@ -469,7 +469,7 @@ quiet dividers, icon-supported rows, and a stable save area.
 
 Avoid solving Profile with repeated bordered cards. Settings groups should read
 as headings plus crisp rows, with pills or selected bands for choices. Use the
-real Simple and Complex/Detailed mode marks where tracking mode is shown, and
+real Simple and Complex mode marks where tracking mode is shown, and
 keep the copy focused on what the user can change rather than calculation or
 storage mechanics.
 

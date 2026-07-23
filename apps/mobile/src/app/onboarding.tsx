@@ -47,6 +47,7 @@ import {
 import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
+import { trackingModeLabel } from '@/lib/reporting-ui';
 import { useAppStore } from '@/store/app-store';
 
 type StepKey =
@@ -457,7 +458,7 @@ function TrackingModeChoice({
               <View className="min-w-0 flex-1">
                 <View className="flex-row items-center justify-between gap-3">
                   <AppText variant="heading" className="text-onboarding-text">
-                    {simple ? 'Simple tracking' : 'Detailed tracking'}
+                    {trackingModeLabel(simple ? 'simple' : 'complex')} tracking
                   </AppText>
                   <View
                     className={`rounded-full px-3 py-1 ${
@@ -638,7 +639,7 @@ export default function OnboardingScreen() {
     stepKey === 'mode' ? (
       <OnboardingSupport
         label="What this changes"
-        value="Simple keeps logging light. Detailed gives you more nutrition detail when you want it."
+        value="Simple keeps logging light. Complex gives you more nutrition detail when you want it."
       />
     ) : stepKey === 'name' ? (
       <OnboardingSupport
@@ -701,7 +702,7 @@ export default function OnboardingScreen() {
         {stepKey === 'mode'
           ? mode === 'simple'
             ? 'Start simple'
-            : 'Start detailed'
+            : 'Start complex'
           : 'Continue'}
       </ContinueButton>
     );
@@ -1170,7 +1171,7 @@ export default function OnboardingScreen() {
                     />
                     <SummaryRow
                       label="Tracking"
-                      value={mode === 'simple' ? 'Simple' : 'Detailed'}
+                      value={trackingModeLabel(mode)}
                       divided={false}
                     />
                   </OnboardingSummaryGroup>
