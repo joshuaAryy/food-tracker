@@ -270,6 +270,7 @@ export function nutrientPercentageLabel({
   return nutrientGoalPercentageLabel(
     nutrientPercentage(key, average, report, report.nutrientDetails?.[key]),
     goal?.direction,
+    goal === undefined ? 0 : goal.value,
   );
 }
 
