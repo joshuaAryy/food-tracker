@@ -1,7 +1,10 @@
+import type { AuthErrorCode } from '@food-tracker/shared';
+
 export type ErrorCode =
   | 'VALIDATION_ERROR'
   | 'NOT_FOUND'
   | 'UNAUTHORIZED'
+  | AuthErrorCode
   | 'AI_UNAVAILABLE'
   | 'UNSUPPORTED_IMAGE_TYPE'
   | 'IMAGE_TOO_LARGE'
@@ -46,5 +49,5 @@ export class AppError extends Error {
 }
 
 export function notFoundError(resource: string): AppError {
-  return new AppError(404, 'NOT_FOUND', `${resource} not found`);
+  return new AppError(404, 'NOT_FOUND', `${resource} not found`, { resource });
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { AppError } from '../../lib/errors.js';
 import type { AiFoodParseConfig } from './config.js';
 
@@ -90,36 +91,25 @@ const geminiNutritionEstimateResponseSchema = {
   required: ['foodName', 'calories', 'protein', 'carbs', 'fat'],
 } as const;
 
-function aiUnavailable(message = 'AI food parsing is unavailable.'): AppError {
-  return new AppError(503, 'AI_UNAVAILABLE', message);
-}
-
-function diagnosticText(value: string): string {
-  return value
-    .replace(
-      /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
-      '$1=[redacted]',
-    )
-    .replace(/Meal description:\s*.+/gi, 'Meal description: [redacted]')
-    .slice(0, 1_000);
-}
-
-async function responseDiagnostic(response: Response): Promise<string> {
-  try {
-    return diagnosticText(await response.text());
-  } catch {
-    return '[unreadable response body]';
-  }
+function aiUnavailable(
+  message = 'AI food parsing is unavailable.',
+  publicMessageKey?:
+    | 'nutrition_estimate_cut_off'
+    | 'nutrition_estimate_unavailable',
+): AppError {
+  return new AppError(
+    503,
+    'AI_UNAVAILABLE',
+    message,
+    publicMessageKey === undefined ? {} : { publicMessageKey },
+  );
 }
 
 function logGeminiDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn('[ai-food-parse:gemini]', {
-    category,
-    ...details,
-  });
+  emitServerDiagnostic(category, details, 'ai-food-parse:gemini');
 }
 
 function extractJsonText(text: string): string {
@@ -422,8 +412,7 @@ class GeminiFoodParseProvider implements FoodParseProvider {
       if (!response.ok) {
         logGeminiDiagnostic('non_ok_response', {
           status: response.status,
-          statusText: response.statusText,
-          body: await responseDiagnostic(response),
+          operation: 'food_parse',
         });
         throw aiUnavailable('AI food parsing could not be reached.');
       }
@@ -444,10 +433,9 @@ class GeminiFoodParseProvider implements FoodParseProvider {
       let output: unknown;
       try {
         output = JSON.parse(extractJsonText(text));
-      } catch (error) {
+      } catch {
         logGeminiDiagnostic('json_parse_failure', {
-          message: error instanceof Error ? error.message : 'unknown',
-          text: diagnosticText(text),
+          operation: 'food_parse',
         });
         throw aiUnavailable('AI food parsing returned invalid JSON.');
       }
@@ -473,7 +461,13 @@ class GeminiFoodParseProvider implements FoodParseProvider {
         error instanceof DOMException && error.name === 'AbortError'
           ? 'timeout'
           : 'request_failure',
-        { message: error instanceof Error ? error.message : 'unknown' },
+        {
+          operation: 'food_parse',
+          errorCategory:
+            error instanceof Error && error.name === 'AbortError'
+              ? 'timeout'
+              : 'network_or_provider',
+        },
       );
 
       throw aiUnavailable(
@@ -547,12 +541,12 @@ class GeminiNutritionEstimateProvider implements NutritionEstimateProvider {
       if (!response.ok) {
         logGeminiDiagnostic('nutrition_estimate_non_ok_response', {
           status: response.status,
-          statusText: response.statusText,
-          body: await responseDiagnostic(response),
+          operation: 'nutrition_estimate',
         });
         if (response.status === 429 || response.status === 503) {
           throw aiUnavailable(
             'AI nutrition estimates are temporarily unavailable.',
+            'nutrition_estimate_unavailable',
           );
         }
         throw aiUnavailable('AI nutrition estimates could not be reached.');
@@ -570,7 +564,10 @@ class GeminiNutritionEstimateProvider implements NutritionEstimateProvider {
           status: response.status,
           ...geminiCandidateDiagnostics(payload),
         });
-        throw aiUnavailable('AI nutrition estimates were cut off. Try again.');
+        throw aiUnavailable(
+          'AI nutrition estimates were cut off. Try again.',
+          'nutrition_estimate_cut_off',
+        );
       }
 
       if (!hasAnyTextPart(payload)) {
@@ -601,7 +598,13 @@ class GeminiNutritionEstimateProvider implements NutritionEstimateProvider {
         error instanceof DOMException && error.name === 'AbortError'
           ? 'nutrition_estimate_timeout'
           : 'nutrition_estimate_request_failure',
-        { message: error instanceof Error ? error.message : 'unknown' },
+        {
+          operation: 'nutrition_estimate',
+          errorCategory:
+            error instanceof Error && error.name === 'AbortError'
+              ? 'timeout'
+              : 'network_or_provider',
+        },
       );
 
       throw aiUnavailable(

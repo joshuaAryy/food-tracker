@@ -6,12 +6,13 @@ import {
   type PhotoNutritionEstimateBasis,
 } from '@food-tracker/shared';
 import { z } from 'zod';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import type { PhotoAnalysisConfig } from './photo-config.js';
+import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 import {
   validatePhotoNutritionEstimate,
   type PhotoNutritionEstimateValues,
 } from './photo-nutrition-estimate.js';
-import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
 export interface PhotoAdjudicationCandidateSummary {
   candidateRef: string;
@@ -137,9 +138,10 @@ const geminiResponseSchema = {
 } as const;
 
 function logDiagnostic(category: string, details: Record<string, unknown>) {
-  console.warn(
-    '[photo-adjudication:provider]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
+  emitServerDiagnostic(
+    category,
+    photoAnalysisDiagnosticDetails(details),
+    'photo-adjudication:provider',
   );
 }
 

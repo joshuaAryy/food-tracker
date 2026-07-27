@@ -19,6 +19,7 @@ import {
 } from '@food-tracker/shared';
 import type { NutrientKey, NutrientUnit } from '@prisma/client';
 import { AppError, notFoundError } from '../../lib/errors.js';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { prisma } from '../../lib/prisma.js';
 import {
   AuthoritativeServingInvariantError,
@@ -196,8 +197,8 @@ export async function frozenIngredient(
     };
   } catch (error) {
     if (error instanceof AuthoritativeServingInvariantError) {
-      console.error('Recipe ingredient snapshot invariant failed', {
-        foodItemId: foodItem.id,
+      emitServerDiagnostic('recipe_snapshot_invariant_failed', {
+        operation: 'recipe_ingredient_snapshot',
       });
       throw new AppError(
         500,
@@ -216,8 +217,8 @@ function ingredientSnapshotOrError(
     ingredient.ingredientSnapshot,
   );
   if (parsed.success) return parsed.data;
-  console.error('Stored Recipe ingredient snapshot failed validation', {
-    recipeIngredientId: ingredient.id,
+  emitServerDiagnostic('recipe_snapshot_validation_failed', {
+    operation: 'recipe_ingredient_snapshot',
   });
   throw new AppError(
     500,

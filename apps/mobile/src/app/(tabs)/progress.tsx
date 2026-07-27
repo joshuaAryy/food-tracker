@@ -29,6 +29,7 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
+import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { trackingModeLabel } from '@/lib/reporting-ui';
 
@@ -200,10 +201,10 @@ export default function ProgressScreen() {
       loadedSummary = nextSummary;
       setProfile(nextProfile);
       setPreferences(nextPreferences);
-      void syncLauncherIconToMode(nextPreferences.mode).catch(
-        (iconSyncError: unknown) => {
-          console.warn('Unable to sync launcher icon', iconSyncError);
-        },
+      void syncLauncherIconToMode(nextPreferences.mode).catch(() =>
+        reportDiagnostic('launcher_icon_sync_failed', {
+          operation: 'mode_icon_sync',
+        }),
       );
     } catch (loadError) {
       setError(errorMessage(loadError));

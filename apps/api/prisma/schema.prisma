@@ -162,6 +162,10 @@ enum NutrientUnit {
 model User {
   id                         String                      @id @default(uuid()) @db.Uuid
   email                      String?
+  firebaseUid                String?                     @unique
+  firebaseDisplayName        String?
+  firebasePhotoUrl           String?
+  firebaseProviderIds        String[]                    @default([])
   createdAt                  DateTime                    @default(now()) @db.Timestamptz
   updatedAt                  DateTime                    @updatedAt @db.Timestamptz
   profile                    UserProfile?

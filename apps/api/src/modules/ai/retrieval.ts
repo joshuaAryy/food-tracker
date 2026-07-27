@@ -8,6 +8,7 @@ import type {
   FoodItem,
 } from '@food-tracker/shared';
 import { Prisma } from '@prisma/client';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { prisma } from '../../lib/prisma.js';
 import { serializeFoodItem } from '../../lib/serializers.js';
 import {
@@ -85,9 +86,10 @@ function logUsdaRetrievalDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn(
-    '[ai-food-parse:usda]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
+  emitServerDiagnostic(
+    category,
+    photoAnalysisDiagnosticDetails(details),
+    'ai-food-parse:usda',
   );
 }
 

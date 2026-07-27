@@ -38,6 +38,7 @@ import {
   TRAINING_STYLES,
 } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
+import { AccountSignOutButton } from '@/components/auth/account-sign-out-button';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -48,8 +49,10 @@ import {
   SkeletonRail,
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
+import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
@@ -510,6 +513,7 @@ function ProfileSkeleton() {
 }
 
 export default function ProfileScreen() {
+  const { signOut } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -616,10 +620,10 @@ export default function ProfileScreen() {
       setHasMissingData(false);
       setNotice('Your preferences are saved.');
       markDataChanged();
-      void syncLauncherIconToMode(preferences.mode).catch(
-        (iconSyncError: unknown) => {
-          console.warn('Unable to sync launcher icon', iconSyncError);
-        },
+      void syncLauncherIconToMode(preferences.mode).catch(() =>
+        reportDiagnostic('launcher_icon_sync_failed', {
+          operation: 'mode_icon_sync',
+        }),
       );
     } catch (saveError) {
       setError(errorMessage(saveError));
@@ -1070,6 +1074,13 @@ export default function ProfileScreen() {
         onSave={() => void save()}
         onCancel={cancelChanges}
       />
+
+      <SettingsSection
+        title="Account"
+        description="Your data stays separated from other accounts on this device."
+      >
+        <AccountSignOutButton onSignOut={signOut} />
+      </SettingsSection>
     </AppScreen>
   );
 }

@@ -20,6 +20,7 @@ export interface RecipeServingSession {
 interface AppState {
   dataVersion: number;
   markDataChanged: () => void;
+  resetUserData: () => void;
   recipeServingSession: RecipeServingSession | null;
   recipeServingResult: (RecipeServingResult & { key: string }) | null;
   beginRecipeServing: (session: RecipeServingSession) => void;
@@ -68,6 +69,15 @@ export const useAppStore = create<AppState>((set) => ({
   dataVersion: 0,
   markDataChanged: () =>
     set((state) => ({ dataVersion: state.dataVersion + 1 })),
+  resetUserData: () =>
+    set((state) => ({
+      dataVersion: state.dataVersion + 1,
+      recipeServingSession: null,
+      recipeServingResult: null,
+      mixedMealDraft: null,
+      mixedMealManualResult: null,
+      photoLogSession: null,
+    })),
   recipeServingSession: null,
   recipeServingResult: null,
   beginRecipeServing: (session) =>

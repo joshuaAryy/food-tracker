@@ -1,13 +1,55 @@
 import type { RequestHandler, Response } from 'express';
-import type { ZodType } from 'zod';
+import type { ZodIssue, ZodType } from 'zod';
 import { AppError } from '../lib/errors.js';
 
 type ValidationTarget = 'body' | 'query' | 'params';
 
 type ValidatedValues = Partial<Record<ValidationTarget, unknown>>;
 
-function validationMessage(issues: { message: string }[]): string {
-  return issues[0]?.message ?? 'Request validation failed';
+const VALIDATION_FIELDS = new Set([
+  'name',
+  'email',
+  'password',
+  'age',
+  'birthDate',
+  'sex',
+  'heightInches',
+  'startingWeightLb',
+  'activityLevel',
+  'trainingStyle',
+  'foodName',
+  'description',
+  'mealType',
+  'calories',
+  'protein',
+  'carbs',
+  'fat',
+  'weightLb',
+  'loggedAt',
+  'timezone',
+  'goalPace',
+  'targetWeightLb',
+  'targetCalories',
+  'targetProteinGrams',
+]);
+
+function validationFields(issues: readonly ZodIssue[]) {
+  return issues.flatMap((issue) => {
+    const field = issue.path.find(
+      (part): part is string =>
+        typeof part === 'string' && VALIDATION_FIELDS.has(part),
+    );
+    if (field === undefined) return [];
+    return [
+      {
+        field,
+        reason:
+          issue.code === 'invalid_type' || issue.code === 'too_small'
+            ? 'required'
+            : 'invalid',
+      },
+    ];
+  });
 }
 
 function validate(target: ValidationTarget, schema: ZodType): RequestHandler {
@@ -16,12 +58,9 @@ function validate(target: ValidationTarget, schema: ZodType): RequestHandler {
 
     if (!result.success) {
       next(
-        new AppError(
-          400,
-          'VALIDATION_ERROR',
-          validationMessage(result.error.issues),
-          { issues: result.error.issues },
-        ),
+        new AppError(400, 'VALIDATION_ERROR', 'Request validation failed', {
+          fields: validationFields(result.error.issues),
+        }),
       );
       return;
     }

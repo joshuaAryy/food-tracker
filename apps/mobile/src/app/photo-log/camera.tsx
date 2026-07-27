@@ -14,6 +14,7 @@ import {
 } from '@/lib/photo-image';
 import { useAppStore } from '@/store/app-store';
 import { safePhotoLogBack } from '@/lib/photo-log-navigation';
+import { toUserFacingError } from '@/lib/user-facing-errors';
 
 function sessionId(): string {
   return `photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -141,9 +142,7 @@ export default function PhotoLogCameraScreen() {
         ]);
       }
       setCameraError(
-        cause instanceof PhotoImageError
-          ? cause.message
-          : 'The photo could not be captured. Try again.',
+        toUserFacingError(cause, 'The photo could not be captured. Try again.'),
       );
     } finally {
       setCapturing(false);

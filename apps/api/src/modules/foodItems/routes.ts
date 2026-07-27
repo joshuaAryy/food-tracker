@@ -767,6 +767,7 @@ foodItemsRouter.post(
         400,
         'VALIDATION_ERROR',
         'Barcode must be a supported retail barcode.',
+        { publicMessageKey: 'barcode_invalid' },
       );
     }
 

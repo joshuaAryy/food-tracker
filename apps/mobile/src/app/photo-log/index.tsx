@@ -8,13 +8,11 @@ import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
-import {
-  cleanupPhotoFiles,
-  normalizePhotoImage,
-  PhotoImageError,
-} from '@/lib/photo-image';
+import { cleanupPhotoFiles, normalizePhotoImage } from '@/lib/photo-image';
 import { ensurePhotoLibraryPermission } from '@/lib/photo-log-ui';
 import { safePhotoLogBack } from '@/lib/photo-log-navigation';
+import { reportDiagnostic } from '@/lib/safe-diagnostics';
+import { toUserFacingError } from '@/lib/user-facing-errors';
 import { useAppStore } from '@/store/app-store';
 
 function sessionId(): string {
@@ -106,15 +104,10 @@ export default function PhotoLogSourceScreen() {
       }
       const asset = result.assets[0];
       if (asset === undefined) return;
-      if (__DEV__) {
-        console.warn('[photo-debug] library asset returned', {
-          uriScheme: asset.uri.split(':', 1)[0] ?? 'unknown',
-          fileExtension: asset.uri.split('.').pop()?.toLowerCase() ?? 'unknown',
-          mimeType: asset.mimeType ?? 'unknown',
-          width: asset.width,
-          height: asset.height,
-        });
-      }
+      reportDiagnostic('photo_library_asset_received', {
+        operation: 'photo_analysis',
+        uriScheme: asset.uri.split(':', 1)[0] ?? 'unknown',
+      });
       const normalized = await normalizePhotoImage({
         uri: asset.uri,
         width: asset.width,
@@ -124,16 +117,10 @@ export default function PhotoLogSourceScreen() {
             ? asset.exif.Orientation
             : null,
       });
-      if (__DEV__) {
-        console.warn('[photo-debug] library normalization complete', {
-          uriScheme: normalized.uri.split(':', 1)[0] ?? 'unknown',
-          fileExists: true,
-          normalizedByteSize: normalized.byteSize,
-          normalizedMimeType: normalized.mimeType,
-          width: normalized.width,
-          height: normalized.height,
-        });
-      }
+      reportDiagnostic('photo_library_normalized', {
+        operation: 'photo_analysis',
+        uriScheme: normalized.uri.split(':', 1)[0] ?? 'unknown',
+      });
       if (!activeRef.current || pickerRequestRef.current !== pickerRequestId) {
         await cleanupPhotoFiles([
           { uri: normalized.uri, ownership: 'app_normalized' },
@@ -165,9 +152,10 @@ export default function PhotoLogSourceScreen() {
     } catch (cause) {
       if (activeRef.current && pickerRequestRef.current === pickerRequestId) {
         setError(
-          cause instanceof PhotoImageError
-            ? cause.message
-            : 'The photo could not be prepared. Try choosing another image.',
+          toUserFacingError(
+            cause,
+            'The photo could not be prepared. Try choosing another image.',
+          ),
         );
       }
     } finally {

@@ -52,7 +52,6 @@ import type {
   StreakCalendarResponse,
 } from '@food-tracker/shared';
 import {
-  API_BASE_PATH,
   goalsSchema,
   profileSchema,
   setupPreviewResultSchema,
@@ -71,17 +70,30 @@ import {
 import type { NormalizedPhotoImage } from './photo-image-core';
 import {
   parseApiResponse as parseStandardApiResponse,
+  sanitizePublicErrorDetails,
   type ResponseSchema,
 } from './api-response';
+import { reportDiagnostic } from './safe-diagnostics';
+import { toUserFacingError } from './user-facing-errors';
+import type { ApiAuthSession } from './api-auth-session';
 
 const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(
   /\/+$/,
   '',
 );
-export const API_URL =
-  configuredApiUrl === undefined || configuredApiUrl === ''
-    ? `http://localhost:3000${API_BASE_PATH}`
-    : configuredApiUrl;
+if (configuredApiUrl === undefined || configuredApiUrl === '') {
+  throw new Error(
+    'EXPO_PUBLIC_API_URL must be configured before the app starts.',
+  );
+}
+
+export const API_URL = configuredApiUrl;
+
+let apiAuthSession: ApiAuthSession | null = null;
+
+export function configureApiAuthSession(session: ApiAuthSession | null): void {
+  apiAuthSession = session;
+}
 
 export class ApiClientError extends Error {
   constructor(
@@ -98,6 +110,87 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
 }
 
+function authErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+async function clearAuthSession(): Promise<void> {
+  try {
+    await apiAuthSession?.clearSession();
+  } catch {
+    // The signed-out state is already authoritative locally.
+  }
+}
+
+async function tokenForRequest(
+  forceRefresh: boolean,
+): Promise<string | undefined> {
+  if (apiAuthSession === null) return undefined;
+  try {
+    return await apiAuthSession.getIdToken(forceRefresh);
+  } catch (error) {
+    if (authErrorCode(error) === 'networkUnavailable') {
+      throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
+    }
+    await clearAuthSession();
+    throw new ApiClientError(
+      'Your session has expired. Please sign in again.',
+      'AUTH_TOKEN_EXPIRED',
+      401,
+    );
+  }
+}
+
+function withAuthorization(
+  init: RequestInit,
+  token: string | undefined,
+): RequestInit {
+  const headers = new Headers(init.headers);
+  if (token !== undefined) headers.set('Authorization', `Bearer ${token}`);
+  return { ...init, headers };
+}
+
+async function fetchWithAuth(
+  url: string,
+  createRequestInit: (token: string | undefined) => RequestInit,
+): Promise<Response> {
+  let token = await tokenForRequest(false);
+  let didRefresh = false;
+
+  while (true) {
+    let response: Response;
+    try {
+      response = await fetch(url, createRequestInit(token));
+    } catch (cause) {
+      if (cause instanceof Error && cause.name === 'AbortError') {
+        throw new ApiClientError(
+          'The request timed out before the save result was confirmed.',
+          'NETWORK_TIMEOUT',
+          0,
+        );
+      }
+      throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
+    }
+
+    if (response.status !== 401 || apiAuthSession === null || didRefresh) {
+      return response;
+    }
+
+    didRefresh = true;
+    try {
+      token = await tokenForRequest(true);
+    } catch {
+      throw new ApiClientError(
+        'Your session has expired. Please sign in again.',
+        'AUTH_TOKEN_EXPIRED',
+        401,
+      );
+    }
+  }
+}
+
 export async function parseApiResponse<T>(
   response: Response,
   schema?: ResponseSchema<T>,
@@ -105,27 +198,19 @@ export async function parseApiResponse<T>(
   return parseStandardApiResponse(
     response,
     schema,
-    (event, details) => {
-      if (__DEV__) console.warn(`[photo-debug] ${event}`, details);
-    },
+    (event, details) => reportDiagnostic(event, details),
     ({ response: errorResponse, error }) =>
       new ApiClientError(
-        error.message as string,
+        'The request could not be completed.',
         error.code as string,
         errorResponse.status,
-        error.details as Record<string, unknown>,
+        sanitizePublicErrorDetails(error.details as Record<string, unknown>),
       ),
   );
 }
 
 function apiConnectionMessage(): string {
-  const base = `Could not reach the API at ${API_URL}. Confirm the API is running`;
-
-  if (typeof window !== 'undefined') {
-    return `${base}.`;
-  }
-
-  return `${base}. On a physical device, set EXPO_PUBLIC_API_URL to http://<computer-LAN-IP>:3000/api/v1 before starting Expo; localhost refers to the device itself.`;
+  return 'We couldn’t connect. Check your connection and try again.';
 }
 
 async function request<T>(
@@ -146,20 +231,9 @@ async function request<T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
 
-  let response: Response;
-
-  try {
-    response = await fetch(`${API_URL}${path}`, requestInit);
-  } catch (cause) {
-    if (cause instanceof Error && cause.name === 'AbortError') {
-      throw new ApiClientError(
-        'The request timed out before the save result was confirmed.',
-        'NETWORK_TIMEOUT',
-        0,
-      );
-    }
-    throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
-  }
+  const response = await fetchWithAuth(`${API_URL}${path}`, (token) =>
+    withAuthorization(requestInit, token),
+  );
 
   return parseApiResponse(response, schema);
 }
@@ -170,31 +244,28 @@ async function requestRaw<T>(
   signal: AbortSignal,
   schema: ResponseSchema<T>,
 ): Promise<T> {
-  if (__DEV__) {
-    console.warn('[photo-debug] fetch preparation started', {
-      endpoint: '/api/v1/ai/photo-analysis',
-      bodyByteSize: body.byteLength,
-      apiHost: API_URL.replace(/^https?:\/\/([^/]+).*$/, '$1'),
-    });
-  }
+  reportDiagnostic('photo_request_prepared', {
+    operation: 'photo_analysis',
+    bodyByteSize: body.byteLength,
+  });
+  reportDiagnostic('photo_request_started', { operation: 'photo_analysis' });
   let response: Response;
   try {
-    if (__DEV__) console.warn('[photo-debug] fetch started');
-    response = await fetch(
-      `${API_URL}${path}`,
-      photoAnalysisRequestInit({ bytes: body, signal }),
+    response = await fetchWithAuth(`${API_URL}${path}`, (token) =>
+      withAuthorization(
+        photoAnalysisRequestInit({ bytes: body, signal }),
+        token,
+      ),
     );
-  } catch (cause) {
-    if (__DEV__) {
-      console.warn('[photo-debug] fetch rejected', {
-        errorName: cause instanceof Error ? cause.name : 'unknown',
-        errorCategory: signal.aborted ? 'aborted' : 'network_or_body',
-      });
-    }
+  } catch (error) {
+    reportDiagnostic('photo_request_failed', {
+      operation: 'photo_analysis',
+      errorCategory: signal.aborted ? 'aborted' : 'network_or_body',
+    });
     if (signal.aborted) {
       throw new ApiClientError('Photo analysis was cancelled.', 'CANCELLED', 0);
     }
-    throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
+    throw error;
   }
   return parseApiResponse(response, schema);
 }
@@ -211,24 +282,17 @@ async function readLocalPhoto(
   photo: PhotoAnalysisUpload,
   signal: AbortSignal,
 ): Promise<ArrayBuffer> {
-  if (__DEV__) {
-    console.warn('[photo-debug] local photo read started', {
-      uriScheme: photo.uri.split(':', 1)[0] ?? 'unknown',
-      normalizedByteSize: photo.byteSize,
-      normalizedMimeType: photo.mimeType,
-    });
-  }
+  reportDiagnostic('photo_read_started', {
+    operation: 'photo_analysis',
+    uriScheme: photo.uri.split(':', 1)[0] ?? 'unknown',
+  });
   try {
     const prepared = await readNormalizedPhotoBytes({
       ...photo,
       signal,
       openFile: (uri) => new File(uri),
     });
-    if (__DEV__) {
-      console.warn('[photo-debug] local photo bytes read complete', {
-        byteSize: prepared.byteSize,
-      });
-    }
+    reportDiagnostic('photo_read_completed', { operation: 'photo_analysis' });
     return prepared.bytes.buffer as ArrayBuffer;
   } catch (cause) {
     if (cause instanceof PhotoUploadError) {
@@ -684,79 +748,9 @@ export const api = {
   },
 };
 
-interface ValidationIssue {
-  message?: unknown;
-  path?: unknown;
-}
-
-const validationMessages: Record<string, string> = {
-  name: 'Name is required.',
-  age: 'Age must be a whole number of 0 or higher.',
-  birthDate: 'Birthday must use YYYY-MM-DD.',
-  sex: 'Choose male or female so calorie targets can be calculated.',
-  heightInches: 'Height must be a whole number greater than 0.',
-  startingWeightLb: 'Starting weight must be greater than 0.',
-  activityLevel: 'Choose a valid activity level.',
-  trainingStyle: 'Choose a valid training style.',
-  foodName: 'Enter a food name.',
-  description: 'Describe the meal you want to log.',
-  mealType: 'Choose a valid meal type.',
-  calories: 'Calories must be a whole number of 0 or higher.',
-  protein: 'Protein must be 0 or higher.',
-  carbs: 'Carbs must be 0 or higher.',
-  fat: 'Fat must be 0 or higher.',
-  weightLb: 'Weight must be greater than 0.',
-  loggedAt: 'Choose a valid date and time.',
-  timezone: 'Enter a valid timezone, such as America/Toronto.',
-  goalPace: 'Choose a goal pace that matches your goal direction.',
-  targetWeightLb: 'Target weight must be greater than 0.',
-  targetCalories: 'Calorie target must be a whole number of 0 or higher.',
-  targetProteinGrams: 'Protein target must be 0 or higher.',
-};
-
-function validationMessage(details: Record<string, unknown>): string | null {
-  const issues = details.issues;
-  if (!Array.isArray(issues)) {
-    return null;
-  }
-
-  const firstIssue = issues[0] as ValidationIssue | undefined;
-  const path = Array.isArray(firstIssue?.path)
-    ? firstIssue.path.find((part): part is string => typeof part === 'string')
-    : undefined;
-
-  if (path !== undefined && validationMessages[path] !== undefined) {
-    return validationMessages[path];
-  }
-
-  return typeof firstIssue?.message === 'string' ? firstIssue.message : null;
-}
-
 export function errorMessage(
   error: unknown,
   fallback = 'The request could not be completed. Please try again.',
 ): string {
-  if (error instanceof ApiClientError) {
-    if (error.code === 'VALIDATION_ERROR') {
-      return (
-        validationMessage(error.details) ??
-        (error.message === 'Request validation failed'
-          ? 'Please check the highlighted values and try again.'
-          : error.message)
-      );
-    }
-    if (error.code === 'INVALID_RESPONSE') {
-      return `${error.message} Confirm the API URL is ${API_URL}.`;
-    }
-    if (error.code === 'INTERNAL_SERVER_ERROR') {
-      return 'The server could not complete this request. Please try again.';
-    }
-    return error.message;
-  }
-
-  if (error instanceof TypeError) {
-    return apiConnectionMessage();
-  }
-
-  return fallback;
+  return toUserFacingError(error, fallback);
 }
