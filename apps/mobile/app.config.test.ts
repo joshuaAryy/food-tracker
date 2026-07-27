@@ -73,13 +73,13 @@ describe('tracked Expo configuration', () => {
       EXPO_PUBLIC_API_URL: 'https://staging-api.example.com/api/v1',
     });
     const plugins = config.plugins ?? [];
+    expect(plugins).toContain('@react-native-firebase/app');
+    expect(plugins).toContain('@react-native-firebase/auth');
     expect(plugins).toContain('expo-apple-authentication');
-    expect(
-      plugins.some(
-        (plugin) =>
-          Array.isArray(plugin) && plugin[0] === 'expo-build-properties',
-      ),
-    ).toBe(true);
+    expect(plugins).toContainEqual([
+      'expo-build-properties',
+      { ios: { useFrameworks: 'static' } },
+    ]);
     expect(config.ios?.googleServicesFile).toBeUndefined();
   });
 
