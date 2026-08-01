@@ -824,3 +824,88 @@ scope; food-only and weight-only states; independent reporting and
 recommendation failures with contextual retries; refresh preserving loaded
 content; scrolling, navigation, and timezone-sensitive current-day copy. No
 chart geometry or card-grid regression is acceptable.
+
+## Phase 16 Authentication And Native Validation Context
+
+The active authentication UI remains separate Sign In and Create Account
+screens with Apple before Google only when Apple is explicitly enabled. The
+free-development build uses email/password and Google; Apple remains fully
+implemented, including nonce handling and provider linking, but
+`EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false` omits its button, entitlement, and
+config-plugin effect without deleting the Apple code.
+
+Authentication uses the supplied Simple mark before mode selection. Do not add
+Terms/Privacy consent UI, rename Simple or Complex, or introduce provider
+logos/artwork beyond the approved implementation. Native configuration is
+owned by `apps/mobile/app.config.ts`, uses static iOS Firebase frameworks, and
+injects a real Firebase plist through ignored build-time configuration. The
+generated `apps/mobile/ios/` and `apps/mobile/android/` folders remain ignored
+local state.
+
+Native validation must include configuration resolution, clean Expo prebuild,
+CocoaPods installation, simulator compilation/launch when disk and runtime
+access permit, and physical-device smoke testing when a suitable free signing
+team and device are already available. Compilation alone does not prove Google
+provider success. Apple provider validation remains externally deferred while
+the free-development flag is disabled.
+
+### Auth Bootstrap And Setup Recovery
+
+`AuthBootstrap` is mounted above every route group and is the sole owner of the
+Firebase token listener and authentication store. Route changes must not
+recreate that owner, reset authentication to initializing, or add duplicate
+navigation entries.
+
+After a Firebase user and token are valid, setup status is an account-data
+request rather than a session-restoration request. If it cannot be retrieved,
+the app keeps the Firebase session and routes once to the recovery screen. The
+screen must say that the account could not be loaded, provide explicit Retry
+and Sign Out actions, and remain stable until the user chooses one. It must not
+retry automatically on rerender, route change, or background/foreground.
+
+The consolidated Phase 16 physical-iPhone session is complete. It covered:
+
+- retry a setup-status recovery only after the local API, Firebase Admin, and
+  database prerequisites are available;
+- verify one loading card, no bounce or route flicker, and one setup request;
+- verify onboarding for an incomplete account and the authenticated app for a
+  completed account;
+- background/foreground and close/reopen once, confirming session restoration
+  does not duplicate listeners, routes, or loading motion;
+- verify explicit sign out returns to Sign In, then verify the active Google
+  flow again without selecting an account automatically;
+- Create Account, verification/resend, Forgot Password, invalid credentials,
+  keyboard/narrow-screen behavior, Reduce Motion, Dynamic Type, accessibility,
+  provider flows, hosted persistence, ownership isolation, and disposable
+  account deletion. Unperformed items remain explicitly `Not tested`.
+
+The hosted run proved that Metro is still required for the development client,
+but the local API and Docker are not required when `EXPO_PUBLIC_API_URL`
+targets Railway staging. Expo must be restarted after target changes with
+`EXPO_NO_CLIENT_ENV_VARS` unset and server secrets excluded from public
+variables. A standalone EAS/TestFlight build remains Phase 17 work.
+
+Phase 16 not-tested items: photo candidate adjudication and the optional
+API-unavailable check (former checklist step 115). Apple Sign In is deferred
+because its UI and native capability remain intentionally disabled.
+
+### Loading Motion Rule
+
+Figma frames are static visual references, not instructions to make conventional
+loading affordances motionless. Infer restrained motion only where semantic
+intent is clear: spinners, progress dots, skeleton loaders, and loading
+transitions. Do not animate ordinary decorative elements merely because motion
+could look attractive. Motion must remain subtle, accessible, and consistent
+with the Stoic visual system; respect Reduce Motion and use physical-iPhone
+behavior as the final validation gate.
+
+### Account Deletion Validation
+
+Authenticated Settings exposes a separated destructive account section. The
+flow explains permanent Firebase and application-data deletion, requires exact
+`DELETE` confirmation and recent provider reauthentication, then routes to Sign
+In after confirmed server success. Physical validation used a disposable
+verified Google account and confirmed that owned data was gone while Account A
+remained intact. Reusing the deleted Google identity created a fresh onboarding
+account with no old data; this is intentional identity recreation, not
+restoration.

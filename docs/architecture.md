@@ -44,10 +44,34 @@ local database server. The API itself is normally run locally through pnpm
 scripts, not inside Docker. Prisma handles database access and migrations.
 
 The backend owns validation, business logic, analytics, and recommendation
-decisions. The frontend owns UI and local state. Current authentication still
-uses the fixed mock/dev-user boundary. The authentication provider remains
-undecided until Phase 19 planning; authentication and authorization remain
-separate boundaries.
+decisions. The frontend owns UI and local state. Phase 16 selects Firebase
+Authentication: the mobile app obtains a Firebase ID token, the API verifies
+it with Firebase Admin, and the API maps the Firebase UID to the existing
+application-owned UUID `User.id`. Clients never send authoritative `userId`.
+Authentication and authorization remain separate boundaries.
+
+The Phase 16 free-development provider scope is email/password and Google.
+Sign in with Apple code, nonce handling, credential exchange, and provider
+linking remain implemented but are disabled through the typed mobile build
+flag `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED`. Apple capability and plugin effects
+are omitted when the flag is disabled. The tracked Expo authority is
+`apps/mobile/app.config.ts`; static iOS Firebase frameworks and environment-
+injected plist handling remain required. Generated native projects stay
+ignored and uncommitted.
+
+Phase 16 also owns public/internal error separation, redacted mobile and
+server diagnostics, explicit CORS, security headers, opaque rate-limit keys,
+and the unauthenticated liveness route `/health`. Railway staging is validated
+in a dedicated environment with a private PostgreSQL service. Repository
+configuration owns the build, migration, start, health, CORS, and runtime
+validation contract; production resources remain outside this phase.
+
+The mobile root keeps one long-lived `AuthBootstrap` above changing route
+groups. It owns one Firebase token listener, the authentication store, and
+idempotent protected-route selection. A verified session whose setup-status
+request is unavailable remains authenticated in a stable recovery state with
+explicit Retry and Sign Out actions; it is not silently signed out, retried in
+a loop, or rendered as a second loading composition.
 
 ## Implemented Manual Food Logging
 
@@ -83,7 +107,8 @@ stores the current user's saved food relationships. `FoodBarcode` stores local
 barcode mappings for future scanning flows.
 
 Food item APIs are backend-owned and follow the same `/api/v1` envelope and
-mock-user boundary as the rest of the app. Search is intentionally simple:
+server-derived current-user ownership boundary as the rest of the app. Search
+is intentionally simple:
 visible, non-archived food items are matched against normalized name and brand
 text. Visible means `FoodItem.userId` is the current user or `null`.
 
@@ -180,12 +205,12 @@ Responsibilities:
 
 The API uses REST-style endpoints under `/api/v1` and the standard success/error envelopes defined in [api-contracts.md](api-contracts.md).
 
-The current development implementation uses a fixed mock user through mock auth
-context. Authenticated endpoints operate on the current user, and clients never
-send `userId`. The authentication provider is undecided until Phase 19 planning.
-Authentication establishes identity; authorization controls resource access. Do
-not implement custom password authentication or a provider integration through
-this documentation update.
+Firebase Admin verifies the bearer token, enforces the configured verification
+policy, synchronizes one local `User` by `firebaseUid`, and places the local
+UUID in request context. Authenticated endpoints operate on that server-derived
+identity, and clients never send `userId`. Authentication establishes identity;
+authorization controls resource access. No runtime mock-auth bypass exists in
+production-capable API code.
 
 ---
 
@@ -330,3 +355,12 @@ live source FoodItem, preserving snapshot history.
 The mobile library uses the existing Food Log modal stack and shared serving
 session. It renders backend library sections and nutrition rather than storing
 or calculating recent-food or serving facts locally.
+
+## Immediate Account Deletion
+
+`DELETE /api/v1/account` uses a deletion-specific verified-auth boundary with a
+five-minute `auth_time` freshness policy and never provisions a local User.
+Application-owned rows are removed by the verified Firebase UID, while a
+minimal `AccountDeletion` coordination record blocks recreation during the
+non-atomic PostgreSQL/Firebase deletion sequence. Failures remain safe and
+retryable; physical validation uses a disposable account.

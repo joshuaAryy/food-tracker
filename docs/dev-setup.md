@@ -121,6 +121,69 @@ Tests resolve their database URL in this order:
 
 Any selected test database name must end in `_test`.
 
+## Phase 16 Authentication And Hosted API Configuration
+
+Firebase Authentication is the selected identity provider for the active local
+implementation. The API uses Firebase Admin variables named
+`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
+These are server-only and must never use `EXPO_PUBLIC_` names. Use separate
+development, staging, and production Firebase projects and inject the matching
+credentials through the environment; do not commit a plist or service-account
+file.
+
+For local API development, place those server-only values in the ignored
+`apps/api/.env` file. The API development command loads that file directly;
+the mobile plist is not a Firebase Admin credential source.
+
+Email/password and Google are the active free-development providers. Apple code
+remains preserved but the current build disables it with
+`EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false`. The flag is parsed centrally by the
+typed Expo configuration helper; malformed values fail configuration.
+
+The API also requires explicit hosted CORS origins and a server-owned
+`RATE_LIMIT_KEY_SECRET` outside development/test. The API liveness route is
+`/health`. Root `railway.json` declares the workspace build, Prisma
+`migrate deploy` pre-deploy step, compiled API start command, health check, and
+restart policy. Railway staging resources, secrets, and domain are staging-only;
+production deployment, backups, billing, and rollback ownership remain outside
+this phase.
+
+For a physical authentication check, start the local API and confirm its
+unauthenticated health route is reachable before signing in. The API must have
+Firebase Admin configuration and a reachable PostgreSQL database with current
+migrations before an authenticated setup-status request can succeed. A valid
+mobile Firebase token alone is not sufficient.
+
+For Railway staging, supply server-only Firebase Admin variables, database
+configuration, explicit trusted browser origins, rate-limit and provider
+secrets through Railway's environment controls. The dedicated environment is
+named `staging`, contains the API and private PostgreSQL service, and has been
+validated with hosted migrations, health checks, two-user ownership isolation,
+provider flows, and disposable account deletion. Production resources remain
+separate and were not changed.
+
+### Railway Staging Handoff
+
+The repository manifest builds the workspace, generates Prisma artifacts,
+applies committed migrations before deployment, starts the compiled API, and
+uses the unauthenticated health route for liveness. It does not create a
+Railway resource or store any environment value.
+
+The validated staging service uses these server-side categories by name:
+`APP_ENV`, `DATABASE_URL`, `CORS_ORIGINS`, `FIREBASE_PROJECT_ID`,
+`FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `RATE_LIMIT_KEY_SECRET`,
+`USDA_FDC_API_KEY`, `AI_PROVIDER`, `GEMINI_API_KEY`,
+`GEMINI_FOOD_PARSE_MODEL`, and the photo-AI feature controls and proof secret.
+Mobile staging uses only `EXPO_PUBLIC_API_URL`; it must be supplied to the
+Expo process with static public-variable access. `EXPO_NO_CLIENT_ENV_VARS`
+must be unset, and server secrets must never enter `EXPO_PUBLIC_*` values.
+
+Use only backward-compatible database migrations during the first staging
+deploy. Rollback means redeploying the last known-good application build; do
+not automatically reverse a migration. Confirm managed-database backup and
+restore ownership before storing user data, apply a small environment-appropriate
+spend limit or alert, and remove idle services before ending staging work.
+
 ## 5. Prepare Prisma
 
 From the repository root:
@@ -308,6 +371,12 @@ Command coverage:
 - `build`: shared and API TypeScript build
 - `test`: backend Vitest/Supertest integration suite
 
-The root build does not currently create a native mobile bundle, and the
-repository does not yet have automated mobile tests. Mobile changes therefore
-also require reported simulator or physical-device smoke testing.
+The root build does not currently create a native mobile bundle. Mobile pure
+logic uses Vitest and rendered mobile behavior uses Jest/RNTL; physical-device
+smoke testing remains required for native provider, motion, keyboard, and
+accessibility behavior.
+
+Account deletion validation must use a disposable verified account. It requires
+recent provider reauthentication, permanently removes the Firebase account and
+application-owned data, and must run only after the local account-deletion
+migration is applied. Never use a primary account or print deletion credentials.
