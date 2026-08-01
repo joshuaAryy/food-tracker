@@ -24,6 +24,21 @@ function user(overrides: Partial<FirebaseAuthUser> = {}): FirebaseAuthUser {
 }
 
 describe('Apple authentication service', () => {
+  it('fails safely without invoking native Apple authentication when disabled', async () => {
+    const authService = {
+      signInWithCredential: vi.fn(),
+    };
+    const adapter = adapterWith();
+
+    await expect(
+      signInWithApple(authService, adapter, undefined, false),
+    ).rejects.toMatchObject({ code: 'configurationError' });
+    expect(adapter.randomBytes).not.toHaveBeenCalled();
+    expect(adapter.digest).not.toHaveBeenCalled();
+    expect(adapter.signIn).not.toHaveBeenCalled();
+    expect(authService.signInWithCredential).not.toHaveBeenCalled();
+  });
+
   it('hashes the nonce for Apple and passes the raw nonce to Firebase', async () => {
     const authenticatedUser = user();
     const authService = {
@@ -40,9 +55,9 @@ describe('Apple authentication service', () => {
       createFirebaseCredential: vi.fn().mockReturnValue('firebase-credential'),
     };
 
-    await expect(signInWithApple(authService, adapter)).resolves.toBe(
-      authenticatedUser,
-    );
+    await expect(
+      signInWithApple(authService, adapter, undefined, true),
+    ).resolves.toBe(authenticatedUser);
     expect(adapter.signIn).toHaveBeenCalledWith({ nonce: 'hashed-nonce' });
     expect(adapter.createFirebaseCredential).toHaveBeenCalledWith(
       'apple-identity-token',
@@ -69,7 +84,7 @@ describe('Apple authentication service', () => {
       }),
     });
 
-    await signInWithApple(authService, adapter);
+    await signInWithApple(authService, adapter, undefined, true);
 
     expect(authenticatedUser.updateProfile).not.toHaveBeenCalled();
   });
@@ -79,11 +94,11 @@ describe('Apple authentication service', () => {
     const cancelled = adapterWith({
       signIn: vi.fn().mockRejectedValue({ code: 'ERR_REQUEST_CANCELED' }),
     });
-    await expect(signInWithApple(authService, cancelled)).rejects.toMatchObject(
-      {
-        code: 'providerCancelled',
-      },
-    );
+    await expect(
+      signInWithApple(authService, cancelled, undefined, true),
+    ).rejects.toMatchObject({
+      code: 'providerCancelled',
+    });
 
     const missingToken = adapterWith({
       signIn: vi.fn().mockResolvedValue({
@@ -92,7 +107,9 @@ describe('Apple authentication service', () => {
         fullName: null,
       }),
     });
-    await expect(signInWithApple(authService, missingToken)).rejects.toSatisfy(
+    await expect(
+      signInWithApple(authService, missingToken, undefined, true),
+    ).rejects.toSatisfy(
       (error: unknown) =>
         error instanceof AuthServiceError && error.code === 'unknown',
     );
@@ -110,7 +127,7 @@ describe('Apple authentication service', () => {
     });
 
     await expect(
-      signInWithApple(authService, adapter, pending),
+      signInWithApple(authService, adapter, pending, true),
     ).rejects.toMatchObject({
       code: 'providerConflict',
     });

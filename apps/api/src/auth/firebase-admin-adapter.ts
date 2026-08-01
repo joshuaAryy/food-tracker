@@ -6,7 +6,7 @@ import {
   type VerifiedFirebaseIdentity,
 } from './types.js';
 
-type FirebaseAuthPort = Pick<Auth, 'verifyIdToken' | 'getUser'>;
+type FirebaseAuthPort = Pick<Auth, 'verifyIdToken' | 'getUser' | 'deleteUser'>;
 
 function wholeEpochSeconds(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
@@ -64,6 +64,20 @@ export function createFirebaseAdminAuthAdapter(
         return normalizedUserStatus(await auth.getUser(uid));
       } catch (cause) {
         throw new AuthBoundaryError('AUTH_TOKEN_REVOKED', { cause });
+      }
+    },
+    async deleteUser(uid) {
+      try {
+        await auth.deleteUser(uid);
+      } catch (cause) {
+        if (
+          typeof cause === 'object' &&
+          cause !== null &&
+          (cause as { code?: unknown }).code === 'auth/user-not-found'
+        ) {
+          return;
+        }
+        throw cause;
       }
     },
   };

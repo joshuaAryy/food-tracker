@@ -2,6 +2,7 @@ import type { AuthState } from './auth-state';
 
 export type AuthDestination =
   | '/(auth)/loading'
+  | '/(auth)/recovery'
   | '/(auth)/sign-in'
   | '/(auth)/verify-email'
   | '/(onboarding)'
@@ -12,6 +13,9 @@ export function routeForAuthState(state: AuthState): AuthDestination {
     case 'initializing':
     case 'signedInSetupUnknown':
       return '/(auth)/loading';
+    case 'initializationFailed':
+    case 'setupStatusUnavailable':
+      return '/(auth)/recovery';
     case 'signedOut':
       return '/(auth)/sign-in';
     case 'verificationRequired':
@@ -31,12 +35,16 @@ export function routeMatchesAuthState(
   switch (state.status) {
     case 'initializing':
       return group === '(auth)' && segments[1] === 'loading';
+    case 'initializationFailed':
+      return group === '(auth)' && segments[1] === 'recovery';
     case 'signedOut':
       return group === '(auth)';
     case 'verificationRequired':
       return group === '(auth)' && segments[1] === 'verify-email';
     case 'signedInSetupUnknown':
       return group === '(auth)' && segments[1] === 'loading';
+    case 'setupStatusUnavailable':
+      return group === '(auth)' && segments[1] === 'recovery';
     case 'signedInSetupIncomplete':
       return group === '(onboarding)';
     case 'signedInReady':

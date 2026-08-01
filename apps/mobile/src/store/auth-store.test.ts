@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createAuthStore, type AuthStoreDependencies } from './auth-store';
+import {
+  classifySetupStatusFailure,
+  createAuthStore,
+  type AuthStoreDependencies,
+} from './auth-store';
 import type { FirebaseAuthUser } from '../services/auth-service';
 
 function user(overrides: Partial<FirebaseAuthUser> = {}): FirebaseAuthUser {
@@ -55,6 +59,26 @@ describe('auth store', () => {
     });
   });
 
+  it('processes equivalent initial signed-out callbacks only once', async () => {
+    let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
+    const dependencies = dependenciesWith({
+      subscribeToIdTokenChanges: vi.fn((next) => {
+        listener = next;
+        return vi.fn();
+      }),
+    });
+    const store = createAuthStore(dependencies);
+    const states: string[] = [];
+    store.subscribe((state) => states.push(state.authState.status));
+
+    store.getState().start();
+    listener?.(null);
+    await Promise.resolve();
+    listener?.(null);
+
+    expect(states).toEqual(['signedOut']);
+  });
+
   it('blocks unverified password sessions without resolving setup', async () => {
     let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
     const getSetupStatus = vi.fn();
@@ -75,7 +99,7 @@ describe('auth store', () => {
     expect(getSetupStatus).not.toHaveBeenCalled();
   });
 
-  it('preserves an established session when setup resolution fails temporarily', async () => {
+  it('moves a verified session to safe recovery when setup resolution fails', async () => {
     let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
     const dependencies = dependenciesWith({
       subscribeToIdTokenChanges: vi.fn((next) => {
@@ -90,9 +114,100 @@ describe('auth store', () => {
 
     store.getState().start();
     listener?.(user());
+    await vi.waitFor(() => {
+      expect(store.getState().authState.status).toBe('setupStatusUnavailable');
+    });
+  });
+
+  it('keeps setup recovery stable until an explicit retry and classifies the safe failure category', async () => {
+    let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
+    const getSetupStatus = vi
+      .fn()
+      .mockRejectedValue({ code: 'NETWORK_ERROR', status: 0 });
+    const dependencies = dependenciesWith({
+      subscribeToIdTokenChanges: vi.fn((next) => {
+        listener = next;
+        return vi.fn();
+      }),
+      getSetupStatus,
+    });
+    const store = createAuthStore(dependencies);
+
+    store.getState().start();
+    listener?.(user());
+    await vi.waitFor(() => {
+      expect(store.getState().authState.status).toBe('setupStatusUnavailable');
+    });
+    listener?.(user());
     await Promise.resolve();
 
-    expect(store.getState().authState.status).toBe('signedInSetupUnknown');
+    expect(getSetupStatus).toHaveBeenCalledTimes(1);
+    expect(dependencies.signOut).not.toHaveBeenCalled();
+    expect(
+      classifySetupStatusFailure({ code: 'NETWORK_ERROR', status: 0 }),
+    ).toBe('network_unreachable');
+    expect(
+      classifySetupStatusFailure({ code: 'NETWORK_TIMEOUT', status: 0 }),
+    ).toBe('timeout');
+    expect(
+      classifySetupStatusFailure({ code: 'INVALID_RESPONSE', status: 200 }),
+    ).toBe('invalid_response');
+    expect(classifySetupStatusFailure({ status: 401 })).toBe('unauthorized');
+    expect(classifySetupStatusFailure({ status: 403 })).toBe('forbidden');
+    expect(classifySetupStatusFailure({ status: 503 })).toBe('server_error');
+  });
+
+  it('retries setup recovery for the same authenticated session without signing out', async () => {
+    let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
+    const getSetupStatus = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('private network detail'))
+      .mockResolvedValueOnce({ isComplete: true });
+    const dependencies = dependenciesWith({
+      subscribeToIdTokenChanges: vi.fn((next) => {
+        listener = next;
+        return vi.fn();
+      }),
+      getSetupStatus,
+    });
+    const store = createAuthStore(dependencies);
+
+    store.getState().start();
+    listener?.(user());
+    await vi.waitFor(() => {
+      expect(store.getState().authState.status).toBe('setupStatusUnavailable');
+    });
+
+    store.getState().retrySetupStatus();
+
+    await vi.waitFor(() => {
+      expect(store.getState().authState.status).toBe('signedInReady');
+    });
+    expect(dependencies.signOut).not.toHaveBeenCalled();
+    expect(getSetupStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('marks setup complete after successful onboarding without another session callback', async () => {
+    let listener: ((currentUser: FirebaseAuthUser | null) => void) | undefined;
+    const dependencies = dependenciesWith({
+      getSetupStatus: vi.fn().mockResolvedValue({ isComplete: false }),
+      subscribeToIdTokenChanges: vi.fn((next) => {
+        listener = next;
+        return vi.fn();
+      }),
+    });
+    const store = createAuthStore(dependencies);
+
+    store.getState().start();
+    listener?.(user());
+    await vi.waitFor(() => {
+      expect(store.getState().authState.status).toBe('signedInSetupIncomplete');
+    });
+
+    store.getState().markSetupComplete();
+
+    expect(store.getState().authState.status).toBe('signedInReady');
+    expect(dependencies.getSetupStatus).toHaveBeenCalledTimes(1);
   });
 
   it('clears auth state before signing out the native session', async () => {

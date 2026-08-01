@@ -139,6 +139,25 @@ describe('mobile authentication service', () => {
     expect(adapter.signOut).toHaveBeenCalledTimes(1);
   });
 
+  it('resolves the current signed-out state when the native listener is delayed', async () => {
+    const adapter = adapterWith(null);
+    let nativeListener: ((user: FirebaseAuthUser | null) => void) | undefined;
+    vi.mocked(adapter.onIdTokenChanged).mockImplementation((next) => {
+      nativeListener = next;
+      return vi.fn();
+    });
+    const service = new AuthenticationService(adapter);
+    const listener = vi.fn();
+
+    service.onIdTokenChanged(listener);
+    await Promise.resolve();
+
+    expect(listener).not.toHaveBeenCalled();
+    nativeListener?.(null);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(null);
+  });
+
   it('normalizes required auth categories', () => {
     expect(normalizeAuthError({ code: 'auth/too-many-requests' }).code).toBe(
       'tooManyRequests',

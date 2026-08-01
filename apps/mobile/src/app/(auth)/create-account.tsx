@@ -9,6 +9,7 @@ import { AuthProviderButtons } from '@/components/auth/auth-provider-buttons';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { toUserFacingError } from '@/lib/user-facing-errors';
 import { pendingProviderCredential } from '@/services/pending-provider-state';
+import { isAppleSignInEnabled } from '@/lib/apple-sign-in-config';
 
 export interface CreateAccountActions {
   createAccount(input: {
@@ -21,6 +22,7 @@ export interface CreateAccountActions {
 }
 
 interface CreateAccountScreenProps {
+  appleSignInEnabled: boolean;
   actions: CreateAccountActions;
   onCreated: (email: string) => void;
   onSignIn: () => void;
@@ -34,6 +36,7 @@ type CreateAccountFieldErrors = {
 };
 
 export function CreateAccountScreen({
+  appleSignInEnabled,
   actions,
   onCreated,
   onSignIn,
@@ -113,6 +116,7 @@ export function CreateAccountScreen({
         </View>
         <View className="mt-1 gap-3">
           <AuthProviderButtons
+            appleSignInEnabled={appleSignInEnabled}
             disabled={loading}
             onApple={() => void runProviderAction(actions.onApple)}
             onGoogle={() => void runProviderAction(actions.onGoogle)}
@@ -201,7 +205,9 @@ export function CreateAccountScreen({
   );
 }
 
-async function createDefaultCreateAccountActions(): Promise<CreateAccountActions> {
+async function createDefaultCreateAccountActions(
+  appleSignInEnabled: boolean,
+): Promise<CreateAccountActions> {
   const [
     { createFirebaseAuthService },
     { signInWithApple },
@@ -228,6 +234,7 @@ async function createDefaultCreateAccountActions(): Promise<CreateAccountActions
         authService,
         createNativeAppleAuthenticationAdapter(),
         pendingProviderCredential,
+        appleSignInEnabled,
       ),
     onGoogle: () =>
       googleService.signIn(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ''),
@@ -236,17 +243,20 @@ async function createDefaultCreateAccountActions(): Promise<CreateAccountActions
 
 export default function CreateAccountRoute() {
   const router = useRouter();
+  const appleSignInEnabled = isAppleSignInEnabled();
   const [actions, setActions] = useState<CreateAccountActions | null>(null);
 
   useEffect(() => {
     let active = true;
-    void createDefaultCreateAccountActions().then((nextActions) => {
-      if (active) setActions(nextActions);
-    });
+    void createDefaultCreateAccountActions(appleSignInEnabled).then(
+      (nextActions) => {
+        if (active) setActions(nextActions);
+      },
+    );
     return () => {
       active = false;
     };
-  }, []);
+  }, [appleSignInEnabled]);
 
   if (actions === null) {
     return (
@@ -262,6 +272,7 @@ export default function CreateAccountRoute() {
 
   return (
     <CreateAccountScreen
+      appleSignInEnabled={appleSignInEnabled}
       actions={actions}
       onCreated={(email) =>
         router.push({ pathname: '/verify-email', params: { email } } as Href)

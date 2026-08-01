@@ -21,7 +21,11 @@ describe('authentication primitives', () => {
     const onGoogle = jest.fn();
     const user = userEvent.setup();
     const screen = await render(
-      <AuthProviderButtons onApple={onApple} onGoogle={onGoogle} />,
+      <AuthProviderButtons
+        appleSignInEnabled
+        onApple={onApple}
+        onGoogle={onGoogle}
+      />,
     );
 
     const buttons = await screen.findAllByRole('button');
@@ -34,6 +38,26 @@ describe('authentication primitives', () => {
     await user.press(buttons[1]!);
     expect(onApple).toHaveBeenCalledTimes(1);
     expect(onGoogle).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits Apple without leaving an extra provider row when disabled', async () => {
+    const screen = await render(
+      <AuthProviderButtons
+        appleSignInEnabled={false}
+        onApple={jest.fn()}
+        onGoogle={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Continue with Apple' }),
+    ).toBeNull();
+    expect(
+      (await screen.findAllByRole('button')).map(
+        (button) => button.props.accessibilityLabel,
+      ),
+    ).toEqual(['Continue with Google']);
+    expect(await screen.findByText('or')).toBeTruthy();
   });
 
   it('renders labeled fields with a hint and accessible error state', async () => {

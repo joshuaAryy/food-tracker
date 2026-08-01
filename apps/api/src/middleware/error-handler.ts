@@ -55,7 +55,7 @@ export const errorHandler: ErrorRequestHandler = (
         typeof response.locals.requestStartedAt === 'number'
           ? Date.now() - response.locals.requestStartedAt
           : undefined,
-      errorClass: error instanceof Error ? error.constructor.name : 'unknown',
+      errorCategory: error instanceof Error ? 'exception' : 'unknown',
     });
   }
 

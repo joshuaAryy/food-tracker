@@ -31,6 +31,7 @@ function adapterWith(
   return {
     verifyIdToken: vi.fn(),
     getUser,
+    deleteUser: vi.fn(),
   };
 }
 

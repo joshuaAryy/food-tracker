@@ -15,6 +15,7 @@ describe('sign-in screen', () => {
 
     const screen = await render(
       <SignInScreen
+        appleSignInEnabled
         actions={{ signInWithEmail, onApple, onGoogle }}
         onCreateAccount={onCreateAccount}
         onForgotPassword={onForgotPassword}
@@ -55,6 +56,7 @@ describe('sign-in screen', () => {
     const user = userEvent.setup();
     const screen = await render(
       <SignInScreen
+        appleSignInEnabled
         actions={{
           signInWithEmail: jest
             .fn()
@@ -90,6 +92,7 @@ describe('sign-in screen', () => {
     const onProviderConflict = jest.fn();
     const screen = await render(
       <SignInScreen
+        appleSignInEnabled
         actions={{
           signInWithEmail: jest.fn(),
           onApple: jest
@@ -109,5 +112,35 @@ describe('sign-in screen', () => {
 
     expect(onProviderConflict).toHaveBeenCalledWith('');
     expect(screen.queryByText(/Firebase|auth\/|credential/i)).toBeNull();
+  });
+
+  it('renders Google first and omits Apple when Apple sign-in is disabled', async () => {
+    const screen = await render(
+      <SignInScreen
+        appleSignInEnabled={false}
+        actions={{
+          signInWithEmail: jest.fn(),
+          onApple: jest.fn(),
+          onGoogle: jest.fn(),
+        }}
+        onCreateAccount={jest.fn()}
+        onForgotPassword={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Continue with Apple' }),
+    ).toBeNull();
+    expect(
+      (await screen.findAllByRole('button')).map(
+        (button) => button.props.accessibilityLabel,
+      ),
+    ).toEqual([
+      'Continue with Google',
+      'Forgot password?',
+      'Sign in',
+      'Create account',
+    ]);
+    expect(await screen.findByText('or')).toBeTruthy();
   });
 });

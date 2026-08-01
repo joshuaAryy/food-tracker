@@ -443,10 +443,7 @@ class GeminiFoodParseProvider implements FoodParseProvider {
       const parsed = providerOutputSchema.safeParse(output);
       if (!parsed.success) {
         logGeminiDiagnostic('schema_validation_failure', {
-          issues: parsed.error.issues.map((issue) => ({
-            path: issue.path,
-            message: issue.message,
-          })),
+          errorCategory: 'schema_validation',
         });
         throw aiUnavailable('AI food parsing returned an invalid response.');
       }

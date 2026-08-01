@@ -15,6 +15,7 @@ type FirebaseUserCreateData = FirebaseUserMetadata & { firebaseUid: string };
 
 export interface FirebaseUserRepository {
   findByFirebaseUid(firebaseUid: string): Promise<SyncedFirebaseUser | null>;
+  isDeletionPending?(firebaseUid: string): Promise<boolean>;
   create(data: FirebaseUserCreateData): Promise<SyncedFirebaseUser>;
   updateById(
     id: string,
@@ -52,6 +53,14 @@ export function createPrismaFirebaseUserRepository(
   client: PrismaClient,
 ): FirebaseUserRepository {
   return {
+    async isDeletionPending(firebaseUid) {
+      return (
+        (await client.accountDeletion.findUnique({
+          where: { firebaseUid },
+          select: { id: true },
+        })) !== null
+      );
+    },
     async findByFirebaseUid(firebaseUid) {
       const user = await client.user.findUnique({
         where: { firebaseUid },
@@ -99,6 +108,13 @@ export async function synchronizeFirebaseUser(
 ): Promise<SyncedFirebaseUser> {
   if (identity.uid.trim() === '') {
     throw new AuthBoundaryError('INVALID_AUTH_TOKEN');
+  }
+
+  if (
+    repository.isDeletionPending !== undefined &&
+    (await repository.isDeletionPending(identity.uid))
+  ) {
+    throw new AuthBoundaryError('ACCOUNT_DELETION_IN_PROGRESS');
   }
 
   const existing = await repository.findByFirebaseUid(identity.uid);

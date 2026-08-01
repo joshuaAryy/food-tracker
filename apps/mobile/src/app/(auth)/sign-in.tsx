@@ -9,6 +9,7 @@ import { AuthShell } from '@/components/auth/auth-shell';
 import { toUserFacingError } from '@/lib/user-facing-errors';
 import { AppText } from '@/components/app-text';
 import { pendingProviderCredential } from '@/services/pending-provider-state';
+import { isAppleSignInEnabled } from '@/lib/apple-sign-in-config';
 
 export interface SignInActions {
   signInWithEmail(email: string, password: string): Promise<unknown>;
@@ -17,6 +18,7 @@ export interface SignInActions {
 }
 
 export interface SignInScreenProps {
+  appleSignInEnabled: boolean;
   actions: SignInActions;
   onCreateAccount: () => void;
   onForgotPassword: () => void;
@@ -30,6 +32,7 @@ type SignInFieldErrors = {
 };
 
 export function SignInScreen({
+  appleSignInEnabled,
   actions,
   onCreateAccount,
   onForgotPassword,
@@ -109,6 +112,7 @@ export function SignInScreen({
         </View>
         <View className="mt-5 gap-3">
           <AuthProviderButtons
+            appleSignInEnabled={appleSignInEnabled}
             disabled={loading}
             onApple={() => void runProviderAction(actions.onApple)}
             onGoogle={() => void runProviderAction(actions.onGoogle)}
@@ -195,7 +199,9 @@ export function SignInScreen({
   );
 }
 
-async function createDefaultSignInActions(): Promise<SignInActions> {
+async function createDefaultSignInActions(
+  appleSignInEnabled: boolean,
+): Promise<SignInActions> {
   const [
     { createFirebaseAuthService },
     { signInWithApple },
@@ -221,7 +227,12 @@ async function createDefaultSignInActions(): Promise<SignInActions> {
     signInWithEmail: (email, password) =>
       authService.signInWithEmail(email, password),
     onApple: () =>
-      signInWithApple(authService, appleAdapter, pendingProviderCredential),
+      signInWithApple(
+        authService,
+        appleAdapter,
+        pendingProviderCredential,
+        appleSignInEnabled,
+      ),
     onGoogle: () =>
       googleService.signIn(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ''),
   };
@@ -230,17 +241,18 @@ async function createDefaultSignInActions(): Promise<SignInActions> {
 export default function SignInRoute() {
   const router = useRouter();
   const params = useLocalSearchParams<{ linkPending?: string }>();
+  const appleSignInEnabled = isAppleSignInEnabled();
   const [actions, setActions] = useState<SignInActions | null>(null);
 
   useEffect(() => {
     let active = true;
-    void createDefaultSignInActions().then((nextActions) => {
+    void createDefaultSignInActions(appleSignInEnabled).then((nextActions) => {
       if (active) setActions(nextActions);
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [appleSignInEnabled]);
 
   if (actions === null) {
     return (
@@ -256,6 +268,7 @@ export default function SignInRoute() {
 
   return (
     <SignInScreen
+      appleSignInEnabled={appleSignInEnabled}
       actions={actions}
       onCreateAccount={() => router.push('/create-account' as Href)}
       onForgotPassword={() => router.push('/forgot-password' as Href)}

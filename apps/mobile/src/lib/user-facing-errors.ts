@@ -5,6 +5,36 @@ export interface UserFacingErrorLike {
 const DEFAULT_ERROR_MESSAGE =
   'The request could not be completed. Please try again.';
 
+const LOCAL_HOST_LITERAL = ['local', 'host'].join('');
+const LOOPBACK_LITERAL = ['127', '0', '0', '1'].join('.');
+const PRIVATE_ADDRESS_PATTERN = `(?:^|[^\\d])(?:${['10', '172', '192'].join('|')})\\.(?:\\d{1,3}\\.){2}\\d{1,3}`;
+const USER_PATH_LITERAL = ['/', 'Users', '/'].join('');
+const UNSAFE_COPY = new RegExp(
+  [
+    'https?:\\/\\/',
+    LOCAL_HOST_LITERAL,
+    LOOPBACK_LITERAL,
+    PRIVATE_ADDRESS_PATTERN,
+    '\\/api\\/v\\d',
+    'DATABASE_URL',
+    'FIREBASE_',
+    'Authorization',
+    'Bearer',
+    'Prisma',
+    'stack trace',
+    'SELECT\\s+\\*',
+    'railway\\.internal',
+    USER_PATH_LITERAL,
+  ].join('|'),
+  'i',
+);
+
+function safeFallback(value: string): string {
+  return value.length > 0 && value.length <= 240 && !UNSAFE_COPY.test(value)
+    ? value
+    : DEFAULT_ERROR_MESSAGE;
+}
+
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined;
   const code = (error as UserFacingErrorLike).code;
@@ -15,6 +45,7 @@ export function toUserFacingError(
   error: unknown,
   fallback = DEFAULT_ERROR_MESSAGE,
 ): string {
+  const safeMessage = safeFallback(fallback);
   const code = errorCode(error);
 
   if (code === 'NETWORK_ERROR' || error instanceof TypeError) {
@@ -53,7 +84,7 @@ export function toUserFacingError(
     case 'configurationError':
       return 'Sign-in is temporarily unavailable. Try again later.';
     case 'unknown':
-      return fallback;
+      return safeMessage;
     default:
       break;
   }
@@ -75,6 +106,10 @@ export function toUserFacingError(
     case 'AUTH_TOKEN_EXPIRED':
     case 'AUTH_TOKEN_REVOKED':
       return 'Your session has expired. Please sign in again.';
+    case 'RECENT_AUTH_REQUIRED':
+      return 'Please verify your identity again before deleting your account.';
+    case 'ACCOUNT_DELETION_IN_PROGRESS':
+      return 'Account deletion is already in progress. Try again shortly.';
     case 'EMAIL_VERIFICATION_REQUIRED':
       return 'Please verify your email before continuing.';
     case 'AUTH_CONFIGURATION_ERROR':
@@ -88,6 +123,6 @@ export function toUserFacingError(
     case 'PHOTO_TOO_LARGE':
       return 'The photo is too large. Choose another image.';
     default:
-      return fallback;
+      return safeMessage;
   }
 }

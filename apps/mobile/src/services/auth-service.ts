@@ -35,6 +35,8 @@ export interface AuthServiceAdapter {
     credential: unknown,
   ): Promise<{ user: FirebaseAuthUser }>;
   signOut(): Promise<void>;
+  reauthenticateWithPassword?(password: string): Promise<void>;
+  reauthenticateWithCredential?(credential: unknown): Promise<void>;
 }
 
 export type CreateAccountInput = {
@@ -143,6 +145,28 @@ export class AuthenticationService {
   async signOut(): Promise<void> {
     try {
       await this.adapter.signOut();
+    } catch (error) {
+      throw normalizeAuthError(error);
+    }
+  }
+
+  async reauthenticateWithPassword(password: string): Promise<void> {
+    if (this.adapter.reauthenticateWithPassword === undefined) {
+      throw new AuthServiceError('unknown');
+    }
+    try {
+      await this.adapter.reauthenticateWithPassword(password);
+    } catch (error) {
+      throw normalizeAuthError(error);
+    }
+  }
+
+  async reauthenticateWithCredential(credential: unknown): Promise<void> {
+    if (this.adapter.reauthenticateWithCredential === undefined) {
+      throw new AuthServiceError('unknown');
+    }
+    try {
+      await this.adapter.reauthenticateWithCredential(credential);
     } catch (error) {
       throw normalizeAuthError(error);
     }

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { AppError } from '../src/lib/errors.js';
+import { toPublicError } from '../src/lib/public-errors.js';
 import { errorHandler } from '../src/middleware/error-handler.js';
 import { validateBody } from '../src/middleware/validate.js';
 
@@ -102,6 +103,26 @@ describe('public API error boundary', () => {
     warn.mockRestore();
   });
 
+  it('logs only a safe exception category instead of an implementation class name', async () => {
+    class PrismaClientKnownRequestError extends Error {}
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const response = await request(
+      appWithError(
+        new PrismaClientKnownRequestError('private provider detail'),
+      ),
+    ).get('/failure');
+
+    expect(response.status).toBe(500);
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(
+      'PrismaClientKnownRequestError',
+    );
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(
+      'private provider detail',
+    );
+    warn.mockRestore();
+  });
+
   it('uses an allowlisted contextual public message without trusting AppError.message', async () => {
     const response = await request(
       appWithError(
@@ -118,5 +139,19 @@ describe('public API error boundary', () => {
       'AI nutrition estimates were cut off. Try again.',
     );
     expect(JSON.stringify(response.body)).not.toMatch(/Prisma|SELECT|User/);
+  });
+
+  it('allows only product validation fields from an AppError', () => {
+    expect(
+      toPublicError(
+        new AppError(400, 'VALIDATION_ERROR', 'internal', {
+          fields: [
+            { field: 'email', reason: 'invalid' },
+            { field: 'privateDatabaseField', reason: 'invalid' },
+            { field: 'email', reason: 'provider-secret' },
+          ],
+        }),
+      ).details,
+    ).toEqual({ fields: [{ field: 'email', reason: 'invalid' }] });
   });
 });

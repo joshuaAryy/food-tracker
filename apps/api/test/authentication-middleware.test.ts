@@ -227,4 +227,25 @@ describe('Firebase authentication middleware', () => {
     expect(error).toMatchObject({ code: 'AUTH_TOKEN_EXPIRED', status: 401 });
     expect(error).not.toHaveProperty('details.providerMessage');
   });
+
+  it('returns a safe availability response when application identity synchronization cannot initialize the database', async () => {
+    const dependencies = dependenciesWith({
+      synchronizeUser: vi.fn().mockRejectedValue(
+        Object.assign(new Error(), {
+          name: 'PrismaClientInitializationError',
+        }),
+      ),
+    });
+    const next = nextFunction();
+
+    await createFirebaseAuthMiddleware(dependencies)(
+      requestWithAuthorization('Bearer firebase-token'),
+      response(),
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'INTERNAL_SERVER_ERROR', status: 503 }),
+    );
+  });
 });

@@ -56,6 +56,7 @@ import {
   rankParseCandidates,
 } from './candidate-ranking.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
+import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
 
 type FoodItemInput = z.infer<typeof foodItemInputSchema>;
 type ManualFoodItemCreateInput = z.infer<
@@ -676,7 +677,11 @@ foodItemsRouter.post(
       const usdaFoods = await enrichUsdaFoods({
         query: externalSearchQuery(normalizedQuery),
         config: usdaConfig,
-        rateLimitKey: `${userId}:${request.ip ?? 'unknown'}:food-search`,
+        rateLimitKey: createRequestRateLimitKey({
+          userId,
+          networkIdentifier: request.ip,
+          scope: 'food-search',
+        }),
         policy: USDA_ENRICHMENT_POLICIES.normalSearch,
         isEnough: (foods) =>
           foods.filter(

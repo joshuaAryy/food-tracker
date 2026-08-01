@@ -1,5 +1,6 @@
 import type {
   AdvancedAnalytics,
+  AccountDeletionResponse,
   AiFoodParseCandidate,
   AiFoodParseResult,
   AiNutritionEstimateInput,
@@ -62,6 +63,7 @@ import {
   photoAnalysisConfirmationResponseSchema,
 } from '@food-tracker/shared';
 import { File } from 'expo-file-system';
+import Constants from 'expo-constants';
 import {
   photoAnalysisRequestInit,
   readNormalizedPhotoBytes,
@@ -74,20 +76,22 @@ import {
   type ResponseSchema,
 } from './api-response';
 import { reportDiagnostic } from './safe-diagnostics';
+import { resolveApiRuntimeConfig } from './api-target';
 import { toUserFacingError } from './user-facing-errors';
 import type { ApiAuthSession } from './api-auth-session';
 
-const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim().replace(
-  /\/+$/,
-  '',
+const runtimeExtra = Constants.expoConfig?.extra;
+const resolvedApiRuntime = resolveApiRuntimeConfig(
+  runtimeExtra ?? {
+    apiUrl: process.env.EXPO_PUBLIC_API_URL,
+    appEnvironment: process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
+  },
 );
-if (configuredApiUrl === undefined || configuredApiUrl === '') {
-  throw new Error(
-    'EXPO_PUBLIC_API_URL must be configured before the app starts.',
-  );
-}
+reportDiagnostic('api_target_resolved', {
+  operation: resolvedApiRuntime.category,
+});
 
-export const API_URL = configuredApiUrl;
+export const API_URL = resolvedApiRuntime.apiUrl;
 
 let apiAuthSession: ApiAuthSession | null = null;
 
@@ -459,6 +463,10 @@ const recommendationList = (status?: RecommendationStatus) =>
   ).then(({ recommendations }) => recommendations);
 
 export const api = {
+  account: {
+    delete: () =>
+      request<AccountDeletionResponse>('/account', { method: 'DELETE' }),
+  },
   analytics: {
     advanced: (query: AdvancedAnalyticsQuery = {}) =>
       request<AdvancedAnalytics>(`/analytics/advanced${queryString(query)}`),

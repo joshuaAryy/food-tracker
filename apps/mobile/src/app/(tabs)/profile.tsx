@@ -39,6 +39,10 @@ import {
 } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
 import { AccountSignOutButton } from '@/components/auth/account-sign-out-button';
+import {
+  DeleteAccountPanel,
+  type AccountDeletionActions,
+} from '@/components/auth/account-deletion';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -513,7 +517,13 @@ function ProfileSkeleton() {
 }
 
 export default function ProfileScreen() {
-  const { signOut } = useAuthRuntime();
+  const {
+    deleteAccount,
+    providerIds,
+    reauthenticateWithGoogle,
+    reauthenticateWithPassword,
+    signOut,
+  } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1080,6 +1090,16 @@ export default function ProfileScreen() {
         description="Your data stays separated from other accounts on this device."
       >
         <AccountSignOutButton onSignOut={signOut} />
+        <DeleteAccountPanel
+          providerIds={providerIds}
+          actions={
+            {
+              deleteAccount,
+              reauthenticateWithGoogle,
+              reauthenticateWithPassword,
+            } satisfies AccountDeletionActions
+          }
+        />
       </SettingsSection>
     </AppScreen>
   );

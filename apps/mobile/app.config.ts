@@ -1,8 +1,25 @@
+import 'tsx/cjs';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+import { withEntitlementsPlist, type ConfigPlugin } from 'expo/config-plugins';
+import { isAppleSignInEnabled } from './src/lib/apple-sign-in-config';
 
 export type AppEnvironment = 'development' | 'staging' | 'production';
 
 const API_BASE_PATH = '/api/v1';
+
+export function removeAppleSignInNativeConfiguration(
+  entitlements: Record<string, unknown>,
+): Record<string, unknown> {
+  const nextEntitlements = { ...entitlements };
+  delete nextEntitlements['com.apple.developer.applesignin'];
+  return nextEntitlements;
+}
+
+const withDisabledAppleSignInNativeConfiguration: ConfigPlugin = (config) =>
+  withEntitlementsPlist(config, (config) => {
+    config.modResults = removeAppleSignInNativeConfiguration(config.modResults);
+    return config;
+  });
 
 function isPrivateIpv4(hostname: string): boolean {
   const parts = hostname.split('.').map(Number);
@@ -94,6 +111,7 @@ export function createAppConfig(
   const googleIosUrlScheme = environment.GOOGLE_IOS_URL_SCHEME?.trim();
   const googleServicesPlistPath =
     environment.GOOGLE_SERVICES_PLIST_PATH?.trim();
+  const appleSignInEnabled = isAppleSignInEnabled(environment);
 
   const config: ExpoConfig = {
     name: 'Food Tracker',
@@ -133,7 +151,9 @@ export function createAppConfig(
           },
         ],
       ],
-      'expo-apple-authentication',
+      ...(appleSignInEnabled
+        ? ['expo-apple-authentication']
+        : [withDisabledAppleSignInNativeConfiguration]),
       '@react-native-firebase/app',
       '@react-native-firebase/auth',
       [
@@ -143,11 +163,16 @@ export function createAppConfig(
         },
       ],
     ],
+    extra: {
+      apiUrl,
+      appEnvironment: appEnv,
+    },
     experiments: { typedRoutes: true },
     ios: {
       icon: './assets/icons/simple.png',
       bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
       appleTeamId: '6JMW7252B6',
+      ...(appleSignInEnabled ? { usesAppleSignIn: true } : {}),
       ...(googleServicesPlistPath === undefined
         ? {}
         : { googleServicesFile: googleServicesPlistPath }),
@@ -172,8 +197,6 @@ export function createAppConfig(
     },
   };
 
-  void apiUrl;
-  void appEnv;
   return config;
 }
 

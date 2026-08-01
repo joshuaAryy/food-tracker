@@ -83,4 +83,56 @@ describe('server diagnostic boundary', () => {
 
     expect(violations).toEqual([]);
   });
+
+  it('does not collect raw provider exception messages at the source', () => {
+    const retrievalSource = readFileSync(
+      join(import.meta.dirname, '..', 'src/modules/ai/retrieval.ts'),
+      'utf8',
+    );
+
+    expect(retrievalSource).not.toContain('diagnosticText(error.message)');
+    expect(retrievalSource).not.toMatch(
+      /message:\s*error instanceof Error\s*\?\s*diagnosticText\(error\.message\)/,
+    );
+
+    for (const providerPath of [
+      join(import.meta.dirname, '..', 'src/modules/ai/provider.ts'),
+      join(import.meta.dirname, '..', 'src/modules/ai/photo-provider.ts'),
+    ]) {
+      const source = readFileSync(providerPath, 'utf8');
+      expect(source).not.toContain('issues: parsed.error.issues');
+      expect(source).not.toContain('error instanceof Error ? error.message');
+    }
+  });
+
+  it('uses bounded request and Firebase verification diagnostic categories', () => {
+    const sourceRoot = join(import.meta.dirname, '..', 'src');
+    const appSource = readFileSync(join(sourceRoot, 'app.ts'), 'utf8');
+    const serverSource = readFileSync(join(sourceRoot, 'server.ts'), 'utf8');
+    const authMiddlewareSource = readFileSync(
+      join(sourceRoot, 'middleware/firebase-auth.ts'),
+      'utf8',
+    );
+
+    expect(appSource).toContain("'api_request_received'");
+    expect(serverSource).toContain("'api_instance_started'");
+    for (const category of [
+      'authorization_header_present',
+      'bearer_token_shape_valid',
+      'firebase_verification_started',
+      'firebase_verification_succeeded',
+      'firebase_verification_failed',
+      'firebase_revocation_check_started',
+      'firebase_revocation_check_succeeded',
+      'firebase_revocation_check_failed',
+      'application_identity_sync_started',
+      'application_identity_sync_succeeded',
+      'application_identity_sync_failed',
+    ]) {
+      expect(authMiddlewareSource).toContain(`'${category}'`);
+    }
+
+    expect(authMiddlewareSource).not.toContain('error.message');
+    expect(authMiddlewareSource).not.toContain('request.headers');
+  });
 });

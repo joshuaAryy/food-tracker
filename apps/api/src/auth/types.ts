@@ -25,18 +25,39 @@ export type FirebaseAdminUserStatus = {
 export interface FirebaseAdminAuthAdapter {
   verifyIdToken(token: string): Promise<VerifiedFirebaseIdentity>;
   getUser(uid: string): Promise<FirebaseAdminUserStatus>;
+  deleteUser(uid: string): Promise<void>;
 }
 
 export interface FirebaseRevocationStatusService {
   assertActive(identity: VerifiedFirebaseIdentity): Promise<void>;
 }
 
+export type FirebaseVerificationFailureCategory =
+  | 'missing_header'
+  | 'malformed_header'
+  | 'malformed_token'
+  | 'invalid_signature'
+  | 'invalid_audience'
+  | 'invalid_issuer'
+  | 'project_mismatch'
+  | 'expired_token'
+  | 'revoked_token'
+  | 'disabled_user'
+  | 'admin_configuration_error'
+  | 'unknown_verification_failure';
+
 export class AuthBoundaryError extends Error {
   constructor(
     public readonly code: AuthErrorCode,
-    options?: { cause?: unknown },
+    options?: {
+      cause?: unknown;
+      diagnosticCategory?: FirebaseVerificationFailureCategory;
+    },
   ) {
     super('Firebase authentication failed.', options);
     this.name = 'AuthBoundaryError';
+    this.diagnosticCategory = options?.diagnosticCategory;
   }
+
+  readonly diagnosticCategory: FirebaseVerificationFailureCategory | undefined;
 }

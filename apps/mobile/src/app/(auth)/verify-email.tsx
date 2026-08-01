@@ -36,7 +36,9 @@ export function VerifyEmailScreen({
     setError(null);
     try {
       await actions.resendVerification();
-      setSuccess('Verification email sent.');
+      setSuccess(
+        'Verification email sent. Check your inbox; it may take a few minutes to arrive, and it could appear in your Junk or Spam folder.',
+      );
     } catch (cause) {
       setError(toUserFacingError(cause));
     } finally {
@@ -80,6 +82,11 @@ export function VerifyEmailScreen({
             <AppText className="text-[15px] leading-5 text-[#6E6E6E]">
               We sent a verification link to {email}. Verify your email to
               continue.
+            </AppText>
+            <AppText className="text-[15px] leading-5 text-[#6E6E6E]">
+              Check your inbox for the verification email. It may take a few
+              minutes to arrive, and it could appear in your Junk or Spam
+              folder.
             </AppText>
           </View>
         </View>

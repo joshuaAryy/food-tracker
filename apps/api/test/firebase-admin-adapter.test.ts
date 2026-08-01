@@ -21,6 +21,7 @@ describe('Firebase Admin adapter', () => {
     const adapter = createFirebaseAdminAuthAdapter({
       verifyIdToken,
       getUser: vi.fn(),
+      deleteUser: vi.fn(),
     });
 
     await expect(adapter.verifyIdToken('token')).resolves.toEqual({
@@ -48,6 +49,7 @@ describe('Firebase Admin adapter', () => {
     const adapter = createFirebaseAdminAuthAdapter({
       verifyIdToken: vi.fn(),
       getUser,
+      deleteUser: vi.fn(),
     });
 
     await expect(adapter.getUser('firebase-user-1')).resolves.toEqual({
@@ -65,6 +67,7 @@ describe('Firebase Admin adapter', () => {
     const adapter = createFirebaseAdminAuthAdapter({
       verifyIdToken: vi.fn().mockRejectedValue(providerError),
       getUser: vi.fn().mockRejectedValue(providerError),
+      deleteUser: vi.fn(),
     });
 
     await expect(adapter.verifyIdToken('token')).rejects.toSatisfy(

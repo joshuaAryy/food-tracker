@@ -180,6 +180,14 @@ model User {
   recommendations            Recommendation[]
 }
 
+model AccountDeletion {
+  id                String   @id @default(uuid()) @db.Uuid
+  firebaseUid       String   @unique
+  applicationUserId String?  @db.Uuid
+  createdAt         DateTime @default(now()) @db.Timestamptz
+  updatedAt         DateTime @updatedAt @db.Timestamptz
+}
+
 model UserProfile {
   id               String         @id @default(uuid()) @db.Uuid
   userId           String         @unique @db.Uuid

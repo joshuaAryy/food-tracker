@@ -22,6 +22,13 @@ describe('authentication routing', () => {
     ],
     [
       {
+        status: 'setupStatusUnavailable',
+        user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
+      },
+      '/(auth)/recovery',
+    ],
+    [
+      {
         status: 'signedInSetupIncomplete',
         user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
       },

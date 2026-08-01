@@ -14,6 +14,7 @@ export interface GoogleAuthenticationAdapter {
 
 interface FirebaseCredentialSignIn {
   signInWithCredential(credential: unknown): Promise<FirebaseAuthUser>;
+  reauthenticateWithCredential?(credential: unknown): Promise<void>;
 }
 
 function providerErrorCode(error: unknown): string | undefined {
@@ -71,6 +72,37 @@ export class GoogleAuthenticationService {
         this.pending?.set('google', credential);
       }
       throw normalized;
+    }
+  }
+
+  async reauthenticate(webClientId: string): Promise<void> {
+    const clientId = webClientId.trim();
+    if (clientId === '') throw new AuthServiceError('configurationError');
+    if (this.configuredClientId === undefined) {
+      this.adapter.configure({ webClientId: clientId });
+      this.configuredClientId = clientId;
+    } else if (this.configuredClientId !== clientId) {
+      throw new AuthServiceError('configurationError');
+    }
+
+    if (this.authService.reauthenticateWithCredential === undefined) {
+      throw new AuthServiceError('unknown');
+    }
+
+    try {
+      const result = await this.adapter.signIn();
+      if (result.type === 'cancelled') {
+        throw new AuthServiceError('providerCancelled');
+      }
+      if (result.idToken === null || result.idToken === '') {
+        throw new AuthServiceError('unknown');
+      }
+      await this.authService.reauthenticateWithCredential(
+        this.adapter.createFirebaseCredential(result.idToken),
+      );
+    } catch (error) {
+      if (error instanceof AuthServiceError) throw error;
+      throw normalizeAuthError(error);
     }
   }
 }

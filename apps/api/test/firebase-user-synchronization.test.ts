@@ -41,6 +41,20 @@ function repositoryWith(
 }
 
 describe('Firebase application-user synchronization', () => {
+  it('blocks identity recreation while deletion coordination is pending', async () => {
+    const repository = repositoryWith({
+      isDeletionPending: vi.fn().mockResolvedValue(true),
+    });
+
+    await expect(
+      synchronizeFirebaseUser(repository, identity),
+    ).rejects.toMatchObject({
+      code: 'ACCOUNT_DELETION_IN_PROGRESS',
+    });
+    expect(repository.findByFirebaseUid).not.toHaveBeenCalled();
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
   it('creates a new application user only from Firebase UID', async () => {
     const repository = repositoryWith();
 

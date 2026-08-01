@@ -32,6 +32,40 @@ const SAFE_REASONS = new Set([
 
 const SAFE_STATUSES = new Set(['needs_review']);
 
+const PUBLIC_VALIDATION_FIELDS = new Set([
+  'name',
+  'email',
+  'password',
+  'age',
+  'birthDate',
+  'sex',
+  'heightInches',
+  'startingWeightLb',
+  'activityLevel',
+  'trainingStyle',
+  'foodName',
+  'description',
+  'mealType',
+  'calories',
+  'protein',
+  'carbs',
+  'fat',
+  'weightLb',
+  'loggedAt',
+  'timezone',
+  'goalPace',
+  'targetWeightLb',
+  'targetCalories',
+  'targetProteinGrams',
+]);
+
+const PUBLIC_VALIDATION_REASONS = new Set([
+  'invalid',
+  'required',
+  'too_short',
+  'too_long',
+]);
+
 const DEFAULT_PUBLIC_MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: 'Request validation failed',
   NOT_FOUND: 'The requested resource was not found.',
@@ -41,6 +75,9 @@ const DEFAULT_PUBLIC_MESSAGES: Record<string, string> = {
   INVALID_AUTH_TOKEN: 'Authentication could not be verified.',
   AUTH_TOKEN_EXPIRED: 'Authentication has expired.',
   AUTH_TOKEN_REVOKED: 'Authentication is no longer valid.',
+  RECENT_AUTH_REQUIRED: 'Please verify your identity again before continuing.',
+  ACCOUNT_DELETION_IN_PROGRESS:
+    'Account deletion is already in progress. Try again shortly.',
   EMAIL_VERIFICATION_REQUIRED: 'Email verification is required.',
   AUTH_CONFIGURATION_ERROR: 'Authentication is temporarily unavailable.',
   AI_UNAVAILABLE: 'Food recognition is temporarily unavailable.',
@@ -86,8 +123,8 @@ function safeDetails(
       if (
         typeof field.field !== 'string' ||
         typeof field.reason !== 'string' ||
-        !/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(field.field) ||
-        !/^[a-z_]+$/.test(field.reason)
+        !PUBLIC_VALIDATION_FIELDS.has(field.field) ||
+        !PUBLIC_VALIDATION_REASONS.has(field.reason)
       ) {
         return [];
       }

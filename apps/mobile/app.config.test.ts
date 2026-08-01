@@ -1,9 +1,40 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import packageJson from './package.json';
-import { createAppConfig, validateApiUrl } from './app.config';
+import {
+  createAppConfig,
+  removeAppleSignInNativeConfiguration,
+  validateApiUrl,
+} from './app.config';
 
 describe('tracked Expo configuration', () => {
+  it('loads the external TypeScript helper through the Expo config loader', () => {
+    const result = spawnSync(
+      'corepack',
+      [
+        'pnpm',
+        '--filter',
+        '@food-tracker/mobile',
+        'exec',
+        'expo',
+        'config',
+        '--type',
+        'public',
+      ],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
+        },
+        stdio: 'ignore',
+      },
+    );
+
+    expect(result.status).toBe(0);
+  });
+
   it('rejects a missing API URL outside local development', () => {
     expect(() => validateApiUrl(undefined, 'staging')).toThrow(
       'EXPO_PUBLIC_API_URL is required for staging.',
@@ -48,6 +79,10 @@ describe('tracked Expo configuration', () => {
       scheme: 'foodtracker',
       icon: './assets/icons/simple.png',
       experiments: { typedRoutes: true },
+      extra: {
+        apiUrl: 'https://staging-api.example.com/api/v1',
+        appEnvironment: 'staging',
+      },
       ios: {
         bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
         appleTeamId: '6JMW7252B6',
@@ -71,6 +106,7 @@ describe('tracked Expo configuration', () => {
     const config = createAppConfig({
       APP_ENV: 'staging',
       EXPO_PUBLIC_API_URL: 'https://staging-api.example.com/api/v1',
+      EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'true',
     });
     const plugins = config.plugins ?? [];
     expect(plugins).toContain('@react-native-firebase/app');
@@ -81,6 +117,70 @@ describe('tracked Expo configuration', () => {
       { ios: { useFrameworks: 'static' } },
     ]);
     expect(config.ios?.googleServicesFile).toBeUndefined();
+  });
+
+  it('omits Apple capability and plugin for free development configuration', () => {
+    const config = createAppConfig({
+      APP_ENV: 'development',
+      EXPO_PUBLIC_API_URL: 'http://localhost:3000/api/v1',
+      EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
+    });
+    const plugins = config.plugins ?? [];
+
+    expect(config.ios?.usesAppleSignIn).toBeUndefined();
+    expect(plugins).not.toContain('expo-apple-authentication');
+    expect(plugins).toContain('@react-native-firebase/app');
+    expect(plugins).toContain('@react-native-firebase/auth');
+    expect(plugins).toContainEqual([
+      'expo-build-properties',
+      { ios: { useFrameworks: 'static' } },
+    ]);
+    expect(config).toMatchObject({
+      name: 'Food Tracker',
+      scheme: 'foodtracker',
+      icon: './assets/icons/simple.png',
+      experiments: { typedRoutes: true },
+      ios: {
+        bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
+        appleTeamId: '6JMW7252B6',
+        icon: './assets/icons/simple.png',
+      },
+    });
+  });
+
+  it('removes the auto-applied Apple entitlement when Apple is disabled', () => {
+    expect(
+      removeAppleSignInNativeConfiguration({
+        'com.apple.developer.applesignin': ['Default'],
+        'aps-environment': 'development',
+      }),
+    ).toEqual({ 'aps-environment': 'development' });
+  });
+
+  it('enables Apple capability and plugin exactly once when configured', () => {
+    const config = createAppConfig({
+      APP_ENV: 'staging',
+      EXPO_PUBLIC_API_URL: 'https://staging-api.example.com/api/v1',
+      EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'true',
+    });
+    const plugins = config.plugins ?? [];
+
+    expect(config.ios?.usesAppleSignIn).toBe(true);
+    expect(
+      plugins.filter((plugin) => plugin === 'expo-apple-authentication'),
+    ).toHaveLength(1);
+  });
+
+  it('rejects malformed Apple availability configuration', () => {
+    expect(() =>
+      createAppConfig({
+        APP_ENV: 'development',
+        EXPO_PUBLIC_API_URL: 'http://localhost:3000/api/v1',
+        EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'TRUE',
+      }),
+    ).toThrow(
+      'EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED must be exactly "true" or "false" when set.',
+    );
   });
 
   it('keeps the locked authentication dependency boundary', () => {

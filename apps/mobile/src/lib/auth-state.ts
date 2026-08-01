@@ -6,9 +6,11 @@ export type AuthSessionUser = {
 
 export type AuthState =
   | { status: 'initializing' }
+  | { status: 'initializationFailed' }
   | { status: 'signedOut' }
   | { status: 'verificationRequired'; user: AuthSessionUser }
   | { status: 'signedInSetupUnknown'; user: AuthSessionUser }
+  | { status: 'setupStatusUnavailable'; user: AuthSessionUser }
   | { status: 'signedInSetupIncomplete'; user: AuthSessionUser }
   | { status: 'signedInReady'; user: AuthSessionUser };
 
@@ -22,6 +24,7 @@ export type SessionInvalidationReason =
 
 export type AuthStateEvent =
   | { type: 'sessionResolved'; user: AuthSessionUser | null }
+  | { type: 'initializationFailed' }
   | { type: 'setupResolved'; isComplete: boolean }
   | { type: 'setupResolutionFailed' }
   | { type: 'sessionInvalidated'; reason: SessionInvalidationReason }
@@ -42,6 +45,8 @@ export function transitionAuthState(
   switch (event.type) {
     case 'sessionResolved':
       return deriveAuthState(event.user);
+    case 'initializationFailed':
+      return { status: 'initializationFailed' };
     case 'setupResolved':
       if (
         state.status !== 'signedInSetupUnknown' &&
@@ -54,6 +59,9 @@ export function transitionAuthState(
         user: state.user,
       };
     case 'setupResolutionFailed':
+      if (state.status === 'signedInSetupUnknown') {
+        return { status: 'setupStatusUnavailable', user: state.user };
+      }
       return state;
     case 'sessionInvalidated':
     case 'signedOut':

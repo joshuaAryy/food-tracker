@@ -15,6 +15,11 @@ export default defineConfig({
       'test/firebase-admin-adapter.test.ts',
       'test/firebase-user-synchronization.test.ts',
       'test/authentication-middleware.test.ts',
+      'test/authentication-diagnostic-categories.test.ts',
+      'test/rate-limit-key.test.ts',
+      'test/runtime-config.test.ts',
+      'test/health.test.ts',
+      'test/deployment-config.test.ts',
     ],
   },
 });

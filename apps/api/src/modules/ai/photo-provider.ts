@@ -474,10 +474,7 @@ function normalizeQuantity(input: {
   const parsed = photoProvisionalQuantitySchema.safeParse(quantity);
   if (!parsed.success) {
     logDiagnostic('quantity_semantic_validation_failure', {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-      })),
+      errorCategory: 'schema_validation',
     });
     throw aiUnavailable('Photo analysis returned an invalid quantity.');
   }
@@ -616,19 +613,14 @@ function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
   let decoded: unknown;
   try {
     decoded = JSON.parse(text.trim());
-  } catch (error) {
-    throw new ProviderJsonSyntaxError(
-      error instanceof Error ? error.message : 'unknown',
-    );
+  } catch {
+    throw new ProviderJsonSyntaxError();
   }
 
   const parsed = providerOutputSchema.safeParse(decoded);
   if (!parsed.success) {
     logDiagnostic('schema_validation_failure', {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-      })),
+      errorCategory: 'schema_validation',
     });
     throw aiUnavailable('Photo analysis returned an invalid response.');
   }

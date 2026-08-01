@@ -1,10 +1,12 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   getIdToken,
   getAuth,
   linkWithCredential,
   onIdTokenChanged,
   reload,
+  reauthenticateWithCredential,
   sendPasswordResetEmail,
   sendEmailVerification,
   signInWithCredential,
@@ -63,6 +65,21 @@ export function createFirebaseAuthService(): AuthenticationService {
         }),
       ),
     signOut: () => signOut(auth),
+    reauthenticateWithPassword: async (password) => {
+      const user = auth.currentUser;
+      if (user === null || user.email === null) {
+        throw new AuthServiceError('sessionExpired');
+      }
+      await reauthenticateWithCredential(
+        user,
+        EmailAuthProvider.credential(user.email, password),
+      );
+    },
+    reauthenticateWithCredential: async (credential) => {
+      const user = auth.currentUser;
+      if (user === null) throw new AuthServiceError('sessionExpired');
+      await reauthenticateWithCredential(user, credential as AuthCredential);
+    },
   };
   return new AuthenticationService(adapter);
 }

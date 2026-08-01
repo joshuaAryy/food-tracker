@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   AuthBoundaryError,
   createFirebaseTokenVerifier,
+  firebaseVerificationFailureCategory,
   type FirebaseAdminAuthAdapter,
   type VerifiedFirebaseIdentity,
 } from '../src/auth/firebase-token-verifier.js';
@@ -24,10 +25,25 @@ function adapterWith(
   return {
     verifyIdToken,
     getUser: vi.fn(),
+    deleteUser: vi.fn(),
   };
 }
 
 describe('Firebase token verifier', () => {
+  it.each([
+    ['AUTH_TOKEN_EXPIRED', 'expired_token'],
+    ['AUTH_TOKEN_REVOKED', 'revoked_token'],
+    ['AUTH_CONFIGURATION_ERROR', 'admin_configuration_error'],
+    ['INVALID_AUTH_TOKEN', 'unknown_verification_failure'],
+  ] as const)(
+    'maps normalized Firebase failure %s to safe diagnostic category %s',
+    (code, category) => {
+      expect(
+        firebaseVerificationFailureCategory(new AuthBoundaryError(code)),
+      ).toBe(category);
+    },
+  );
+
   it('delegates ordinary token verification and returns normalized identity claims', async () => {
     const verifyIdToken = vi.fn().mockResolvedValue(identity);
     const verifier = createFirebaseTokenVerifier(adapterWith(verifyIdToken));

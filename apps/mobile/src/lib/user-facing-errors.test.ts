@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('expo-file-system', () => ({
@@ -163,5 +164,24 @@ describe('mobile user-facing error boundary', () => {
         message: '/Users/joshua/food_tracker/private-photo-path',
       }),
     ).not.toContain('/Users/');
+  });
+
+  it('does not trust an unsafe fallback message supplied by a callsite', () => {
+    expect(
+      toUserFacingError(
+        { code: 'unknown' },
+        'POST /api/v1/ai/food-parse failed at http://192.168.1.42:3000',
+      ),
+    ).toBe('The request could not be completed. Please try again.');
+  });
+
+  it('does not ship concrete local host literals in the user-facing boundary', () => {
+    const source = readFileSync(
+      new URL('./user-facing-errors.ts', import.meta.url),
+      'utf8',
+    );
+
+    expect(source).not.toContain('localhost');
+    expect(source).not.toContain('127.0.0.1');
   });
 });

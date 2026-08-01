@@ -43,7 +43,12 @@ export async function signInWithApple(
   authService: FirebaseCredentialSignIn,
   adapter: AppleAuthenticationAdapter,
   pending?: PendingProviderCredentialStore<unknown>,
+  appleSignInEnabled = false,
 ): Promise<FirebaseAuthUser> {
+  if (!appleSignInEnabled) {
+    throw new AuthServiceError('configurationError');
+  }
+
   const { rawNonce, hashedNonce } = await generateAppleNonce(
     adapter.randomBytes,
     adapter.digest,

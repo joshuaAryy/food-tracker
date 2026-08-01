@@ -8,6 +8,7 @@ describe('create account screen', () => {
     const createAccount = jest.fn().mockResolvedValue({ uid: 'firebase-user' });
     const screen = await render(
       <CreateAccountScreen
+        appleSignInEnabled
         actions={{
           createAccount,
           onApple: jest.fn(),
@@ -57,6 +58,7 @@ describe('create account screen', () => {
     const onCreated = jest.fn();
     const screen = await render(
       <CreateAccountScreen
+        appleSignInEnabled
         actions={{
           createAccount: jest.fn().mockResolvedValue({ uid: 'firebase-user' }),
           onApple: jest.fn(),
@@ -117,11 +119,20 @@ describe('create account screen', () => {
     );
 
     expect(await screen.findByText('Check your inbox')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        'Check your inbox for the verification email. It may take a few minutes to arrive, and it could appear in your Junk or Spam folder.',
+      ),
+    ).toBeTruthy();
     await user.press(
       await screen.findByRole('button', { name: 'Resend verification email' }),
     );
     expect(resendVerification).toHaveBeenCalledTimes(1);
-    expect(await screen.findByText('Verification email sent.')).toBeTruthy();
+    expect(
+      await screen.findByText(
+        'Verification email sent. Check your inbox; it may take a few minutes to arrive, and it could appear in your Junk or Spam folder.',
+      ),
+    ).toBeTruthy();
 
     await user.press(
       await screen.findByRole('button', { name: 'I’ve verified my email' }),
@@ -135,5 +146,30 @@ describe('create account screen', () => {
       await screen.findByRole('button', { name: 'I’ve verified my email' }),
     );
     expect(onVerified).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Google first and omits Apple when Apple sign-in is disabled', async () => {
+    const screen = await render(
+      <CreateAccountScreen
+        appleSignInEnabled={false}
+        actions={{
+          createAccount: jest.fn(),
+          onApple: jest.fn(),
+          onGoogle: jest.fn(),
+        }}
+        onCreated={jest.fn()}
+        onSignIn={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: 'Continue with Apple' }),
+    ).toBeNull();
+    expect(
+      (await screen.findAllByRole('button')).map(
+        (button) => button.props.accessibilityLabel,
+      ),
+    ).toEqual(['Continue with Google', 'Create account', 'Sign in']);
+    expect(await screen.findByText('or')).toBeTruthy();
   });
 });
