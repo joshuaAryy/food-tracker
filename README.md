@@ -43,6 +43,12 @@ The implemented baseline includes:
 - Analytics completeness and confidence messaging
 - Shared TypeScript and Zod contracts
 - PostgreSQL-backed backend integration tests
+- Firebase Authentication with email/password and Google sign-in; Apple sign-in
+  implementation is preserved but disabled for free-development builds
+- Firebase UID to application-owned UUID mapping with protected routing and
+  server-derived ownership
+- Sanitized public errors, redacted diagnostics, explicit CORS, security
+  headers, and a minimal `/health` liveness route
 
 Nutrition calculations, trends, and recommendation decisions are deterministic
 backend code. AI does not perform analytics, decide recommendations, or act as
@@ -55,19 +61,40 @@ database reuse, barcode lookup, AI-assisted text parsing with USDA generic
 nutrition fallback, USDA-backed normal food search, AI-estimated nutrition for
 unresolved text-logging rows, completed Phase 14 photo food logging, mode-aware
 analytics, and real onboarding with deterministic calorie and protein target
-calculation. Phase 15 — Streaks and Better Reporting — is implemented on the
-feature branch; physical-device validation and documentation closeout remain
-before merge.
+calculation. Phase 15 and the Phase 15.5 reporting redesign are represented in
+the current Phase 16 branch. Phase 16 adds Firebase Authentication, protected
+routing, public/internal error separation, server diagnostic redaction, and a
+validated Railway staging deployment. Hosted setup-status, persistence,
+ownership, provider, session, and disposable-account deletion checks passed.
 
 ## Current Limitations
 
-- Development still uses a fixed mock-user authentication boundary.
+- Apple sign-in is disabled for free development through the typed
+  `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED` flag; email/password and Google remain
+  the active development providers.
 - Water and Note actions are visible but not implemented.
-- Mobile automated tests are not yet configured.
+- App Store/TestFlight distribution is not a current goal.
 - Local PostgreSQL is required for API persistence and backend tests.
 - Physical devices require an explicit LAN API URL.
-- Saved meals, real authentication, deployment/TestFlight, water, and
-  supplements remain future work.
+- Railway staging is validated in its dedicated `staging` environment;
+  production resources remain intentionally out of scope.
+- Water, supplements, and durable legal-consent work remain outside this phase.
+- Immediate account deletion is permanent and was validated with a disposable
+  Google account. Reusing that identity creates a fresh empty application
+  account; deleted data does not return.
+- Photo candidate adjudication and the optional API-unavailable check remain
+  `Not tested`; unperformed physical checks are not inferred as passing.
+
+### Phase 16 closeout
+
+Phase 16 is complete. The Railway staging API and private PostgreSQL service
+were validated from the physical iPhone with Firebase verification and
+revocation checks, setup-status routing, onboarding, persistence, ownership
+isolation, USDA/Open Food Facts retrieval, Gemini parsing, photo analysis,
+nutrition fallback, session restoration, sign-out, and permanent deletion.
+Phase 17 is the next phase for standalone internal/TestFlight distribution.
+Metro remains required for development-client testing, while hosted staging
+does not require the local API or Docker.
 
 ## Technology
 
@@ -78,6 +105,8 @@ before merge.
 - Monorepo: pnpm workspaces
 - Required runtime: Node.js 22.x
 - Package manager: pnpm 10.34.3
+- Authentication: Firebase Authentication on mobile; Firebase Admin on the
+  API; the application retains its own UUID user identity
 
 ## Quick Start
 
@@ -120,6 +149,11 @@ corepack pnpm prisma:generate
 corepack pnpm prisma:validate
 corepack pnpm --filter @food-tracker/api exec prisma migrate deploy
 ```
+
+For hosted staging or production, configure the server-only Firebase Admin
+variables, database, explicit browser CORS origins, and rate-limit key secret
+through the deployment environment. Never place these values in mobile
+`EXPO_PUBLIC_*` configuration.
 
 ### 5. Run the API
 

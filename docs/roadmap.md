@@ -4,6 +4,12 @@ This roadmap records implemented state and intended sequencing. It does not
 override the engineering rules in `AGENTS.md` or locked architecture and schema
 decisions.
 
+The older Phase 16–19 entries below are retained as historical roadmap context.
+Local Phase 16 work reprioritized Firebase Authentication, security foundations,
+and Railway repository readiness ahead of custom graphs and broader deployment.
+Remote documentation may therefore still show the older numbering; actual
+implementation and Git state take precedence.
+
 The post-Phase 6 MVP direction is:
 
 ```text
@@ -23,7 +29,8 @@ Implemented:
 - Expo Router mobile application and shared mobile design system
 - Express API with shared Zod and TypeScript contracts
 - Prisma/PostgreSQL persistence
-- fixed development mock-user boundary
+- fixed development mock-user boundary (historical foundation; replaced by
+  Firebase identity mapping in local Phase 16)
 - profile, goals, and tracking preferences
 - food-log and weight-log backend CRUD
 - mobile food and weight creation
@@ -465,7 +472,56 @@ No new visual design work is included. Completion remains gated on focused and
 full automated validation, native simulator parity, and final physical-device
 visual approval.
 
-## Phase 16 — Custom Graphs and Complex Analytics
+## Local Phase 16 — Firebase Authentication And Railway Readiness
+
+Status: complete. Local, hosted Railway staging, automated, and physical
+validation are complete; production resources and standalone distribution are
+deferred to Phase 17.
+
+- Firebase Authentication is the active identity boundary for email/password
+  and Google. The API verifies Firebase bearer tokens, maps a Firebase UID to
+  the application-owned UUID, and scopes user-owned data from that server-side
+  identity.
+- AuthBootstrap has one application-lifetime owner above route groups. It owns
+  one Firebase token listener and idempotent route selection; navigating between
+  loading, signed-out, onboarding, and authenticated screens must not restart
+  initialization.
+- A verified Firebase session whose setup status cannot be loaded enters a
+  stable recovery route. It keeps the session, never retries automatically,
+  and exposes explicit Retry and Sign Out actions.
+- Apple Sign In code remains preserved but disabled pending Apple capability
+  and provider approval. It is intentionally absent from the current UI and
+  is not physically validated in this phase.
+- Railway staging uses one explicitly named staging environment containing the
+  API and private PostgreSQL service. The API build/start/Prisma migration
+  lifecycle, health route, CORS, server-only variables, hosted migrations, and
+  public HTTPS health were validated. Production resources remain separate and
+  were not changed.
+- Physical hosted validation covered setup-status, onboarding, persistence,
+  restoration, sign-out, ownership, provider flows, and disposable deletion.
+  Photo candidate adjudication and the optional API-unavailable check remain
+  `Not tested`; no unperformed item is inferred as passing.
+- Immediate permanent account deletion uses recent provider reauthentication,
+  idempotent cross-system coordination, ownership cascades, and safe retryable
+  errors. A deleted Google identity may register again, but it receives a new
+  empty application account and no prior data returns.
+
+### Phase 16 validation record
+
+- Automated API, mobile, ownership, security, lint, typecheck, build, Prisma,
+  formatting, and diff checks passed under Node 22 and pnpm 10.34.3.
+- Railway staging physical validation passed for Firebase authentication,
+  setup-status, onboarding, food/weight persistence, USDA search, Open Food
+  Facts barcode lookup, Gemini parsing, photo analysis, nutrition estimation,
+  session restoration, sign-out, ownership isolation, and account deletion.
+- Apple Sign In remains preserved but disabled pending external capability and
+  provider approval. Phase 17 is the next phase for standalone internal and
+  TestFlight distribution.
+
+## Phase 16 (historical remote roadmap) — Custom Graphs and Complex Analytics
+
+This scope remains a valid future product area but is not the active local Phase
+16 implementation.
 
 - customizable graphs
 - metric selection
@@ -477,7 +533,12 @@ visual approval.
 - caffeine, sodium, fiber, and sugar analysis
 - future compatibility with water, supplement, and wearable data
 
-## Phase 17 — Deployment and Security Foundations
+## Phase 17 (historical remote roadmap) — Deployment and Security Foundations
+
+The repository-side portion of this infrastructure scope was reprioritized into
+local Phase 16. Railway staging creation and hosted validation are complete;
+production deployment, operational backups, and standalone distribution remain
+Phase 17 work.
 
 This phase remains provider-neutral. The provider decision will be researched
 during Phase 17 planning.
@@ -522,21 +583,19 @@ engineering smoke build, not the external MVP beta.
 - failure handling
 - legal terms, cost, quotas, and rate-limit review
 
-## Phase 19 — Real Accounts and User Isolation
+## Phase 19 (historical remote roadmap) — Real Accounts and User Isolation
 
-The authentication provider remains undecided and will be selected during Phase
-19 planning.
+The account scope was reprioritized into local Phase 16. Durable legal consent
+and broader TestFlight readiness remain deferred.
 
 - account registration
 - sign-in and sign-out
 - persistent sessions
 - server-side authentication verification
 - recovery behaviour
-- account deletion behaviour
 - authentication and authorization boundaries
 - strict resource ownership
 - user-isolation regression coverage
-- replacement of fixed mock-user runtime behaviour
 - secure staging and production configuration
 
 Authentication determines who the user is. Authorization determines which

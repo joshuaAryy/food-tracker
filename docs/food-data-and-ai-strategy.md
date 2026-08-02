@@ -1064,3 +1064,14 @@ provider payload and creates manual provenance only from eligible frozen logs.
 
 Saving a USDA candidate is explicit: persistence for trusted selection does
 not create a SavedFoodItem.
+
+## Phase 16 hosted provider validation
+
+Railway staging validated USDA FoodData Central search, Open Food Facts barcode
+lookup, Gemini natural-language meal parsing, parsed-item persistence,
+photo-food analysis, nutrition-estimation fallback, and safe provider-error
+handling. Gemini and photo-provider credentials remain API-only. The staging
+database is independent from local development, so trusted food/cache data is
+not assumed to exist until the provider path populates it. Photo candidate
+adjudication was not tested and remains explicitly deferred rather than inferred
+from photo analysis results.

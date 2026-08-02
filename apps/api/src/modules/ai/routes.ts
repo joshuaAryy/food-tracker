@@ -20,6 +20,7 @@ import {
 import { aiFoodParseConfig } from './config.js';
 import { foodParseProvider, nutritionEstimateProvider } from './provider.js';
 import { assertAiFoodParseLimit } from './rate-limit.js';
+import { createRequestRateLimitKey } from './rate-limit-key.js';
 import { retrieveParsedFoodItems } from './retrieval.js';
 import { photoAnalysisConfig } from './photo-config.js';
 import { analyzePhotoFood } from './photo-analysis.js';
@@ -70,7 +71,11 @@ aiRouter.post('/photo-analysis', photoRawBody, async (request, response) => {
 
   const userId = currentUserId(response);
   const config = photoAnalysisConfig();
-  const rateLimitKey = `${userId}:${request.ip ?? 'unknown'}:photo-analysis`;
+  const rateLimitKey = createRequestRateLimitKey({
+    userId,
+    networkIdentifier: request.ip,
+    scope: 'photo-analysis',
+  });
   assertAiFoodParseLimit({
     key: rateLimitKey,
     windowMs: config.rateLimitWindowMs,
@@ -137,7 +142,11 @@ aiRouter.post(
       );
     }
 
-    const rateLimitKey = `${userId}:${request.ip ?? 'unknown'}`;
+    const rateLimitKey = createRequestRateLimitKey({
+      userId,
+      networkIdentifier: request.ip,
+      scope: 'food-parse',
+    });
     assertAiFoodParseLimit({
       key: rateLimitKey,
       windowMs: config.rateLimitWindowMs,
@@ -170,7 +179,11 @@ aiRouter.post(
     const userId = currentUserId(response);
     const config = aiFoodParseConfig();
     const input = validatedBody<AiNutritionEstimateInput>(response);
-    const rateLimitKey = `${userId}:${request.ip ?? 'unknown'}:nutrition-estimate`;
+    const rateLimitKey = createRequestRateLimitKey({
+      userId,
+      networkIdentifier: request.ip,
+      scope: 'nutrition-estimate',
+    });
 
     assertAiFoodParseLimit({
       key: rateLimitKey,

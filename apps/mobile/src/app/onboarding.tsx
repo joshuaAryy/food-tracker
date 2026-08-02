@@ -49,6 +49,8 @@ import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
 import { useAppStore } from '@/store/app-store';
+import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
+import { reportDiagnostic } from '@/lib/safe-diagnostics';
 
 type StepKey =
   | 'mode'
@@ -491,6 +493,7 @@ function TrackingModeChoice({
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { markSetupComplete } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [stepIndex, setStepIndex] = useState(0);
   const [navigationDirection, setNavigationDirection] = useState<
@@ -625,10 +628,14 @@ export default function OnboardingScreen() {
 
   const save = handleSubmit(async (submittedValues) => {
     setError(null);
+    reportDiagnostic('onboarding_completion_started');
 
     try {
       await api.setup.update(setupInput(submittedValues));
+      reportDiagnostic('onboarding_completion_succeeded');
       markDataChanged();
+      markSetupComplete();
+      reportDiagnostic('setup_state_marked_complete');
       router.replace('/(tabs)/progress');
     } catch (saveError) {
       setError(errorMessage(saveError));

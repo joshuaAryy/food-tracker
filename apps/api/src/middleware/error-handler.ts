@@ -1,5 +1,7 @@
 import type { ErrorRequestHandler } from 'express';
+import { emitServerDiagnostic } from '../lib/diagnostics.js';
 import { AppError } from '../lib/errors.js';
+import { toPublicError } from '../lib/public-errors.js';
 import { sendError } from '../lib/responses.js';
 
 function isMalformedJson(error: unknown): boolean {
@@ -44,19 +46,32 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
-  if (error instanceof AppError) {
-    sendError(response, error.status, {
-      code: error.code,
-      message: error.message,
-      details: error.details,
+  if (!(error instanceof AppError)) {
+    emitServerDiagnostic('request_failed', {
+      operation: 'api_request',
+      status: 500,
+      requestId: response.locals.requestId,
+      elapsedMs:
+        typeof response.locals.requestStartedAt === 'number'
+          ? Date.now() - response.locals.requestStartedAt
+          : undefined,
+      errorCategory: error instanceof Error ? 'exception' : 'unknown',
+    });
+  }
+
+  const publicError = toPublicError(error);
+  if (publicError.code !== 'INTERNAL_SERVER_ERROR') {
+    sendError(response, publicError.status, {
+      code: publicError.code,
+      message: publicError.message,
+      details: publicError.details,
     });
     return;
   }
 
-  console.error(error);
   sendError(response, 500, {
-    code: 'INTERNAL_SERVER_ERROR',
-    message: 'An unexpected error occurred',
-    details: {},
+    code: publicError.code,
+    message: publicError.message,
+    details: publicError.details,
   });
 };

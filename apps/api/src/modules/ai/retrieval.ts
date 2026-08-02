@@ -8,6 +8,7 @@ import type {
   FoodItem,
 } from '@food-tracker/shared';
 import { Prisma } from '@prisma/client';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { prisma } from '../../lib/prisma.js';
 import { serializeFoodItem } from '../../lib/serializers.js';
 import {
@@ -63,31 +64,14 @@ function candidateReason(
   return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
 
-function diagnosticText(value: string): string {
-  return value
-    .replace(/https?:\/\/[^\s"',}]+/gi, (match) => {
-      try {
-        const url = new URL(match);
-        return `${url.origin}${url.pathname}`;
-      } catch {
-        return '[invalid-url]';
-      }
-    })
-    .replace(/api[_-]?key=([^&"'\s]+)/gi, 'api_key=[redacted]')
-    .replace(
-      /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
-      '$1=[redacted]',
-    )
-    .slice(0, 500);
-}
-
 function logUsdaRetrievalDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn(
-    '[ai-food-parse:usda]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
+  emitServerDiagnostic(
+    category,
+    photoAnalysisDiagnosticDetails(details),
+    'ai-food-parse:usda',
   );
 }
 
@@ -327,8 +311,10 @@ export async function retrieveParsedFoodItems(input: {
         }
       } catch (error) {
         logUsdaRetrievalDiagnostic('non_fatal_lookup_failure', {
-          message:
-            error instanceof Error ? diagnosticText(error.message) : 'unknown',
+          errorCategory:
+            error instanceof Error && error.name === 'AbortError'
+              ? 'timeout'
+              : 'provider_failure',
         });
       }
     }

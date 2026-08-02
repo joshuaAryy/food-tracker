@@ -10,6 +10,73 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+const PUBLIC_VALIDATION_FIELDS = new Set([
+  'name',
+  'email',
+  'password',
+  'age',
+  'birthDate',
+  'sex',
+  'heightInches',
+  'startingWeightLb',
+  'activityLevel',
+  'trainingStyle',
+  'foodName',
+  'description',
+  'mealType',
+  'calories',
+  'protein',
+  'carbs',
+  'fat',
+  'weightLb',
+  'loggedAt',
+  'timezone',
+  'goalPace',
+  'targetWeightLb',
+  'targetCalories',
+  'targetProteinGrams',
+]);
+
+const PUBLIC_VALIDATION_REASONS = new Set([
+  'invalid',
+  'required',
+  'too_short',
+  'too_long',
+]);
+
+export function sanitizePublicErrorDetails(
+  details: Record<string, unknown>,
+): Record<string, unknown> {
+  const safe: Record<string, unknown> = {};
+
+  for (const key of ['entryIndex', 'itemIndex']) {
+    const value = details[key];
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
+      safe[key] = value;
+    }
+  }
+
+  if (Array.isArray(details.fields)) {
+    const fields = details.fields.flatMap((field) => {
+      if (!isRecord(field)) return [];
+      const name = field.field;
+      const reason = field.reason;
+      if (
+        typeof name !== 'string' ||
+        !PUBLIC_VALIDATION_FIELDS.has(name) ||
+        typeof reason !== 'string' ||
+        !PUBLIC_VALIDATION_REASONS.has(reason)
+      ) {
+        return [];
+      }
+      return [{ field: name, reason }];
+    });
+    if (fields.length > 0) safe.fields = fields.slice(0, 20);
+  }
+
+  return safe;
+}
+
 function invalidResponse(
   status: number,
 ): Error & { code: string; status: number } {

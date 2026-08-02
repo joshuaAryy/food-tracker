@@ -1,5 +1,6 @@
 export * from './constants.js';
 export * from './enums.js';
+export * from './auth.js';
 export * from './nutrients.js';
 export * from './reporting.js';
 export * from './reporting-goals.js';

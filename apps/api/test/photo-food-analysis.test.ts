@@ -1929,13 +1929,12 @@ describe('photo food analysis API', () => {
       '[photo-analysis:provider]',
       expect.objectContaining({
         category: 'non_ok_response',
-        status: 400,
-        providerCode: 400,
-        providerStatus: 'INVALID_ARGUMENT',
-        providerMessage: expect.stringContaining('Unknown name'),
-        fieldViolationPaths: ['contents[0].parts[0].inline_data'],
+        statusClass: '4xx',
+        operation: 'photo_analysis',
       }),
     );
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('Unknown name');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('inline_data');
   });
 
   it('rejects invalid provisional quantities and unknown provider fields', async () => {

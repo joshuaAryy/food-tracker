@@ -1,8 +1,15 @@
+import type { RequestHandler } from 'express';
 import request from 'supertest';
 import { expect } from 'vitest';
-import { app } from '../../src/app.js';
+import { MOCK_USER_ID } from '@food-tracker/shared';
+import { createApp } from '../../src/app.js';
 
-export const api = request(app);
+const deterministicTestAuth: RequestHandler = (_request, response, next) => {
+  response.locals.userId = MOCK_USER_ID;
+  next();
+};
+
+export const api = request(createApp(deterministicTestAuth));
 
 export function expectSuccessEnvelope(body: unknown): asserts body is {
   success: true;

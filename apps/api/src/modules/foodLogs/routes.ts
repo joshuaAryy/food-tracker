@@ -27,6 +27,7 @@ import type { z } from 'zod';
 import { currentUserId } from '../../lib/auth.js';
 import { localDateRange } from '../../lib/dates.js';
 import { AppError, notFoundError } from '../../lib/errors.js';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import {
@@ -783,8 +784,8 @@ function calculateFoodItemServing(
     return result;
   } catch (error) {
     if (error instanceof AuthoritativeServingInvariantError) {
-      console.error('Authoritative serving snapshot invariant failed', {
-        foodItemId: foodItem.id,
+      emitServerDiagnostic('serving_snapshot_invariant_failed', {
+        operation: 'food_log_create',
       });
       throw new AppError(
         500,
@@ -807,8 +808,8 @@ function parsedServingSnapshotOrThrow(
   const parsed = foodLogServingSnapshotSchema.safeParse(value);
   if (parsed.success) return parsed.data;
 
-  console.error('Stored FoodLog serving snapshot failed validation', {
-    foodLogId,
+  emitServerDiagnostic('serving_snapshot_validation_failed', {
+    operation: 'food_log_read',
   });
   throw new AppError(
     500,
@@ -951,8 +952,8 @@ async function calculateSnapshotServing(input: {
     return result;
   } catch (error) {
     if (error instanceof AuthoritativeServingInvariantError) {
-      console.error('Authoritative serving snapshot invariant failed', {
-        foodLogId: input.foodLogId,
+      emitServerDiagnostic('serving_snapshot_invariant_failed', {
+        operation: 'food_log_update',
       });
       throw new AppError(
         500,
@@ -966,7 +967,6 @@ async function calculateSnapshotServing(input: {
 
 function authoritativeFoodLogUpdateData(
   result: Awaited<ReturnType<typeof calculateSnapshotServing>>,
-  foodLogId: string,
 ) {
   const requestedServing = result.servingSnapshot.requestedServing;
   if (!isExactlyStorableServingQuantity(requestedServing.quantity)) {
@@ -980,8 +980,8 @@ function authoritativeFoodLogUpdateData(
 
   const finalNutrition = result.finalNutrition;
   if (finalNutrition.calories === null || finalNutrition.protein === null) {
-    console.error('Authoritative serving result omitted required nutrition', {
-      foodLogId,
+    emitServerDiagnostic('serving_nutrition_missing', {
+      operation: 'food_log_update',
     });
     throw new AppError(
       500,
@@ -1031,8 +1031,8 @@ function authoritativeFoodLogData(
   const finalCalories = finalNutrition.calories;
   const finalProtein = finalNutrition.protein;
   if (finalCalories === null || finalProtein === null) {
-    console.error('Authoritative serving result omitted required nutrition', {
-      foodItemId: foodItem.id,
+    emitServerDiagnostic('serving_nutrition_missing', {
+      operation: 'food_log_create',
     });
     throw new AppError(
       500,
@@ -1889,10 +1889,7 @@ foodLogsRouter.put(
         ? undefined
         : input.nutritionOverride,
     });
-    const authoritativeData = authoritativeFoodLogUpdateData(
-      result,
-      existing.id,
-    );
+    const authoritativeData = authoritativeFoodLogUpdateData(result);
     const foodLog = await prisma.$transaction((tx) =>
       tx.foodLog.update({
         where: { id },

@@ -8,13 +8,13 @@ import {
   type NormalizedNutrientKey,
 } from '@food-tracker/shared';
 import { AppError } from '../../lib/errors.js';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { roundTo } from '../../lib/serializers.js';
 import {
   assessFoodCandidateAdequacy,
   scoreFoodCandidate,
 } from './candidate-ranking.js';
 import { foodIntentFallbackQuery } from './food-intent.js';
-import { photoAnalysisDiagnosticDetails } from '../ai/photo-diagnostics.js';
 
 interface LimitBucket {
   windowStartedAt: number;
@@ -224,27 +224,11 @@ function dateValue(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function usdaResourceKind(url: string): 'search' | 'detail' {
-  return url.includes('/food/') ? 'detail' : 'search';
-}
-
-function diagnosticText(value: string): string {
-  return value
-    .replace(
-      /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
-      '$1=[redacted]',
-    )
-    .slice(0, 500);
-}
-
 function logUsdaDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn(
-    '[usda-fdc]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
-  );
+  emitServerDiagnostic(category, details, 'usda-fdc');
 }
 
 function assertUsdaRateLimit(input: {
@@ -306,8 +290,7 @@ async function fetchJsonResult(
     if (!response.ok) {
       logUsdaDiagnostic('non_ok_response', {
         status: response.status,
-        statusText: response.statusText,
-        resource: usdaResourceKind(url),
+        operation: 'usda_lookup',
       });
       return {
         payload: null,
@@ -320,9 +303,8 @@ async function fetchJsonResult(
     const isTimeout =
       error instanceof DOMException && error.name === 'AbortError';
     logUsdaDiagnostic(isTimeout ? 'timeout' : 'request_failure', {
-      resource: usdaResourceKind(url),
-      message:
-        error instanceof Error ? diagnosticText(error.message) : 'unknown',
+      operation: 'usda_lookup',
+      errorCategory: isTimeout ? 'timeout' : 'network_or_provider',
     });
     return { payload: null, failure: isTimeout ? 'timeout' : 'failure' };
   } finally {

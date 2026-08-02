@@ -10,6 +10,7 @@ import {
   type PhotoRecognizedItem,
 } from '@food-tracker/shared';
 import { AppError } from '../../lib/errors.js';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import {
   normalizeText,
   normalizeToken,
@@ -79,9 +80,10 @@ function recordRepresentationDiagnostic(
   category: string,
   details: Record<string, unknown>,
 ): void {
-  console.warn(
-    '[photo-analysis:representation]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
+  emitServerDiagnostic(
+    category,
+    photoAnalysisDiagnosticDetails(details),
+    'photo-analysis:representation',
   );
 }
 

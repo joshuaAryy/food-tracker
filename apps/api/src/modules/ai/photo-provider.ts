@@ -18,9 +18,10 @@ import {
   type ParsedServingSuggestion,
 } from '@food-tracker/shared';
 import { z } from 'zod';
+import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { AppError } from '../../lib/errors.js';
-import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 import type { PhotoAnalysisConfig } from './photo-config.js';
+import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
 export interface ProviderPhotoSuggestion {
   name: string;
@@ -293,8 +294,16 @@ const geminiResponseSchema = {
   required: ['items'],
 } as const;
 
-function aiUnavailable(message: string): AppError {
-  return new AppError(503, 'AI_UNAVAILABLE', message);
+function aiUnavailable(
+  message: string,
+  publicMessageKey?: 'photo_analysis_incomplete_photo',
+): AppError {
+  return new AppError(
+    503,
+    'AI_UNAVAILABLE',
+    message,
+    publicMessageKey === undefined ? {} : { publicMessageKey },
+  );
 }
 
 function providerRateLimited(): AppError {
@@ -305,78 +314,12 @@ function providerRateLimited(): AppError {
   );
 }
 
-function diagnosticText(value: string): string {
-  return value
-    .replace(
-      /(api[_-]?key|key|token|authorization)["':=\s]+[^"',\s}]+/gi,
-      '$1=[redacted]',
-    )
-    .slice(0, 500);
-}
-
 function logDiagnostic(category: string, details: Record<string, unknown>) {
-  console.warn(
-    '[photo-analysis:provider]',
-    photoAnalysisDiagnosticDetails({ category, ...details }),
+  emitServerDiagnostic(
+    category,
+    photoAnalysisDiagnosticDetails(details),
+    'photo-analysis:provider',
   );
-}
-
-type GeminiErrorBody = {
-  error?: {
-    code?: unknown;
-    status?: unknown;
-    message?: unknown;
-    details?: unknown;
-  };
-};
-
-function safeText(value: unknown): string | undefined {
-  return typeof value === 'string' ? diagnosticText(value) : undefined;
-}
-
-function fieldViolationPaths(details: unknown): string[] | undefined {
-  if (!Array.isArray(details)) return undefined;
-
-  const paths = details.flatMap((detail) => {
-    if (typeof detail !== 'object' || detail === null) return [];
-    const violations = (detail as { fieldViolations?: unknown })
-      .fieldViolations;
-    if (!Array.isArray(violations)) return [];
-    return violations.flatMap((violation) => {
-      if (typeof violation !== 'object' || violation === null) return [];
-      const field = (violation as { field?: unknown }).field;
-      return typeof field === 'string' ? [diagnosticText(field)] : [];
-    });
-  });
-
-  return paths.length > 0 ? paths.slice(0, 10) : undefined;
-}
-
-async function geminiErrorDiagnostic(
-  response: Response,
-): Promise<Record<string, unknown>> {
-  let text: string;
-  try {
-    text = await response.text();
-  } catch {
-    return { providerBody: '[unreadable response body]' };
-  }
-
-  try {
-    const parsed = JSON.parse(text) as GeminiErrorBody;
-    const error = parsed.error;
-    if (typeof error !== 'object' || error === null) {
-      return { providerBody: diagnosticText(text) };
-    }
-    return {
-      providerCode: typeof error.code === 'number' ? error.code : undefined,
-      providerStatus: safeText(error.status),
-      providerMessage: safeText(error.message),
-      fieldViolationPaths: fieldViolationPaths(error.details),
-    };
-  } catch {
-    return { providerBody: diagnosticText(text) };
-  }
 }
 
 type GeminiPart = Record<string, unknown>;
@@ -411,6 +354,7 @@ function responseTextParts(
     logDiagnostic('provider_empty_output', metadata);
     throw aiUnavailable(
       'Photo analysis could not be completed. Please try another photo.',
+      'photo_analysis_incomplete_photo',
     );
   }
 
@@ -441,6 +385,7 @@ function responseTextParts(
     logDiagnostic('provider_empty_output', metadata);
     throw aiUnavailable(
       'Photo analysis could not be completed. Please try another photo.',
+      'photo_analysis_incomplete_photo',
     );
   }
   return assembled;
@@ -529,10 +474,7 @@ function normalizeQuantity(input: {
   const parsed = photoProvisionalQuantitySchema.safeParse(quantity);
   if (!parsed.success) {
     logDiagnostic('quantity_semantic_validation_failure', {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-      })),
+      errorCategory: 'schema_validation',
     });
     throw aiUnavailable('Photo analysis returned an invalid quantity.');
   }
@@ -671,19 +613,14 @@ function parseProviderOutput(text: string): ProviderPhotoSuggestion[] {
   let decoded: unknown;
   try {
     decoded = JSON.parse(text.trim());
-  } catch (error) {
-    throw new ProviderJsonSyntaxError(
-      error instanceof Error ? error.message : 'unknown',
-    );
+  } catch {
+    throw new ProviderJsonSyntaxError();
   }
 
   const parsed = providerOutputSchema.safeParse(decoded);
   if (!parsed.success) {
     logDiagnostic('schema_validation_failure', {
-      issues: parsed.error.issues.map((issue) => ({
-        path: issue.path,
-        message: issue.message,
-      })),
+      errorCategory: 'schema_validation',
     });
     throw aiUnavailable('Photo analysis returned an invalid response.');
   }
@@ -838,10 +775,7 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
       if (!response.ok) {
         logDiagnostic('non_ok_response', {
           status: response.status,
-          statusText: response.statusText,
-          model: this.config.geminiModel,
-          stage: 'generate_content',
-          ...(await geminiErrorDiagnostic(response)),
+          operation: 'photo_analysis',
         });
         if (response.status === 429) throw providerRateLimited();
         throw aiUnavailable('Photo analysis could not be reached.');
@@ -850,10 +784,10 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
       let payload: GeminiResponsePayload;
       try {
         payload = (await response.json()) as GeminiResponsePayload;
-      } catch (error) {
+      } catch {
         logDiagnostic('response_json_failure', {
-          message:
-            error instanceof Error ? diagnosticText(error.message) : 'unknown',
+          operation: 'photo_analysis',
+          errorCategory: 'invalid_response',
         });
         throw aiUnavailable('Photo analysis returned an unreadable response.');
       }
@@ -924,8 +858,8 @@ class GeminiPhotoAnalysisProvider implements PhotoAnalysisProvider {
         (error instanceof DOMException && error.name === 'AbortError') ||
         (error instanceof Error && error.name === 'AbortError');
       logDiagnostic(aborted ? 'timeout_or_cancelled' : 'request_failure', {
-        message:
-          error instanceof Error ? diagnosticText(error.message) : 'unknown',
+        operation: 'photo_analysis',
+        errorCategory: aborted ? 'timeout' : 'network_or_provider',
       });
       throw aiUnavailable(
         aborted ? 'Photo analysis timed out.' : 'Photo analysis failed.',

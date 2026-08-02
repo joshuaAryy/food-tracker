@@ -47,20 +47,52 @@ Do not introduce other response envelope formats. Error codes are stable upperca
 
 ## Authentication Boundary
 
-The current development implementation uses mocked auth only. This boundary was
-introduced during the foundation phase and remains in place until the
-authentication provider is selected and implemented during Phase 19 planning.
+Phase 16 uses Firebase Authentication for identity and the existing application
+database for application ownership. The mobile client sends one Firebase ID
+token in the `Authorization` header for protected requests. The API verifies
+issuer, audience, expiry, project, revocation/disabled-user status, and the
+email-verification policy before synchronizing the Firebase UID to the local
+UUID `User.id`.
 
-- The backend may assume a fixed mock user ID through mock user context.
-- Authenticated endpoints operate on the current user.
-- The client never sends `userId`.
-- The backend applies the current user ID when reading or writing user-owned records.
-- Real authentication will later replace mock context with the provider selected
-  during Phase 19 planning.
+- The client never sends authoritative `userId`.
+- The API derives the current local user from verified Firebase identity.
+- Existing foreign keys and application UUID ownership remain unchanged.
+- Email/password accounts require verified email before protected access.
+- Google and Apple provider claims do not use an unnecessary email-verification
+  screen; Apple remains disabled in the current free-development build.
 - Authentication identifies the current user; authorization controls access to
   that user's resources.
-- Do not replace this boundary with custom password authentication.
-- Do not implement custom password authentication or a custom auth system.
+- Runtime mock authentication has been removed from production-capable code.
+- Stable auth error codes include `AUTHORIZATION_REQUIRED`,
+  `INVALID_AUTHORIZATION`, `INVALID_AUTH_TOKEN`, `AUTH_TOKEN_EXPIRED`,
+  `AUTH_TOKEN_REVOKED`, `EMAIL_VERIFICATION_REQUIRED`, and
+  `AUTH_CONFIGURATION_ERROR`. Account deletion also uses
+  `RECENT_AUTH_REQUIRED` and `ACCOUNT_DELETION_IN_PROGRESS`.
+
+### Immediate Account Deletion
+
+`DELETE /api/v1/account` permanently deletes the authenticated Firebase account
+and all application data owned by its verified Firebase UID. The request has no
+body and accepts no account identifier. It requires a recently reauthenticated
+Firebase token (`auth_time` no older than five minutes). Successful responses
+use `{ "deleted": true }`. A minimal idempotent coordination record blocks
+normal identity provisioning while PostgreSQL deletion and trusted Firebase
+Admin deletion complete across their non-atomic boundary. Failures use the
+existing safe envelope and never expose provider or database details.
+
+The `/health` route is unauthenticated and is a minimal process-liveness check;
+it is not an authenticated API contract and does not reveal database, provider,
+deployment, or environment details.
+
+### Hosted Phase 16 contract status
+
+The API contract was validated through the Railway staging API and private
+PostgreSQL service. Firebase verification, revocation, server-derived
+identity, setup-status, ownership isolation, USDA/Open Food Facts retrieval,
+Gemini parsing, photo analysis, safe unavailable responses, and immediate
+account deletion were exercised. Account deletion requires recent provider
+reauthentication and never accepts a client identifier. Production deployment
+and standalone mobile distribution remain outside this contract closeout.
 
 ## Shared Validation Rules
 

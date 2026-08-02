@@ -162,11 +162,12 @@ AI may later rewrite recommendation wording or explain already-computed facts in
 
 ## TD-008: MVP API Contracts
 
-Status: Locked
+Status: Locked; original mock-auth wording superseded by TD-025
 
 - Use REST-style endpoints under `/api/v1`.
 - Use only the standard success and error envelopes defined in [api-contracts.md](api-contracts.md).
-- The current development implementation uses mock user context.
+- The original foundation used mock user context; the active implementation
+  derives identity from verified Firebase tokens as documented in TD-025.
 - Client requests never include `userId`.
 - Date filters are local dates in `YYYY-MM-DD` interpreted in the current user's timezone.
 - MVP endpoints and request/response contracts are defined in [api-contracts.md](api-contracts.md).
@@ -176,8 +177,9 @@ Status: Locked
 Status: Locked
 
 - Use UUID primary keys for all models.
-- Use a local `User` model; the current mock boundary may generate its ID, and
-  long-term it aligns with Supabase Auth.
+- Use a local `User` model. The original mock boundary generated its ID; the
+  active Firebase mapping preserves that UUID primary key and stores a nullable
+  unique provider UID separately.
 - Include only approved models. Phase 8 explicitly adds `FoodItem`,
   `FoodBarcode`, and `SavedFoodItem`, plus optional `FoodLog.foodItemId`, as the
   local food database foundation. Phase 9 adds `FoodItemNutrient` and
@@ -667,7 +669,7 @@ subtle neutral placeholder shapes, and avoid heavy animation.
 
 ## TD-023: Authentication Provider Selection Deferred
 
-Status: Current and locked, dated 2026-07-18
+Status: Superseded on 2026-07-26 by TD-025; retained as historical context
 
 This decision supersedes the provider-specific portions of TD-002 and TD-009;
 those decisions remain in this document as historical context.
@@ -684,6 +686,71 @@ those decisions remain in this document as historical context.
   resources that user may access. Both checks remain required.
 - Do not add custom password authentication or a provider integration through
   this documentation decision.
+
+## TD-026: Immediate Permanent Account Deletion
+
+Status: Current and validated for Phase 16 local and Railway staging flows.
+
+Deletion is immediate and irreversible. The API requires a recently
+reauthenticated Firebase token with a five-minute `auth_time` window, deletes
+only rows owned by the verified Firebase UID, and coordinates PostgreSQL
+cleanup with trusted Firebase Admin deletion through the minimal
+`AccountDeletion` record. Pending deletion blocks normal identity provisioning;
+failures are categorical and retryable. The mobile flow requires an
+explanatory warning, exact `DELETE` confirmation, provider reauthentication,
+and direct routing to Sign In after confirmed success.
+
+## TD-025: Firebase Authentication And Railway Readiness
+
+Status: Current and validated for Phase 16 local and Railway staging flows;
+production provider resources remain outside scope.
+
+- Firebase Authentication owns identity. Firebase Admin verifies tokens on the
+  API; Prisma/PostgreSQL remains the source of application data and ownership.
+- The existing UUID `User.id` remains the primary key. A nullable unique
+  `firebaseUid` mapping and provider metadata are additive; existing mock data
+  remains unmapped.
+- Email/password and Google are the active free-development providers. Apple
+  implementation is preserved, but `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false`
+  disables its UI and native capability/config-plugin effects. App Store and
+  TestFlight distribution are not part of this checkpoint.
+- The client never sends authoritative `userId`. Verification, authorization,
+  ownership isolation, and response DTO minimization remain server concerns.
+- Public errors use stable codes and allowlisted metadata. Internal exception,
+  provider body, request body, token, address, path, and stack data are not
+  collected for user-facing copy or unrestricted diagnostics.
+- AuthBootstrap is the long-lived owner of one token listener and route guard.
+  Setup-status failure after a verified session is a stable authenticated
+  recovery state with explicit Retry and Sign Out, not a silent sign-out,
+  automatic retry, or duplicate loading-route presentation.
+- Rate-limit keys use a server-owned keyed derivation rather than a raw
+  network address. Hosted environments require `RATE_LIMIT_KEY_SECRET`.
+- `GET /health` is a minimal unauthenticated liveness route. Railway config
+  declares workspace build, Prisma migration deployment, API start, health
+  checking, and restart behavior without creating a Railway resource.
+- Real plist files and Firebase Admin credentials remain environment-injected
+  and untracked. Development, staging, and production use separate Firebase
+  projects and server configuration.
+
+### Phase 16 retrospective and handoff
+
+Hosted validation showed that Firebase sign-in alone is not proof of API
+connectivity: setup-status and a real database write must be observed through
+Railway. Staging begins with an independent empty database, and local `.env`
+files are never copied into Railway. Missing provider variables can otherwise
+look like successful empty results, so enabled integrations require conditional
+runtime validation and sanitized unavailable errors. Expo Router default-export
+warnings were treated as possible cascades from the primary runtime-target
+failure. Railway private networking and SSH assertions remain operational
+tools, not public database exposure; Docker is unrelated to the Railway
+runtime.
+
+The Phase 16 physical record includes hosted authentication, onboarding,
+persistence, ownership isolation, USDA/Open Food Facts, Gemini, photo
+analysis, nutrition fallback, session restoration, sign-out, and disposable
+Google-account deletion. Photo candidate adjudication and the optional
+API-unavailable check are `Not tested`; Apple Sign In is preserved but disabled.
+Phase 17 is the next phase for standalone internal/TestFlight distribution.
 
 ## TD-024: Phase 15 Deterministic Reporting
 

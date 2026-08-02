@@ -225,12 +225,37 @@ EXPO_PUBLIC_API_URL=http://<computer-LAN-IP>:3000/api/v1 \
   corepack pnpm dev:mobile
 ```
 
-The app's connection error displays the API URL it attempted and reminds native
-device users that `localhost` refers to the device. If it shows an old URL,
-stop Expo and restart it after setting `EXPO_PUBLIC_API_URL`.
+The app's connection error is intentionally generic and never displays the API
+URL, host, endpoint, or local address it attempted. If the app still appears to
+use stale configuration, stop Expo and restart it after changing the ignored
+local environment configuration.
 
 Do not commit a machine-specific IP address. Use a shell variable or an ignored
 local environment file where supported.
+
+## Setup Status Recovery After Successful Sign In
+
+**Meaning**
+
+A setup-status recovery screen means Firebase has already supplied a valid
+mobile session, but the API could not load account setup data. It is not a cue
+to create another account or repeat provider sign-in automatically.
+
+**Verify in order**
+
+- the mobile API configuration is present and uses a physical-device-reachable
+  host category;
+- the API process is running and its unauthenticated health route responds;
+- Firebase Admin server configuration is complete;
+- PostgreSQL is reachable and migrations are current;
+- the recovery screen remains single and stable, then use Retry exactly once.
+
+**Recovery behavior**
+
+Retry makes one new setup-status request only when tapped. Sign Out is the only
+action that clears the Firebase/API session. Do not add a timeout, automatic
+retry loop, duplicate route replacement, or a second loading screen to conceal
+an unavailable API.
 
 ## Expo Go Or Web Preview Does Not Match iPhone UI
 
@@ -347,6 +372,23 @@ corepack pnpm --filter @food-tracker/mobile exec expo start --clear
 ```
 
 Do not delete unrelated project files as a first response.
+
+## Railway staging works only when the local API is running
+
+First prove the client target category from the active Metro bundle. Set
+`EXPO_PUBLIC_API_URL` directly in the Expo process, set the staging selector,
+and leave `EXPO_NO_CLIENT_ENV_VARS` unset; do not rely on `APP_ENV=staging`
+alone and do not let `apps/mobile/.env.local` silently win. Clear the Expo
+cache and explicitly reconnect the development client to the current Metro
+server. Then verify one authenticated setup-status request and one create/read
+database operation in Railway. Firebase sign-in by itself does not prove the
+hosted API path.
+
+If hosted food search is empty while manual logging works, inspect the
+provider/cache boundary and Railway variables. A missing USDA or AI provider
+variable can be converted into an empty result; enabled optional providers
+must instead report a safe unavailable category. Never copy local `.env` files
+or server secrets into `EXPO_PUBLIC_*` variables.
 
 ## Committed, Pushed, And Merged Are Confused
 
