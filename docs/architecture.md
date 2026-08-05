@@ -57,7 +57,65 @@ flag `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED`. Apple capability and plugin effects
 are omitted when the flag is disabled. The tracked Expo authority is
 `apps/mobile/app.config.ts`; static iOS Firebase frameworks and environment-
 injected plist handling remain required. Generated native projects stay
-ignored and uncommitted.
+ignored and uncommitted. Phase 17 adds one guarded local-Xcode Release path:
+`apps/mobile/scripts/prepare-staging-release.ts` validates the public staging
+target, Firebase plist, Google scheme, toolchain, device visibility, and native
+state before clean Expo prebuild and CocoaPods preparation. The workspace is
+opened only after those checks. Signing remains a user-only Xcode action; no
+Apple team, certificate, profile, device identifier, or hosted credential is a
+repository value.
+
+The workflow then writes the ignored generated `apps/mobile/ios/.xcode.env.local`
+handoff from the validated allowlist. Xcode's Expo Constants and React Native
+`export:embed` phases source that file after the preparation process has ended,
+with dotenv fallback disabled and inherited client-env suppression removed.
+This keeps Debug's normal local `.env.local`/Metro path separate while making
+Release's embedded configuration durable across an independently launched
+Xcode process. The post-build verifier checks the resulting app artifact,
+including its API target, rather than treating bundle presence alone as proof.
+The tracked CNG configuration also sets the built-in iOS deployment target to
+16.4 and injects a Podfile `post_install` normalization so library, privacy,
+resource, and aggregate Pods configurations cannot retain older podspec values.
+
+The installed Release app must contain its JavaScript bundle and resolve only
+to Firebase Authentication and the existing Railway staging API. Metro, the
+local API, Docker, and a Mac connection are development-only dependencies. The
+generated `apps/mobile/ios/` directory is deleted only by the guarded cleanup
+command after evidence capture; unrelated dirty and untracked files are
+preserved.
+
+The same tracked CNG configuration adopts a single UIScene application for the
+iOS 27 SDK. `SceneDelegate.swift` owns the window and starts the existing Expo
+React Native factory once; AppDelegate retains Firebase initialization and
+routes Google and Expo Router URL callbacks, including cold-start scene
+connection options. Debug remains Metro-oriented while Release embeds its
+bundle.
+
+### Phase 17 delivered compatibility boundaries
+
+The final physical Release validation established three native compatibility
+rules:
+
+- The app target already used iOS 16.4, but podspec minimums could leave
+  ordinary, privacy, resource, and aggregate Pods targets below Xcode 27's
+  supported range. The tracked CNG Podfile post-install normalization sets
+  every generated Pods configuration to 16.4, and preparation rejects a
+  regression.
+- `expo-modules-jsi@56.0.10` contained a callback expression rejected by the
+  Xcode 27 Swift compiler. A tracked pnpm patch applies the minimal direct
+  function-reference correction. Expo remains SDK 56, React Native remains
+  0.85.3, and `expo-modules-jsi` remains transitive until an upstream SDK 56
+  correction is verified.
+- The original generated app lacked scene adoption, so iOS 27 terminated it
+  before React Native startup. The tracked CNG scene plugin generates one
+  application scene, moves window ownership and startup to SceneDelegate, and
+  keeps Firebase and URL handling in AppDelegate. Tests and generated-native
+  validation enforce the structure and one-time startup.
+
+The user completed the signed physical-device Release build, installation,
+launch, standalone operation, artifact verification, and guarded generated-
+native cleanup. This is user-operated evidence; Codex did not operate the
+iPhone.
 
 Phase 16 also owns public/internal error separation, redacted mobile and
 server diagnostics, explicit CORS, security headers, opaque rate-limit keys,

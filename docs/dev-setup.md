@@ -223,6 +223,10 @@ corepack pnpm dev:mobile
 The mobile client uses `EXPO_PUBLIC_API_URL`. Set it in the shell before
 starting Expo when the default is not reachable:
 
+The local and LAN examples in this section apply only to the Metro-backed
+development client. The Phase 17 Release workflow rejects them and embeds the
+existing Railway staging target instead.
+
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:3000/api/v1 \
   corepack pnpm dev:mobile
@@ -327,7 +331,126 @@ When no iOS simulator runtimes or devices are installed, prioritize physical
 iPhone testing and install a simulator runtime later from Xcode Settings >
 Platforms.
 
-## 9. Run Backend Tests
+## 9. Phase 17 Free Xcode Standalone Release — Complete
+
+Phase 17 delivered and physically validated a local Xcode Release installation
+for Josh's iPhone. It does not use EAS,
+EAS Submit, TestFlight, App Store Connect, a production Railway environment, or
+the local API at runtime. The existing Railway staging API and private staging
+PostgreSQL remain the hosted backend, and Firebase remains the authentication
+provider.
+
+Prerequisites:
+
+- the current branch is `phase-17-free-xcode-standalone` or post-merge `main`;
+- Node `22.x` and pnpm `10.34.3`;
+- the canonical iOS deployment target is `16.4` for the app and generated Pods;
+- full Xcode with the iPhoneOS SDK, accepted license, and CocoaPods;
+- at least 10 GiB free Mac disk space;
+- Josh's trusted iPhone connected by USB or approved wireless debugging, with
+  Developer Mode enabled;
+- an Apple Account whose free Personal Team is visible in Xcode;
+- a locally available external Firebase `GoogleService-Info.plist` for the
+  existing iOS bundle, with no plist or credential copied into Git.
+
+Create the ignored `apps/mobile/.env.staging-release.local` file locally. It
+contains only these categories:
+
+- `APP_ENV=staging` and `EXPO_PUBLIC_APP_ENV=staging`;
+- `RAILWAY_STAGING_API_HOST` set to the same Railway staging service host as
+  the public HTTPS API base;
+- the public Railway staging HTTPS API base ending in `/api/v1`;
+- `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false`;
+- the public Google web client ID;
+- the Google reversed-client URL scheme and an absolute local path to the
+  external Firebase plist;
+- `EXPO_NO_DOTENV=1`.
+
+Do not include database URLs, Firebase Admin material, provider keys,
+rate-limit/proof secrets, credentials, or any unapproved `EXPO_PUBLIC_*` name.
+The preparation command rejects localhost, loopback, private/LAN/link-local
+and `.local` API hosts, malformed paths, query/fragment/credential-bearing
+URLs, missing staging selectors, exposed server variables, and a present
+`EXPO_NO_CLIENT_ENV_VARS` variable. It prints categories only, never values.
+
+Run the guarded preparation from the repository root:
+
+```bash
+node -v
+corepack pnpm -v
+corepack pnpm ios:staging-release
+```
+
+The command snapshots the existing dirty Git state, verifies that
+`apps/mobile/ios/` is ignored, untracked, and not a symlink, runs clean Expo
+prebuild and CocoaPods preparation, validates Release metadata, Firebase,
+Google, camera/photo permissions, static frameworks, and the bundled
+JavaScript entry point, then opens `FoodTracker.xcworkspace`. It does not select
+credentials or sign on the user's behalf. The completed Phase 17 run passed
+these automated boundaries, and the user completed Personal Team signing,
+physical installation, standalone launch, artifact verification, and guarded
+cleanup.
+
+After clean prebuild and CocoaPods, the workflow writes an ignored,
+workflow-owned `apps/mobile/ios/.xcode.env.local` handoff containing only the
+validated staging public/native variables. It sets `EXPO_NO_DOTENV=1` and
+clears `EXPO_NO_CLIENT_ENV_VARS`, so Xcode's later Expo Constants and
+`export:embed` processes cannot fall back to `.env.local`. Normal development
+prebuilds regenerate this file for local Debug behavior; never copy staging
+values into `.env.local` or commit the generated handoff.
+
+The generated iOS project also adopts the UIScene lifecycle required by the
+iOS 27 SDK. The tracked CNG plugin creates one default application scene,
+moves React Native window ownership and startup into `SceneDelegate.swift`,
+and keeps AppDelegate Firebase, Google callback, and linking integration. Do
+not patch the generated Swift files directly; rerun the guarded prebuild after
+changing native configuration.
+
+After the user builds Release in Xcode, verify the actual artifact before
+another physical reinstall:
+
+```bash
+corepack pnpm ios:staging-release -- --verify-release-artifact
+```
+
+This guarded check finds the newest `Release-iphoneos/FoodTracker.app`,
+requires a non-empty `main.jsbundle`, validates canonical metadata, and checks
+that the embedded API target is the validated staging target without printing
+the URL or bundle contents. It rejects local, private, malformed, or missing
+targets.
+
+After Xcode evidence is recorded, the guarded cleanup removes only the exact
+generated `apps/mobile/ios/` directory:
+
+```bash
+corepack pnpm ios:staging-release -- --cleanup-after-validation
+```
+
+Cleanup refuses tracked, non-ignored, non-directory, symlinked, or unexpected
+native state and preserves unrelated dirty or untracked files. The seven-day
+Personal Team limit is expected: when the profile expires, rerun preparation,
+select the Personal Team again if prompted, build Release, and reinstall.
+
+If the beta Xcode application is installed outside `/Applications`, substitute
+its installed `.app` path when opening the workspace. The generic `open -a
+Xcode` handoff can fail when macOS has no application registered under that
+name; manually opening the installed beta application and then
+`FoodTracker.xcworkspace` is the supported fallback.
+
+### Xcode and iPhone checkpoint
+
+In Xcode, open the generated workspace, select Josh's iPhone, select the
+existing bundle identifier, enable automatic signing with the free Personal
+Team, and choose the Release configuration for Run. Trust the Mac on the
+iPhone, enable Developer Mode, build and install, and allow the Release app to
+replace the development client. Stop Metro, Docker, and the local API before
+disconnecting the phone. Validate on cellular data or independent Wi-Fi, then
+run the consolidated physical checklist in
+`docs/mobile-ui-and-device-testing-context.md`. The final Phase 17 record
+confirms that the user completed this checklist successfully; it remains the
+repeatable procedure for the next free-signing reinstall.
+
+## 10. Run Backend Tests
 
 Ensure PostgreSQL is running and `food_tracker_test` exists:
 
@@ -344,7 +467,7 @@ The test configuration:
 
 PostgreSQL being unavailable is a setup failure, not a reason to omit tests.
 
-## 10. Full Validation
+## 11. Full Validation
 
 Run after final changes and before merge:
 

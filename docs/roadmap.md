@@ -475,8 +475,9 @@ visual approval.
 ## Local Phase 16 — Firebase Authentication And Railway Readiness
 
 Status: complete. Local, hosted Railway staging, automated, and physical
-validation are complete; production resources and standalone distribution are
-deferred to Phase 17.
+validation are complete; production resources and paid external distribution
+remain deferred. The free standalone installation delivered by Phase 17 is
+recorded in the local Phase 17 entry below.
 
 - Firebase Authentication is the active identity boundary for email/password
   and Google. The API verifies Firebase bearer tokens, maps a Firebase UID to
@@ -515,8 +516,8 @@ deferred to Phase 17.
   Facts barcode lookup, Gemini parsing, photo analysis, nutrition estimation,
   session restoration, sign-out, ownership isolation, and account deletion.
 - Apple Sign In remains preserved but disabled pending external capability and
-  provider approval. Phase 17 is the next phase for standalone internal and
-  TestFlight distribution.
+  provider approval. The local Phase 17 standalone Release installation is
+  complete; paid external distribution remains deferred.
 
 ## Phase 16 (historical remote roadmap) — Custom Graphs and Complex Analytics
 
@@ -533,15 +534,77 @@ This scope remains a valid future product area but is not the active local Phase
 - caffeine, sodium, fiber, and sugar analysis
 - future compatibility with water, supplement, and wearable data
 
-## Phase 17 (historical remote roadmap) — Deployment and Security Foundations
+## Local Phase 17 — Free Xcode Standalone iOS Installation — Complete
+
+Status: Complete. The free local standalone iOS staging installation passed
+automated validation and user-operated physical-device validation.
+
+Phase 17 delivered a repeatable local Release installation using Expo
+Continuous Native Generation, Xcode, the free Apple Personal Team, the existing
+iOS bundle identifier, Firebase iOS configuration, and the existing Railway
+staging API. The same command remains the documented reinstall workflow. The
+generated `apps/mobile/ios/` directory remains ignored and is removed only
+after standalone evidence is recorded.
+
+- `corepack pnpm ios:staging-release` validates Node/pnpm, staging selectors,
+  the public/server variable boundary, Railway staging API safety, Firebase
+  plist, Google URL scheme, toolchain, device visibility, disk space, and
+  generated native state before clean prebuild and CocoaPods preparation.
+- The workflow persists the validated Release handoff only in ignored generated
+  `apps/mobile/ios/.xcode.env.local`, disabling dotenv fallback for the separate
+  Xcode bundle process. After a Release build,
+  `corepack pnpm ios:staging-release -- --verify-release-artifact` proves the
+  non-empty JavaScript bundle and validated staging API target before a device
+  reinstall.
+- The generated project adopts one default UIScene application for the iOS 27
+  SDK. SceneDelegate owns the window and one React Native factory startup while
+  AppDelegate preserves Firebase and URL/deep-link forwarding; the preparation
+  guard rejects incomplete scene adoption before Xcode opens.
+- Xcode remains responsible for Personal Team selection, automatic signing,
+  device registration/trust, Release installation, and physical validation.
+- Release acceptance requires JavaScript bundling, Firebase/Google auth,
+  Railway staging reads and writes, barcode and photo/AI flows, session
+  restoration, and operation after disconnecting from the Mac with Metro,
+  Docker, and the local API stopped.
+- The free seven-day signing expiration is accepted and documented. EAS,
+  TestFlight, and App Store Connect remain deferred to the paid-distribution
+  work in Phase 25; production Railway, Apple Sign In, Android standalone
+  distribution, and unrelated native refactors are also deferred.
+
+### Phase 17 completion record
+
+- Automated repository validation passed under Node 22 and pnpm 10.34.3,
+  including focused staging workflow/configuration, deployment-target,
+  ExpoModulesJSI compatibility, and UIScene regression suites; mobile Vitest,
+  mobile Jest/RNTL, mobile lint/typecheck, root lint/typecheck/build, and
+  generated-native safety checks passed.
+- The safe local `food_tracker_test` PostgreSQL database was unavailable for
+  the database-dependent API suite; Docker was not started. Repository-wide
+  formatting still reports only unrelated protected or untracked tool files;
+  all changed Phase 17 owner documents pass the focused Prettier check.
+- Codex performed the unsigned/native compiler validation and resolved the
+  Xcode 27 CocoaPods, ExpoModulesJSI, and UIScene compatibility boundaries.
+- The user performed Personal Team signing, Release compilation, physical
+  iPhone installation, launch, and standalone operation with Metro, Docker,
+  the local API, and the Mac unavailable. The user reported the application
+  worked completely; Codex did not operate the phone.
+- The post-build verifier passed for a non-empty JavaScript bundle, canonical
+  metadata, staging environment, and the validated Railway staging target.
+- The guarded cleanup removed only the ignored generated `apps/mobile/ios/`
+  directory after evidence capture.
+
+## Phase 17 (historical remote roadmap) — Deployment and Security Foundations — Superseded
 
 The repository-side portion of this infrastructure scope was reprioritized into
 local Phase 16. Railway staging creation and hosted validation are complete;
-production deployment, operational backups, and standalone distribution remain
-Phase 17 work.
+production deployment, operational backups, and paid external distribution
+remain future work. This historical scope was superseded by the realigned local
+Phase 16 and the completed local Phase 17 free-Xcode standalone checkpoint
+above; its provider-neutral planning text is retained as history.
 
-This phase remains provider-neutral. The provider decision will be researched
-during Phase 17 planning.
+This historical scope remains provider-neutral. Its provider-research sentence
+is retained as history only; the completed local Phase 17 did not reopen that
+decision.
 
 - hosted backend
 - managed production-style database
@@ -570,6 +633,9 @@ infrastructure decision-making. The internal TestFlight build is an
 engineering smoke build, not the external MVP beta.
 
 ## Phase 18 — Additional Food Providers
+
+This is the next phase-level scope after Phase 17 is merged. No Phase 18
+implementation slice is started by this closeout.
 
 - evaluate provider options
 - improve Canadian food coverage

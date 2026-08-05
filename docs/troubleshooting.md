@@ -433,3 +433,69 @@ git push origin --delete <branch-name>
 ```
 
 Do not use `git branch -D` or force deletion to bypass an unmerged-work warning.
+
+## Phase 17 staging Release preparation fails
+
+Run the guarded command from the repository root only after checking Node and
+pnpm:
+
+```bash
+node -v
+corepack pnpm -v
+corepack pnpm ios:staging-release
+```
+
+The first reported boundary is authoritative. A wrong branch, staged file,
+unsupported toolchain, missing CocoaPods/Xcode SDK, insufficient disk space,
+undiscoverable device, missing ignored staging environment file, unsafe API
+target, missing Firebase plist, mismatched Google scheme, exposed server
+variable, or unsafe generated directory must be corrected at that boundary.
+The workflow never prints the failing URL, plist contents, credentials, Apple
+identifiers, device identifiers, or hosted values.
+
+- For an unsafe API target, use only the Railway staging HTTPS host and exact
+  `/api/v1` path. Do not use localhost, loopback, a LAN/private/link-local
+  address, a `.local` host, credentials, a query, or a fragment.
+- For Firebase/Google errors, verify the external plist is a regular local XML
+  file for the existing iOS bundle and that its reversed-client value matches
+  the supplied scheme. Do not copy it into a tracked path.
+- For prebuild or Pod errors, preserve the first error, leave the unrelated
+  dirty worktree untouched, and inspect the generated ignored directory. Do not
+  upgrade Expo/React Native or repair Docker without an approved causal
+  failure.
+- If an iOS 27 device build returns to the Home Screen before React Native
+  starts, inspect the first crash frame for UIKit's no-scene-lifecycle
+  termination. The guarded generated-state check requires the application
+  scene manifest, AppDelegate scene configuration, SceneDelegate target
+  membership, and one scene-owned React Native startup. Regenerate from the
+  tracked CNG configuration; do not edit `apps/mobile/ios` by hand.
+- For signing or provisioning errors, stop at Xcode. Confirm the Apple Account,
+  free Personal Team, automatic signing, existing bundle identifier, trusted
+  iPhone, Developer Mode, and Release scheme in the Xcode UI.
+- If a Release launch asks for Metro, the wrong scheme/configuration was run or
+  the bundle phase failed. Re-run the guarded preparation after correcting the
+  generated state; do not treat a development-client launch as standalone
+  evidence.
+- If runtime requests reach the wrong API, stop the app, correct the ignored
+  staging environment file, regenerate, and rebuild Release. The Xcode build
+  receives staging values through the generated ignored `.xcode.env.local`; do
+  not point the Release app at the local API or Railway production. Before a
+  physical reinstall, run:
+
+  ```bash
+  corepack pnpm ios:staging-release -- --verify-release-artifact
+  ```
+
+  The verifier must confirm a non-empty bundle, canonical metadata, and the
+  validated staging API target. A failed verifier is not standalone evidence.
+
+Only after standalone evidence is recorded may the cleanup command remove the
+exact generated directory:
+
+```bash
+corepack pnpm ios:staging-release -- --cleanup-after-validation
+```
+
+Cleanup refuses tracked, non-ignored, symlinked, or unexpected native state and
+does not touch Android, DerivedData, Pods outside the generated directory,
+archives, credentials, or unrelated files.
