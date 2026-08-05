@@ -73,9 +73,12 @@ ownership, provider, session, and disposable-account deletion checks passed.
   `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED` flag; email/password and Google remain
   the active development providers.
 - Water and Note actions are visible but not implemented.
-- App Store/TestFlight distribution is not a current goal.
+- Phase 17 delivered the free Xcode standalone iOS staging installation. Paid
+  Apple Developer distribution through EAS, TestFlight, and the App Store
+  remains deferred.
 - Local PostgreSQL is required for API persistence and backend tests.
-- Physical devices require an explicit LAN API URL.
+- Development-client physical devices require an explicit LAN API URL;
+  standalone Phase 17 Release builds use Railway staging directly.
 - Railway staging is validated in its dedicated `staging` environment;
   production resources remain intentionally out of scope.
 - Water, supplements, and durable legal-consent work remain outside this phase.
@@ -92,9 +95,15 @@ were validated from the physical iPhone with Firebase verification and
 revocation checks, setup-status routing, onboarding, persistence, ownership
 isolation, USDA/Open Food Facts retrieval, Gemini parsing, photo analysis,
 nutrition fallback, session restoration, sign-out, and permanent deletion.
-Phase 17 is the next phase for standalone internal/TestFlight distribution.
-Metro remains required for development-client testing, while hosted staging
-does not require the local API or Docker.
+Phase 17 delivered a guarded local Xcode Release build signed by the user's
+free Apple Personal Team. Automated native and artifact validation passed; the
+user then confirmed the signed Release build installed and remained open on the
+physical iPhone with Metro, Docker, the local API, and the Mac disconnected.
+The generated `apps/mobile/ios/` project remains ignored and was removed by the
+guarded cleanup after evidence capture. The free signing profile expires after
+seven days; rerun the preparation command and reinstall from Xcode when it
+expires. Paid Apple Developer distribution, EAS, TestFlight, and App Store
+work remain deferred.
 
 ## Technology
 
@@ -178,11 +187,52 @@ corepack pnpm --filter @food-tracker/mobile ios:dev-build
 corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
 ```
 
+### Free Xcode standalone Release checkpoint
+
+After confirming the required branch and Node/pnpm versions, create the ignored
+`apps/mobile/.env.staging-release.local` file with the staging public client
+configuration and external Firebase plist path described in
+[docs/dev-setup.md](docs/dev-setup.md). Then run:
+
+```bash
+corepack pnpm ios:staging-release
+```
+
+The command validates the staging target, public/server variable boundary,
+Firebase plist, toolchain, device visibility, and generated native state before
+running clean Expo prebuild, CocoaPods preparation, and opening
+`FoodTracker.xcworkspace`. Signing, Release selection, installation, and
+physical-device validation remain Xcode/user checkpoints for each future
+seven-day reinstall. If macOS has no application registered under the generic
+name `Xcode`, open the installed Xcode beta application manually and then open
+the generated workspace. After evidence is recorded, remove only the generated
+project with:
+
+```bash
+corepack pnpm ios:staging-release -- --cleanup-after-validation
+```
+
+The preparation writes an ignored `apps/mobile/ios/.xcode.env.local` handoff
+after native generation. It carries only validated staging public/native
+configuration, sets `EXPO_NO_DOTENV=1`, and clears
+`EXPO_NO_CLIENT_ENV_VARS`, preventing a separate Xcode build process from
+loading the local-development `.env.local`. After the Release build, verify
+the artifact before reinstalling on the iPhone:
+
+```bash
+corepack pnpm ios:staging-release -- --verify-release-artifact
+```
+
+The verifier checks the newest Release app for a non-empty JavaScript bundle,
+canonical metadata, and the validated staging API target while keeping values
+and paths out of output.
+
 The native commands generate local Expo native project files when no `ios/`
 folder exists. Those generated files are ignored in this phase and should not
 be committed without an explicit workflow decision. The Phase 6.3 native iPhone
 path uses an Expo development build through local Xcode tooling; Expo Go is not
-required.
+required. Phase 17's Release path is the proven standalone workflow and uses
+the validated Railway staging target directly.
 
 The mobile client reads `EXPO_PUBLIC_API_URL`. Examples:
 

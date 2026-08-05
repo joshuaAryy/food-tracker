@@ -2,10 +2,17 @@ import 'tsx/cjs';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 import { withEntitlementsPlist, type ConfigPlugin } from 'expo/config-plugins';
 import { isAppleSignInEnabled } from './src/lib/apple-sign-in-config';
+import {
+  APP_VERSION,
+  IOS_BUILD_NUMBER,
+  IOS_DEPLOYMENT_TARGET,
+} from './src/lib/app-metadata';
+import { validateApiTarget } from './src/lib/api-target';
+import withReleaseBundleSafety from './config-plugins/with-release-bundle-safety';
+import withIosDeploymentTarget from './config-plugins/with-ios-deployment-target';
+import withIosSceneLifecycle from './config-plugins/with-ios-scene-lifecycle';
 
 export type AppEnvironment = 'development' | 'staging' | 'production';
-
-const API_BASE_PATH = '/api/v1';
 
 export function removeAppleSignInNativeConfiguration(
   entitlements: Record<string, unknown>,
@@ -21,38 +28,6 @@ const withDisabledAppleSignInNativeConfiguration: ConfigPlugin = (config) =>
     return config;
   });
 
-function isPrivateIpv4(hostname: string): boolean {
-  const parts = hostname.split('.').map(Number);
-  if (
-    parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-  ) {
-    return false;
-  }
-
-  const [first, second] = parts;
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168)
-  );
-}
-
-function isUnsafeHostname(hostname: string): boolean {
-  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  return (
-    normalized === 'localhost' ||
-    normalized.endsWith('.localhost') ||
-    normalized === '::1' ||
-    normalized.startsWith('fc') ||
-    normalized.startsWith('fd') ||
-    isPrivateIpv4(normalized)
-  );
-}
-
 function assertEnvironment(value: string): asserts value is AppEnvironment {
   if (!['development', 'staging', 'production'].includes(value)) {
     throw new Error(`APP_ENV must be development, staging, or production.`);
@@ -63,43 +38,23 @@ export function validateApiUrl(
   value: string | undefined,
   environment: AppEnvironment,
 ): string {
-  const raw = value?.trim();
-  if (raw === undefined || raw === '') {
+  if (value?.trim() === undefined || value.trim() === '') {
     if (environment === 'development') {
       throw new Error('EXPO_PUBLIC_API_URL is required for development.');
     }
     throw new Error(`EXPO_PUBLIC_API_URL is required for ${environment}.`);
   }
 
-  let url: URL;
   try {
-    url = new URL(raw);
+    return validateApiTarget(value, environment);
   } catch {
-    throw new Error('EXPO_PUBLIC_API_URL must be a valid URL.');
-  }
-
-  if (
-    url.username !== '' ||
-    url.password !== '' ||
-    url.search !== '' ||
-    url.hash !== '' ||
-    url.pathname.replace(/\/+$/, '') !== API_BASE_PATH
-  ) {
+    if (environment === 'development') {
+      throw new Error('EXPO_PUBLIC_API_URL must be a valid URL.');
+    }
     throw new Error(
-      'EXPO_PUBLIC_API_URL must not contain credentials, query parameters, fragments, or an unexpected path.',
+      `EXPO_PUBLIC_API_URL must use a public HTTPS host for ${environment}.`,
     );
   }
-
-  if (environment !== 'development' && url.protocol !== 'https:') {
-    throw new Error(`EXPO_PUBLIC_API_URL must use HTTPS for ${environment}.`);
-  }
-  if (environment !== 'development' && isUnsafeHostname(url.hostname)) {
-    throw new Error(
-      `EXPO_PUBLIC_API_URL must use a public host for ${environment}.`,
-    );
-  }
-
-  return `${url.protocol}//${url.host}${API_BASE_PATH}`;
 }
 
 export function createAppConfig(
@@ -116,7 +71,7 @@ export function createAppConfig(
   const config: ExpoConfig = {
     name: 'Food Tracker',
     slug: 'food-tracker',
-    version: '0.1.0',
+    version: APP_VERSION,
     orientation: 'portrait',
     icon: './assets/icons/simple.png',
     scheme: 'foodtracker',
@@ -162,6 +117,9 @@ export function createAppConfig(
           ios: { useFrameworks: 'static' },
         },
       ],
+      withReleaseBundleSafety,
+      withIosDeploymentTarget,
+      withIosSceneLifecycle,
     ],
     extra: {
       apiUrl,
@@ -170,8 +128,9 @@ export function createAppConfig(
     experiments: { typedRoutes: true },
     ios: {
       icon: './assets/icons/simple.png',
+      buildNumber: IOS_BUILD_NUMBER,
+      deploymentTarget: IOS_DEPLOYMENT_TARGET,
       bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
-      appleTeamId: '6JMW7252B6',
       ...(appleSignInEnabled ? { usesAppleSignIn: true } : {}),
       ...(googleServicesPlistPath === undefined
         ? {}
@@ -200,4 +159,7 @@ export function createAppConfig(
   return config;
 }
 
-export default (_context: ConfigContext): ExpoConfig => createAppConfig();
+export default (_context: ConfigContext): ExpoConfig => {
+  void _context;
+  return createAppConfig();
+};

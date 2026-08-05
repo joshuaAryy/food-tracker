@@ -883,7 +883,9 @@ The hosted run proved that Metro is still required for the development client,
 but the local API and Docker are not required when `EXPO_PUBLIC_API_URL`
 targets Railway staging. Expo must be restarted after target changes with
 `EXPO_NO_CLIENT_ENV_VARS` unset and server secrets excluded from public
-variables. A standalone EAS/TestFlight build remains Phase 17 work.
+variables. Phase 17 validated a standalone Release app through local Xcode and
+the free Personal Team; EAS, TestFlight, App Store Connect, and paid
+distribution remain deferred.
 
 Phase 16 not-tested items: photo candidate adjudication and the optional
 API-unavailable check (former checklist step 115). Apple Sign In is deferred
@@ -909,3 +911,41 @@ verified Google account and confirmed that owned data was gone while Account A
 remained intact. Reusing the deleted Google identity created a fresh onboarding
 account with no old data; this is intentional identity recreation, not
 restoration.
+
+### Phase 17 standalone physical checklist
+
+This is one consolidated checkpoint for the free Xcode Release app. It is not
+a replacement for the focused Phase 16 regression record.
+
+The user completed this checklist successfully for the final signed Release
+artifact. Codex did not operate the iPhone. The steps below remain the
+repeatable procedure for the seven-day Personal Team reinstall cycle.
+
+1. Run the guarded staging Release preparation command and generate the ignored
+   iOS project.
+2. Open `FoodTracker.xcworkspace`, select Josh's iPhone, and confirm automatic
+   signing with the free Personal Team while retaining the existing bundle.
+3. Confirm Apple Sign In remains disabled and choose Release for the Xcode Run
+   scheme.
+4. Build and install the Release app; allow it to replace the development
+   client as designed.
+   The iOS 27 build must launch through the generated UIScene/SceneDelegate
+   path; a UIKit no-scene-lifecycle crash is a native-generation failure, not
+   a runtime API or JavaScript failure.
+5. Stop Metro, Docker, and the local API.
+6. Disconnect the phone from the Mac and use cellular data or independent Wi-Fi.
+7. Launch the app and confirm there is no Metro or development-server prompt.
+8. Sign in with Google and confirm authenticated or onboarding routing.
+9. Read existing Railway staging data, create/read one food log, and create/read
+   one weight log.
+10. Complete one barcode lookup and one photo/AI flow.
+11. Force-close and reopen the app; confirm session restoration and data
+    persistence.
+12. Confirm the app remains usable while the Mac is unavailable.
+13. Record the expected seven-day free-signing expiration/reinstall limitation.
+14. Preserve the evidence outside Git, then run the guarded cleanup command to
+    remove only generated `apps/mobile/ios/`.
+
+For future reinstall cycles, do not record this checklist as passing until the
+user performs the physical steps. The app must not be called standalone-ready
+from simulator, compilation, or development-client evidence alone.

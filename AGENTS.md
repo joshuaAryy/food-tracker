@@ -247,6 +247,26 @@ Additional validation by change type:
 - Documentation: internal links, command accuracy, formatting, and changed-file
   scope verified
 
+### Phase 17 free-Xcode standalone checkpoint
+
+The guarded command is `corepack pnpm ios:staging-release`. It must run on the
+Phase 17 branch or post-merge `main`, under Node 22 and pnpm 10.34.3, and must
+reject unsafe API targets, missing staging selectors, public/server variable
+confusion, missing Firebase public configuration, unsafe generated native
+state, missing Xcode/CocoaPods/device prerequisites, and insufficient disk
+space before prebuild. Set `EXPO_NO_DOTENV=1` and ensure
+`EXPO_NO_CLIENT_ENV_VARS` is absent. Never print URLs, plist values, secrets,
+Apple identifiers, device identifiers, signing material, or hosted values.
+
+`apps/mobile/ios/` is generated Expo native state and remains ignored,
+untracked, non-symlinked, and disposable. Clean prebuild and CocoaPods may
+create it locally; the guarded cleanup may remove only that exact directory
+after evidence capture. Preserve unrelated dirty and untracked files. Xcode
+Personal Team selection, automatic signing, Release installation, and physical
+iPhone validation are user-only checkpoints. EAS, TestFlight, App Store
+Connect, production Railway, Apple Sign In, Android standalone distribution,
+and paid external distribution are not Phase 17 work.
+
 ## 8. Code Quality And Architecture Rules
 
 - TypeScript strict mode remains enabled.

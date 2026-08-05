@@ -750,7 +750,8 @@ persistence, ownership isolation, USDA/Open Food Facts, Gemini, photo
 analysis, nutrition fallback, session restoration, sign-out, and disposable
 Google-account deletion. Photo candidate adjudication and the optional
 API-unavailable check are `Not tested`; Apple Sign In is preserved but disabled.
-Phase 17 is the next phase for standalone internal/TestFlight distribution.
+Phase 17 subsequently completed the free-Xcode standalone Release checkpoint;
+paid external distribution remains deferred.
 
 ## TD-024: Phase 15 Deterministic Reporting
 
@@ -805,6 +806,55 @@ Status: Locked for implementation on 2026-07-23; validation pending
 - Phase 15.5 remains open until implementation, focused tests, full
   database-backed tests, native parity checks, and physical-iPhone visual
   approval are complete. Nothing is pushed or merged as part of this decision.
+
+## TD-027: Phase 17 Free Xcode Standalone iOS Installation
+
+Status: Complete. Automated validation, user-operated signed physical-device
+validation, artifact verification, and guarded generated-native cleanup passed.
+
+- Phase 17 uses a local Xcode Release build signed by the user's free Apple
+  Personal Team. EAS Build, EAS Submit, TestFlight, App Store Connect, paid
+  distribution, production Railway resources, and Apple Sign In remain outside
+  this phase.
+- `apps/mobile/app.config.ts` is the tracked Expo authority. `ios/` is Expo
+  Continuous Native Generation output and remains ignored, untracked, and
+  disposable. Canonical behavior belongs in Expo config, tracked scripts,
+  tests, and documentation; signing choices remain in Xcode.
+- `corepack pnpm ios:staging-release` reads only the ignored staging Release
+  environment file, requires Node 22 and pnpm 10.34.3, validates the public
+  Railway staging API target, Firebase plist, Google scheme, toolchain, device,
+  and generated state, then runs clean prebuild and CocoaPods before opening the
+  workspace. It preserves the pre-existing dirty Git state and prints only
+  sanitized categories.
+- After generation, the workflow writes only the approved staging public/native
+  keys to ignored `apps/mobile/ios/.xcode.env.local`, sets `EXPO_NO_DOTENV=1`,
+  and unsets `EXPO_NO_CLIENT_ENV_VARS`. This is the durable handoff consumed by
+  both Expo Constants and the Release `export:embed` phase when Xcode is opened
+  separately; it does not modify `.env.local` or change Debug Metro behavior.
+- The canonical iOS minimum remains `16.4`. Expo's built-in
+  `ios.deploymentTarget` property sets the app target, while the tracked CNG
+  Podfile plugin normalizes every generated Pods project configuration during
+  `post_install`, including privacy and resource bundles.
+- `corepack pnpm ios:staging-release -- --verify-release-artifact` is the guarded
+  post-build proof. It requires canonical app metadata, a non-empty
+  `main.jsbundle`, and the validated staging API target, rejecting local or
+  private targets without printing values.
+- The installed Release app must embed JavaScript and use Firebase plus Railway
+  staging directly without Metro, Docker, the local API, or a Mac connection.
+  The guarded cleanup removes only generated `apps/mobile/ios/` after evidence.
+- The free-signing seven-day expiration is accepted. Reinstallation is a
+  repeat of the guarded preparation and user-only Xcode signing checkpoint.
+- Xcode 27 compatibility required three tracked boundaries: Podfile
+  post-install normalization of every generated Pods configuration to iOS 16.4;
+  a minimal pnpm patch for the Xcode 27-incompatible callback expression in
+  transitive `expo-modules-jsi@56.0.10`; and single-scene UIScene adoption with
+  SceneDelegate-owned React Native startup. Expo remains SDK 56 and React
+  Native remains 0.85.3.
+- The original UIScene failure was a UIKit launch-policy termination before
+  React Native startup. It was not caused by JavaScript, Railway, Firebase, or
+  authentication. The user confirmed the corrected signed Release app
+  installed and remained open on the physical iPhone; Codex did not operate
+  the device.
 
 ## TD-026: Phase 15.5.1 Complete Reporting Goals And Mode Terminology
 
