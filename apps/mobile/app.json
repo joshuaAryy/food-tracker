@@ -41,8 +41,7 @@
     },
     "ios": {
       "icon": "./assets/icons/simple.png",
-      "bundleIdentifier": "ca.joshuaaryeetey.foodtracker",
-      "appleTeamId": "6JMW7252B6"
+      "bundleIdentifier": "ca.joshuaaryeetey.foodtracker"
     },
     "android": {
       "adaptiveIcon": {

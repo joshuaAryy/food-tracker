@@ -9,9 +9,10 @@
     "ios": "expo run:ios",
     "ios:dev-build": "expo run:ios",
     "ios:dev-build:device": "expo run:ios --device",
+    "ios:staging-release": "tsx scripts/prepare-staging-release.ts",
     "web": "expo start --web",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src scripts app.config.ts",
     "test:jest": "jest --runInBand"
   },
   "dependencies": {
@@ -51,6 +52,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "7.29.7",
     "@testing-library/react-native": "14.0.1",
     "@types/jest": "29.5.14",
     "@types/node": "^22.19.21",

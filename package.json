@@ -9,6 +9,7 @@
   "scripts": {
     "dev:api": "corepack pnpm --filter @food-tracker/api dev",
     "dev:mobile": "corepack pnpm --filter @food-tracker/mobile start",
+    "ios:staging-release": "corepack pnpm --filter @food-tracker/mobile ios:staging-release",
     "build": "corepack pnpm --filter @food-tracker/shared build && corepack pnpm --filter @food-tracker/api build",
     "typecheck": "corepack pnpm -r typecheck",
     "lint": "corepack pnpm -r lint",

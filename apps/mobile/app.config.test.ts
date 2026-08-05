@@ -7,6 +7,9 @@ import {
   removeAppleSignInNativeConfiguration,
   validateApiUrl,
 } from './app.config';
+import withReleaseBundleSafety from './config-plugins/with-release-bundle-safety';
+import withIosDeploymentTarget from './config-plugins/with-ios-deployment-target';
+import withIosSceneLifecycle from './config-plugins/with-ios-scene-lifecycle';
 
 describe('tracked Expo configuration', () => {
   it('loads the external TypeScript helper through the Expo config loader', () => {
@@ -33,7 +36,7 @@ describe('tracked Expo configuration', () => {
     );
 
     expect(result.status).toBe(0);
-  });
+  }, 15_000);
 
   it('rejects a missing API URL outside local development', () => {
     expect(() => validateApiUrl(undefined, 'staging')).toThrow(
@@ -65,6 +68,18 @@ describe('tracked Expo configuration', () => {
     ).toBe('https://staging-api.example.com/api/v1');
   });
 
+  it('shares the runtime API-target contract for production and private hosts', () => {
+    expect(validateApiUrl('https://api.example.com/api/v1', 'production')).toBe(
+      'https://api.example.com/api/v1',
+    );
+    expect(() =>
+      validateApiUrl('http://10.0.0.5/api/v1', 'production'),
+    ).toThrow('public HTTPS host');
+    expect(() =>
+      validateApiUrl('https://api.example.com/api/v2', 'staging'),
+    ).toThrow('public HTTPS host');
+  });
+
   it('creates the approved tracked config without reading protected app.json', () => {
     const config = createAppConfig({
       APP_ENV: 'staging',
@@ -76,6 +91,7 @@ describe('tracked Expo configuration', () => {
 
     expect(config).toMatchObject({
       name: 'Food Tracker',
+      version: '0.1.0',
       scheme: 'foodtracker',
       icon: './assets/icons/simple.png',
       experiments: { typedRoutes: true },
@@ -85,11 +101,15 @@ describe('tracked Expo configuration', () => {
       },
       ios: {
         bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
-        appleTeamId: '6JMW7252B6',
+        buildNumber: '1',
+        deploymentTarget: '16.4',
         icon: './assets/icons/simple.png',
         googleServicesFile: '/tmp/staging/GoogleService-Info.plist',
       },
     });
+    expect(config.buildNumber).toBeUndefined();
+    expect(config.ios?.buildNumber).toBe('1');
+    expect(config.ios?.deploymentTarget).toBe('16.4');
     expect(JSON.stringify(config)).not.toContain('staging-web-client-id');
   });
 
@@ -116,6 +136,9 @@ describe('tracked Expo configuration', () => {
       'expo-build-properties',
       { ios: { useFrameworks: 'static' } },
     ]);
+    expect(plugins).toContain(withReleaseBundleSafety);
+    expect(plugins).toContain(withIosDeploymentTarget);
+    expect(plugins).toContain(withIosSceneLifecycle);
     expect(config.ios?.googleServicesFile).toBeUndefined();
   });
 
@@ -137,15 +160,18 @@ describe('tracked Expo configuration', () => {
     ]);
     expect(config).toMatchObject({
       name: 'Food Tracker',
+      version: '0.1.0',
       scheme: 'foodtracker',
       icon: './assets/icons/simple.png',
       experiments: { typedRoutes: true },
       ios: {
         bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
-        appleTeamId: '6JMW7252B6',
+        buildNumber: '1',
         icon: './assets/icons/simple.png',
       },
     });
+    expect(config.buildNumber).toBeUndefined();
+    expect(config.ios?.buildNumber).toBe('1');
   });
 
   it('removes the auto-applied Apple entitlement when Apple is disabled', () => {
