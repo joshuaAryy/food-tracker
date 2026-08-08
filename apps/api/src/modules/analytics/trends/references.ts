@@ -1,5 +1,7 @@
 import {
   analyticsMetricForKey,
+  NUTRIENT_CATALOG,
+  resolveReportingGoals,
   type AnalyticsMetricKey,
   type AnalyticsReference,
 } from '@food-tracker/shared';
@@ -95,5 +97,33 @@ export function noReference(metric: AnalyticsMetricKey): AnalyticsReference {
     kind: 'none',
     unit: analyticsMetricForKey(metric).unit,
     reason: 'not_applicable',
+  };
+}
+
+export function metricReference(
+  metric: AnalyticsMetricKey,
+  input: {
+    goalType: 'lose' | 'maintain' | 'gain' | null;
+    targetCalories: number | null;
+    targetProteinGrams: number | null;
+    targetCarbsGrams: number | null;
+    targetFatGrams: number | null;
+    targetFiberGrams: number | null;
+    limitSugarGrams: number | null;
+    limitSodiumMg: number | null;
+  },
+): AnalyticsReference {
+  if (metric === 'calories') return calorieReference(input);
+  if (!(metric in NUTRIENT_CATALOG)) return noReference(metric);
+  const nutrientMetric = metric as keyof typeof NUTRIENT_CATALOG;
+  const reportingGoal = resolveReportingGoals(input)[nutrientMetric];
+  if (reportingGoal === undefined || reportingGoal.value === null) {
+    return { kind: 'none', unit: analyticsMetricForKey(metric).unit, reason: 'not_configured' };
+  }
+  return {
+    kind: reportingGoal.direction,
+    value: reportingGoal.value,
+    unit: reportingGoal.unit,
+    source: reportingGoal.source === 'missing' ? 'default' : reportingGoal.source,
   };
 }

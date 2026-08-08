@@ -287,6 +287,75 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('uses one fixed combined raw domain for Protein and Carbohydrates', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Shared scale snapshot',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 30,
+        carbs: 60,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'protein', comparisonMetric: 'carbs' })
+      .expect(200);
+    expect(response.body.data.comparison).toMatchObject({
+      strategy: 'shared_unit',
+      sharedAxisDomain: { minimum: 0, maximum: 60 },
+      primaryAxisDomain: { minimum: 0, maximum: 60 },
+      comparisonAxisDomain: { minimum: 0, maximum: 60 },
+    });
+  });
+
+  it('normalizes Sodium and Potassium independently while preserving raw values and gaps', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    await seedGoals({ targetCalories: 2000, limitSodiumMg: null });
+    const log = await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Mineral snapshot',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 20,
+        sodium: 0,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+    await prisma.foodLogNutrient.create({
+      data: { foodLogId: log.id, nutrientKey: 'potassium', amount: 2350, unit: 'mg' },
+    });
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'sodium', comparisonMetric: 'potassium' })
+      .expect(200);
+    expect(response.body.data.reference).toMatchObject({ kind: 'limit', value: 2300 });
+    expect(response.body.data.comparison.reference).toMatchObject({ kind: 'minimum', value: 4700 });
+    expect(response.body.data.points).toEqual(expect.arrayContaining([
+      expect.objectContaining({ date: recentLocalDate(6), value: 0, normalizedValue: 0 }),
+    ]));
+    expect(response.body.data.comparison.points).toEqual(expect.arrayContaining([
+      expect.objectContaining({ date: recentLocalDate(6), value: 2350, normalizedValue: 0.5 }),
+      expect.objectContaining({ date: recentLocalDate(5), value: null }),
+    ]));
+  });
+
+  it('rejects normalized comparison when either authoritative reference is unavailable', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'sodium', comparisonMetric: 'potassium' })
+      .expect(400);
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+  });
+
   it('returns macro composition facts without coercing missing carbs or fat to zero', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });

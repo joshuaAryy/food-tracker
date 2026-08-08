@@ -142,6 +142,7 @@ export interface CanonicalTrendResponse {
     metric: AnalyticsMetricKey;
     points: AnalyticsPoint[];
     reference: AnalyticsReference;
+    sharedAxisDomain: AnalyticsAxisDomain | null;
     primaryAxisDomain: AnalyticsAxisDomain | null;
     comparisonAxisDomain: AnalyticsAxisDomain | null;
   };

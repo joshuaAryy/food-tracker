@@ -147,4 +147,23 @@ describe('analytics saved views API', () => {
       .expect(400);
     expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
   });
+
+  it('rejects incoherent comparison and visualization configurations on create and merged update', async () => {
+    await seedPreferences({ mode: 'complex' });
+    const invalidCreate = await api
+      .post('/api/v1/analytics/saved-views')
+      .send({ ...savedViewInput, comparisonMetric: 'vitaminC', visualization: 'dual_axis' })
+      .expect(400);
+    expectErrorEnvelope(invalidCreate.body, 'VALIDATION_ERROR');
+
+    const created = await api
+      .post('/api/v1/analytics/saved-views')
+      .send(savedViewInput)
+      .expect(201);
+    const invalidUpdate = await api
+      .patch(`/api/v1/analytics/saved-views/${created.body.data.savedView.id as string}`)
+      .send({ comparisonMetric: 'carbs' })
+      .expect(400);
+    expectErrorEnvelope(invalidUpdate.body, 'VALIDATION_ERROR');
+  });
 });

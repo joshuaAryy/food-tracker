@@ -4,6 +4,7 @@ import {
   type AnalyticsReference,
   type CanonicalTrendResponse,
   type TrendQueryInput,
+  COLUMN_BACKED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
@@ -14,24 +15,45 @@ import { includesLoggingDay } from './coverage-filter.js';
 import { classifyLoggingDay } from './logging-day-classifier.js';
 import { classifyMetricData } from './metric-data-coverage.js';
 import { aggregateAnalyticsPoints } from './aggregation.js';
-import { calorieReference, noReference } from './references.js';
+import { metricReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 
-function fixedAxisDomain(points: readonly AnalyticsPoint[]) {
+function fixedAxisDomain(
+  points: readonly AnalyticsPoint[],
+  zeroBaseline = false,
+) {
   const values = points.flatMap((point) =>
     point.value !== null && Number.isFinite(point.value) ? [point.value] : [],
   );
   if (values.length === 0) return null;
   const minimum = Math.min(...values);
   const maximum = Math.max(...values);
+  if (zeroBaseline) {
+    return { minimum: Math.min(0, minimum), maximum: maximum === 0 ? 1 : maximum };
+  }
   return minimum === maximum
     ? { minimum: Math.min(0, minimum), maximum: maximum === 0 ? 1 : maximum }
     : { minimum, maximum };
 }
 
-function supportsReferenceNormalization(reference: AnalyticsReference): boolean {
-  return reference.kind !== 'none';
+function referenceNormalizationValue(reference: AnalyticsReference): number | null {
+  if (reference.kind === 'none') return null;
+  if (reference.kind === 'range') return reference.upper - reference.lower;
+  return reference.value;
+}
+
+function withNormalizedPoints(
+  points: readonly AnalyticsPoint[],
+  reference: AnalyticsReference,
+): AnalyticsPoint[] {
+  const denominator = referenceNormalizationValue(reference);
+  if (denominator === null || denominator <= 0) return [...points];
+  return points.map((point) =>
+    point.value === null
+      ? point
+      : { ...point, normalizedValue: point.value / denominator },
+  );
 }
 
 function datesInRange(startDate: string, endDate: string): string[] {
@@ -42,14 +64,7 @@ function datesInRange(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-type ColumnFoodMetric =
-  | 'calories'
-  | 'protein'
-  | 'carbs'
-  | 'fat'
-  | 'fiber'
-  | 'sugar'
-  | 'sodium';
+type ColumnFoodMetric = (typeof COLUMN_BACKED_NUTRIENT_KEYS)[number];
 
 interface ColumnFoodMetricLog {
   calories: number;
@@ -143,7 +158,16 @@ export async function computeCanonicalTrend(
     }),
     prisma.userGoal.findUnique({
       where: { userId },
-      select: { goalType: true, targetCalories: true },
+      select: {
+        goalType: true,
+        targetCalories: true,
+        targetProteinGrams: true,
+        targetCarbsGrams: true,
+        targetFatGrams: true,
+        targetFiberGrams: true,
+        limitSugarGrams: true,
+        limitSodiumMg: true,
+      },
     }),
     prisma.foodLog.findFirst({
       where: { userId },
@@ -307,12 +331,16 @@ export async function computeCanonicalTrend(
           unit: 'mL' as const,
           source: 'default' as const,
         }
-      : query.primaryMetric === 'calories'
-        ? calorieReference({
-            goalType: goal?.goalType ?? null,
-            targetCalories: goal?.targetCalories ?? null,
-          })
-        : noReference(query.primaryMetric)
+      : metricReference(query.primaryMetric, {
+          goalType: goal?.goalType ?? null,
+          targetCalories: goal?.targetCalories ?? null,
+          targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
+          targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
+          targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
+          targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
+          limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
+          limitSodiumMg: goal?.limitSodiumMg ?? null,
+        })
     : noReference(query.primaryMetric);
 
   const response: CanonicalTrendResponse = {
@@ -364,8 +392,8 @@ export async function computeCanonicalTrend(
   });
   if (
     strategy === 'reference_normalized' &&
-    (!supportsReferenceNormalization(response.reference) ||
-      !supportsReferenceNormalization(comparison.reference))
+    (referenceNormalizationValue(response.reference) === null ||
+      referenceNormalizationValue(comparison.reference) === null)
   ) {
     throw new AppError(
       400,
@@ -373,15 +401,29 @@ export async function computeCanonicalTrend(
       'Both metrics need an authoritative reference for normalized comparison',
     );
   }
+  const primaryPoints =
+    strategy === 'reference_normalized'
+      ? withNormalizedPoints(response.points, response.reference)
+      : response.points;
+  const comparisonPoints =
+    strategy === 'reference_normalized'
+      ? withNormalizedPoints(comparison.points, comparison.reference)
+      : comparison.points;
+  const sharedDomain =
+    strategy === 'shared_unit'
+      ? fixedAxisDomain([...primaryPoints, ...comparisonPoints], true)
+      : null;
   return {
     ...response,
+    points: primaryPoints,
     comparison: {
       strategy,
       metric: query.comparisonMetric,
-      points: comparison.points,
+      points: comparisonPoints,
       reference: comparison.reference,
-      primaryAxisDomain: fixedAxisDomain(response.points),
-      comparisonAxisDomain: fixedAxisDomain(comparison.points),
+      sharedAxisDomain: sharedDomain,
+      primaryAxisDomain: sharedDomain ?? fixedAxisDomain(primaryPoints),
+      comparisonAxisDomain: sharedDomain ?? fixedAxisDomain(comparisonPoints),
     },
   };
 }

@@ -1,6 +1,7 @@
 import {
   analyticsMetricForKey,
   analyticsMetricKeySchema,
+  analyticsSavedViewConfigurationSchema,
   type AnalyticsPreferenceUpdateInput,
   type AnalyticsPreferenceValue,
   type AnalyticsSavedView,
@@ -10,6 +11,7 @@ import {
 } from '@food-tracker/shared';
 import { AppError, notFoundError } from '../../../lib/errors.js';
 import { prisma } from '../../../lib/prisma.js';
+import { validateSavedViewConfiguration } from './configuration-validation.js';
 
 type StoredAnalyticsSavedView = Awaited<
   ReturnType<typeof prisma.analyticsSavedView.findFirstOrThrow>
@@ -89,6 +91,7 @@ export async function createAnalyticsSavedView(
   userId: string,
   input: AnalyticsSavedViewCreateInput,
 ): Promise<AnalyticsSavedView> {
+  validateSavedViewConfiguration(input);
   const sortOrder = await prisma.analyticsSavedView.count({ where: { userId } });
   const view = await prisma.analyticsSavedView.create({
     data: {
@@ -112,7 +115,45 @@ export async function updateAnalyticsSavedView(
   id: string,
   input: AnalyticsSavedViewUpdateInput,
 ): Promise<AnalyticsSavedView> {
-  await ownedSavedView(userId, id);
+  const existing = await ownedSavedView(userId, id);
+  const merged = {
+    primaryMetric: existing.primaryMetric,
+    comparisonMetric: existing.comparisonMetric,
+    periodDays: existing.periodDays,
+    aggregation: existing.aggregation,
+    visualization: existing.visualization,
+    showReference: existing.showReference,
+    coverageFilter: existing.coverageFilter,
+    ...(input.primaryMetric === undefined
+      ? {}
+      : { primaryMetric: input.primaryMetric }),
+    ...(input.comparisonMetric === undefined
+      ? {}
+      : { comparisonMetric: input.comparisonMetric }),
+    ...(input.periodDays === undefined
+      ? {}
+      : { periodDays: input.periodDays }),
+    ...(input.aggregation === undefined
+      ? {}
+      : { aggregation: input.aggregation }),
+    ...(input.visualization === undefined
+      ? {}
+      : { visualization: input.visualization }),
+    ...(input.showReference === undefined
+      ? {}
+      : { showReference: input.showReference }),
+    ...(input.coverageFilter === undefined
+      ? {}
+      : { coverageFilter: input.coverageFilter }),
+  };
+  const changesConfiguration = Object.keys(input).some((key) => key !== 'name');
+  if (changesConfiguration || unavailableMetrics(existing).length === 0) {
+    const parsed = analyticsSavedViewConfigurationSchema.safeParse(merged);
+    if (!parsed.success) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Saved-view configuration is invalid');
+    }
+    validateSavedViewConfiguration(parsed.data);
+  }
   const view = await prisma.analyticsSavedView.update({
     where: { id },
     data: {
