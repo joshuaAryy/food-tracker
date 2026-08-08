@@ -2,6 +2,7 @@ export * from './constants.js';
 export * from './enums.js';
 export * from './auth.js';
 export * from './analytics-metrics.js';
+export * from './analytics-saved-views.js';
 export * from './analytics-trends.js';
 export * from './nutrients.js';
 export * from './reporting.js';
