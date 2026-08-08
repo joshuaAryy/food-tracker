@@ -21,6 +21,10 @@ export default function RootLayout() {
           <Stack.Screen name="streaks" />
           <Stack.Screen name="trends" />
           <Stack.Screen
+            name="trends/saved-views"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
             name="food-log"
             options={{ presentation: 'modal', gestureEnabled: true }}
           />
