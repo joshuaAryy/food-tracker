@@ -58,6 +58,12 @@ import type {
   CanonicalTrendResponse,
   CanonicalInsightsResponse,
   TrendQueryInput,
+  AnalyticsPreferenceUpdateInput,
+  AnalyticsPreferenceValue,
+  AnalyticsSavedView,
+  AnalyticsSavedViewCreateInput,
+  AnalyticsSavedViewOrderInput,
+  AnalyticsSavedViewUpdateInput,
 } from '@food-tracker/shared';
 import {
   goalsSchema,
@@ -507,6 +513,43 @@ export const api = {
       request<CanonicalInsightsResponse>(
         `/analytics/insights?period=${period}`,
       ),
+    preferences: () =>
+      request<{ preferences: AnalyticsPreferenceValue }>('/analytics/preferences').then(
+        ({ preferences }) => preferences,
+      ),
+    updatePreferences: (input: AnalyticsPreferenceUpdateInput) =>
+      request<{ preferences: AnalyticsPreferenceValue }>('/analytics/preferences', {
+        method: 'PUT',
+        body: input,
+      }).then(({ preferences }) => preferences),
+    savedViews: () =>
+      request<{ savedViews: AnalyticsSavedView[] }>('/analytics/saved-views').then(
+        ({ savedViews }) => savedViews,
+      ),
+    createSavedView: (input: AnalyticsSavedViewCreateInput) =>
+      request<{ savedView: AnalyticsSavedView }>('/analytics/saved-views', {
+        method: 'POST',
+        body: input,
+      }).then(({ savedView }) => savedView),
+    updateSavedView: (id: string, input: AnalyticsSavedViewUpdateInput) =>
+      request<{ savedView: AnalyticsSavedView }>(`/analytics/saved-views/${id}`, {
+        method: 'PATCH',
+        body: input,
+      }).then(({ savedView }) => savedView),
+    duplicateSavedView: (id: string) =>
+      request<{ savedView: AnalyticsSavedView }>(
+        `/analytics/saved-views/${id}/duplicate`,
+        { method: 'POST' },
+      ).then(({ savedView }) => savedView),
+    reorderSavedViews: (input: AnalyticsSavedViewOrderInput) =>
+      request<{ savedViews: AnalyticsSavedView[] }>('/analytics/saved-views/order', {
+        method: 'PUT',
+        body: input,
+      }).then(({ savedViews }) => savedViews),
+    deleteSavedView: (id: string) =>
+      request<{ id: string; deleted: boolean }>(`/analytics/saved-views/${id}`, {
+        method: 'DELETE',
+      }),
     streakCalendar: (month: string) =>
       request<StreakCalendarResponse>(
         `/analytics/streak-calendar${streakCalendarQueryString(month)}`,
