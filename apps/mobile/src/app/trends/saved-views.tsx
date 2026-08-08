@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Platform, Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { AnalyticsSavedView } from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
@@ -34,6 +34,35 @@ export default function SavedViewsScreen() {
       void load();
     }, [load]),
   );
+  const duplicate = async (id: string) => {
+    setError(null);
+    try {
+      await api.analytics.duplicateSavedView(id);
+      await load();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+  const remove = async (id: string) => {
+    setError(null);
+    try {
+      await api.analytics.deleteSavedView(id);
+      await load();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+  const confirmDelete = (view: AnalyticsSavedView) => {
+    const proceed = () => void remove(view.id);
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm(`Delete ${view.name}?`)) proceed();
+      return;
+    }
+    Alert.alert('Delete saved view?', view.name, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: proceed },
+    ]);
+  };
   if (error !== null)
     return <ErrorState message={error} onRetry={() => void load()} />;
   return (
@@ -67,6 +96,13 @@ export default function SavedViewsScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={`Duplicate ${view.name}`}
+            onPress={() => void duplicate(view.id)}
+          >
+            <AppText variant="caption">Duplicate</AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
             accessibilityLabel={
               pinnedId === view.id ? `Unpin ${view.name}` : `Pin ${view.name}`
             }
@@ -79,6 +115,15 @@ export default function SavedViewsScreen() {
           >
             <AppText variant="caption">
               {pinnedId === view.id ? 'Unpin' : 'Pin'}
+            </AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${view.name}`}
+            onPress={() => confirmDelete(view)}
+          >
+            <AppText variant="caption" className="text-error">
+              Delete
             </AppText>
           </Pressable>
         </View>
