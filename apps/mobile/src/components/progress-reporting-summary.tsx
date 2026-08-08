@@ -30,9 +30,11 @@ function formatAmount(amount: number, unit: string): string {
 export function ProgressCalorieHero({
   summary,
   weeklyReport,
+  onPress,
 }: {
   summary: DashboardSummary;
   weeklyReport: ReportsResponse | null;
+  onPress?: (() => void) | undefined;
 }) {
   const target =
     summary.calorieTarget !== null && summary.calorieTarget > 0
@@ -73,7 +75,15 @@ export function ProgressCalorieHero({
       : calorieContext.range;
 
   return (
-    <View className="gap-3">
+    <Pressable
+      accessibilityRole={onPress === undefined ? undefined : 'button'}
+      accessibilityLabel={
+        onPress === undefined ? undefined : 'Open Calories Trend'
+      }
+      disabled={onPress === undefined}
+      onPress={onPress}
+      className="gap-3 active:opacity-70"
+    >
       <ReportingSectionHeading icon="energy" title="Today’s energy" />
       <AppCard elevated className="gap-3">
         <AppText
@@ -116,14 +126,18 @@ export function ProgressCalorieHero({
           </View>
         )}
       </AppCard>
-    </View>
+    </Pressable>
   );
 }
 
 function DailyNutrientBand({
   dailyNutrients,
+  onNutrientPress,
 }: {
   dailyNutrients: DailyNutrientTotals | null;
+  onNutrientPress?:
+    | ((metric: keyof NonNullable<DailyNutrientTotals['nutrients']>) => void)
+    | undefined;
 }) {
   const nutrients = dailyNutrients?.nutrients ?? {};
   const reportingGoals = dailyNutrients?.reportingGoals ?? {};
@@ -144,8 +158,16 @@ function DailyNutrientBand({
           </AppText>
         ) : (
           entries.map(({ key, value }) => (
-            <View
+            <Pressable
               key={key}
+              accessibilityRole={
+                onNutrientPress === undefined ? undefined : 'button'
+              }
+              accessibilityLabel={
+                onNutrientPress === undefined ? undefined : `Open ${key} Trend`
+              }
+              disabled={onNutrientPress === undefined}
+              onPress={() => onNutrientPress?.(key)}
               className="flex-row items-center justify-between gap-4 border-t border-line py-3 first:border-t-0 first:pt-0 last:pb-0"
             >
               <View className="min-w-0 flex-1 gap-0.5">
@@ -170,7 +192,7 @@ function DailyNutrientBand({
               <AppText variant="label" className="text-ink tabular-nums">
                 {formatAmount(value.amount, value.unit)}
               </AppText>
-            </View>
+            </Pressable>
           ))
         )}
       </AppCard>
@@ -186,6 +208,8 @@ export function ProgressReportingSummary({
   dailyNutrientsError,
   onRetry,
   onReports,
+  onWeeklyMomentum,
+  onNutrientPress,
 }: {
   reporting: ProgressResponse;
   weeklyReport: ReportsResponse | null;
@@ -194,6 +218,10 @@ export function ProgressReportingSummary({
   dailyNutrientsError: string | null;
   onRetry: () => void;
   onReports: () => void;
+  onWeeklyMomentum?: (() => void) | undefined;
+  onNutrientPress?:
+    | ((metric: keyof NonNullable<DailyNutrientTotals['nutrients']>) => void)
+    | undefined;
 }) {
   const consistency = reporting.consistency7Days.available
     ? reporting.consistency7Days.value
@@ -216,46 +244,59 @@ export function ProgressReportingSummary({
       )}
       <View className="gap-3">
         <ReportingSectionHeading icon="momentum" title="Weekly momentum" />
-        <AppCard elevated className="gap-3">
-          <AppText variant="caption" className="text-muted">
-            {consistency === null
-              ? 'Keep logging to unlock a weekly consistency signal.'
-              : `${consistency.loggedDays} of ${consistency.eligibleDays} eligible days logged`}
-          </AppText>
-          <View className="flex-row justify-between gap-2">
-            {days.map((day) => (
-              <View key={day.date} className="items-center gap-1">
-                <View
-                  className="h-8 w-8 items-center justify-center rounded-full"
+        <Pressable
+          accessibilityRole={
+            onWeeklyMomentum === undefined ? undefined : 'button'
+          }
+          accessibilityLabel={
+            onWeeklyMomentum === undefined
+              ? undefined
+              : 'Open Logging Consistency Trend'
+          }
+          disabled={onWeeklyMomentum === undefined}
+          onPress={onWeeklyMomentum}
+        >
+          <AppCard elevated className="gap-3">
+            <AppText variant="caption" className="text-muted">
+              {consistency === null
+                ? 'Keep logging to unlock a weekly consistency signal.'
+                : `${consistency.loggedDays} of ${consistency.eligibleDays} eligible days logged`}
+            </AppText>
+            <View className="flex-row justify-between gap-2">
+              {days.map((day) => (
+                <View key={day.date} className="items-center gap-1">
+                  <View
+                    className="h-8 w-8 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor: day.logged
+                        ? colors.light.loggedProgress
+                        : colors.light.primarySoft,
+                    }}
+                  >
+                    <AppText variant="caption" className="text-[12px] text-ink">
+                      {new Date(`${day.date}T12:00:00Z`).getUTCDate()}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </View>
+            {finalMomentumDay === null || finalMomentumState === null ? null : (
+              <AppText variant="caption" className="border-t border-line pt-3">
+                Most recent returned day ·{' '}
+                <AppText
+                  variant="caption"
                   style={{
-                    backgroundColor: day.logged
-                      ? colors.light.loggedProgress
-                      : colors.light.primarySoft,
+                    color: finalMomentumDay.logged
+                      ? '#14733D'
+                      : colors.light.muted,
                   }}
                 >
-                  <AppText variant="caption" className="text-[12px] text-ink">
-                    {new Date(`${day.date}T12:00:00Z`).getUTCDate()}
-                  </AppText>
-                </View>
-              </View>
-            ))}
-          </View>
-          {finalMomentumDay === null || finalMomentumState === null ? null : (
-            <AppText variant="caption" className="border-t border-line pt-3">
-              Most recent returned day ·{' '}
-              <AppText
-                variant="caption"
-                style={{
-                  color: finalMomentumDay.logged
-                    ? '#14733D'
-                    : colors.light.muted,
-                }}
-              >
-                {finalMomentumState.status}
+                  {finalMomentumState.status}
+                </AppText>
               </AppText>
-            </AppText>
-          )}
-        </AppCard>
+            )}
+          </AppCard>
+        </Pressable>
       </View>
       {dailyNutrientsError === null ? null : (
         <ErrorState
@@ -264,7 +305,10 @@ export function ProgressReportingSummary({
           onRetry={onRetry}
         />
       )}
-      <DailyNutrientBand dailyNutrients={dailyNutrients} />
+      <DailyNutrientBand
+        dailyNutrients={dailyNutrients}
+        onNutrientPress={onNutrientPress}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open detailed reports in Insights"

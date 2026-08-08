@@ -29,6 +29,13 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  caloriesTrendRoute,
+  insightsRoute,
+  loggingConsistencyTrendRoute,
+  trendRouteForProgressMetric,
+  weightTrendRoute,
+} from '@/lib/analytics/progress-trend-routing';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { trackingModeLabel } from '@/lib/reporting-ui';
@@ -357,7 +364,11 @@ export default function ProgressScreen() {
         <ErrorState title="Couldn’t refresh progress" message={error} />
       )}
 
-      <ProgressCalorieHero summary={summary} weeklyReport={weeklyReport} />
+      <ProgressCalorieHero
+        summary={summary}
+        weeklyReport={weeklyReport}
+        onPress={() => router.push(caloriesTrendRoute() as never)}
+      />
 
       <AppCard elevated className="gap-0">
         <SignalRow
@@ -368,16 +379,22 @@ export default function ProgressScreen() {
           }
           value={entriesLabel}
         />
-        <SignalRow
-          icon="weight"
-          label="Latest weight"
-          detail={
-            summary.latestWeightLb === null
-              ? 'Use + to log weight'
-              : 'Most recent entry'
-          }
-          value={weightValue}
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open Weight Trend"
+          onPress={() => router.push(weightTrendRoute() as never)}
+        >
+          <SignalRow
+            icon="weight"
+            label="Latest weight"
+            detail={
+              summary.latestWeightLb === null
+                ? 'Use + to log weight'
+                : 'Most recent entry'
+            }
+            value={weightValue}
+          />
+        </Pressable>
         {modeIsComplex ? (
           <SignalRow
             icon="detail"
@@ -408,7 +425,14 @@ export default function ProgressScreen() {
           weeklyReportError={weeklyReportError}
           dailyNutrientsError={dailyNutrientsError}
           onRetry={() => void loadSummary(true)}
-          onReports={() => router.push('/(tabs)/insights')}
+          onReports={() => router.push(insightsRoute() as never)}
+          onWeeklyMomentum={() =>
+            router.push(loggingConsistencyTrendRoute() as never)
+          }
+          onNutrientPress={(metric) => {
+            if (!modeIsComplex || metric === 'water') return;
+            router.push(trendRouteForProgressMetric(metric) as never);
+          }}
         />
       )}
 
