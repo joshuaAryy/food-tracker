@@ -36,7 +36,7 @@ The implemented baseline includes:
 - Deterministic recommendation generation and dismissal
 - Advanced calorie, protein, macro, consistency, and weight analytics
 - Deterministic streaks, logging consistency, adherence, weight reporting, and
-  Sunday–Saturday weekly/monthly reports on the Phase 15 branch
+  Sunday–Saturday weekly/monthly reports
 - Mobile Insights presentation
 - Dedicated sequential first-run onboarding with deterministic target personalization
 - Mode-aware food forms and Insights presentation
@@ -59,34 +59,63 @@ the nutrition source of truth.
 The implemented baseline includes the full manual logging lifecycle, food
 database reuse, barcode lookup, AI-assisted text parsing with USDA generic
 nutrition fallback, USDA-backed normal food search, AI-estimated nutrition for
-unresolved text-logging rows, completed Phase 14 photo food logging, mode-aware
-analytics, and real onboarding with deterministic calorie and protein target
-calculation. Phase 15 and the Phase 15.5 reporting redesign are represented in
-the current Phase 16 branch. Phase 16 adds Firebase Authentication, protected
-routing, public/internal error separation, server diagnostic redaction, and a
-validated Railway staging deployment. Hosted setup-status, persistence,
-ownership, provider, session, and disposable-account deletion checks passed.
+unresolved text-logging rows, completed Phase 14 photo food logging, reporting
+and mode-aware analytics, real onboarding with deterministic targets, Firebase
+Authentication, protected routing, public/internal error separation, server
+diagnostic redaction, Railway staging, and the completed Phase 17 free-Xcode
+standalone installation. Hosted setup-status, persistence, ownership, provider,
+session, and disposable-account deletion checks passed.
+
+Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is the current
+implementation phase. Phase 17 is complete; Phase 17.5 feature implementation
+has not started.
 
 ## Current Limitations
 
 - Apple sign-in is disabled for free development through the typed
   `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED` flag; email/password and Google remain
   the active development providers.
-- Water and Note actions are visible but not implemented.
+- Phase 17.5 will include the canonical amount/time Water logger, hydration
+  analytics in both Simple and Complex modes, and a server-owned initial goal
+  of `2000 mL/day`. `waterTrackingEnabled` remains a compatibility preference
+  and does not gate hydration visibility. Supplements and Note remain deferred.
 - Phase 17 delivered the free Xcode standalone iOS staging installation. Paid
   Apple Developer distribution through EAS, TestFlight, and the App Store
   remains deferred.
+- Android standalone validation remains outside completed Phase 17.
 - Local PostgreSQL is required for API persistence and backend tests.
 - Development-client physical devices require an explicit LAN API URL;
   standalone Phase 17 Release builds use Railway staging directly.
 - Railway staging is validated in its dedicated `staging` environment;
   production resources remain intentionally out of scope.
-- Water, supplements, and durable legal-consent work remain outside this phase.
+- Supplements and durable legal-consent readiness remain future work.
+- Reporting redesign accessibility and small-device/native validation remain
+  carryover follow-up before reporting closeout is treated as fully complete.
+- Remaining account-lifecycle work, including durable consent/legal readiness,
+  remains required before the external MVP beta.
 - Immediate account deletion is permanent and was validated with a disposable
   Google account. Reusing that identity creates a fresh empty application
   account; deleted data does not return.
 - Photo candidate adjudication and the optional API-unavailable check remain
   `Not tested`; unperformed physical checks are not inferred as passing.
+
+### Phase 17.5 product boundary
+
+Simple analytics remains focused on Calories, Protein, Carbohydrates, Fat,
+Macro Composition, Weight, Hydration, and Logging Consistency across 7D, 30D,
+and 90D periods, curated Explore Trends, a preferred metric, and focused
+detail Trends. Simple does not expose arbitrary micronutrient exploration,
+advanced comparison, Configure Trend, Custom ranges, advanced completeness
+filters, or saved-view management. Complex mode adds the approved full
+micronutrient catalog, comparisons, custom ranges, coverage controls,
+contributors, saved/pinned views, and deterministic forecasts.
+
+Phase 17.5 analytics preserves unknown, unlogged, partial, complete, and
+recorded-zero values distinctly. Logging-day completeness is based on FoodLog
+behavior, while selected-metric coverage is based on authoritative snapshots;
+provider nutrient absence must not change logging completeness. The initial
+Breakfast/Lunch/Dinner classification is a centralized, versioned
+implementation policy, not an immutable product rule.
 
 ### Phase 16 closeout
 

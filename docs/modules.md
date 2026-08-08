@@ -96,6 +96,10 @@ Handles:
 - trend analysis
 - goal adherence
 - source facts for recommendations
+- Phase 17.5 canonical metric registry, date aggregation, references,
+  comparisons, contributors, saved-view facts, hydration totals, and forecasts
+- separate FoodLog logging-day completeness from selected-metric coverage
+- canonical nullable gaps and independent weekly/monthly state counts
 
 Does not use AI.
 

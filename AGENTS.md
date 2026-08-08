@@ -45,9 +45,18 @@ The following rules are mandatory:
   and recommendations convert facts into recommendation objects.
 - Do not introduce microservices, event buses, custom authentication, stored
   daily-summary sources of truth, or unnecessary abstractions.
-- The authentication provider remains undecided until Phase 19 planning. Until
-  real authentication is implemented, development uses the fixed mock-user
-  boundary and clients MUST NOT send `userId`.
+- Firebase Authentication is the active identity boundary for current local and
+  staging flows. Remaining account-lifecycle work is tracked in Phase 20, and
+  clients MUST NOT send `userId`.
+- Phase 17.5 is the current implementation phase after completed Phase 17. Its
+  source of truth is the approved Phase 17.5 plan and the aligned documents
+  listed in that plan. Hydration is in this phase; supplements remain deferred.
+- Phase 17.5 analytics keeps logging-day completeness separate from selected
+  metric coverage. `complete`, `partial`, and `unlogged` describe FoodLog
+  behavior; `in_progress` identifies the current local day; `recorded`,
+  `partial`, and `unknown` describe authoritative metric availability.
+  Unknown values are never zero, and missing nutrient data never changes a
+  logging-day state.
 - Authentication establishes who the user is; authorization determines which
   resources that user may access. Preserve both boundaries independently.
 - Prisma schema or migration changes require explicit approval before editing.

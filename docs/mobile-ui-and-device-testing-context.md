@@ -5,14 +5,58 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-Phase 15 reporting implementation is underway on the feature branch. Phase 6
-established the
+Phase 17 free-Xcode standalone installation is complete. Phase 17.5 — Custom
+Analytics, Micronutrients, and Hydration — is the current implementation phase;
+its feature implementation has not started. The Phase 15.5 reporting redesign implementation is merged,
+while accessibility and small-device/native validation remain carryover
+follow-up. Phase 6 established the
 current mobile visual-system blueprint across
 onboarding, Progress, History, logging, Insights, Recommendations,
 Profile/Settings, bottom navigation, floating add behavior, logo rendering,
 inputs, Simple/Complex mode identity, and native iPhone testing. The durable
 lessons from those iterations are captured in `docs/mobile-visual-lessons.md`;
 read it before starting future mobile visual work.
+
+## Phase 17.5 Mobile Contract
+
+The approved production source is Figma file `GFLStsF0ADwaizoVKGeLny`, page
+`338:21`, with final implementation contract `517:73` and final node index
+`524:21`. Hidden or older drafts are historical only. Use the approved masters
+for Insights, Trends, nutrient detail, comparisons, saved views, forecasts, and
+the canonical Water logger; do not invent a replacement dashboard style.
+
+Simple analytics is limited to Calories, Protein, Carbohydrates, Fat, Macro
+Composition, Weight, Hydration, and Logging Consistency across 7D/30D/90D,
+curated Explore Trends, a preferred metric, and focused detail Trends. It must
+not expose arbitrary micronutrients, advanced comparisons, Configure Trend,
+Custom ranges, advanced coverage filters, or saved-view management. Complex
+adds the full supported nutrient catalog, custom ranges, comparisons,
+contributors, coverage controls, saved/pinned views, and deterministic
+forecasts.
+
+Logging behavior and nutrient availability are separate. Daily analytics may
+carry `LoggingDayState` (`complete`, `partial`, `unlogged`) plus an
+`in_progress` current-day phase and independent `MetricDataState`
+(`recorded`, `partial`, `unknown`). Unknown is never zero, unlogged is never
+zero, explicit zero is real, and missing nutrient data cannot downgrade a
+logging-complete day. Weekly/monthly views show independent counts rather than
+one fabricated mixed state. Logging Consistency and meal heatmaps use logging
+behavior; nutrient heatmaps use metric coverage.
+
+Hydration is available in both modes. The global launcher already owns the
+Log Food, Log Weight, Log Water, and Note choices; Phase 17.5 wires Log Water
+to the canonical amount/time Water form and uses the same persistence path for
+Hydration Other Amount and quick-add/Undo. Only explicitly logged WaterLogs
+count, with an initial server-owned goal of `2000 mL/day`; water in food and
+supplements are outside this phase.
+
+Phase 17.5 mobile validation must cover 320pt reflow, Large Type, readable
+titles and long saved names, chart scrubbing and haptics, Custom Range
+gestures, comparison rendering, canonical Water entry and quick-add, Progress
+deep links, saved/pinned/unpinned views, atomic refresh/stale/offline states,
+and standalone iPhone operation. Android standalone, landscape/tablet
+optimization, Reduced Motion, and a dedicated View Data table remain outside
+this phase.
 
 Do not keep spending time on desktop web polish before native testing. Web
 preview remains useful for fast layout iteration, but it is not enough to judge
@@ -411,11 +455,13 @@ needed before treating the visual system as settled.
 
 ## Next-Phase Priorities
 
-1. Preserve the completed Phase 12.8A–F serving behavior during Phase 12.9
-   recipe and mixed-meal work.
-2. Preserve Phase 12.7 trusted-search behavior; do not make AI nutrition
+1. Complete the reporting redesign accessibility and small-device/native
+   validation follow-up before treating reporting closeout as fully complete.
+2. Reconcile the Phase 17.5 documentation/source-of-truth checkpoint before
+   beginning any implementation slice.
+3. Preserve Phase 12.7 trusted-search behavior; do not make AI nutrition
    authoritative.
-3. Keep generated native folders ignored unless explicitly approved later.
+4. Keep generated native folders ignored unless explicitly approved later.
 
 Phase 12.8 final automated validation passed with Node `v22.23.0`, pnpm
 `10.34.3`, 26 test files, and 598 tests. Final physical-device smoke testing
@@ -808,6 +854,9 @@ Week/Month control, in-progress period, explicit equivalent elapsed comparison,
 full previous completed period, day-status strip, nutrition adherence, weight,
 and mode-scoped nutrient rows. Recommendations remain below reporting and load
 or fail independently.
+
+The implementation is merged. This section remains the carryover accessibility
+and small-device/native validation context for reporting closeout.
 
 The approved visual direction strongly avoids repeated cards and dashboard
 grids. Use typography, whitespace, thin dividers, rows, inline rails, and

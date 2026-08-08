@@ -188,9 +188,40 @@ summaries. Missing or threshold-unavailable metrics are omitted rather than
 described with backend confidence language. Current targets are used for
 historical reports until reliable goal history exists.
 
-Custom charts, metric selection, custom ranges, saved graph preferences,
-recommendations generated from report comparisons, reminders, notifications,
-exports, and persisted report snapshots remain deferred.
+Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is the current
+implementation phase after completed Phase 17. Its implementation has not
+started. It owns custom nutrition and weight graphs, metric selection, approved
+periods and custom ranges, up to two compatible comparisons, Complex saved and
+pinned views, deterministic forecasts, full Complex micronutrient patterns, and
+hydration.
+
+Simple remains focused on Calories, Protein, Carbohydrates, Fat, Macro
+Composition, Weight, Hydration, and Logging Consistency across 7D/30D/90D,
+curated Explore Trends, a preferred metric, and focused detail Trends. Simple
+does not expose arbitrary micronutrients, advanced comparisons, Configure
+Trend, Custom ranges, advanced coverage filters, or saved-view management.
+Complex adds the approved nutrient catalog, nutrient search and drill-down,
+contributors, custom ranges, coverage filters, comparisons, saved/pinned views,
+and deterministic forecasts.
+
+Phase 17.5 hydration uses a separate WaterLog model and the canonical
+amount/time Water logger. Only explicitly logged water entries count; water
+contained in food does not. The initial server-owned goal is `2000 mL/day`,
+available in both modes, and `waterTrackingEnabled` remains a compatibility
+field rather than a visibility gate. Supplements remain deferred.
+
+Analytics preserves unknown ≠ zero, unlogged ≠ zero, partial ≠ complete,
+recorded zero as real zero, and missing historical values as gaps. FoodLog
+nutrient snapshots and WeightLogs remain authoritative. Logging-day behavior
+(`complete`, `partial`, `unlogged`, with current local day `in_progress`) is
+separate from selected metric availability (`recorded`, `partial`, `unknown`).
+The initial core-meal completeness rule is centralized/versioned
+implementation policy, not an immutable nutritional rule. Weekly/monthly
+aggregation retains independent logging and metric counts.
+
+Recommendations generated from report comparisons, reminders, notifications,
+exports, and persisted report snapshots remain deferred unless explicitly
+owned by a later phase.
 
 ## Later Ideas
 - wearable integration

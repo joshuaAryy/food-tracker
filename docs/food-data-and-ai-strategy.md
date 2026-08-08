@@ -1034,6 +1034,11 @@ trusted rows do not require a second trust-confirmation action.
 Progress and Insights should become better as backend data gets richer. They
 should not fake advanced data on the client.
 
+The reporting direction below is now owned by current Phase 17.5 — Custom
+Analytics, Micronutrients, and Hydration. Older phase sections that say custom
+graphs or full micronutrient editing were not implemented in those historical
+phases and remain historical sequencing context.
+
 Future reporting should include:
 
 - logging streaks
@@ -1052,6 +1057,8 @@ Future reporting should include:
 - 7-day, 30-day, 90-day, and custom ranges
 - compare metrics
 - saved graph preferences
+- hydration trends from explicit WaterLogs only; water contained in food does
+  not count
 
 Reporting should follow the Phase 6 visual standard: calm, useful, readable,
 and not a generic dashboard-card stack. Complex mode gets deeper analytics.

@@ -9,15 +9,16 @@ Normalized values are rounded before storage. Analytics sums stored values.
 ## MVP Tables
 
 ### User
-- id (UUID; currently mock-generated; future external identity mapping is
-  selected during Phase 19)
+- id (UUID; application-owned; Firebase identity mapping is implemented; future
+  account-lifecycle work remains in Phase 20)
 - email (optional)
 - createdAt
 - updatedAt
 
-The current development implementation uses mocked auth and a local `User`
-record. The authentication provider remains undecided until Phase 19 planning.
-Do not store custom password credentials.
+The current implementation uses Firebase Authentication at the identity
+boundary and maps the verified Firebase UID to the application-owned `User`
+record. Do not store custom password credentials. Remaining account lifecycle
+and isolation work is tracked in Phase 20.
 
 ---
 
@@ -71,6 +72,11 @@ model.
 - userId
 - mode (simple/complex)
 - waterTrackingEnabled (defaults to false)
+
+Phase 17.5 adds an additive server-owned initial hydration goal of
+`2000 mL/day` through the approved persistence design. The legacy
+`waterTrackingEnabled` field remains for compatibility and does not gate
+hydration visibility. Target editing is outside Phase 17.5.
 
 ---
 
@@ -384,7 +390,20 @@ integrations, AI/RAG logging, photo logging, saved meals, or full Complex-mode
 micronutrient UI.
 
 ### Other Future Models
-`CustomFood`, `WaterLog`, `SupplementLog`, and `MicronutrientLog` are not part of the MVP schema.
+
+`CustomFood`, `SupplementLog`, and `MicronutrientLog` remain outside the MVP
+schema. Phase 17.5 plans an additive user-owned `WaterLog` model rather than
+representing water as a FoodLog. It stores an amount in millilitres and the
+authoritative logged timestamp, supports edit/delete and quick-add through the
+same persistence path, and is the only source for hydration totals; water
+contained in food is excluded.
+
+Phase 17.5 also plans user-owned saved-view persistence for Complex analytics,
+including relative period configuration, metric/comparison selection,
+aggregation, visualization, target visibility, coverage filter, editable name,
+ordering, and one nullable primary pinned-view reference. These are planned
+schema decisions, not implemented tables or migrations in this documentation
+checkpoint.
 
 ### Phase 12.9B Slice 1 Mixed Meals
 

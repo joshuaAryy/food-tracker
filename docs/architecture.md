@@ -12,6 +12,76 @@ Prisma ORM
 PostgreSQL database
 ```
 
+## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
+
+Phase 17 is complete. Phase 17.5 is the current implementation phase; its
+feature slices have not started. The approved production source is Figma file
+`GFLStsF0ADwaizoVKGeLny`, page `338:21`, with final handoff contract `517:73`
+and node index `524:21`. Hidden and older Figma drafts are historical only.
+
+The planned analytics engine is one backend-owned, deterministic service over
+authoritative `FoodLog` nutrient snapshots, `WeightLog` records, and a
+separate `WaterLog` model. Shared contracts in `packages/shared` describe
+metric definitions, periods, aggregation, references, comparisons, saved
+views, and chart-ready facts. Mobile renders those facts and owns only
+presentation, gestures, transient state, and validated cache mechanics. The
+mobile app must not calculate totals, contributors, target state,
+interpretations, or forecasts.
+
+Logging behavior and metric availability are independent dimensions:
+
+- `LoggingDayState` is `complete`, `partial`, or `unlogged`; the current local
+  day additionally carries `in_progress` and is not a closed complete day.
+- `MetricDataState` is `recorded`, `partial`, or `unknown` for a selected
+  metric; an unlogged day has no metric state.
+- Recorded zero is numeric zero. Unknown, unlogged, and missing historical
+  values remain gaps. Missing provider nutrient data never changes a logging
+  day's state.
+- Daily points may carry both states. Weekly/monthly buckets retain independent
+  logging and metric counts plus numeric aggregates and do not invent one state
+  for mixed days.
+
+Logging Consistency and meal-coverage heatmaps use logging behavior only;
+nutrient-coverage heatmaps use metric availability only. The initial
+Breakfast/Lunch/Dinner classification is a centralized, versioned
+implementation policy that requires product/test evidence to change. Complex
+coverage filters operate on logging completeness and are internally
+`all_logged_days`, `complete_and_partial`, and `complete_only`; the first keeps
+the approved “All recorded days” label. Metric unknown/partial values remain
+non-numeric after a day passes a logging filter.
+
+The planned period defaults are 7D and 30D Daily, 90D Weekly, and Custom 1–45
+days Daily, 46–180 Weekly, and 181+ Monthly. Complex overrides remain subject
+to readable density. Targets, minimums, limits, and true lower-plus-upper
+ranges are distinct; a single target never becomes a fabricated range. Phase
+17.5 does not add target-editing UI.
+
+Hydration is available in both modes with a server-owned initial goal of
+`2000 mL/day`. The canonical amount/time Water logger creates Water entries
+only, excludes water contained in FoodLogs, and is shared by the global
+launcher, Hydration Other Amount, and quick-add/Undo. `waterTrackingEnabled`
+remains a compatibility field and does not gate visibility. Supplements remain
+deferred.
+
+Calories and Weight forecasts are backend-owned, deterministic, statistically
+independent, and visibly seven days. They use centralized engineering policy
+constants, eligibility/stability gates, and rolling-origin backtesting; those
+initial thresholds are adjustable implementation policy, not immutable product
+truth. No forecast is shown when data is insufficient or unstable, and no LLM
+generates predictions.
+
+Every Phase 17.5 Insights and Trends number, chart, interpretation, heatmap,
+comparison, and forecast must consume these canonical missingness and
+aggregation semantics. Legacy reporting endpoints may remain compatible while
+being migrated, but their unlogged-to-zero behavior must never feed a
+Phase 17.5 surface.
+
+The approved implementation sequence is Slice A analytics domain foundation,
+Slice B hydration persistence and canonical logging, Slice C reusable charts
+and core trends, Slice D Complex micronutrient analytics, Slice E configuration
+and comparison, Slice F saved/pinned views and reporting integration, and
+Slice G forecasts plus state/responsive hardening.
+
 ## Phase 12.8 Serving Intelligence
 
 Trusted FoodItems and candidates follow one path: canonical nutrition basis ->
