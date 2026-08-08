@@ -2,6 +2,7 @@ import {
   type AnalyticsPoint,
   type AnalyticsDailyPoint,
   type AnalyticsReference,
+  type CanonicalTrendResponse,
   type TrendQueryInput,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
@@ -13,19 +14,6 @@ import { classifyMetricData } from './metric-data-coverage.js';
 import { aggregateAnalyticsPoints } from './aggregation.js';
 import { calorieReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
-
-export interface CanonicalTrendResponse {
-  timezone: string;
-  trackingMode: 'simple' | 'complex';
-  primaryMetric: TrendQueryInput['primaryMetric'];
-  aggregation: 'daily' | 'weekly' | 'monthly';
-  resolvedRange: { startDate: string; endDate: string };
-  firstEligibleDate: string | null;
-  today: string;
-  reference: AnalyticsReference;
-  points: AnalyticsPoint[];
-  summary: { numericDayCount: number; average: number | null };
-}
 
 function datesInRange(startDate: string, endDate: string): string[] {
   const dates: string[] = [];

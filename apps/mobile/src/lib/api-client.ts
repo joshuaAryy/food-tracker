@@ -55,6 +55,8 @@ import type {
   ProgressResponse,
   ReportsResponse,
   StreakCalendarResponse,
+  CanonicalTrendResponse,
+  TrendQueryInput,
 } from '@food-tracker/shared';
 import {
   goalsSchema,
@@ -495,6 +497,11 @@ export const api = {
       request<ReportsResponse>(
         `/analytics/reports${reportsQueryString(query)}`,
       ),
+    trend: (input: TrendQueryInput) =>
+      request<CanonicalTrendResponse>('/analytics/trends/query', {
+        method: 'POST',
+        body: input,
+      }),
     streakCalendar: (month: string) =>
       request<StreakCalendarResponse>(
         `/analytics/streak-calendar${streakCalendarQueryString(month)}`,

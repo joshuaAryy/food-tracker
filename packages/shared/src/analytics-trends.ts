@@ -115,3 +115,16 @@ export const trendQueryInputSchema = z.strictObject({
   coverageFilter: analyticsCoverageFilterSchema,
   includeForecast: z.boolean().optional(),
 });
+
+export interface CanonicalTrendResponse {
+  timezone: string;
+  trackingMode: 'simple' | 'complex';
+  primaryMetric: AnalyticsMetricKey;
+  aggregation: Exclude<AnalyticsAggregation, 'automatic'>;
+  resolvedRange: { startDate: string; endDate: string };
+  firstEligibleDate: string | null;
+  today: string;
+  reference: AnalyticsReference;
+  points: AnalyticsPoint[];
+  summary: { numericDayCount: number; average: number | null };
+}
