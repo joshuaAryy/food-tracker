@@ -56,6 +56,7 @@ import type {
   ReportsResponse,
   StreakCalendarResponse,
   CanonicalTrendResponse,
+  CanonicalInsightsResponse,
   TrendQueryInput,
 } from '@food-tracker/shared';
 import {
@@ -502,6 +503,10 @@ export const api = {
         method: 'POST',
         body: input,
       }),
+    insights: (period: 'week' | 'month') =>
+      request<CanonicalInsightsResponse>(
+        `/analytics/insights?period=${period}`,
+      ),
     streakCalendar: (month: string) =>
       request<StreakCalendarResponse>(
         `/analytics/streak-calendar${streakCalendarQueryString(month)}`,

@@ -133,3 +133,9 @@ export interface CanonicalTrendResponse {
     fat: number | null;
   };
 }
+
+export interface CanonicalInsightsResponse {
+  mode: 'simple' | 'complex';
+  period: 'week' | 'month';
+  sections: Partial<Record<AnalyticsMetricKey, CanonicalTrendResponse>>;
+}
