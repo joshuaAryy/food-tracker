@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import {
   Beef,
   Droplet,
@@ -15,6 +15,7 @@ import {
   MEAL_TYPES,
   type FoodLog,
   type MealType,
+  type WaterLog,
   type WeightLog,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -30,6 +31,7 @@ import {
 } from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
 import { addLocalDateDays, todayInTimezone } from '@/lib/date-time';
+import { quickAddWater, undoQuickAddWater } from '@/lib/water-actions';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
@@ -622,6 +624,7 @@ export default function HistoryScreen() {
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
   const [foods, setFoods] = useState<FoodLog[]>([]);
   const [weights, setWeights] = useState<WeightLog[]>([]);
+  const [waterLogs, setWaterLogs] = useState<WaterLog[]>([]);
   const [dayNutrition, setDayNutrition] = useState<
     Record<string, DayNutrition>
   >({});
@@ -648,27 +651,29 @@ export default function HistoryScreen() {
 
     try {
       const weekDates = weekDatesFor(date);
-      const [weekFoodResults, nextWeights, goals] = await Promise.all([
-        Promise.all(
-          weekDates.map(async (weekDate) => {
-            try {
-              return {
-                date: weekDate,
-                foods: await api.foodLogs.list({ date: weekDate }),
-                error: null,
-              };
-            } catch (weekError) {
-              return {
-                date: weekDate,
-                foods: null,
-                error: weekError,
-              };
-            }
-          }),
-        ),
-        api.weightLogs.list({ date }),
-        api.goals.get().catch(() => null),
-      ]);
+      const [weekFoodResults, nextWeights, nextWaterLogs, goals] =
+        await Promise.all([
+          Promise.all(
+            weekDates.map(async (weekDate) => {
+              try {
+                return {
+                  date: weekDate,
+                  foods: await api.foodLogs.list({ date: weekDate }),
+                  error: null,
+                };
+              } catch (weekError) {
+                return {
+                  date: weekDate,
+                  foods: null,
+                  error: weekError,
+                };
+              }
+            }),
+          ),
+          api.weightLogs.list({ date }),
+          api.waterLogs.list({ date }),
+          api.goals.get().catch(() => null),
+        ]);
       const selectedResult = weekFoodResults.find(
         (result) => result.date === date,
       );
@@ -696,6 +701,7 @@ export default function HistoryScreen() {
 
       setFoods(selectedResult?.foods ?? []);
       setWeights(nextWeights);
+      setWaterLogs(nextWaterLogs);
       setDayNutrition(nextDayNutrition);
       setCalorieTarget(goals?.targetCalories ?? null);
       setLoadedDate(date);
@@ -783,6 +789,28 @@ export default function HistoryScreen() {
         },
       ],
     );
+  };
+
+  const addQuickWater = () => {
+    void quickAddWater(api.waterLogs, new Date())
+      .then((waterLog) => {
+        markDataChanged();
+        Alert.alert('250 mL added', 'Water was added to today.', [
+          { text: 'Keep', style: 'cancel' },
+          {
+            text: 'Undo',
+            onPress: () =>
+              void undoQuickAddWater(api.waterLogs, waterLog.id)
+                .then(() => markDataChanged())
+                .catch((cause) =>
+                  Alert.alert('Could not undo water', errorMessage(cause)),
+                ),
+          },
+        ]);
+      })
+      .catch((cause) =>
+        Alert.alert('Could not add water', errorMessage(cause)),
+      );
   };
 
   return (
@@ -972,6 +1000,69 @@ export default function HistoryScreen() {
               </View>
             );
           })
+        )}
+      </View>
+
+      <View className="gap-4">
+        <View className="flex-row items-end justify-between gap-3">
+          <AppText variant="heading" className="text-ink">
+            Water
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            Explicitly logged water only
+          </AppText>
+        </View>
+        <View className="flex-row flex-wrap gap-2">
+          {isToday ? (
+            <AppButton variant="secondary" onPress={addQuickWater}>
+              +250 mL
+            </AppButton>
+          ) : null}
+          <AppButton
+            variant="ghost"
+            onPress={() => router.push('/water-log' as Href)}
+          >
+            Other amount
+          </AppButton>
+        </View>
+        {waterLogs.length === 0 ? (
+          <HistoryEmptyPrompt
+            title="No water entry this day"
+            message="Log water when you want to track hydration."
+            Icon={Droplet}
+          />
+        ) : (
+          <View>
+            {waterLogs.map((waterLog) => (
+              <Pressable
+                key={waterLog.id}
+                accessibilityLabel={`Edit ${waterLog.amountMl} mL of water logged ${time(
+                  waterLog.loggedAt,
+                  timezone,
+                )}`}
+                accessibilityRole="button"
+                className="flex-row items-center justify-between gap-4 border-t border-line py-4 active:bg-[#F6F6F6]"
+                onPress={() =>
+                  router.push(
+                    `/water-log?id=${encodeURIComponent(waterLog.id)}` as Href,
+                  )
+                }
+              >
+                <View className="flex-row items-center gap-3">
+                  <IconDot Icon={Droplet} color="#3A84C6" />
+                  <View className="gap-1">
+                    <AppText variant="caption" muted>
+                      {time(waterLog.loggedAt, timezone)}
+                    </AppText>
+                    <AppText variant="label">Water entry</AppText>
+                  </View>
+                </View>
+                <AppText variant="heading" className="tabular-nums">
+                  {waterLog.amountMl} mL
+                </AppText>
+              </Pressable>
+            ))}
+          </View>
         )}
       </View>
 
