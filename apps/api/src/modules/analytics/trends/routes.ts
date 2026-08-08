@@ -57,7 +57,10 @@ trendsRouter.post(
         'Comparison metric is unavailable in this tracking mode',
       );
     }
-    if (query.primaryMetric !== 'calories') {
+    if (
+      query.primaryMetric !== 'calories' &&
+      query.primaryMetric !== 'hydration'
+    ) {
       throw new AppError(
         400,
         'VALIDATION_ERROR',

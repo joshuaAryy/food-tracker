@@ -11,4 +11,5 @@ export * from './schemas.js';
 export * from './serving-resolution.js';
 export * from './serving-text.js';
 export * from './servings.js';
+export * from './water.js';
 export * from './types.js';

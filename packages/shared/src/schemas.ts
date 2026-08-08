@@ -158,6 +158,11 @@ export const trackingPreferencesSchema = z.strictObject({
   waterTrackingEnabled: z.boolean(),
 });
 
+export const trackingPreferencesResponseSchema =
+  trackingPreferencesSchema.extend({
+    dailyWaterGoalMl: z.number().int().positive(),
+  });
+
 export const setupStatusSchema = z
   .strictObject({
     profileComplete: z.boolean(),
@@ -208,7 +213,7 @@ export const setupInputSchema = z
 export const setupResultSchema = z.strictObject({
   profile: profileSchema,
   goals: goalsSchema,
-  preferences: trackingPreferencesSchema,
+  preferences: trackingPreferencesResponseSchema,
   calculatedTargets: z.strictObject({
     targetCalories: z.number().int().nonnegative(),
     targetProteinGrams: z.number().nonnegative(),

@@ -110,6 +110,10 @@ export interface TrackingPreferences {
   waterTrackingEnabled: boolean;
 }
 
+export interface TrackingPreferencesResponse extends TrackingPreferences {
+  dailyWaterGoalMl: number;
+}
+
 export interface SetupStatus {
   profileComplete: boolean;
   goalsComplete: boolean;

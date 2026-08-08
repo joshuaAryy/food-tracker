@@ -43,8 +43,12 @@ import type {
   SetupResult,
   SetupStatus,
   TrackingPreferences,
+  TrackingPreferencesResponse,
   WeightLog,
   WeightLogInput,
+  WaterLog,
+  WaterLogInput,
+  WaterLogsQuery,
   PhotoAnalysisResult,
   PhotoAnalysisConfirmationInput,
   PhotoAnalysisConfirmationResponse,
@@ -58,7 +62,7 @@ import {
   setupPreviewResultSchema,
   setupResultSchema,
   setupStatusSchema,
-  trackingPreferencesSchema,
+  trackingPreferencesResponseSchema,
   photoAnalysisResultSchema,
   photoAnalysisConfirmationResponseSchema,
 } from '@food-tracker/shared';
@@ -457,6 +461,15 @@ function weightLogsQueryString(query: WeightLogsQuery): string {
   return value === '' ? '' : `?${value}`;
 }
 
+function waterLogsQueryString(query: WaterLogsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) params.set('date', query.date);
+  if (query.startDate !== undefined) params.set('startDate', query.startDate);
+  if (query.endDate !== undefined) params.set('endDate', query.endDate);
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
 const recommendationList = (status?: RecommendationStatus) =>
   request<{ recommendations: Recommendation[] }>(
     `/recommendations${status === undefined ? '' : `?status=${status}`}`,
@@ -674,6 +687,24 @@ export const api = {
         method: 'DELETE',
       }),
   },
+  waterLogs: {
+    list: (query: WaterLogsQuery = {}) =>
+      request<{ waterLogs: WaterLog[] }>(
+        `/water-logs${waterLogsQueryString(query)}`,
+      ).then(({ waterLogs }) => waterLogs),
+    getById: (id: string) => request<WaterLog>(`/water-logs/${id}`),
+    create: (input: WaterLogInput) =>
+      request<WaterLog>('/water-logs', { method: 'POST', body: input }),
+    update: (id: string, input: WaterLogInput) =>
+      request<WaterLog>(`/water-logs/${id}`, {
+        method: 'PUT',
+        body: input,
+      }),
+    delete: (id: string) =>
+      request<{ id: string; deleted: true }>(`/water-logs/${id}`, {
+        method: 'DELETE',
+      }),
+  },
   recommendations: {
     list: recommendationList,
     generate: () =>
@@ -702,19 +733,19 @@ export const api = {
   },
   trackingPreferences: {
     get: () =>
-      request<TrackingPreferences>(
+      request<TrackingPreferencesResponse>(
         '/tracking-preferences',
         {},
-        trackingPreferencesSchema,
+        trackingPreferencesResponseSchema,
       ),
     update: (preferences: TrackingPreferences) =>
-      request<TrackingPreferences>(
+      request<TrackingPreferencesResponse>(
         '/tracking-preferences',
         {
           method: 'PUT',
           body: preferences,
         },
-        trackingPreferencesSchema,
+        trackingPreferencesResponseSchema,
       ),
   },
   setup: {

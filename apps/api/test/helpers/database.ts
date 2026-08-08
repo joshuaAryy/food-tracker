@@ -13,6 +13,7 @@ export async function resetTestDatabase(): Promise<void> {
   }
 
   await prisma.$transaction([
+    prisma.waterLog.deleteMany(),
     prisma.recommendation.deleteMany(),
     prisma.savedFoodItem.deleteMany(),
     prisma.foodBarcode.deleteMany(),

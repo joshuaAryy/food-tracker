@@ -56,6 +56,10 @@ export default function RootLayout() {
             options={{ presentation: 'modal', gestureEnabled: true }}
           />
           <Stack.Screen
+            name="water-log"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
             name="recipes/index"
             options={{ presentation: 'modal', gestureEnabled: true }}
           />

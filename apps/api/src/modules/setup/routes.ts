@@ -126,6 +126,7 @@ setupRouter.put(
       preferences: {
         mode: preferences.mode,
         waterTrackingEnabled: preferences.waterTrackingEnabled,
+        dailyWaterGoalMl: preferences.dailyWaterGoalMl,
       },
       calculatedTargets: {
         targetCalories: calculatedTargets.targetCalories,
