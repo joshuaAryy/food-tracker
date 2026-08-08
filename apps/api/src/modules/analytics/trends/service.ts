@@ -60,6 +60,65 @@ function loadTrendBase(userId: string) {
   ]);
 }
 
+function loadTrendData(
+  userId: string,
+  dateRange: ReturnType<typeof localDateRange>,
+  options: { needsWaterLogs: boolean; needsWeightLogs: boolean },
+) {
+  return Promise.all([
+    prisma.foodLog.findMany({
+      where: { userId, loggedAt: dateRange },
+      select: {
+        mealType: true,
+        calories: true,
+        protein: true,
+        carbs: true,
+        fat: true,
+        fiber: true,
+        sugar: true,
+        sodium: true,
+        loggedAt: true,
+        nutrients: { select: { nutrientKey: true, amount: true } },
+      },
+      orderBy: { loggedAt: 'asc' },
+    }),
+    options.needsWaterLogs
+      ? prisma.waterLog.findMany({
+          where: { userId, loggedAt: dateRange },
+          select: { amountMl: true, loggedAt: true },
+          orderBy: { loggedAt: 'asc' },
+        })
+      : Promise.resolve([]),
+    options.needsWeightLogs
+      ? prisma.weightLog.findMany({
+          where: { userId, loggedAt: dateRange },
+          select: { weightLb: true, loggedAt: true },
+          orderBy: { loggedAt: 'asc' },
+        })
+      : Promise.resolve([]),
+  ]);
+}
+
+interface TrendRequestContext {
+  base: ReturnType<typeof loadTrendBase>;
+  dataByRange: Map<string, ReturnType<typeof loadTrendData>>;
+  needsWaterLogs: boolean;
+  needsWeightLogs: boolean;
+}
+
+function createTrendRequestContext(
+  userId: string,
+  query: TrendQueryInput,
+): TrendRequestContext {
+  const metrics = [query.primaryMetric, query.comparisonMetric];
+  return {
+    base: loadTrendBase(userId),
+    dataByRange: new Map(),
+    needsWaterLogs: metrics.includes('hydration'),
+    needsWeightLogs: metrics.includes('weight'),
+  };
+}
+
 function fixedAxisDomain(
   points: readonly AnalyticsPoint[],
   zeroBaseline = false,
@@ -185,7 +244,7 @@ function normalizedNutrientValue(
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
-  base: ReturnType<typeof loadTrendBase> = loadTrendBase(userId),
+  context: TrendRequestContext = createTrendRequestContext(userId, query),
 ): Promise<CanonicalTrendResponse> {
   const [
     profile,
@@ -194,7 +253,7 @@ export async function computeCanonicalTrend(
     firstFoodLog,
     firstWaterLog,
     firstWeightLog,
-  ] = await base;
+  ] = await context.base;
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = localDate(new Date(), timezone);
   const firstEligibleLog =
@@ -217,38 +276,12 @@ export async function computeCanonicalTrend(
     startDate: resolved.startDate,
     endDate: resolved.endDate,
   });
-  const [logs, waterLogs, weightLogs] = await Promise.all([
-    prisma.foodLog.findMany({
-      where: { userId, loggedAt: dateRange },
-      select: {
-        mealType: true,
-        calories: true,
-        protein: true,
-        carbs: true,
-        fat: true,
-        fiber: true,
-        sugar: true,
-        sodium: true,
-        loggedAt: true,
-        nutrients: { select: { nutrientKey: true, amount: true } },
-      },
-      orderBy: { loggedAt: 'asc' },
-    }),
-    query.primaryMetric === 'hydration'
-      ? prisma.waterLog.findMany({
-          where: { userId, loggedAt: dateRange },
-          select: { amountMl: true, loggedAt: true },
-          orderBy: { loggedAt: 'asc' },
-        })
-      : Promise.resolve([]),
-    query.primaryMetric === 'weight'
-      ? prisma.weightLog.findMany({
-          where: { userId, loggedAt: dateRange },
-          select: { weightLb: true, loggedAt: true },
-          orderBy: { loggedAt: 'asc' },
-        })
-      : Promise.resolve([]),
-  ]);
+  const rangeKey = `${resolved.startDate}:${resolved.endDate}`;
+  const rangeData =
+    context.dataByRange.get(rangeKey) ??
+    loadTrendData(userId, dateRange, context);
+  context.dataByRange.set(rangeKey, rangeData);
+  const [logs, waterLogs, weightLogs] = await rangeData;
   const logsByDate = new Map<string, typeof logs>();
   for (const log of logs) {
     const date = localDate(log.loggedAt, timezone);
@@ -402,7 +435,7 @@ export async function computeCanonicalTrend(
       ...comparisonQuery,
       primaryMetric: query.comparisonMetric,
     },
-    base,
+    context,
   );
   if (
     strategy === 'reference_normalized' &&
