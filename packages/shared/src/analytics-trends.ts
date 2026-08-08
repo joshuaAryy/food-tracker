@@ -127,4 +127,9 @@ export interface CanonicalTrendResponse {
   reference: AnalyticsReference;
   points: AnalyticsPoint[];
   summary: { numericDayCount: number; average: number | null };
+  macroComposition?: {
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
+  };
 }

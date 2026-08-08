@@ -192,4 +192,30 @@ describe('canonical analytics trends API', () => {
       ]),
     );
   });
+
+  it('returns macro composition facts without coercing missing carbs or fat to zero', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Protein only snapshot',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 30,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'macroComposition' })
+      .expect(200);
+
+    expect(response.body.data.macroComposition).toEqual({
+      protein: 30,
+      carbs: null,
+      fat: null,
+    });
+  });
 });

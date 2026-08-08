@@ -63,6 +63,7 @@ trendsRouter.post(
         'protein',
         'carbs',
         'fat',
+        'macroComposition',
         'weight',
         'loggingConsistency',
         'hydration',

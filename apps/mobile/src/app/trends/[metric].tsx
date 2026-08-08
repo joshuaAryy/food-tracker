@@ -95,13 +95,33 @@ export default function TrendDetailScreen() {
       {loading ? <AppText muted>Loading trend…</AppText> : null}
       {trend !== null && !loading ? (
         <View className="gap-3">
-          <LineTrendChart
-            data={dailyPoints}
-            width={Math.max(280, width - 40)}
-            color="#C9242D"
-            reference={referenceValue(trend)}
-            accessibilityLabel={`${definition.displayName} trend for ${days} days`}
-          />
+          {metric === 'macroComposition' &&
+          trend.macroComposition !== undefined ? (
+            <View
+              accessible
+              accessibilityLabel="Macro composition from recorded food snapshots"
+              className="gap-2 rounded-app bg-module p-4"
+            >
+              <AppText variant="label">Recorded macro composition</AppText>
+              <AppText>
+                Protein: {trend.macroComposition.protein ?? 'Unknown'} g
+              </AppText>
+              <AppText>
+                Carbohydrates: {trend.macroComposition.carbs ?? 'Unknown'} g
+              </AppText>
+              <AppText>
+                Fat: {trend.macroComposition.fat ?? 'Unknown'} g
+              </AppText>
+            </View>
+          ) : (
+            <LineTrendChart
+              data={dailyPoints}
+              width={Math.max(280, width - 40)}
+              color="#C9242D"
+              reference={referenceValue(trend)}
+              accessibilityLabel={`${definition.displayName} trend for ${days} days`}
+            />
+          )}
           <AppText variant="caption" muted>
             {trend.summary.average === null
               ? 'No recorded values in this period.'

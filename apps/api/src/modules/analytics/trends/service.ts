@@ -36,6 +36,23 @@ function coreFoodMetricValue(
   return value === null ? null : Number(value);
 }
 
+function macroTotal(
+  logs: readonly {
+    protein: { toString(): string };
+    carbs: { toString(): string } | null;
+    fat: { toString(): string } | null;
+  }[],
+  key: 'protein' | 'carbs' | 'fat',
+): number | null {
+  const values = logs
+    .map((log) => log[key])
+    .filter((value): value is { toString(): string } => value !== null)
+    .map((value) => Number(value));
+  return values.length === 0
+    ? null
+    : values.reduce((sum, value) => sum + value, 0);
+}
+
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
@@ -45,6 +62,7 @@ export async function computeCanonicalTrend(
     'protein',
     'carbs',
     'fat',
+    'macroComposition',
     'weight',
     'loggingConsistency',
     'hydration',
@@ -185,16 +203,18 @@ export async function computeCanonicalTrend(
               ? dailyLogs.length === 0
                 ? []
                 : [logging.state === 'complete' ? 100 : 50]
-              : dailyLogs.map((log) =>
-                  coreFoodMetricValue(
-                    log,
-                    query.primaryMetric as
-                      | 'calories'
-                      | 'protein'
-                      | 'carbs'
-                      | 'fat',
-                  ),
-                );
+              : query.primaryMetric === 'macroComposition'
+                ? []
+                : dailyLogs.map((log) =>
+                    coreFoodMetricValue(
+                      log,
+                      query.primaryMetric as
+                        | 'calories'
+                        | 'protein'
+                        | 'carbs'
+                        | 'fat',
+                    ),
+                  );
       const metric =
         metricValues.length === 0 ? null : classifyMetricData(metricValues);
       const point: AnalyticsDailyPoint = {
@@ -258,5 +278,14 @@ export async function computeCanonicalTrend(
           : numericValues.reduce((sum, value) => sum + value, 0) /
             numericValues.length,
     },
+    ...(query.primaryMetric === 'macroComposition'
+      ? {
+          macroComposition: {
+            protein: macroTotal(logs, 'protein'),
+            carbs: macroTotal(logs, 'carbs'),
+            fat: macroTotal(logs, 'fat'),
+          },
+        }
+      : {}),
   };
 }
