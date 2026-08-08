@@ -8,6 +8,8 @@ import type {
   RecommendationSeverity,
   RecommendationType,
   CanonicalInsightsResponse,
+  AnalyticsPreferenceValue,
+  AnalyticsSavedView,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
@@ -24,6 +26,10 @@ import {
   SkeletonRail,
 } from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  pinnedInsightsTrendQuery,
+  trendQueryRouteParam,
+} from '@/lib/analytics/saved-view-configuration';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
 
@@ -235,10 +241,54 @@ function CanonicalInsightsContent({
   );
 }
 
+function PinnedInsightsView({
+  preferences,
+  views,
+}: {
+  preferences: AnalyticsPreferenceValue;
+  views: readonly AnalyticsSavedView[];
+}) {
+  const router = useRouter();
+  const query = pinnedInsightsTrendQuery(preferences.pinnedSavedViewId, views);
+  const pinned = views.find(
+    (view) => view.id === preferences.pinnedSavedViewId,
+  );
+  const label = pinned === undefined ? 'Calories' : pinned.name;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open pinned view: ${label}`}
+      className="gap-1 border-t border-line py-4 active:opacity-70"
+      onPress={() =>
+        router.push({
+          pathname: '/trends/[metric]',
+          params: {
+            metric: query.primaryMetric,
+            query: trendQueryRouteParam(query),
+          },
+        } as never)
+      }
+    >
+      <AppText variant="caption" className="text-muted">
+        Primary view
+      </AppText>
+      <AppText variant="label">{label}</AppText>
+      <AppText variant="caption" muted>
+        {query.period.kind === 'relative'
+          ? `${query.period.days}D rolling`
+          : 'Open Trend'}
+      </AppText>
+    </Pressable>
+  );
+}
+
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [report, setReport] = useState<CanonicalInsightsResponse | null>(null);
+  const [analyticsPreferences, setAnalyticsPreferences] =
+    useState<AnalyticsPreferenceValue | null>(null);
+  const [savedViews, setSavedViews] = useState<AnalyticsSavedView[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(true);
@@ -255,7 +305,19 @@ export default function InsightsScreen() {
       setReportLoading(true);
       setReportError(null);
       try {
-        setReport(await api.analytics.insights(nextPeriod));
+        const insights = await api.analytics.insights(nextPeriod);
+        setReport(insights);
+        if (insights.mode === 'complex') {
+          const [preferences, views] = await Promise.all([
+            api.analytics.preferences(),
+            api.analytics.savedViews(),
+          ]);
+          setAnalyticsPreferences(preferences);
+          setSavedViews(views);
+        } else {
+          setAnalyticsPreferences(null);
+          setSavedViews([]);
+        }
       } catch (loadError) {
         setReportError(errorMessage(loadError));
       } finally {
@@ -370,7 +432,15 @@ export default function InsightsScreen() {
           message="Log a meal to make energy, macro, consistency, and comparison reports visible here."
         />
       ) : (
-        <CanonicalInsightsContent insights={report} />
+        <>
+          {report.mode === 'complex' && analyticsPreferences !== null ? (
+            <PinnedInsightsView
+              preferences={analyticsPreferences}
+              views={savedViews}
+            />
+          ) : null}
+          <CanonicalInsightsContent insights={report} />
+        </>
       )}
 
       <View className="gap-3 border-t border-line pt-6">
