@@ -24,17 +24,53 @@ function datesInRange(startDate: string, endDate: string): string[] {
   return dates;
 }
 
-function coreFoodMetricValue(
-  log: {
-    calories: number;
-    protein: { toString(): string };
-    carbs: { toString(): string } | null;
-    fat: { toString(): string } | null;
-  },
-  metric: 'calories' | 'protein' | 'carbs' | 'fat',
+type ColumnFoodMetric =
+  | 'calories'
+  | 'protein'
+  | 'carbs'
+  | 'fat'
+  | 'fiber'
+  | 'sugar'
+  | 'sodium';
+
+interface ColumnFoodMetricLog {
+  calories: number;
+  protein: { toString(): string };
+  carbs: { toString(): string } | null;
+  fat: { toString(): string } | null;
+  fiber: { toString(): string } | null;
+  sugar: { toString(): string } | null;
+  sodium: number | null;
+}
+
+function numericSnapshotValue(
+  value: number | { toString(): string } | null,
 ): number | null {
-  const value = log[metric];
-  return value === null ? null : Number(value);
+  if (value === null) return null;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function coreFoodMetricValue(
+  log: ColumnFoodMetricLog,
+  metric: ColumnFoodMetric,
+): number | null {
+  switch (metric) {
+    case 'calories':
+      return numericSnapshotValue(log.calories);
+    case 'protein':
+      return numericSnapshotValue(log.protein);
+    case 'carbs':
+      return numericSnapshotValue(log.carbs);
+    case 'fat':
+      return numericSnapshotValue(log.fat);
+    case 'fiber':
+      return numericSnapshotValue(log.fiber);
+    case 'sugar':
+      return numericSnapshotValue(log.sugar);
+    case 'sodium':
+      return numericSnapshotValue(log.sodium);
+  }
 }
 
 function macroTotal(
@@ -64,7 +100,7 @@ function normalizedNutrientValue(
   metric: string,
 ): number | null {
   const nutrient = log.nutrients.find((entry) => entry.nutrientKey === metric);
-  return nutrient === undefined ? null : Number(nutrient.amount);
+  return nutrient === undefined ? null : numericSnapshotValue(nutrient.amount);
 }
 
 export async function computeCanonicalTrend(
@@ -138,6 +174,9 @@ export async function computeCanonicalTrend(
         protein: true,
         carbs: true,
         fat: true,
+        fiber: true,
+        sugar: true,
+        sodium: true,
         loggedAt: true,
         nutrients: { select: { nutrientKey: true, amount: true } },
       },
@@ -213,7 +252,10 @@ export async function computeCanonicalTrend(
                           | 'calories'
                           | 'protein'
                           | 'carbs'
-                          | 'fat',
+                          | 'fat'
+                          | 'fiber'
+                          | 'sugar'
+                          | 'sodium',
                       ),
                     );
       const metric =

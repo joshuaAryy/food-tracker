@@ -15,7 +15,7 @@ export function classifyMetricData(
   metricValues: readonly (number | null)[],
 ): MetricDataClassification {
   const recordedValues = metricValues.filter(
-    (value): value is number => value !== null,
+    (value): value is number => value !== null && Number.isFinite(value),
   );
   const recordedLogCount = recordedValues.length;
   const unknownLogCount = metricValues.length - recordedLogCount;

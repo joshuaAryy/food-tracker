@@ -165,6 +165,57 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('preserves column-backed nutrient values, including recorded zero, without treating missing fields as numeric data', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const loggedAt = new Date(recentLocalDateTime(6));
+    await prisma.foodLog.createMany({
+      data: [
+        { mealType: 'breakfast' as const, fiber: 0, sugar: 4.5, sodium: 120 },
+        { mealType: 'lunch' as const, fiber: 6.5, sugar: 0, sodium: 340 },
+        { mealType: 'dinner' as const, fiber: null, sugar: 8, sodium: 90 },
+      ].map((nutrition) => ({
+        userId: MOCK_USER_ID,
+        foodName: 'Column nutrient snapshot',
+        calories: 200,
+        protein: 20,
+        loggedAt,
+        ...nutrition,
+      })),
+    });
+
+    const fiber = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'fiber' })
+      .expect(200);
+    expect(fiber.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          loggingDayState: 'complete',
+          metricDataState: 'partial',
+          metricRecordedLogCount: 2,
+          metricUnknownLogCount: 1,
+          value: 6.5,
+        }),
+      ]),
+    );
+
+    const sodium = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'sodium' })
+      .expect(200);
+    expect(sodium.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          metricDataState: 'recorded',
+          value: 550,
+        }),
+      ]),
+    );
+  });
+
   it('returns WeightLogs independently from FoodLog completeness', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });
