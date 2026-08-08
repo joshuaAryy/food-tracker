@@ -237,4 +237,56 @@ describe('canonical analytics trends API', () => {
     );
     expect(response.body.data).not.toHaveProperty('dailyBreakdowns');
   });
+
+  it('keeps a complete logging day separate from partial Vitamin C snapshot coverage', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const loggedAt = new Date(recentLocalDateTime(6));
+    const [first, second, third] = await Promise.all(
+      ['breakfast', 'lunch', 'dinner'].map((mealType) =>
+        prisma.foodLog.create({
+          data: {
+            userId: MOCK_USER_ID,
+            foodName: `${mealType} snapshot`,
+            mealType: mealType as 'breakfast' | 'lunch' | 'dinner',
+            calories: 200,
+            protein: 20,
+            loggedAt,
+          },
+        }),
+      ),
+    );
+    await prisma.foodLogNutrient.create({
+      data: {
+        foodLogId: first!.id,
+        nutrientKey: 'vitaminC',
+        amount: 75,
+        unit: 'mg',
+      },
+    });
+    await prisma.foodLogNutrient.create({
+      data: {
+        foodLogId: second!.id,
+        nutrientKey: 'vitaminC',
+        amount: 0,
+        unit: 'mg',
+      },
+    });
+    void third;
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'vitaminC' })
+      .expect(200);
+    expect(response.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          loggingDayState: 'complete',
+          metricDataState: 'partial',
+          value: 75,
+        }),
+      ]),
+    );
+  });
 });

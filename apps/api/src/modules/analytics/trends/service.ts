@@ -4,6 +4,7 @@ import {
   type AnalyticsReference,
   type CanonicalTrendResponse,
   type TrendQueryInput,
+  NUTRIENT_CATALOG,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
 import { addLocalDays, localDate, localDateRange } from '../../../lib/dates.js';
@@ -53,30 +54,23 @@ function macroTotal(
     : values.reduce((sum, value) => sum + value, 0);
 }
 
+function normalizedNutrientValue(
+  log: {
+    nutrients: readonly {
+      nutrientKey: string;
+      amount: { toString(): string };
+    }[];
+  },
+  metric: string,
+): number | null {
+  const nutrient = log.nutrients.find((entry) => entry.nutrientKey === metric);
+  return nutrient === undefined ? null : Number(nutrient.amount);
+}
+
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
 ): Promise<CanonicalTrendResponse> {
-  const supportedMetrics = [
-    'calories',
-    'protein',
-    'carbs',
-    'fat',
-    'macroComposition',
-    'weight',
-    'loggingConsistency',
-    'hydration',
-  ] as const;
-  if (
-    !supportedMetrics.includes(
-      query.primaryMetric as (typeof supportedMetrics)[number],
-    )
-  ) {
-    throw new Error(
-      'Only Calories is available while the canonical engine is being established',
-    );
-  }
-
   const [
     profile,
     preferences,
@@ -145,6 +139,7 @@ export async function computeCanonicalTrend(
         carbs: true,
         fat: true,
         loggedAt: true,
+        nutrients: { select: { nutrientKey: true, amount: true } },
       },
       orderBy: { loggedAt: 'asc' },
     }),
@@ -205,16 +200,22 @@ export async function computeCanonicalTrend(
                 : [logging.state === 'complete' ? 100 : 50]
               : query.primaryMetric === 'macroComposition'
                 ? []
-                : dailyLogs.map((log) =>
-                    coreFoodMetricValue(
-                      log,
-                      query.primaryMetric as
-                        | 'calories'
-                        | 'protein'
-                        | 'carbs'
-                        | 'fat',
-                    ),
-                  );
+                : NUTRIENT_CATALOG[
+                      query.primaryMetric as keyof typeof NUTRIENT_CATALOG
+                    ]?.storage === 'normalized'
+                  ? dailyLogs.map((log) =>
+                      normalizedNutrientValue(log, query.primaryMetric),
+                    )
+                  : dailyLogs.map((log) =>
+                      coreFoodMetricValue(
+                        log,
+                        query.primaryMetric as
+                          | 'calories'
+                          | 'protein'
+                          | 'carbs'
+                          | 'fat',
+                      ),
+                    );
       const metric =
         metricValues.length === 0 ? null : classifyMetricData(metricValues);
       const point: AnalyticsDailyPoint = {

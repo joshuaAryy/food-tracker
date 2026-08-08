@@ -58,25 +58,6 @@ trendsRouter.post(
         'Comparison metric is unavailable in this tracking mode',
       );
     }
-    if (
-      ![
-        'calories',
-        'protein',
-        'carbs',
-        'fat',
-        'macroComposition',
-        'weight',
-        'loggingConsistency',
-        'hydration',
-      ].includes(query.primaryMetric)
-    ) {
-      throw new AppError(
-        400,
-        'VALIDATION_ERROR',
-        'Metric is not yet available in canonical Trends',
-      );
-    }
-
     sendSuccess(response, await computeCanonicalTrend(userId, query));
   },
 );
