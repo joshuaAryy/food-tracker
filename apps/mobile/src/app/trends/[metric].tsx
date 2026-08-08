@@ -101,18 +101,32 @@ export default function TrendDetailScreen() {
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
       <ScreenHeader title={definition.displayName} subtitle="Trends" />
       {trend?.trackingMode === 'complex' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Save this Trend as a view"
-          onPress={() =>
-            router.push({
-              pathname: '/trends/save-view',
-              params: { query: trendQueryRouteParam(activeQuery) },
-            } as never)
-          }
-        >
-          <AppText variant="caption">Save view</AppText>
-        </Pressable>
+        <View className="flex-row gap-4">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Configure this Trend"
+            onPress={() =>
+              router.push({
+                pathname: '/trends/configure',
+                params: { query: trendQueryRouteParam(activeQuery) },
+              } as never)
+            }
+          >
+            <AppText variant="caption">Configure</AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save this Trend as a view"
+            onPress={() =>
+              router.push({
+                pathname: '/trends/save-view',
+                params: { query: trendQueryRouteParam(activeQuery) },
+              } as never)
+            }
+          >
+            <AppText variant="caption">Save view</AppText>
+          </Pressable>
+        </View>
       ) : null}
       <View className="flex-row gap-2">
         {periods.map((period) => (

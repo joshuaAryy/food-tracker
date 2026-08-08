@@ -29,6 +29,10 @@ export default function RootLayout() {
             options={{ presentation: 'modal', gestureEnabled: true }}
           />
           <Stack.Screen
+            name="trends/configure"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
             name="food-log"
             options={{ presentation: 'modal', gestureEnabled: true }}
           />
