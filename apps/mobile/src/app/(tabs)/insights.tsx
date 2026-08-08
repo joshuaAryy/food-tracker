@@ -1,18 +1,18 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { RefreshCw, X } from 'lucide-react-native';
+import { analyticsMetricForKey } from '@food-tracker/shared';
 import type {
   Recommendation,
   RecommendationSeverity,
   RecommendationType,
-  ReportsResponse,
+  CanonicalInsightsResponse,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { InsightsReportContent } from '@/components/insights-report-content';
 import { ReportPeriodSelector } from '@/components/report-period-selector';
 import {
   ReportingIcon,
@@ -196,20 +196,49 @@ function ReportEmptyState({
   );
 }
 
-function periodHeader(report: ReportsResponse): string {
-  const format = (value: string) =>
-    new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'UTC',
-    }).format(new Date(`${value}T12:00:00Z`));
-  return `${format(report.current.boundaries.startDate)}–${format(report.current.boundaries.elapsedThroughDate)} · ${report.current.loggedDays} logged ${report.current.loggedDays === 1 ? 'day' : 'days'}`;
+function CanonicalInsightsContent({
+  insights,
+}: {
+  insights: CanonicalInsightsResponse;
+}) {
+  const router = useRouter();
+  return (
+    <View className="gap-2">
+      {Object.values(insights.sections).map((section) => {
+        if (section === undefined) return null;
+        const definition = analyticsMetricForKey(section.primaryMetric);
+        return (
+          <Pressable
+            key={section.primaryMetric}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${definition.displayName} trend`}
+            className="min-h-11 border-t border-line py-4 active:opacity-70"
+            onPress={() =>
+              router.push(`/trends/${section.primaryMetric}` as never)
+            }
+          >
+            <View className="flex-row items-center justify-between gap-3">
+              <AppText variant="label">{definition.displayName}</AppText>
+              <AppText variant="heading" className="tabular-nums">
+                {section.summary.average === null
+                  ? '—'
+                  : section.summary.average.toFixed(1)}
+              </AppText>
+            </View>
+            <AppText variant="caption" muted>
+              {section.summary.numericDayCount} recorded {definition.unit} days
+            </AppText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
-  const [report, setReport] = useState<ReportsResponse | null>(null);
+  const [report, setReport] = useState<CanonicalInsightsResponse | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(true);
@@ -226,7 +255,7 @@ export default function InsightsScreen() {
       setReportLoading(true);
       setReportError(null);
       try {
-        setReport(await api.analytics.reports({ period: nextPeriod }));
+        setReport(await api.analytics.insights(nextPeriod));
       } catch (loadError) {
         setReportError(errorMessage(loadError));
       } finally {
@@ -310,7 +339,7 @@ export default function InsightsScreen() {
         />
         {report === null ? null : (
           <AppText variant="caption" className="text-muted">
-            {periodHeader(report)}
+            Last {period === 'week' ? 7 : 30} days
           </AppText>
         )}
       </View>
@@ -333,14 +362,15 @@ export default function InsightsScreen() {
             message="Log a meal to begin a useful period summary."
           />
         ) : null
-      ) : report.current.loggedDays === 0 &&
-        report.previousCompleted.loggedDays === 0 ? (
+      ) : Object.values(report.sections).every(
+          (section) => section?.summary.numericDayCount === 0,
+        ) ? (
         <ReportEmptyState
           title="Start with your first log"
           message="Log a meal to make energy, macro, consistency, and comparison reports visible here."
         />
       ) : (
-        <InsightsReportContent report={report} />
+        <CanonicalInsightsContent insights={report} />
       )}
 
       <View className="gap-3 border-t border-line pt-6">
