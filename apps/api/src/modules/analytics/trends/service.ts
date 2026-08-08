@@ -19,6 +19,47 @@ import { metricReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 
+function loadTrendBase(userId: string) {
+  return Promise.all([
+    prisma.userProfile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    }),
+    prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true, dailyWaterGoalMl: true },
+    }),
+    prisma.userGoal.findUnique({
+      where: { userId },
+      select: {
+        goalType: true,
+        targetCalories: true,
+        targetProteinGrams: true,
+        targetCarbsGrams: true,
+        targetFatGrams: true,
+        targetFiberGrams: true,
+        limitSugarGrams: true,
+        limitSodiumMg: true,
+      },
+    }),
+    prisma.foodLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+    prisma.waterLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+    prisma.weightLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+  ]);
+}
+
 function fixedAxisDomain(
   points: readonly AnalyticsPoint[],
   zeroBaseline = false,
@@ -30,14 +71,19 @@ function fixedAxisDomain(
   const minimum = Math.min(...values);
   const maximum = Math.max(...values);
   if (zeroBaseline) {
-    return { minimum: Math.min(0, minimum), maximum: maximum === 0 ? 1 : maximum };
+    return {
+      minimum: Math.min(0, minimum),
+      maximum: maximum === 0 ? 1 : maximum,
+    };
   }
   return minimum === maximum
     ? { minimum: Math.min(0, minimum), maximum: maximum === 0 ? 1 : maximum }
     : { minimum, maximum };
 }
 
-function referenceNormalizationValue(reference: AnalyticsReference): number | null {
+function referenceNormalizationValue(
+  reference: AnalyticsReference,
+): number | null {
   if (reference.kind === 'none') return null;
   if (reference.kind === 'range') return reference.upper - reference.lower;
   return reference.value;
@@ -139,6 +185,7 @@ function normalizedNutrientValue(
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
+  base: ReturnType<typeof loadTrendBase> = loadTrendBase(userId),
 ): Promise<CanonicalTrendResponse> {
   const [
     profile,
@@ -147,44 +194,7 @@ export async function computeCanonicalTrend(
     firstFoodLog,
     firstWaterLog,
     firstWeightLog,
-  ] = await Promise.all([
-    prisma.userProfile.findUnique({
-      where: { userId },
-      select: { timezone: true },
-    }),
-    prisma.trackingPreference.findUnique({
-      where: { userId },
-      select: { mode: true, dailyWaterGoalMl: true },
-    }),
-    prisma.userGoal.findUnique({
-      where: { userId },
-      select: {
-        goalType: true,
-        targetCalories: true,
-        targetProteinGrams: true,
-        targetCarbsGrams: true,
-        targetFatGrams: true,
-        targetFiberGrams: true,
-        limitSugarGrams: true,
-        limitSodiumMg: true,
-      },
-    }),
-    prisma.foodLog.findFirst({
-      where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
-      select: { loggedAt: true },
-    }),
-    prisma.waterLog.findFirst({
-      where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
-      select: { loggedAt: true },
-    }),
-    prisma.weightLog.findFirst({
-      where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
-      select: { loggedAt: true },
-    }),
-  ]);
+  ] = await base;
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = localDate(new Date(), timezone);
   const firstEligibleLog =
@@ -386,10 +396,14 @@ export async function computeCanonicalTrend(
   if (strategy === 'incompatible') return response;
   const { comparisonMetric: _comparisonMetric, ...comparisonQuery } = query;
   void _comparisonMetric;
-  const comparison = await computeCanonicalTrend(userId, {
-    ...comparisonQuery,
-    primaryMetric: query.comparisonMetric,
-  });
+  const comparison = await computeCanonicalTrend(
+    userId,
+    {
+      ...comparisonQuery,
+      primaryMetric: query.comparisonMetric,
+    },
+    base,
+  );
   if (
     strategy === 'reference_normalized' &&
     (referenceNormalizationValue(response.reference) === null ||
