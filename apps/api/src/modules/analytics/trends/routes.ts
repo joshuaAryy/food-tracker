@@ -58,8 +58,15 @@ trendsRouter.post(
       );
     }
     if (
-      query.primaryMetric !== 'calories' &&
-      query.primaryMetric !== 'hydration'
+      ![
+        'calories',
+        'protein',
+        'carbs',
+        'fat',
+        'weight',
+        'loggingConsistency',
+        'hydration',
+      ].includes(query.primaryMetric)
     ) {
       throw new AppError(
         400,

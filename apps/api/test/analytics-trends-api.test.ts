@@ -129,4 +129,67 @@ describe('canonical analytics trends API', () => {
       numericDayCount: expect.any(Number),
     });
   });
+
+  it('returns Protein from authoritative FoodLog snapshots without zero-filling gaps', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Protein snapshot',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 31.5,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'protein' })
+      .expect(200);
+
+    expect(response.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          metricDataState: 'recorded',
+          value: 31.5,
+        }),
+        expect.objectContaining({
+          date: recentLocalDate(5),
+          metricDataState: null,
+          value: null,
+        }),
+      ]),
+    );
+  });
+
+  it('returns WeightLogs independently from FoodLog completeness', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.weightLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        weightLb: 174.2,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'weight' })
+      .expect(200);
+
+    expect(response.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          value: 174.2,
+          metricDataState: 'recorded',
+          loggingDayState: 'unlogged',
+        }),
+      ]),
+    );
+  });
 });

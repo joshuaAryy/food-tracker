@@ -35,48 +35,86 @@ function datesInRange(startDate: string, endDate: string): string[] {
   return dates;
 }
 
+function coreFoodMetricValue(
+  log: {
+    calories: number;
+    protein: { toString(): string };
+    carbs: { toString(): string } | null;
+    fat: { toString(): string } | null;
+  },
+  metric: 'calories' | 'protein' | 'carbs' | 'fat',
+): number | null {
+  const value = log[metric];
+  return value === null ? null : Number(value);
+}
+
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
 ): Promise<CanonicalTrendResponse> {
+  const supportedMetrics = [
+    'calories',
+    'protein',
+    'carbs',
+    'fat',
+    'weight',
+    'loggingConsistency',
+    'hydration',
+  ] as const;
   if (
-    query.primaryMetric !== 'calories' &&
-    query.primaryMetric !== 'hydration'
+    !supportedMetrics.includes(
+      query.primaryMetric as (typeof supportedMetrics)[number],
+    )
   ) {
     throw new Error(
       'Only Calories is available while the canonical engine is being established',
     );
   }
 
-  const [profile, preferences, goal, firstFoodLog, firstWaterLog] =
-    await Promise.all([
-      prisma.userProfile.findUnique({
-        where: { userId },
-        select: { timezone: true },
-      }),
-      prisma.trackingPreference.findUnique({
-        where: { userId },
-        select: { mode: true, dailyWaterGoalMl: true },
-      }),
-      prisma.userGoal.findUnique({
-        where: { userId },
-        select: { goalType: true, targetCalories: true },
-      }),
-      prisma.foodLog.findFirst({
-        where: { userId },
-        orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
-        select: { loggedAt: true },
-      }),
-      prisma.waterLog.findFirst({
-        where: { userId },
-        orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
-        select: { loggedAt: true },
-      }),
-    ]);
+  const [
+    profile,
+    preferences,
+    goal,
+    firstFoodLog,
+    firstWaterLog,
+    firstWeightLog,
+  ] = await Promise.all([
+    prisma.userProfile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    }),
+    prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true, dailyWaterGoalMl: true },
+    }),
+    prisma.userGoal.findUnique({
+      where: { userId },
+      select: { goalType: true, targetCalories: true },
+    }),
+    prisma.foodLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+    prisma.waterLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+    prisma.weightLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      select: { loggedAt: true },
+    }),
+  ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = localDate(new Date(), timezone);
   const firstEligibleLog =
-    query.primaryMetric === 'hydration' ? firstWaterLog : firstFoodLog;
+    query.primaryMetric === 'hydration'
+      ? firstWaterLog
+      : query.primaryMetric === 'weight'
+        ? firstWeightLog
+        : firstFoodLog;
   const firstEligibleDate =
     firstEligibleLog === null
       ? null
@@ -91,16 +129,30 @@ export async function computeCanonicalTrend(
     startDate: resolved.startDate,
     endDate: resolved.endDate,
   });
-  const [logs, waterLogs] = await Promise.all([
+  const [logs, waterLogs, weightLogs] = await Promise.all([
     prisma.foodLog.findMany({
       where: { userId, loggedAt: dateRange },
-      select: { mealType: true, calories: true, loggedAt: true },
+      select: {
+        mealType: true,
+        calories: true,
+        protein: true,
+        carbs: true,
+        fat: true,
+        loggedAt: true,
+      },
       orderBy: { loggedAt: 'asc' },
     }),
     query.primaryMetric === 'hydration'
       ? prisma.waterLog.findMany({
           where: { userId, loggedAt: dateRange },
           select: { amountMl: true, loggedAt: true },
+          orderBy: { loggedAt: 'asc' },
+        })
+      : Promise.resolve([]),
+    query.primaryMetric === 'weight'
+      ? prisma.weightLog.findMany({
+          where: { userId, loggedAt: dateRange },
+          select: { weightLb: true, loggedAt: true },
           orderBy: { loggedAt: 'asc' },
         })
       : Promise.resolve([]),
@@ -114,6 +166,14 @@ export async function computeCanonicalTrend(
   for (const waterLog of waterLogs) {
     const date = localDate(waterLog.loggedAt, timezone);
     waterLogsByDate.set(date, [...(waterLogsByDate.get(date) ?? []), waterLog]);
+  }
+  const weightLogsByDate = new Map<string, typeof weightLogs>();
+  for (const weightLog of weightLogs) {
+    const date = localDate(weightLog.loggedAt, timezone);
+    weightLogsByDate.set(date, [
+      ...(weightLogsByDate.get(date) ?? []),
+      weightLog,
+    ]);
   }
 
   const dailyPoints = datesInRange(resolved.startDate, resolved.endDate).map(
@@ -129,7 +189,24 @@ export async function computeCanonicalTrend(
           ? (waterLogsByDate.get(date) ?? []).map(
               (waterLog) => waterLog.amountMl,
             )
-          : dailyLogs.map((log) => log.calories);
+          : query.primaryMetric === 'weight'
+            ? (weightLogsByDate.get(date) ?? []).map((weightLog) =>
+                Number(weightLog.weightLb),
+              )
+            : query.primaryMetric === 'loggingConsistency'
+              ? dailyLogs.length === 0
+                ? []
+                : [logging.state === 'complete' ? 100 : 50]
+              : dailyLogs.map((log) =>
+                  coreFoodMetricValue(
+                    log,
+                    query.primaryMetric as
+                      | 'calories'
+                      | 'protein'
+                      | 'carbs'
+                      | 'fat',
+                  ),
+                );
       const metric =
         metricValues.length === 0 ? null : classifyMetricData(metricValues);
       const point: AnalyticsDailyPoint = {
@@ -149,6 +226,7 @@ export async function computeCanonicalTrend(
   const numericValues = dailyPoints.flatMap((point) => {
     const included =
       query.primaryMetric === 'hydration' ||
+      query.primaryMetric === 'weight' ||
       includesLoggingDay(point, query.coverageFilter);
     return included && point.value !== null ? [point.value] : [];
   });
@@ -160,10 +238,12 @@ export async function computeCanonicalTrend(
           unit: 'mL' as const,
           source: 'default' as const,
         }
-      : calorieReference({
-          goalType: goal?.goalType ?? null,
-          targetCalories: goal?.targetCalories ?? null,
-        })
+      : query.primaryMetric === 'calories'
+        ? calorieReference({
+            goalType: goal?.goalType ?? null,
+            targetCalories: goal?.targetCalories ?? null,
+          })
+        : noReference(query.primaryMetric)
     : noReference(query.primaryMetric);
 
   return {
