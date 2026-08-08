@@ -1,6 +1,9 @@
 import {
   analyticsMetricForKey,
+  analyticsSavedViewConfigurationSchema,
+  trendQueryInputSchema,
   type AnalyticsMetricKey,
+  type AnalyticsSavedView,
   type AnalyticsSavedViewCreateInput,
   type TrendQueryInput,
 } from '@food-tracker/shared';
@@ -63,4 +66,54 @@ export function savedViewInputFromTrend(
     showReference: trend.showReference,
     coverageFilter: trend.coverageFilter,
   };
+}
+
+/** Unavailable historical configurations stay visible but cannot be queried. */
+export function trendQueryFromSavedView(
+  savedView: AnalyticsSavedView,
+): TrendQueryInput | null {
+  if (savedView.unavailableMetrics.length > 0) return null;
+  const configuration = analyticsSavedViewConfigurationSchema.safeParse({
+    primaryMetric: savedView.primaryMetric,
+    comparisonMetric: savedView.comparisonMetric ?? undefined,
+    periodDays: savedView.periodDays,
+    aggregation: savedView.aggregation,
+    visualization: savedView.visualization,
+    showReference: savedView.showReference,
+    coverageFilter: savedView.coverageFilter,
+  });
+  if (!configuration.success) return null;
+  return {
+    primaryMetric: configuration.data.primaryMetric,
+    ...(configuration.data.comparisonMetric == null
+      ? {}
+      : { comparisonMetric: configuration.data.comparisonMetric }),
+    period: { kind: 'relative', days: configuration.data.periodDays },
+    aggregation: configuration.data.aggregation,
+    visualization: configuration.data.visualization,
+    showReference: configuration.data.showReference,
+    coverageFilter: configuration.data.coverageFilter,
+  };
+}
+
+export function trendQueryRouteParam(query: TrendQueryInput): string {
+  return JSON.stringify(query);
+}
+
+export function trendQueryFromRouteParam(
+  value: string | undefined,
+): TrendQueryInput | null {
+  if (value === undefined) return null;
+  try {
+    const parsed = trendQueryInputSchema.safeParse(JSON.parse(value));
+    if (!parsed.success) return null;
+    const { comparisonMetric, includeForecast, ...required } = parsed.data;
+    return {
+      ...required,
+      ...(comparisonMetric === undefined ? {} : { comparisonMetric }),
+      ...(includeForecast === undefined ? {} : { includeForecast }),
+    };
+  } catch {
+    return null;
+  }
 }

@@ -1,13 +1,18 @@
 import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { AnalyticsSavedView } from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  trendQueryFromSavedView,
+  trendQueryRouteParam,
+} from '@/lib/analytics/saved-view-configuration';
 
 export default function SavedViewsScreen() {
+  const router = useRouter();
   const [views, setViews] = useState<AnalyticsSavedView[]>([]);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +47,24 @@ export default function SavedViewsScreen() {
               ? `${view.periodDays}D`
               : `Needs replacement: ${view.unavailableMetrics.join(', ')}`}
           </AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${view.name}`}
+            disabled={trendQueryFromSavedView(view) === null}
+            onPress={() => {
+              const query = trendQueryFromSavedView(view);
+              if (query === null) return;
+              router.push({
+                pathname: '/trends/[metric]',
+                params: {
+                  metric: query.primaryMetric,
+                  query: trendQueryRouteParam(query),
+                },
+              } as never);
+            }}
+          >
+            <AppText variant="caption">Open</AppText>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={

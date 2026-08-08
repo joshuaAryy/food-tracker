@@ -13,6 +13,7 @@ import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import { trendQueryFromRouteParam } from '@/lib/analytics/saved-view-configuration';
 
 const periods = [7, 30, 90] as const;
 
@@ -25,14 +26,28 @@ function referenceValue(response: CanonicalTrendResponse): number | null {
 }
 
 export default function TrendDetailScreen() {
-  const { metric: rawMetric } = useLocalSearchParams<{ metric?: string }>();
-  const metricResult = analyticsMetricKeySchema.safeParse(rawMetric);
+  const { metric: rawMetric, query: rawQuery } = useLocalSearchParams<{
+    metric?: string;
+    query?: string;
+  }>();
+  const restoredQuery = useMemo(
+    () => trendQueryFromRouteParam(rawQuery),
+    [rawQuery],
+  );
+  const metricResult = analyticsMetricKeySchema.safeParse(
+    restoredQuery?.primaryMetric ?? rawMetric,
+  );
   const metric: AnalyticsMetricKey = metricResult.success
     ? metricResult.data
     : 'calories';
   const definition = analyticsMetricForKey(metric);
   const { width } = useWindowDimensions();
-  const [days, setDays] = useState<(typeof periods)[number]>(30);
+  const [days, setDays] = useState<(typeof periods)[number]>(
+    restoredQuery?.period.kind === 'relative' &&
+      periods.includes(restoredQuery.period.days as (typeof periods)[number])
+      ? (restoredQuery.period.days as (typeof periods)[number])
+      : 30,
+  );
   const [trend, setTrend] = useState<CanonicalTrendResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,12 +58,13 @@ export default function TrendDetailScreen() {
     try {
       setTrend(
         await api.analytics.trend({
+          ...restoredQuery,
           primaryMetric: metric,
           period: { kind: 'relative', days },
-          aggregation: 'automatic',
-          visualization: 'automatic',
-          showReference: true,
-          coverageFilter: 'all_logged_days',
+          aggregation: restoredQuery?.aggregation ?? 'automatic',
+          visualization: restoredQuery?.visualization ?? 'automatic',
+          showReference: restoredQuery?.showReference ?? true,
+          coverageFilter: restoredQuery?.coverageFilter ?? 'all_logged_days',
         }),
       );
     } catch (cause) {
@@ -56,7 +72,7 @@ export default function TrendDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [days, metric]);
+  }, [days, metric, restoredQuery]);
 
   useEffect(() => {
     void load();
