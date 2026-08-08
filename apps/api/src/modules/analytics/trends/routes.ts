@@ -14,6 +14,7 @@ import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend } from './service.js';
 
 export const trendsRouter = Router();
+export const insightsRouter = Router();
 
 async function currentTrackingMode(
   userId: string,
@@ -79,3 +80,41 @@ trendsRouter.post(
     sendSuccess(response, await computeCanonicalTrend(userId, query));
   },
 );
+
+insightsRouter.get('/', async (request, response) => {
+  const userId = currentUserId(response);
+  const mode = await currentTrackingMode(userId);
+  const period = request.query.period === 'month' ? 'month' : 'week';
+  const days = period === 'month' ? 30 : 7;
+  const baseQuery = {
+    period: { kind: 'relative' as const, days },
+    aggregation: 'automatic' as const,
+    visualization: 'automatic' as const,
+    showReference: true,
+    coverageFilter: 'all_logged_days' as const,
+  };
+  const keys = [
+    'calories',
+    'protein',
+    'carbs',
+    'fat',
+    'macroComposition',
+    'weight',
+    'hydration',
+    'loggingConsistency',
+  ] as const;
+  const trends = await Promise.all(
+    keys.map(
+      async (primaryMetric) =>
+        [
+          primaryMetric,
+          await computeCanonicalTrend(userId, { ...baseQuery, primaryMetric }),
+        ] as const,
+    ),
+  );
+  sendSuccess(response, {
+    mode,
+    period,
+    sections: Object.fromEntries(trends),
+  });
+});

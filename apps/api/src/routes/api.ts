@@ -9,7 +9,10 @@ import { foodLogsRouter } from '../modules/foodLogs/routes.js';
 import { goalsRouter } from '../modules/goals/routes.js';
 import { recommendationsRouter } from '../modules/recommendations/routes.js';
 import { reportingRouter } from '../modules/analytics/reporting/routes.js';
-import { trendsRouter } from '../modules/analytics/trends/routes.js';
+import {
+  insightsRouter,
+  trendsRouter,
+} from '../modules/analytics/trends/routes.js';
 import { recipesRouter } from '../modules/recipes/routes.js';
 import { setupRouter } from '../modules/setup/routes.js';
 import { trackingPreferencesRouter } from '../modules/trackingPreferences/routes.js';
@@ -32,5 +35,6 @@ apiRouter.use('/dashboard', analyticsRouter);
 apiRouter.use('/analytics', advancedAnalyticsRouter);
 apiRouter.use('/analytics', reportingRouter);
 apiRouter.use('/analytics/trends', trendsRouter);
+apiRouter.use('/analytics/insights', insightsRouter);
 apiRouter.use('/recommendations', recommendationsRouter);
 apiRouter.use('/ai', aiRouter);

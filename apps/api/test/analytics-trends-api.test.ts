@@ -218,4 +218,23 @@ describe('canonical analytics trends API', () => {
       fat: null,
     });
   });
+
+  it('returns a canonical Insights envelope without legacy daily zero-fill data', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+
+    const response = await api
+      .get('/api/v1/analytics/insights?period=week')
+      .expect(200);
+
+    expect(response.body.data.sections.calories.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          loggingDayState: 'unlogged',
+          value: null,
+        }),
+      ]),
+    );
+    expect(response.body.data).not.toHaveProperty('dailyBreakdowns');
+  });
 });
