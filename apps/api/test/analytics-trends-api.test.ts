@@ -244,6 +244,49 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('returns allowlisted dual-axis comparison data with fixed full-period domains', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Protein snapshot',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 31.5,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+    await prisma.weightLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        weightLb: 174.2,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({
+        ...caloriesQuery,
+        primaryMetric: 'protein',
+        comparisonMetric: 'weight',
+      })
+      .expect(200);
+
+    expect(response.body.data.comparison).toMatchObject({
+      strategy: 'dual_axis',
+      metric: 'weight',
+      primaryAxisDomain: { minimum: 0, maximum: 31.5 },
+      comparisonAxisDomain: { minimum: 0, maximum: 174.2 },
+    });
+    expect(response.body.data.comparison.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ date: recentLocalDate(6), value: 174.2 }),
+      ]),
+    );
+  });
+
   it('returns macro composition facts without coercing missing carbs or fat to zero', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });

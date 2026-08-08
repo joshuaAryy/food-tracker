@@ -8,6 +8,7 @@ import {
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
 import { addLocalDays, localDate, localDateRange } from '../../../lib/dates.js';
+import { AppError } from '../../../lib/errors.js';
 import { prisma } from '../../../lib/prisma.js';
 import { includesLoggingDay } from './coverage-filter.js';
 import { classifyLoggingDay } from './logging-day-classifier.js';
@@ -15,6 +16,23 @@ import { classifyMetricData } from './metric-data-coverage.js';
 import { aggregateAnalyticsPoints } from './aggregation.js';
 import { calorieReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
+import { resolveComparisonStrategy } from './comparisons.js';
+
+function fixedAxisDomain(points: readonly AnalyticsPoint[]) {
+  const values = points.flatMap((point) =>
+    point.value !== null && Number.isFinite(point.value) ? [point.value] : [],
+  );
+  if (values.length === 0) return null;
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  return minimum === maximum
+    ? { minimum: Math.min(0, minimum), maximum: maximum === 0 ? 1 : maximum }
+    : { minimum, maximum };
+}
+
+function supportsReferenceNormalization(reference: AnalyticsReference): boolean {
+  return reference.kind !== 'none';
+}
 
 function datesInRange(startDate: string, endDate: string): string[] {
   const dates: string[] = [];
@@ -297,7 +315,7 @@ export async function computeCanonicalTrend(
         : noReference(query.primaryMetric)
     : noReference(query.primaryMetric);
 
-  return {
+  const response: CanonicalTrendResponse = {
     timezone,
     trackingMode: preferences?.mode ?? 'simple',
     primaryMetric: query.primaryMetric,
@@ -330,5 +348,40 @@ export async function computeCanonicalTrend(
           },
         }
       : {}),
+  };
+  if (query.comparisonMetric === undefined) return response;
+
+  const strategy = resolveComparisonStrategy(
+    query.primaryMetric,
+    query.comparisonMetric,
+  );
+  if (strategy === 'incompatible') return response;
+  const { comparisonMetric: _comparisonMetric, ...comparisonQuery } = query;
+  void _comparisonMetric;
+  const comparison = await computeCanonicalTrend(userId, {
+    ...comparisonQuery,
+    primaryMetric: query.comparisonMetric,
+  });
+  if (
+    strategy === 'reference_normalized' &&
+    (!supportsReferenceNormalization(response.reference) ||
+      !supportsReferenceNormalization(comparison.reference))
+  ) {
+    throw new AppError(
+      400,
+      'VALIDATION_ERROR',
+      'Both metrics need an authoritative reference for normalized comparison',
+    );
+  }
+  return {
+    ...response,
+    comparison: {
+      strategy,
+      metric: query.comparisonMetric,
+      points: comparison.points,
+      reference: comparison.reference,
+      primaryAxisDomain: fixedAxisDomain(response.points),
+      comparisonAxisDomain: fixedAxisDomain(comparison.points),
+    },
   };
 }

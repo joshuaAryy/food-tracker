@@ -74,6 +74,16 @@ export interface AnalyticsAggregatedPoint {
 
 export type AnalyticsPoint = AnalyticsDailyPoint | AnalyticsAggregatedPoint;
 
+export type AnalyticsComparisonStrategy =
+  | 'shared_unit'
+  | 'dual_axis'
+  | 'reference_normalized';
+
+export interface AnalyticsAxisDomain {
+  minimum: number;
+  maximum: number;
+}
+
 export type AnalyticsReference =
   | {
       kind: 'target' | 'minimum' | 'limit';
@@ -127,6 +137,14 @@ export interface CanonicalTrendResponse {
   reference: AnalyticsReference;
   points: AnalyticsPoint[];
   summary: { numericDayCount: number; average: number | null };
+  comparison?: {
+    strategy: AnalyticsComparisonStrategy;
+    metric: AnalyticsMetricKey;
+    points: AnalyticsPoint[];
+    reference: AnalyticsReference;
+    primaryAxisDomain: AnalyticsAxisDomain | null;
+    comparisonAxisDomain: AnalyticsAxisDomain | null;
+  };
   macroComposition?: {
     protein: number | null;
     carbs: number | null;

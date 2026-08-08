@@ -12,6 +12,7 @@ import { prisma } from '../../../lib/prisma.js';
 import { sendSuccess } from '../../../lib/responses.js';
 import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend } from './service.js';
+import { resolveComparisonStrategy } from './comparisons.js';
 
 export const trendsRouter = Router();
 export const insightsRouter = Router();
@@ -56,6 +57,17 @@ trendsRouter.post(
         400,
         'VALIDATION_ERROR',
         'Comparison metric is unavailable in this tracking mode',
+      );
+    }
+    if (
+      query.comparisonMetric !== undefined &&
+      resolveComparisonStrategy(query.primaryMetric, query.comparisonMetric) ===
+        'incompatible'
+    ) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'These metrics do not support comparison',
       );
     }
     sendSuccess(response, await computeCanonicalTrend(userId, query));
