@@ -5,6 +5,7 @@ import {
   trendQueryFromRouteParam,
   trendQueryFromSavedView,
   trendQueryRouteParam,
+  pinnedInsightsTrendQuery,
 } from './saved-view-configuration';
 
 describe('saved-view configuration', () => {
@@ -103,5 +104,12 @@ describe('saved-view configuration', () => {
     expect(trendQueryFromRouteParam(trendQueryRouteParam(query))).toEqual(
       query,
     );
+  });
+
+  it('uses the normal Calories fallback when no renderable view is pinned', () => {
+    expect(pinnedInsightsTrendQuery(null, [])).toMatchObject({
+      primaryMetric: 'calories',
+      period: { kind: 'relative', days: 30 },
+    });
   });
 });

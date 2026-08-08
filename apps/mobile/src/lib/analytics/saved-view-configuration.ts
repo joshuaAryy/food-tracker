@@ -96,6 +96,23 @@ export function trendQueryFromSavedView(
   };
 }
 
+export function pinnedInsightsTrendQuery(
+  pinnedSavedViewId: string | null,
+  savedViews: readonly AnalyticsSavedView[],
+): TrendQueryInput {
+  const pinned = savedViews.find((view) => view.id === pinnedSavedViewId);
+  return (
+    (pinned === undefined ? null : trendQueryFromSavedView(pinned)) ?? {
+      primaryMetric: 'calories',
+      period: { kind: 'relative', days: 30 },
+      aggregation: 'automatic',
+      visualization: 'automatic',
+      showReference: true,
+      coverageFilter: 'all_logged_days',
+    }
+  );
+}
+
 export function trendQueryRouteParam(query: TrendQueryInput): string {
   return JSON.stringify(query);
 }
