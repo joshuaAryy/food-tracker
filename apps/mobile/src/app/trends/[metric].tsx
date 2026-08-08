@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   analyticsMetricForKey,
   analyticsMetricKeySchema,
@@ -13,7 +13,10 @@ import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
-import { trendQueryFromRouteParam } from '@/lib/analytics/saved-view-configuration';
+import {
+  trendQueryFromRouteParam,
+  trendQueryRouteParam,
+} from '@/lib/analytics/saved-view-configuration';
 
 const periods = [7, 30, 90] as const;
 
@@ -26,6 +29,7 @@ function referenceValue(response: CanonicalTrendResponse): number | null {
 }
 
 export default function TrendDetailScreen() {
+  const router = useRouter();
   const { metric: rawMetric, query: rawQuery } = useLocalSearchParams<{
     metric?: string;
     query?: string;
@@ -51,6 +55,18 @@ export default function TrendDetailScreen() {
   const [trend, setTrend] = useState<CanonicalTrendResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const activeQuery = useMemo(
+    () => ({
+      ...restoredQuery,
+      primaryMetric: metric,
+      period: { kind: 'relative' as const, days },
+      aggregation: restoredQuery?.aggregation ?? 'automatic',
+      visualization: restoredQuery?.visualization ?? 'automatic',
+      showReference: restoredQuery?.showReference ?? true,
+      coverageFilter: restoredQuery?.coverageFilter ?? 'all_logged_days',
+    }),
+    [days, metric, restoredQuery],
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,13 +74,7 @@ export default function TrendDetailScreen() {
     try {
       setTrend(
         await api.analytics.trend({
-          ...restoredQuery,
-          primaryMetric: metric,
-          period: { kind: 'relative', days },
-          aggregation: restoredQuery?.aggregation ?? 'automatic',
-          visualization: restoredQuery?.visualization ?? 'automatic',
-          showReference: restoredQuery?.showReference ?? true,
-          coverageFilter: restoredQuery?.coverageFilter ?? 'all_logged_days',
+          ...activeQuery,
         }),
       );
     } catch (cause) {
@@ -72,7 +82,7 @@ export default function TrendDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [days, metric, restoredQuery]);
+  }, [activeQuery]);
 
   useEffect(() => {
     void load();
@@ -90,6 +100,20 @@ export default function TrendDetailScreen() {
   return (
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
       <ScreenHeader title={definition.displayName} subtitle="Trends" />
+      {trend?.trackingMode === 'complex' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Save this Trend as a view"
+          onPress={() =>
+            router.push({
+              pathname: '/trends/save-view',
+              params: { query: trendQueryRouteParam(activeQuery) },
+            } as never)
+          }
+        >
+          <AppText variant="caption">Save view</AppText>
+        </Pressable>
+      ) : null}
       <View className="flex-row gap-2">
         {periods.map((period) => (
           <Pressable
