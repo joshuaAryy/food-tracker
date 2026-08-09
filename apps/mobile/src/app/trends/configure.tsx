@@ -118,7 +118,12 @@ export default function ConfigureTrendScreen() {
         title="Configure Trend"
         subtitle="Changes stay temporary until you save a view."
         action={
-          <Pressable onPress={close}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close Configure Trend"
+            className="min-h-11 justify-center"
+            onPress={close}
+          >
             <AppText variant="label">Close</AppText>
           </Pressable>
         }

@@ -127,4 +127,14 @@ describe('Configure Trend screen', () => {
       period: { kind: 'relative', days: 90 },
     });
   });
+
+  it('exposes the Configure close control as a minimum-size accessible target', async () => {
+    jest.spyOn(api.analytics, 'trendCatalog').mockResolvedValue(complexCatalog);
+    const screen = await render(<ConfigureTrendScreen />);
+
+    expect(
+      (await screen.findByRole('button', { name: 'Close Configure Trend' }))
+        .props.className,
+    ).toContain('min-h-11');
+  });
 });
