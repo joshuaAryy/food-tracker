@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { type Href, useFocusEffect, useRouter } from 'expo-router';
 import {
   Beef,
@@ -795,6 +796,9 @@ export default function HistoryScreen() {
     void quickAddWater(api.waterLogs, new Date())
       .then((waterLog) => {
         markDataChanged();
+        void Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success,
+        );
         Alert.alert('250 mL added', 'Water was added to today.', [
           { text: 'Keep', style: 'cancel' },
           {
