@@ -81,4 +81,37 @@ describe('analytics contributors', () => {
       endDate: recentLocalDate(),
     });
   });
+
+  it('returns the complete deterministic food list for See All without a remainder', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    for (const [foodName, amount] of [
+      ['Orange', 30],
+      ['Apple', 20],
+      ['Kiwi', 10],
+      ['Berry', 5],
+    ] as const) {
+      const log = await prisma.foodLog.create({
+        data: {
+          userId: MOCK_USER_ID,
+          foodName,
+          mealType: 'breakfast',
+          calories: 100,
+          protein: 10,
+          loggedAt: new Date(recentLocalDateTime(6)),
+        },
+      });
+      await prisma.foodLogNutrient.create({
+        data: { foodLogId: log.id, nutrientKey: 'vitaminC', amount, unit: 'mg' },
+      });
+    }
+    const response = await api
+      .post('/api/v1/analytics/trends/contributors')
+      .send({ ...query, includeAll: true })
+      .expect(200);
+    expect(response.body.data.contributors.map((item: { foodName: string }) => item.foodName)).toEqual([
+      'Orange', 'Apple', 'Kiwi', 'Berry',
+    ]);
+    expect(response.body.data).toMatchObject({ hasMore: true, remainder: null });
+  });
 });

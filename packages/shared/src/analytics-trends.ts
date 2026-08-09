@@ -124,6 +124,11 @@ export const trendQueryInputSchema = z.strictObject({
   includeForecast: z.boolean().optional(),
 });
 
+export const analyticsContributorsQueryInputSchema =
+  trendQueryInputSchema.extend({
+    includeAll: z.boolean().optional(),
+  });
+
 export interface CanonicalTrendResponse {
   timezone: string;
   trackingMode: 'simple' | 'complex';

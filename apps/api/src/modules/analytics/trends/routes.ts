@@ -3,6 +3,7 @@ import {
   analyticsMetricCatalogSchema,
   analyticsMetricIsAvailableInMode,
   analyticsMetricsForMode,
+  analyticsContributorsQueryInputSchema,
   trendQueryInputSchema,
   type TrendQueryInput,
 } from '@food-tracker/shared';
@@ -38,10 +39,11 @@ trendsRouter.get('/catalog', async (_request, response) => {
 
 trendsRouter.post(
   '/contributors',
-  validateBody(trendQueryInputSchema),
+  validateBody(analyticsContributorsQueryInputSchema),
   async (_request, response) => {
     const userId = currentUserId(response);
-    const query = validatedBody<TrendQueryInput>(response);
+    const contributorQuery = validatedBody<TrendQueryInput & { includeAll?: boolean }>(response);
+    const { includeAll, ...query } = contributorQuery;
     const mode = await currentTrackingMode(userId);
     if (!analyticsMetricIsAvailableInMode(query.primaryMetric, mode)) {
       throw new AppError(
@@ -50,7 +52,14 @@ trendsRouter.post(
         'Metric is unavailable in this tracking mode',
       );
     }
-    sendSuccess(response, await computeAnalyticsContributors(userId, query));
+    sendSuccess(
+      response,
+      await computeAnalyticsContributors(
+        userId,
+        query,
+        includeAll === undefined ? {} : { includeAll },
+      ),
+    );
   },
 );
 

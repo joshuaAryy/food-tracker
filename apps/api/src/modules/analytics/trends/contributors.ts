@@ -29,6 +29,7 @@ function columnValue(
 export async function computeAnalyticsContributors(
   userId: string,
   query: TrendQueryInput,
+  options: { includeAll?: boolean } = {},
 ): Promise<AnalyticsContributorsResponse> {
   const profile = await prisma.userProfile.findUnique({
     where: { userId },
@@ -100,11 +101,13 @@ export async function computeAnalyticsContributors(
     (total, contributor) => total + contributor.value,
     0,
   );
-  const top = all.slice(0, 3).map(({ foodName, value }) => ({
+  const displayed = (options.includeAll ? all : all.slice(0, 3)).map(
+    ({ foodName, value }) => ({
     foodName,
     value,
     percentage: recordedTotal === 0 ? 0 : value / recordedTotal,
-  }));
+    }),
+  );
   const remainderValue = all
     .slice(3)
     .reduce((total, contributor) => total + contributor.value, 0);
@@ -112,9 +115,9 @@ export async function computeAnalyticsContributors(
     metric: query.primaryMetric,
     resolvedRange: { startDate: resolved.startDate, endDate: resolved.endDate },
     recordedTotal,
-    contributors: top,
+    contributors: displayed,
     remainder:
-      all.length <= 3
+      options.includeAll || all.length <= 3
         ? null
         : {
             value: remainderValue,

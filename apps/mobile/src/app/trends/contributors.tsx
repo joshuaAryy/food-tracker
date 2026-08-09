@@ -21,7 +21,7 @@ export default function ContributorsScreen() {
     if (query === null) return;
     setError(null);
     try {
-      setContributors(await api.analytics.contributors(query));
+      setContributors(await api.analytics.contributors(query, true));
     } catch (cause) {
       setError(errorMessage(cause));
     }

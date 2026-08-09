@@ -516,10 +516,10 @@ export const api = {
         mode: 'simple' | 'complex';
         metrics: AnalyticsMetricDefinition[];
       }>('/analytics/trends/catalog'),
-    contributors: (input: TrendQueryInput) =>
+    contributors: (input: TrendQueryInput, includeAll = false) =>
       request<AnalyticsContributorsResponse>('/analytics/trends/contributors', {
         method: 'POST',
-        body: input,
+        body: { ...input, ...(includeAll ? { includeAll: true } : {}) },
       }),
     insights: (period: 'week' | 'month') =>
       request<CanonicalInsightsResponse>(
