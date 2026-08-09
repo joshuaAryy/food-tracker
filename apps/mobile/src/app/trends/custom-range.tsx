@@ -22,6 +22,7 @@ import {
   panRailViewport,
   rangeShortcut,
   selectCustomRangeEndpoint,
+  shouldEmitRangeHandleHaptic,
   zoomRailViewport,
   type CustomRangeSelection,
   type RailViewport,
@@ -114,7 +115,9 @@ export default function CustomRangeScreen() {
       if (sameSelection(next, selection)) return;
       setSelection(next);
       const changedDate = handle === 'start' ? next.startDate : next.endDate;
-      if (lastHapticDate.current[handle] !== changedDate) {
+      if (
+        shouldEmitRangeHandleHaptic(lastHapticDate.current[handle], changedDate)
+      ) {
         lastHapticDate.current[handle] = changedDate;
         void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }

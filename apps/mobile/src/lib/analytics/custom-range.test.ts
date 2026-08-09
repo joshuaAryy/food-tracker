@@ -9,6 +9,7 @@ import {
   railPositionForDate,
   rangeShortcut,
   selectCustomRangeEndpoint,
+  shouldEmitRangeHandleHaptic,
   zoomRailViewport,
 } from './custom-range';
 
@@ -117,5 +118,11 @@ describe('Custom Range', () => {
       startDate: '2026-08-05',
       endDate: '2026-08-05',
     });
+  });
+
+  it('requests handle haptics only when the snapped selected day changes', () => {
+    expect(shouldEmitRangeHandleHaptic(undefined, '2026-08-03')).toBe(true);
+    expect(shouldEmitRangeHandleHaptic('2026-08-03', '2026-08-03')).toBe(false);
+    expect(shouldEmitRangeHandleHaptic('2026-08-03', '2026-08-04')).toBe(true);
   });
 });

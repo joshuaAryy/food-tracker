@@ -11,6 +11,13 @@ export interface RailViewport {
   endDate: string;
 }
 
+export function shouldEmitRangeHandleHaptic(
+  previousDate: string | undefined,
+  nextDate: string,
+): boolean {
+  return previousDate !== nextDate;
+}
+
 function utcDay(date: string): number {
   const [year, month, day] = date.split('-').map(Number);
   return Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 0);
