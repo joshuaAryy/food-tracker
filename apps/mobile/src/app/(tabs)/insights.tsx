@@ -1,5 +1,5 @@
-import { useCallback, useReducer, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { RefreshCw, X } from 'lucide-react-native';
 import { analyticsMetricForKey } from '@food-tracker/shared';
@@ -8,6 +8,7 @@ import type {
   RecommendationSeverity,
   RecommendationType,
   CanonicalInsightsResponse,
+  CanonicalTrendResponse,
   AnalyticsPreferenceValue,
   AnalyticsSavedView,
 } from '@food-tracker/shared';
@@ -15,6 +16,7 @@ import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { ReportPeriodSelector } from '@/components/report-period-selector';
 import {
   ReportingIcon,
@@ -32,6 +34,7 @@ import {
 } from '@/lib/analytics/analytics-resource';
 import {
   pinnedInsightsTrendQuery,
+  trendQueryFromSavedView,
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
 import { useAppStore } from '@/store/app-store';
@@ -253,11 +256,46 @@ function PinnedInsightsView({
   views: readonly AnalyticsSavedView[];
 }) {
   const router = useRouter();
-  const query = pinnedInsightsTrendQuery(preferences.pinnedSavedViewId, views);
-  const pinned = views.find(
-    (view) => view.id === preferences.pinnedSavedViewId,
+  const { width } = useWindowDimensions();
+  const pinned = useMemo(
+    () => views.find((view) => view.id === preferences.pinnedSavedViewId),
+    [preferences.pinnedSavedViewId, views],
   );
-  const label = pinned === undefined ? 'Calories' : pinned.name;
+  const pinnedQuery = useMemo(
+    () => (pinned === undefined ? null : trendQueryFromSavedView(pinned)),
+    [pinned],
+  );
+  const query = useMemo(
+    () =>
+      pinnedQuery ??
+      pinnedInsightsTrendQuery(preferences.pinnedSavedViewId, views),
+    [pinnedQuery, preferences.pinnedSavedViewId, views],
+  );
+  const queryKey = trendQueryRouteParam(query);
+  const [preview, setPreview] = useState<CanonicalTrendResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    setPreview(null);
+    setPreviewError(null);
+    void api.analytics
+      .trend(query)
+      .then((response) => {
+        if (current) setPreview(response);
+      })
+      .catch((cause: unknown) => {
+        if (current) setPreviewError(errorMessage(cause));
+      });
+    return () => {
+      current = false;
+    };
+  }, [query, queryKey]);
+  const label = pinnedQuery === null || pinned === undefined ? 'Calories' : pinned.name;
+  const previewPoints =
+    preview?.points.map((point) => ({
+      date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+      value: point.value,
+    })) ?? [];
   return (
     <Pressable
       accessibilityRole="button"
@@ -282,6 +320,25 @@ function PinnedInsightsView({
           ? `${query.period.days}D rolling`
           : 'Open Trend'}
       </AppText>
+      {previewError === null ? null : (
+        <AppText variant="caption" muted>
+          Primary view preview is unavailable. Open Trend to retry.
+        </AppText>
+      )}
+      {preview === null || previewError !== null ? (
+        previewError === null ? (
+          <AppText variant="caption" muted>
+            Loading primary view…
+          </AppText>
+        ) : null
+      ) : (
+        <LineTrendChart
+          data={previewPoints}
+          width={Math.max(280, width - 40)}
+          color="#C9242D"
+          accessibilityLabel={`${label} primary view preview`}
+        />
+      )}
     </Pressable>
   );
 }
