@@ -30,6 +30,10 @@ jest.mock('@/store/app-store', () => ({
   useAppStore: () => 0,
 }));
 
+jest.mock('@/components/auth/auth-bootstrap', () => ({
+  useAuthRuntime: () => ({ userId: 'firebase-user-1' }),
+}));
+
 describe('Insights pinned view', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
