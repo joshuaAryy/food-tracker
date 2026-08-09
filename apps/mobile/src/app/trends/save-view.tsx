@@ -50,7 +50,9 @@ export default function SaveViewScreen() {
           savedViewUpdateInputFromTrend(trend, name),
         );
       } else {
-        await api.analytics.createSavedView(savedViewInputFromTrend(trend, name));
+        await api.analytics.createSavedView(
+          savedViewInputFromTrend(trend, name),
+        );
       }
       router.replace('/trends/saved-views' as never);
     } catch (cause) {
@@ -112,7 +114,10 @@ export default function SaveViewScreen() {
         }
       />
       {error === null ? null : (
-        <ErrorState message={error} onRetry={() => void save(savedViewId === undefined)} />
+        <ErrorState
+          message={error}
+          onRetry={() => void save(savedViewId === undefined)}
+        />
       )}
       <View className="gap-2 rounded-app bg-module p-4">
         <AppText variant="label">{trend.primaryMetric}</AppText>

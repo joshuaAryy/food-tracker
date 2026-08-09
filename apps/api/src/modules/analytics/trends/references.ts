@@ -118,12 +118,17 @@ export function metricReference(
   const nutrientMetric = metric as keyof typeof NUTRIENT_CATALOG;
   const reportingGoal = resolveReportingGoals(input)[nutrientMetric];
   if (reportingGoal === undefined || reportingGoal.value === null) {
-    return { kind: 'none', unit: analyticsMetricForKey(metric).unit, reason: 'not_configured' };
+    return {
+      kind: 'none',
+      unit: analyticsMetricForKey(metric).unit,
+      reason: 'not_configured',
+    };
   }
   return {
     kind: reportingGoal.direction,
     value: reportingGoal.value,
     unit: reportingGoal.unit,
-    source: reportingGoal.source === 'missing' ? 'default' : reportingGoal.source,
+    source:
+      reportingGoal.source === 'missing' ? 'default' : reportingGoal.source,
   };
 }

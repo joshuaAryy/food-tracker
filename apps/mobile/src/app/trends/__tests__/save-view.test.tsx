@@ -42,21 +42,23 @@ describe('Save view screen', () => {
   });
 
   it('updates an opened saved view without creating a second view', async () => {
-    const update = jest.spyOn(api.analytics, 'updateSavedView').mockResolvedValue({
-      id: 'saved-view-1',
-      name: 'Protein · 30D',
-      primaryMetric: 'protein',
-      comparisonMetric: null,
-      periodDays: 30,
-      aggregation: 'automatic',
-      visualization: 'automatic',
-      showReference: true,
-      coverageFilter: 'all_logged_days',
-      sortOrder: 0,
-      createdAt: '2026-08-09T00:00:00.000Z',
-      updatedAt: '2026-08-09T00:01:00.000Z',
-      unavailableMetrics: [],
-    });
+    const update = jest
+      .spyOn(api.analytics, 'updateSavedView')
+      .mockResolvedValue({
+        id: 'saved-view-1',
+        name: 'Protein · 30D',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:01:00.000Z',
+        unavailableMetrics: [],
+      });
     const create = jest.spyOn(api.analytics, 'createSavedView');
     const screen = await render(<SaveViewScreen />);
 

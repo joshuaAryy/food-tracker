@@ -23,7 +23,9 @@ function unavailableMetrics(view: StoredAnalyticsSavedView): string[] {
     .filter((metric) => !analyticsMetricKeySchema.safeParse(metric).success);
 }
 
-function serializeSavedView(view: StoredAnalyticsSavedView): AnalyticsSavedView {
+function serializeSavedView(
+  view: StoredAnalyticsSavedView,
+): AnalyticsSavedView {
   return {
     id: view.id,
     name: view.name,
@@ -45,7 +47,9 @@ function analyticsPreferenceValue(input: {
   preferredSimpleMetric: string;
   pinnedSavedViewId: string | null;
 }): AnalyticsPreferenceValue {
-  const parsed = analyticsMetricKeySchema.safeParse(input.preferredSimpleMetric);
+  const parsed = analyticsMetricKeySchema.safeParse(
+    input.preferredSimpleMetric,
+  );
   return {
     preferredSimpleMetric:
       parsed.success && analyticsMetricForKey(parsed.data).simpleAvailable
@@ -63,7 +67,9 @@ async function ownedSavedView(userId: string, id: string) {
   return view;
 }
 
-export async function requireComplexAnalyticsMode(userId: string): Promise<void> {
+export async function requireComplexAnalyticsMode(
+  userId: string,
+): Promise<void> {
   const preferences = await prisma.trackingPreference.findUnique({
     where: { userId },
     select: { mode: true },
@@ -92,7 +98,9 @@ export async function createAnalyticsSavedView(
   input: AnalyticsSavedViewCreateInput,
 ): Promise<AnalyticsSavedView> {
   validateSavedViewConfiguration(input);
-  const sortOrder = await prisma.analyticsSavedView.count({ where: { userId } });
+  const sortOrder = await prisma.analyticsSavedView.count({
+    where: { userId },
+  });
   const view = await prisma.analyticsSavedView.create({
     data: {
       userId,
@@ -130,9 +138,7 @@ export async function updateAnalyticsSavedView(
     ...(input.comparisonMetric === undefined
       ? {}
       : { comparisonMetric: input.comparisonMetric }),
-    ...(input.periodDays === undefined
-      ? {}
-      : { periodDays: input.periodDays }),
+    ...(input.periodDays === undefined ? {} : { periodDays: input.periodDays }),
     ...(input.aggregation === undefined
       ? {}
       : { aggregation: input.aggregation }),
@@ -150,7 +156,11 @@ export async function updateAnalyticsSavedView(
   if (changesConfiguration || unavailableMetrics(existing).length === 0) {
     const parsed = analyticsSavedViewConfigurationSchema.safeParse(merged);
     if (!parsed.success) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'Saved-view configuration is invalid');
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Saved-view configuration is invalid',
+      );
     }
     validateSavedViewConfiguration(parsed.data);
   }
@@ -189,7 +199,9 @@ export async function duplicateAnalyticsSavedView(
   id: string,
 ): Promise<AnalyticsSavedView> {
   const source = await ownedSavedView(userId, id);
-  const sortOrder = await prisma.analyticsSavedView.count({ where: { userId } });
+  const sortOrder = await prisma.analyticsSavedView.count({
+    where: { userId },
+  });
   const view = await prisma.analyticsSavedView.create({
     data: {
       userId,
@@ -288,7 +300,10 @@ export async function updateAnalyticsPreferences(
       );
     }
   }
-  if (input.pinnedSavedViewId !== undefined && input.pinnedSavedViewId !== null) {
+  if (
+    input.pinnedSavedViewId !== undefined &&
+    input.pinnedSavedViewId !== null
+  ) {
     await requireComplexAnalyticsMode(userId);
     await ownedSavedView(userId, input.pinnedSavedViewId);
   }

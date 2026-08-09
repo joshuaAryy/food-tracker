@@ -25,12 +25,18 @@ describe('analytics reference interpretation', () => {
   it('reports limit and minimum states without causal language', () => {
     expect(
       interpretAnalyticsReference(2400, {
-        kind: 'limit', value: 2300, unit: 'mg', source: 'default',
+        kind: 'limit',
+        value: 2300,
+        unit: 'mg',
+        source: 'default',
       }),
     ).toMatchObject({ kind: 'above_limit' });
     expect(
       interpretAnalyticsReference(10, {
-        kind: 'minimum', value: 25, unit: 'g', source: 'user',
+        kind: 'minimum',
+        value: 25,
+        unit: 'g',
+        source: 'user',
       }),
     ).toMatchObject({ kind: 'below_minimum' });
   });
