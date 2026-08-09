@@ -93,9 +93,11 @@ export default function ConfigureTrendScreen() {
     );
   }
   const definition = analyticsMetricForKey(draft.primaryMetric);
-  const allowedMetricKeys = new Set(catalog.metrics.map((metric) => metric.key));
-  const candidates = comparisonCandidates(draft.primaryMetric).filter((metric) =>
-    allowedMetricKeys.has(metric),
+  const allowedMetricKeys = new Set(
+    catalog.metrics.map((metric) => metric.key),
+  );
+  const candidates = comparisonCandidates(draft.primaryMetric).filter(
+    (metric) => allowedMetricKeys.has(metric),
   );
   const apply = () => {
     const query = applyTrendDraft(active, draft);
@@ -127,6 +129,7 @@ export default function ConfigureTrendScreen() {
           <Pressable
             key={metric.key}
             accessibilityRole="button"
+            accessibilityLabel={`Use ${metric.displayName} as primary metric`}
             accessibilityState={{
               selected: draft.primaryMetric === metric.key,
             }}
@@ -156,6 +159,7 @@ export default function ConfigureTrendScreen() {
         <AppText variant="label">Compare with</AppText>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Use no comparison metric"
           accessibilityState={{
             selected: draft.comparisonMetric === undefined,
           }}
@@ -176,6 +180,7 @@ export default function ConfigureTrendScreen() {
           <Pressable
             key={candidate}
             accessibilityRole="button"
+            accessibilityLabel={`Compare with ${analyticsMetricForKey(candidate).displayName}`}
             accessibilityState={{
               selected: draft.comparisonMetric === candidate,
             }}
