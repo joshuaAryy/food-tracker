@@ -87,4 +87,35 @@ describe('analytics cache', () => {
     expect(storage.files.has('user-a/trend.json')).toBe(false);
     expect(storage.files.has('user-b/trend.json')).toBe(true);
   });
+
+  it('replaces a committed entry through staging without retaining a stale staged file', async () => {
+    const storage = memoryStorage();
+    let now = 1_000;
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `${userId}/${key}.json`,
+      now: () => now,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user-a', 'insights-week', { total: 10 });
+    now = 2_000;
+    await cache.write('user-a', 'insights-week', { total: 20 });
+
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toEqual({
+      value: { total: 20 },
+      updatedAt: 2_000,
+      stale: false,
+    });
+    expect(storage.files.has('user-a/insights-week.json.staged')).toBe(false);
+  });
 });
