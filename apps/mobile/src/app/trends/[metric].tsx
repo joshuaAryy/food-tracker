@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -19,6 +19,10 @@ import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
+import {
+  analyticsResourceReducer,
+  initialAnalyticsResource,
+} from '@/lib/analytics/analytics-resource';
 import { coreTrendPresentation } from '@/lib/analytics/trend-presentation';
 import {
   metricCoverageMessage,
@@ -89,9 +93,12 @@ export default function TrendDetailScreen() {
         ? 30
         : null,
   );
-  const [trend, setTrend] = useState<CanonicalTrendResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [trendResource, dispatchTrend] = useReducer(
+    analyticsResourceReducer<CanonicalTrendResponse>,
+    undefined,
+    initialAnalyticsResource<CanonicalTrendResponse>,
+  );
+  const trend = trendResource.value;
   const activeQuery = useMemo(
     () =>
       resolveTrendQuery({
@@ -102,19 +109,13 @@ export default function TrendDetailScreen() {
     [metric, restoredQuery, selectedRelativePeriod],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const load = useCallback(async (asRefresh = false) => {
+    dispatchTrend({ type: asRefresh ? 'refresh' : 'load' });
     try {
-      setTrend(
-        await api.analytics.trend({
-          ...activeQuery,
-        }),
-      );
+      const replacement = await api.analytics.trend({ ...activeQuery });
+      dispatchTrend({ type: 'commit', value: replacement, updatedAt: Date.now() });
     } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setLoading(false);
+      dispatchTrend({ type: 'failure', message: errorMessage(cause) });
     }
   }, [activeQuery]);
 
@@ -255,11 +256,22 @@ export default function TrendDetailScreen() {
           </Pressable>
         ))}
       </View>
-      {error === null ? null : (
-        <ErrorState message={error} onRetry={() => void load()} />
+      {trendResource.error === null ? null : (
+        <ErrorState
+          {...(trend === null ? {} : { title: 'Showing earlier analytics' })}
+          message={trendResource.error}
+          onRetry={() => void load(true)}
+        />
       )}
-      {loading ? <AppText muted>Loading trend…</AppText> : null}
-      {trend !== null && !loading ? (
+      {trendResource.status === 'loading' ? (
+        <AppText muted>Loading trend…</AppText>
+      ) : null}
+      {trendResource.status === 'refreshing' && trend !== null ? (
+        <AppText variant="caption" muted>
+          Refreshing analytics…
+        </AppText>
+      ) : null}
+      {trend !== null && trendResource.status !== 'loading' ? (
         <View className="gap-3">
           {comparisonChart !== null ? (
             <ComparisonChart
