@@ -609,13 +609,13 @@ implementation explicitly authorizes their migration:
 - `RawFoodLog`
 - `ParsedFoodLog`
 - `SavedMeal`
-- `WaterLog` — Phase 17.5 planned separate amount/time water record; never a
+- `WaterLog` — Phase 17.5 implemented separate amount/time water record; never a
   FoodLog substitute
 - `SupplementLog`
 - `MicronutrientLog`
-- `AnalyticsSavedView` — Phase 17.5 planned user-owned Complex configuration
+- `AnalyticsSavedView` — Phase 17.5 implemented user-owned Complex configuration
   with relative period, metric selection, ordering, and nullable pinned state
-- `AnalyticsPreference` — Phase 17.5 planned one-per-user preference for the
+- `AnalyticsPreference` — Phase 17.5 implemented one-per-user preference for the
   Simple preferred metric and nullable `pinnedSavedViewId`
 - `DailySummary`
 # Phase 13 additive migration
