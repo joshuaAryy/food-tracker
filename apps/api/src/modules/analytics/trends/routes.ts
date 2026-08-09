@@ -12,7 +12,7 @@ import { AppError } from '../../../lib/errors.js';
 import { prisma } from '../../../lib/prisma.js';
 import { sendSuccess } from '../../../lib/responses.js';
 import { validateBody, validatedBody } from '../../../middleware/validate.js';
-import { computeCanonicalTrend } from './service.js';
+import { computeCanonicalTrend, createTrendRequestContext } from './service.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 import { computeAnalyticsContributors } from './contributors.js';
 
@@ -42,7 +42,9 @@ trendsRouter.post(
   validateBody(analyticsContributorsQueryInputSchema),
   async (_request, response) => {
     const userId = currentUserId(response);
-    const contributorQuery = validatedBody<TrendQueryInput & { includeAll?: boolean }>(response);
+    const contributorQuery = validatedBody<
+      TrendQueryInput & { includeAll?: boolean }
+    >(response);
     const { includeAll, ...query } = contributorQuery;
     const mode = await currentTrackingMode(userId);
     if (!analyticsMetricIsAvailableInMode(query.primaryMetric, mode)) {
@@ -124,12 +126,17 @@ insightsRouter.get('/', async (request, response) => {
     'hydration',
     'loggingConsistency',
   ] as const;
+  const context = createTrendRequestContext(userId, keys);
   const trends = await Promise.all(
     keys.map(
       async (primaryMetric) =>
         [
           primaryMetric,
-          await computeCanonicalTrend(userId, { ...baseQuery, primaryMetric }),
+          await computeCanonicalTrend(
+            userId,
+            { ...baseQuery, primaryMetric },
+            context,
+          ),
         ] as const,
     ),
   );

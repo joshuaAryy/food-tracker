@@ -2,6 +2,7 @@ import {
   type AnalyticsPoint,
   type AnalyticsDailyPoint,
   type AnalyticsReference,
+  type AnalyticsMetricKey,
   type CanonicalTrendResponse,
   type TrendQueryInput,
   COLUMN_BACKED_NUTRIENT_KEYS,
@@ -114,11 +115,10 @@ interface TrendRequestContext {
   needsWeightLogs: boolean;
 }
 
-function createTrendRequestContext(
+export function createTrendRequestContext(
   userId: string,
-  query: TrendQueryInput,
+  metrics: readonly AnalyticsMetricKey[],
 ): TrendRequestContext {
-  const metrics = [query.primaryMetric, query.comparisonMetric];
   return {
     base: loadTrendBase(userId),
     dataByRange: new Map(),
@@ -202,7 +202,9 @@ function trendForecast({
     metric === 'calories'
       ? eligibleCalorieForecastPoints(dailyPoints)
       : dailyPoints.flatMap((point) =>
-          point.value === null ? [] : [{ date: point.date, value: point.value }],
+          point.value === null
+            ? []
+            : [{ date: point.date, value: point.value }],
         );
   const selected = selectDeterministicForecast(
     observations,
@@ -296,7 +298,10 @@ function normalizedNutrientValue(
 export async function computeCanonicalTrend(
   userId: string,
   query: TrendQueryInput,
-  context: TrendRequestContext = createTrendRequestContext(userId, query),
+  context: TrendRequestContext = createTrendRequestContext(userId, [
+    query.primaryMetric,
+    ...(query.comparisonMetric === undefined ? [] : [query.comparisonMetric]),
+  ]),
 ): Promise<CanonicalTrendResponse> {
   const [
     profile,

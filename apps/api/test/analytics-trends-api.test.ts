@@ -36,6 +36,20 @@ describe('canonical analytics trends API', () => {
     }
   });
 
+  it('loads the bounded FoodLog range once for all canonical Insights sections', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const findMany = vi.spyOn(prisma.foodLog, 'findMany');
+
+    try {
+      await api.get('/api/v1/analytics/insights?period=month').expect(200);
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+    } finally {
+      findMany.mockRestore();
+    }
+  });
+
   it('returns canonical calorie points with nullable gaps, not legacy zero fill', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });
