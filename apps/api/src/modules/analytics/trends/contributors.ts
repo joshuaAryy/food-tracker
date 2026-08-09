@@ -2,7 +2,6 @@ import {
   COLUMN_BACKED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
   type AnalyticsContributorsResponse,
-  type AnalyticsMetricKey,
   type TrendQueryInput,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
