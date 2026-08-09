@@ -99,6 +99,39 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('returns a backend-owned rolling calorie series without smoothing across missing days', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.foodLog.createMany({
+      data: [6, 5, 4].flatMap((daysAgo, index) =>
+        ['breakfast', 'lunch', 'dinner'].map((mealType) => ({
+          userId: MOCK_USER_ID,
+          foodName: `Rolling calorie day ${daysAgo}`,
+          mealType: mealType as 'breakfast' | 'lunch' | 'dinner',
+          calories: 100 + index * 100,
+          protein: 20,
+          loggedAt: new Date(recentLocalDateTime(daysAgo)),
+        })),
+      ),
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send(caloriesQuery)
+      .expect(200);
+
+    expect(response.body.data.rollingTrend).toMatchObject({ window: 3 });
+    expect(response.body.data.rollingTrend.values).toEqual([
+      300,
+      450,
+      600,
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
   it('enforces Simple metric access on the server and returns a mode-filtered catalog', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });

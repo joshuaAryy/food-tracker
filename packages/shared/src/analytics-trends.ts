@@ -136,6 +136,10 @@ export interface CanonicalTrendResponse {
   today: string;
   reference: AnalyticsReference;
   points: AnalyticsPoint[];
+  rollingTrend?: {
+    window: number;
+    values: (number | null)[];
+  };
   summary: { numericDayCount: number; average: number | null };
   comparison?: {
     strategy: AnalyticsComparisonStrategy;

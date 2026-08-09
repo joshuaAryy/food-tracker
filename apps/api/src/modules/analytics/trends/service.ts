@@ -18,6 +18,7 @@ import { aggregateAnalyticsPoints } from './aggregation.js';
 import { metricReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
 import { resolveComparisonStrategy } from './comparisons.js';
+import { rollingAverageValues, smoothingWindowForTrend } from './smoothing.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -167,6 +168,12 @@ function datesInRange(startDate: string, endDate: string): string[] {
     dates.push(date);
   }
   return dates;
+}
+
+function inclusiveRangeDays(startDate: string, endDate: string): number {
+  const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
+  const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
+  return Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1;
 }
 
 type ColumnFoodMetric = (typeof COLUMN_BACKED_NUTRIENT_KEYS)[number];
@@ -386,6 +393,35 @@ export async function computeCanonicalTrend(
         })
     : noReference(query.primaryMetric);
 
+  const points =
+    resolved.aggregation === 'daily'
+      ? dailyPoints
+      : aggregateAnalyticsPoints(dailyPoints, resolved.aggregation);
+  const rollingWindow = smoothingWindowForTrend({
+    aggregation: resolved.aggregation,
+    periodDays: inclusiveRangeDays(resolved.startDate, resolved.endDate),
+  });
+  const rollingTrend =
+    query.primaryMetric === 'macroComposition'
+      ? undefined
+      : {
+          window: rollingWindow,
+          values: rollingAverageValues(
+            points.map((point) => point.value),
+            points.map((point) => {
+              if (
+                query.primaryMetric === 'hydration' ||
+                query.primaryMetric === 'weight'
+              ) {
+                return point.value !== null;
+              }
+              return point.kind === 'daily'
+                ? includesLoggingDay(point, query.coverageFilter)
+                : point.numericDayCount > 0;
+            }),
+            rollingWindow,
+          ),
+        };
   const response: CanonicalTrendResponse = {
     timezone,
     trackingMode: preferences?.mode ?? 'simple',
@@ -398,10 +434,8 @@ export async function computeCanonicalTrend(
     firstEligibleDate,
     today,
     reference,
-    points:
-      resolved.aggregation === 'daily'
-        ? dailyPoints
-        : aggregateAnalyticsPoints(dailyPoints, resolved.aggregation),
+    points,
+    ...(rollingTrend === undefined ? {} : { rollingTrend }),
     summary: {
       numericDayCount: numericValues.length,
       average:

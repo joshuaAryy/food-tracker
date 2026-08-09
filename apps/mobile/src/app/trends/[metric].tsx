@@ -231,6 +231,7 @@ export default function TrendDetailScreen() {
               data={dailyPoints}
               width={Math.max(280, width - 40)}
               color={metric === 'hydration' ? '#2F80ED' : '#C9242D'}
+              trendValues={trend.rollingTrend?.values}
               reference={referenceValue(trend)}
               accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
             />
@@ -239,6 +240,7 @@ export default function TrendDetailScreen() {
               data={dailyPoints}
               width={Math.max(280, width - 40)}
               color="#C9242D"
+              trendValues={trend.rollingTrend?.values}
               reference={referenceValue(trend)}
               referenceRange={referenceRange(trend)}
               showRawPoints={presentation === 'weight_line'}
