@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { RefreshCw, X } from 'lucide-react-native';
-import { analyticsMetricForKey } from '@food-tracker/shared';
+import { analyticsMetricForKey, canonicalInsightsResponseSchema } from '@food-tracker/shared';
 import type {
   Recommendation,
   RecommendationSeverity,
@@ -38,6 +38,8 @@ import {
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
 import { useAppStore } from '@/store/app-store';
+import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
+import { analyticsCache, ANALYTICS_CACHE_KEYS } from '@/lib/analytics/analytics-cache-runtime';
 import { colors } from '@/theme/tokens';
 
 function IconDot({ name }: { name: ReportingIconName }) {
@@ -345,6 +347,7 @@ function PinnedInsightsView({
 
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
+  const { userId } = useAuthRuntime();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [reportResource, dispatchReport] = useReducer(
     analyticsResourceReducer<CanonicalInsightsResponse>,
@@ -364,10 +367,24 @@ export default function InsightsScreen() {
 
   const loadReporting = useCallback(
     async (nextPeriod: 'week' | 'month', asRefresh = false) => {
+      const cacheKey = nextPeriod === 'week' ? ANALYTICS_CACHE_KEYS.insightsWeek : ANALYTICS_CACHE_KEYS.insightsMonth;
+      if (!asRefresh && userId !== null) {
+        try {
+          const cached = await analyticsCache().read(
+            userId,
+            cacheKey,
+            (value): value is CanonicalInsightsResponse => canonicalInsightsResponseSchema.safeParse(value).success,
+          );
+          if (cached !== null) dispatchReport({ type: 'commit', value: cached.value, updatedAt: cached.updatedAt });
+        } catch {
+          // Cache failures never block canonical reporting.
+        }
+      }
       dispatchReport({ type: asRefresh ? 'refresh' : 'load' });
       try {
         const insights = await api.analytics.insights(nextPeriod);
         dispatchReport({ type: 'commit', value: insights, updatedAt: Date.now() });
+        if (userId !== null) void analyticsCache().write(userId, cacheKey, insights).catch(() => undefined);
         if (insights.mode === 'complex') {
           try {
             const [preferences, views] = await Promise.all([
@@ -391,7 +408,7 @@ export default function InsightsScreen() {
         dispatchReport({ type: 'failure', message: errorMessage(loadError) });
       }
     },
-    [],
+    [userId],
   );
 
   const loadRecommendations = useCallback(async () => {
