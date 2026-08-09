@@ -102,16 +102,69 @@ describe('analytics contributors', () => {
         },
       });
       await prisma.foodLogNutrient.create({
-        data: { foodLogId: log.id, nutrientKey: 'vitaminC', amount, unit: 'mg' },
+        data: {
+          foodLogId: log.id,
+          nutrientKey: 'vitaminC',
+          amount,
+          unit: 'mg',
+        },
       });
     }
     const response = await api
       .post('/api/v1/analytics/trends/contributors')
       .send({ ...query, includeAll: true })
       .expect(200);
-    expect(response.body.data.contributors.map((item: { foodName: string }) => item.foodName)).toEqual([
-      'Orange', 'Apple', 'Kiwi', 'Berry',
-    ]);
-    expect(response.body.data).toMatchObject({ hasMore: true, remainder: null });
+    expect(
+      response.body.data.contributors.map(
+        (item: { foodName: string }) => item.foodName,
+      ),
+    ).toEqual(['Orange', 'Apple', 'Kiwi', 'Berry']);
+    expect(response.body.data).toMatchObject({
+      hasMore: true,
+      remainder: null,
+    });
+  });
+
+  it('orders equal contributors deterministically and excludes another user’s snapshots', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const otherUserId = '00000000-0000-4000-8000-000000000002';
+    await prisma.user.create({ data: { id: otherUserId } });
+    for (const [userId, foodName, amount] of [
+      [MOCK_USER_ID, 'Alpha food', 25],
+      [MOCK_USER_ID, 'Beta food', 25],
+      [otherUserId, 'Other user food', 100],
+    ] as const) {
+      const log = await prisma.foodLog.create({
+        data: {
+          userId,
+          foodName,
+          mealType: 'breakfast',
+          calories: 100,
+          protein: 10,
+          loggedAt: new Date(recentLocalDateTime(6)),
+        },
+      });
+      await prisma.foodLogNutrient.create({
+        data: {
+          foodLogId: log.id,
+          nutrientKey: 'vitaminC',
+          amount,
+          unit: 'mg',
+        },
+      });
+    }
+
+    const response = await api
+      .post('/api/v1/analytics/trends/contributors')
+      .send({ ...query, includeAll: true })
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({ recordedTotal: 50 });
+    expect(
+      response.body.data.contributors.map(
+        (contributor: { foodName: string }) => contributor.foodName,
+      ),
+    ).toEqual(['Alpha food', 'Beta food']);
   });
 });
