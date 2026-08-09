@@ -28,6 +28,20 @@ describe('deterministic analytics forecasts', () => {
     });
   });
 
+  it('requires the policy elapsed history even when repeated observations meet the usable count', () => {
+    const irregular = [100, 101, 99, 100, 101, 99, 100, 101].map(
+      (value, index) => ({
+        date: `2026-08-0${Math.floor(index / 2) + 1}`,
+        value,
+      }),
+    );
+
+    expect(selectDeterministicForecast(irregular, policy)).toEqual({
+      kind: 'unavailable',
+      reason: 'insufficient_coverage',
+    });
+  });
+
   it('uses rolling-origin diagnostics and prefers the simple baseline without meaningful improvement', () => {
     const result = selectDeterministicForecast(
       observations([100, 101, 99, 100, 101, 99, 100, 101]),

@@ -55,13 +55,24 @@ function rollingMae(
   return errors.length === 0 ? Number.POSITIVE_INFINITY : mean(errors);
 }
 
+function elapsedObservationDays(observations: readonly ForecastObservation[]): number {
+  const timestamps = observations
+    .map((observation) => Date.parse(`${observation.date}T00:00:00.000Z`))
+    .filter(Number.isFinite);
+  if (timestamps.length === 0) return 0;
+  return (
+    Math.floor((Math.max(...timestamps) - Math.min(...timestamps)) / 86_400_000) +
+    1
+  );
+}
+
 export function selectDeterministicForecast(
   observations: readonly ForecastObservation[],
   policy: AnalyticsForecastPolicy,
 ): DeterministicForecast {
   if (
     observations.length < policy.minUsableDays ||
-    observations.length < policy.minElapsedDays
+    elapsedObservationDays(observations) < policy.minElapsedDays
   ) {
     return { kind: 'unavailable', reason: 'insufficient_coverage' };
   }
