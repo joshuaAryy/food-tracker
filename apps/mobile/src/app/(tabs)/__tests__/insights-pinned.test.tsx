@@ -88,4 +88,23 @@ describe('Insights pinned view', () => {
       }),
     );
   });
+
+  it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
+      mode: 'simple',
+      sections: {
+        protein: {
+          primaryMetric: 'protein',
+          summary: { average: null, numericDayCount: 1 },
+        },
+      },
+    } as never);
+
+    const screen = await render(<InsightsScreen />);
+
+    expect(await screen.findByText('Protein')).toBeTruthy();
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(screen.getByText('1 recorded g days')).toBeTruthy();
+    expect(screen.queryByText('0.0')).toBeNull();
+  });
 });
