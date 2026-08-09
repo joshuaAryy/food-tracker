@@ -373,6 +373,11 @@ export default function TrendDetailScreen() {
                   {referenceMessage(trend.reference)}
                 </AppText>
               )}
+              {trend.interpretation === null ? null : (
+                <AppText variant="caption" muted>
+                  {trend.interpretation.message}
+                </AppText>
+              )}
               {metricCoverageMessage(metricCoverage) === null ? null : (
                 <AppText variant="caption" muted>
                   {metricCoverageMessage(metricCoverage)}

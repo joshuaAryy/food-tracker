@@ -82,6 +82,18 @@ export interface AnalyticsAxisDomain {
   maximum: number;
 }
 
+export interface AnalyticsInterpretation {
+  kind:
+    | 'below_range'
+    | 'above_range'
+    | 'within_range'
+    | 'below_minimum'
+    | 'meets_minimum'
+    | 'above_limit'
+    | 'within_limit';
+  message: string;
+}
+
 export type AnalyticsForecast =
   | {
       kind: 'available';
@@ -151,6 +163,7 @@ export interface CanonicalTrendResponse {
   firstEligibleDate: string | null;
   today: string;
   reference: AnalyticsReference;
+  interpretation: AnalyticsInterpretation | null;
   relatedMetrics: AnalyticsMetricKey[];
   points: AnalyticsPoint[];
   rollingTrend?: {

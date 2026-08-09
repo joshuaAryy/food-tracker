@@ -25,6 +25,7 @@ import {
   DEFAULT_ANALYTICS_FORECAST_POLICY,
 } from './forecast-policy.js';
 import { selectDeterministicForecast } from './forecast.js';
+import { interpretAnalyticsReference } from './interpretation.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -484,6 +485,13 @@ export async function computeCanonicalTrend(
     firstEligibleDate,
     today,
     reference,
+    interpretation: interpretAnalyticsReference(
+      numericValues.length === 0
+        ? null
+        : numericValues.reduce((sum, value) => sum + value, 0) /
+            numericValues.length,
+      reference,
+    ),
     relatedMetrics: [...relatedAnalyticsMetricsForKey(query.primaryMetric)],
     points,
     ...(rollingTrend === undefined ? {} : { rollingTrend }),
