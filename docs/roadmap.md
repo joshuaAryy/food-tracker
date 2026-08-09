@@ -27,8 +27,8 @@ Phase 28 — Experimental Grocery Recommendations
 Phase 29 — Wearable and Health Data Integration
 ```
 
-Phase 17.5 is the current implementation phase. Its feature implementation has
-not started; Task 0 is the documentation/source-of-truth checkpoint.
+Phase 17.5 is the current implementation phase. Its implementation is in
+progress; Task 0 established the documentation/source-of-truth checkpoint.
 
 The post-Phase 6 MVP direction is:
 
@@ -617,9 +617,9 @@ after standalone evidence is recorded.
 
 ## Phase 17.5 — Custom Analytics, Micronutrients, and Hydration
 
-This is the current implementation phase after completed Phase 17. No feature
-implementation slice is started; the approved implementation plan establishes
-the A–G sequence for later user-authorized work.
+This is the current implementation phase after completed Phase 17. Feature
+implementation is in progress; the approved implementation plan establishes
+the A–G sequence for the remaining user-authorized work.
 
 - Customizable nutrition and weight graphs, metric selection, and 7-day,
   30-day, 90-day, and custom date ranges

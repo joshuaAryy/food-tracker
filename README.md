@@ -67,15 +67,16 @@ standalone installation. Hosted setup-status, persistence, ownership, provider,
 session, and disposable-account deletion checks passed.
 
 Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is the current
-implementation phase. Phase 17 is complete; Phase 17.5 feature implementation
-has not started.
+implementation phase. Phase 17 is complete; Phase 17.5 implementation is in
+progress, with canonical analytics, hydration, saved views, and forecasting
+foundations under active validation.
 
 ## Current Limitations
 
 - Apple sign-in is disabled for free development through the typed
   `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED` flag; email/password and Google remain
   the active development providers.
-- Phase 17.5 will include the canonical amount/time Water logger, hydration
+- Phase 17.5 includes the canonical amount/time Water logger, hydration
   analytics in both Simple and Complex modes, and a server-owned initial goal
   of `2000 mL/day`. `waterTrackingEnabled` remains a compatibility preference
   and does not gate hydration visibility. Supplements and Note remain deferred.

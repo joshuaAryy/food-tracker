@@ -14,12 +14,12 @@ PostgreSQL database
 
 ## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
 
-Phase 17 is complete. Phase 17.5 is the current implementation phase; its
-feature slices have not started. The approved production source is Figma file
+Phase 17 is complete. Phase 17.5 is the current implementation phase and its
+feature slices are in progress. The approved production source is Figma file
 `GFLStsF0ADwaizoVKGeLny`, page `338:21`, with final handoff contract `517:73`
 and node index `524:21`. Hidden and older Figma drafts are historical only.
 
-The planned analytics engine is one backend-owned, deterministic service over
+The analytics engine is one backend-owned, deterministic service over
 authoritative `FoodLog` nutrient snapshots, `WeightLog` records, and a
 separate `WaterLog` model. Shared contracts in `packages/shared` describe
 metric definitions, periods, aggregation, references, comparisons, saved
@@ -50,7 +50,7 @@ coverage filters operate on logging completeness and are internally
 the approved “All recorded days” label. Metric unknown/partial values remain
 non-numeric after a day passes a logging filter.
 
-The planned period defaults are 7D and 30D Daily, 90D Weekly, and Custom 1–45
+The period defaults are 7D and 30D Daily, 90D Weekly, and Custom 1–45
 days Daily, 46–180 Weekly, and 181+ Monthly. Complex overrides remain subject
 to readable density. Targets, minimums, limits, and true lower-plus-upper
 ranges are distinct; a single target never becomes a fabricated range. Phase

@@ -344,13 +344,13 @@ Request:
 
 `mode` must be `simple` or `complex`. Success `data` uses the tracking-preferences shape above.
 
-### Phase 17.5 planned analytics contracts
+### Phase 17.5 analytics contracts
 
-The following contract extension is planned and is not implemented by the
-current API. It must preserve the existing envelope, authenticated ownership
+The following implemented contract extension preserves the existing envelope,
+authenticated ownership
 boundary, local-date interpretation, and server-side analytics ownership.
 
-Phase 17.5 will expose one canonical analytics query contract for Insights and
+Phase 17.5 exposes one canonical analytics query contract for Insights and
 Trends. The mobile client will not send `userId`, calculate totals, fill
 missing values, calculate contributors, or calculate forecasts. Legacy report
 endpoints may remain temporarily compatible, but their zero-filled unlogged
@@ -426,7 +426,7 @@ count. The server-owned initial hydration goal is `2000 mL/day`, and the legacy
 `waterTrackingEnabled` preference remains for compatibility but does not gate
 hydration visibility.
 
-Planned Phase 17.5 route ownership is:
+Phase 17.5 route ownership is:
 
 - `POST /api/v1/analytics/trends/query` for validated canonical daily or
   aggregated trend facts;
@@ -436,9 +436,8 @@ Planned Phase 17.5 route ownership is:
 - authenticated WaterLog create/list/update/delete and quick-add routes,
   with all entrypoints using the same persistence path.
 
-These are planning contracts only until Slice A/B implementation and focused
-API tests establish them. No client-controlled target editor is part of
-Phase 17.5.
+Focused API tests establish these contracts. No client-controlled target editor
+is part of Phase 17.5.
 
 ## Food Items
 

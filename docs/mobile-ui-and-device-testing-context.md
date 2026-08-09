@@ -7,7 +7,7 @@ future sessions do not need long conversation history.
 
 Phase 17 free-Xcode standalone installation is complete. Phase 17.5 — Custom
 Analytics, Micronutrients, and Hydration — is the current implementation phase;
-its feature implementation has not started. The Phase 15.5 reporting redesign implementation is merged,
+its feature implementation is in progress. The Phase 15.5 reporting redesign implementation is merged,
 while accessibility and small-device/native validation remain carryover
 follow-up. Phase 6 established the
 current mobile visual-system blueprint across
