@@ -8,14 +8,16 @@ describe('analytics resource state', () => {
   it('keeps committed data while refresh is pending and atomically replaces it only after validation', () => {
     const committed = analyticsResourceReducer(initialAnalyticsResource<number>(), {
       type: 'commit',
+      requestId: 0,
       value: 10,
       updatedAt: 1,
     });
-    const refreshing = analyticsResourceReducer(committed, { type: 'refresh' });
+    const refreshing = analyticsResourceReducer(committed, { type: 'refresh', requestId: 1 });
     expect(refreshing).toMatchObject({ value: 10, status: 'refreshing' });
     expect(
       analyticsResourceReducer(refreshing, {
         type: 'commit',
+        requestId: 1,
         value: 20,
         updatedAt: 2,
       }),
@@ -26,12 +28,12 @@ describe('analytics resource state', () => {
     const state = analyticsResourceReducer(
       analyticsResourceReducer(
         initialAnalyticsResource<number>(),
-        { type: 'commit', value: 10, updatedAt: 1 },
+        { type: 'commit', requestId: 0, value: 10, updatedAt: 1 },
       ),
-      { type: 'failure', message: 'Offline' },
+      { type: 'failure', requestId: 0, message: 'Offline' },
     );
     expect(state).toMatchObject({ value: 10, status: 'stale', error: 'Offline' });
-    expect(analyticsResourceReducer(state, { type: 'refresh' })).toMatchObject({
+    expect(analyticsResourceReducer(state, { type: 'refresh', requestId: 1 })).toMatchObject({
       value: 10,
       status: 'refreshing',
       error: null,
@@ -42,8 +44,24 @@ describe('analytics resource state', () => {
     expect(
       analyticsResourceReducer(initialAnalyticsResource<number>(), {
         type: 'failure',
+        requestId: 0,
         message: 'Unavailable',
       }),
     ).toMatchObject({ value: null, status: 'error', error: 'Unavailable' });
+  });
+
+  it('ignores a stale request completion after a newer request starts', () => {
+    const newer = analyticsResourceReducer(initialAnalyticsResource<number>(), {
+      type: 'load',
+      requestId: 2,
+    });
+    expect(
+      analyticsResourceReducer(newer, {
+        type: 'commit',
+        requestId: 1,
+        value: 10,
+        updatedAt: 1,
+      }),
+    ).toEqual(newer);
   });
 });

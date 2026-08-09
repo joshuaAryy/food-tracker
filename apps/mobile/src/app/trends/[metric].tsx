@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -103,6 +103,7 @@ export default function TrendDetailScreen() {
     initialAnalyticsResource<CanonicalTrendResponse>,
   );
   const trend = trendResource.value;
+  const trendRequestId = useRef(0);
   const activeQuery = useMemo(
     () =>
       resolveTrendQuery({
@@ -118,6 +119,8 @@ export default function TrendDetailScreen() {
   );
 
   const load = useCallback(async (asRefresh = false) => {
+    const requestId = ++trendRequestId.current;
+    dispatchTrend({ type: asRefresh ? 'refresh' : 'load', requestId });
     if (!asRefresh && userId !== null) {
       try {
         const cached = await analyticsCache().read(
@@ -127,21 +130,20 @@ export default function TrendDetailScreen() {
             canonicalTrendResponseSchema.safeParse(value).success,
         );
         if (cached !== null) {
-          dispatchTrend({ type: 'commit', value: cached.value, updatedAt: cached.updatedAt });
+          dispatchTrend({ type: 'commit', requestId, value: cached.value, updatedAt: cached.updatedAt });
         }
       } catch {
         // Cache failures never block canonical network analytics.
       }
     }
-    dispatchTrend({ type: asRefresh ? 'refresh' : 'load' });
     try {
       const replacement = await api.analytics.trend({ ...activeQuery });
-      dispatchTrend({ type: 'commit', value: replacement, updatedAt: Date.now() });
+      dispatchTrend({ type: 'commit', requestId, value: replacement, updatedAt: Date.now() });
       if (userId !== null) {
         void analyticsCache().write(userId, cacheKey, replacement).catch(() => undefined);
       }
     } catch (cause) {
-      dispatchTrend({ type: 'failure', message: errorMessage(cause) });
+      dispatchTrend({ type: 'failure', requestId, message: errorMessage(cause) });
     }
   }, [activeQuery, cacheKey, userId]);
 
