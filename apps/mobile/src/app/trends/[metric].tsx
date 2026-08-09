@@ -189,6 +189,23 @@ export default function TrendDetailScreen() {
           >
             <AppText variant="caption">Save view</AppText>
           </Pressable>
+          {metric !== 'weight' &&
+          metric !== 'hydration' &&
+          metric !== 'loggingConsistency' &&
+          metric !== 'macroComposition' ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View food contributors"
+              onPress={() =>
+                router.push({
+                  pathname: '/trends/contributors',
+                  params: { query: trendQueryRouteParam(activeQuery) },
+                } as never)
+              }
+            >
+              <AppText variant="caption">Food contributors</AppText>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
       <View className="flex-row gap-2">

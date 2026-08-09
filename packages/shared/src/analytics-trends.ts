@@ -157,6 +157,21 @@ export interface CanonicalTrendResponse {
   };
 }
 
+export interface AnalyticsContributor {
+  foodName: string;
+  value: number;
+  percentage: number;
+}
+
+export interface AnalyticsContributorsResponse {
+  metric: AnalyticsMetricKey;
+  resolvedRange: { startDate: string; endDate: string };
+  recordedTotal: number;
+  contributors: AnalyticsContributor[];
+  remainder: { value: number; percentage: number } | null;
+  hasMore: boolean;
+}
+
 export interface CanonicalInsightsResponse {
   mode: 'simple' | 'complex';
   period: 'week' | 'month';

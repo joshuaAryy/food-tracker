@@ -65,6 +65,7 @@ import type {
   AnalyticsSavedViewOrderInput,
   AnalyticsSavedViewUpdateInput,
   AnalyticsMetricDefinition,
+  AnalyticsContributorsResponse,
 } from '@food-tracker/shared';
 import {
   goalsSchema,
@@ -515,6 +516,11 @@ export const api = {
         mode: 'simple' | 'complex';
         metrics: AnalyticsMetricDefinition[];
       }>('/analytics/trends/catalog'),
+    contributors: (input: TrendQueryInput) =>
+      request<AnalyticsContributorsResponse>('/analytics/trends/contributors', {
+        method: 'POST',
+        body: input,
+      }),
     insights: (period: 'week' | 'month') =>
       request<CanonicalInsightsResponse>(
         `/analytics/insights?period=${period}`,

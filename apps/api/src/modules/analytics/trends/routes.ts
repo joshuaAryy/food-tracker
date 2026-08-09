@@ -13,6 +13,7 @@ import { sendSuccess } from '../../../lib/responses.js';
 import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend } from './service.js';
 import { resolveComparisonStrategy } from './comparisons.js';
+import { computeAnalyticsContributors } from './contributors.js';
 
 export const trendsRouter = Router();
 export const insightsRouter = Router();
@@ -34,6 +35,24 @@ trendsRouter.get('/catalog', async (_request, response) => {
     metrics: analyticsMetricCatalogSchema.parse(analyticsMetricsForMode(mode)),
   });
 });
+
+trendsRouter.post(
+  '/contributors',
+  validateBody(trendQueryInputSchema),
+  async (_request, response) => {
+    const userId = currentUserId(response);
+    const query = validatedBody<TrendQueryInput>(response);
+    const mode = await currentTrackingMode(userId);
+    if (!analyticsMetricIsAvailableInMode(query.primaryMetric, mode)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Metric is unavailable in this tracking mode',
+      );
+    }
+    sendSuccess(response, await computeAnalyticsContributors(userId, query));
+  },
+);
 
 trendsRouter.post(
   '/query',
