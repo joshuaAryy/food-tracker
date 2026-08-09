@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertSafeGeneratedIosDirectory,
+  assertRequiredStagingReleaseBranch,
   assertReleaseBundleArtifact,
   buildPreparationCommands,
   cleanupGeneratedIosDirectory,
@@ -386,6 +387,27 @@ afterEach(() => {
 });
 
 describe('staging Release workflow', () => {
+  it.each([
+    'phase-17-5-custom-analytics',
+    'phase-17-free-xcode-standalone',
+    'main',
+  ])('accepts the explicit staging Release branch %s', (branch) => {
+    expect(() =>
+      assertRequiredStagingReleaseBranch('/repository', () => `${branch}\n`),
+    ).not.toThrow();
+  });
+
+  it('rejects an unrelated staging Release branch', () => {
+    expect(() =>
+      assertRequiredStagingReleaseBranch(
+        '/repository',
+        () => 'feature/other\n',
+      ),
+    ).toThrow(
+      'requires an approved Phase 17 staging branch or post-merge main',
+    );
+  });
+
   it('resolves the environment file from the canonical mobile root', () => {
     const paths = resolveWorkflowPaths();
 

@@ -199,7 +199,7 @@ function defaultRemoveDirectory(path: string): void {
   rmSync(path, { recursive: true, force: false });
 }
 
-function assertRequiredBranch(
+export function assertRequiredStagingReleaseBranch(
   rootDir: string,
   capture: WorkflowDependencies['captureCommand'],
 ): void {
@@ -208,9 +208,13 @@ function assertRequiredBranch(
     ['branch', '--show-current'],
     rootDir,
   ).trim();
-  if (branch !== 'phase-17-free-xcode-standalone' && branch !== 'main') {
+  if (
+    branch !== 'phase-17-free-xcode-standalone' &&
+    branch !== 'phase-17-5-custom-analytics' &&
+    branch !== 'main'
+  ) {
     throw new Error(
-      'The staging Release workflow requires phase-17-free-xcode-standalone or post-merge main.',
+      'The staging Release workflow requires an approved Phase 17 staging branch or post-merge main.',
     );
   }
 }
@@ -1233,7 +1237,7 @@ export function runStagingReleasePreparation(
   const rootDir = paths.rootDir;
   const envFilePath = options.envFilePath ?? paths.envFilePath;
   const beforeStatus = (options.readStatus ?? defaultReadStatus)(rootDir);
-  assertRequiredBranch(rootDir, options.captureCommand);
+  assertRequiredStagingReleaseBranch(rootDir, options.captureCommand);
   assertNoStagedFiles(rootDir, options.captureCommand);
   if (!options.skipToolchainChecks) {
     validateToolchain(
