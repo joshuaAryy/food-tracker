@@ -273,7 +273,18 @@ export default function TrendDetailScreen() {
       ) : null}
       {trend !== null && trendResource.status !== 'loading' ? (
         <View className="gap-3">
-          {comparisonChart !== null ? (
+          {trend.summary.numericDayCount === 0 &&
+          presentation !== 'macro' &&
+          presentation !== 'logging_heatmap' ? (
+            <View className="gap-1 rounded-app bg-module p-4">
+              <AppText variant="label">No numeric trend to chart</AppText>
+              <AppText variant="caption" muted>
+                Logged foods may still be present, but this metric has no
+                recorded values in the selected range. Missing values remain
+                gaps rather than zero.
+              </AppText>
+            </View>
+          ) : comparisonChart !== null ? (
             <ComparisonChart
               primary={dailyPoints}
               comparison={comparisonChart.comparisonPoints}
