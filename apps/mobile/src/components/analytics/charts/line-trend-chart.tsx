@@ -55,7 +55,7 @@ export function LineTrendChart({
         [...data.map((point) => point.value), ...(trendValues ?? [])],
         { includeZero: false },
       ),
-    [data],
+    [data, trendValues],
   );
   const path = useMemo(
     () =>
