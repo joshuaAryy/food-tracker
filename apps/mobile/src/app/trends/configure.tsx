@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   analyticsMetricForKey,
-  analyticsMetricsForMode,
+  type AnalyticsMetricDefinition,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
@@ -17,6 +17,7 @@ import {
   supportsForecastControl,
   updateTrendDraft,
 } from '@/lib/analytics/trend-config';
+import { api, errorMessage } from '@/lib/api-client';
 import {
   trendQueryFromRouteParam,
   trendQueryRouteParam,
@@ -35,6 +36,22 @@ export default function ConfigureTrendScreen() {
   const [draft, setDraft] = useState(() =>
     active === null ? null : createTrendDraft(active),
   );
+  const [catalog, setCatalog] = useState<{
+    mode: 'simple' | 'complex';
+    metrics: AnalyticsMetricDefinition[];
+  } | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const loadCatalog = useCallback(async () => {
+    setCatalogError(null);
+    try {
+      setCatalog(await api.analytics.trendCatalog());
+    } catch (cause) {
+      setCatalogError(errorMessage(cause));
+    }
+  }, []);
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
   const close = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/trends/calories' as never);
@@ -50,8 +67,36 @@ export default function ConfigureTrendScreen() {
       </AppScreen>
     );
   }
+  if (catalogError !== null) {
+    return (
+      <AppScreen>
+        <ErrorState message={catalogError} onRetry={() => void loadCatalog()} />
+      </AppScreen>
+    );
+  }
+  if (catalog === null) {
+    return (
+      <AppScreen>
+        <AppText muted>Loading Trend controls…</AppText>
+      </AppScreen>
+    );
+  }
+  if (catalog.mode !== 'complex') {
+    return (
+      <AppScreen>
+        <ErrorState
+          title="Complex Trend controls are unavailable"
+          message="Switch to Complex mode to configure advanced analytics."
+          onRetry={close}
+        />
+      </AppScreen>
+    );
+  }
   const definition = analyticsMetricForKey(draft.primaryMetric);
-  const candidates = comparisonCandidates(draft.primaryMetric);
+  const allowedMetricKeys = new Set(catalog.metrics.map((metric) => metric.key));
+  const candidates = comparisonCandidates(draft.primaryMetric).filter((metric) =>
+    allowedMetricKeys.has(metric),
+  );
   const apply = () => {
     const query = applyTrendDraft(active, draft);
     router.replace({
@@ -78,7 +123,7 @@ export default function ConfigureTrendScreen() {
       />
       <View className="gap-2">
         <AppText variant="label">Primary metric</AppText>
-        {analyticsMetricsForMode('complex').map((metric) => (
+        {catalog.metrics.map((metric) => (
           <Pressable
             key={metric.key}
             accessibilityRole="button"
