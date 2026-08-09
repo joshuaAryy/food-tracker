@@ -9,6 +9,7 @@ import {
 } from '@food-tracker/shared';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { ComparisonChart } from '@/components/analytics/charts/comparison-chart';
+import { ForecastChart } from '@/components/analytics/charts/forecast-chart';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { MacroChart } from '@/components/analytics/charts/macro-chart';
@@ -270,6 +271,13 @@ export default function TrendDetailScreen() {
               width={Math.max(280, width - 40)}
               accessibilityLabel={`${definition.displayName} and ${analyticsMetricForKey(comparisonChart.metric).displayName} comparison for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
             />
+          ) : trend.forecast?.kind === 'available' ? (
+            <ForecastChart
+              historical={dailyPoints.map((point) => point.value)}
+              forecast={trend.forecast.points}
+              width={Math.max(280, width - 40)}
+              accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${trend.forecast.todayDate}`}
+            />
           ) : presentation === 'macro' && trend.macroComposition !== undefined ? (
             <View
               accessible
@@ -323,6 +331,18 @@ export default function TrendDetailScreen() {
               ? 'No recorded values in this period.'
               : `Average ${trend.summary.average.toFixed(1)} ${definition.unit}`}
           </AppText>
+          {trend.forecast?.kind === 'available' ? (
+            <AppText variant="caption" muted>
+              Seven-day estimate based on stable recorded history. The shaded
+              range shows increasing uncertainty.
+            </AppText>
+          ) : trend.forecast?.kind === 'unavailable' &&
+            activeQuery.includeForecast === true ? (
+            <AppText variant="caption" muted>
+              A seven-day estimate is unavailable until enough stable history
+              is recorded.
+            </AppText>
+          ) : null}
           {trend.trackingMode === 'complex' ? (
             <View className="gap-1">
               {referenceMessage(trend.reference) === null ? null : (
