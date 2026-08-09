@@ -85,21 +85,23 @@ describe('Saved Views screen', () => {
   });
 
   it('replaces an unavailable saved metric with a server-authorized metric', async () => {
-    const update = jest.spyOn(api.analytics, 'updateSavedView').mockResolvedValue({
-      id: '1',
-      name: 'Historical unavailable nutrient',
-      primaryMetric: 'calories',
-      comparisonMetric: null,
-      periodDays: 30,
-      aggregation: 'automatic',
-      visualization: 'automatic',
-      showReference: true,
-      coverageFilter: 'all_logged_days',
-      sortOrder: 0,
-      createdAt: '2026-08-09T00:00:00.000Z',
-      updatedAt: '2026-08-09T00:01:00.000Z',
-      unavailableMetrics: [],
-    });
+    const update = jest
+      .spyOn(api.analytics, 'updateSavedView')
+      .mockResolvedValue({
+        id: '1',
+        name: 'Historical unavailable nutrient',
+        primaryMetric: 'calories',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:01:00.000Z',
+        unavailableMetrics: [],
+      });
     const user = userEvent.setup();
     const screen = await render(<SavedViewsScreen />);
 
@@ -108,7 +110,9 @@ describe('Saved Views screen', () => {
         name: 'Replace unavailable metric for Historical unavailable nutrient',
       }),
     );
-    await user.press(await screen.findByRole('button', { name: 'Use Calories' }));
+    await user.press(
+      await screen.findByRole('button', { name: 'Use Calories' }),
+    );
 
     expect(update).toHaveBeenCalledWith('1', {
       primaryMetric: 'calories',
@@ -122,23 +126,42 @@ describe('Saved Views screen', () => {
       id: '1',
       deleted: true,
     });
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
-      const deleteAction = buttons?.find((button) => button.text === 'Delete');
-      deleteAction?.onPress?.();
-    });
+    jest
+      .spyOn(Alert, 'alert')
+      .mockImplementation((_title, _message, buttons) => {
+        const deleteAction = buttons?.find(
+          (button) => button.text === 'Delete',
+        );
+        deleteAction?.onPress?.();
+      });
     const screen = await render(<SavedViewsScreen />);
 
-    await userEvent
-      .setup()
-      .press(
-        await screen.findByRole('button', {
-          name: 'Delete Historical unavailable nutrient',
-        }),
-      );
+    await userEvent.setup().press(
+      await screen.findByRole('button', {
+        name: 'Delete Historical unavailable nutrient',
+      }),
+    );
 
     await waitFor(() =>
       expect(api.analytics.deleteSavedView).toHaveBeenCalledWith('1'),
     );
     expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
+  });
+
+  it('keeps the inline rename confirmation at the minimum analytics target size', async () => {
+    const user = userEvent.setup();
+    const screen = await render(<SavedViewsScreen />);
+
+    await user.press(
+      await screen.findByRole('button', {
+        name: 'Rename Historical unavailable nutrient',
+      }),
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Save name for Historical unavailable nutrient',
+      }).props.className,
+    ).toContain('min-h-11');
   });
 });

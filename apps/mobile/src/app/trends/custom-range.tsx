@@ -200,7 +200,12 @@ export default function CustomRangeScreen() {
         title="Custom Range"
         subtitle="Select any eligible logged day through today."
         action={
-          <Pressable accessibilityRole="button" onPress={close}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close Custom Range"
+            className="min-h-11 justify-center"
+            onPress={close}
+          >
             <AppText variant="label">Close</AppText>
           </Pressable>
         }

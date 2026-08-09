@@ -190,6 +190,7 @@ export default function SavedViewsScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Save name for ${view.name}`}
+                className="min-h-11 justify-center"
                 onPress={() => void rename(view.id)}
               >
                 <AppText variant="caption">Save name</AppText>
