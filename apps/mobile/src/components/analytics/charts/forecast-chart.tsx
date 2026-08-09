@@ -1,9 +1,14 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Path, Polygon } from 'react-native-svg';
+import { Path, Polygon } from 'react-native-svg';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
-import { linePath, uncertaintyPolygon } from '@/lib/analytics/chart-geometry';
+import {
+  forecastPathWithContinuity,
+  linePath,
+  uncertaintyPolygonAtOffset,
+} from '@/lib/analytics/chart-geometry';
 import { ChartFrame } from './chart-frame';
+import { CartesianPlot } from './cartesian-plot';
 
 export function ForecastChart({
   historical,
@@ -31,8 +36,14 @@ export function ForecastChart({
   );
   if (domain === null)
     return <ChartFrame accessibilityLabel={accessibilityLabel} />;
-  const historicalPath = linePath(historical, domain, { width, height });
-  const forecastPath = linePath(
+  const pointCount = historical.length + forecast.length;
+  const historicalPath = linePath(
+    [...historical, ...forecast.map(() => null)],
+    domain,
+    { width, height },
+  );
+  const forecastPath = forecastPathWithContinuity(
+    historical,
     forecast.map((point) => point.value),
     domain,
     { width, height },
@@ -40,9 +51,19 @@ export function ForecastChart({
   return (
     <ChartFrame accessibilityLabel={accessibilityLabel}>
       <View>
-        <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <CartesianPlot
+          width={width}
+          height={height}
+          pointCount={pointCount}
+          todayIndex={historical.length === 0 ? null : historical.length - 1}
+        >
           <Polygon
-            points={uncertaintyPolygon(forecast, domain, { width, height })}
+            points={uncertaintyPolygonAtOffset(
+              forecast,
+              domain,
+              { width, height },
+              { startIndex: historical.length, totalPointCount: pointCount },
+            )}
             fill="#C9242D"
             opacity={0.12}
           />
@@ -59,7 +80,7 @@ export function ForecastChart({
             strokeWidth={3}
             strokeDasharray="6 5"
           />
-        </Svg>
+        </CartesianPlot>
       </View>
     </ChartFrame>
   );

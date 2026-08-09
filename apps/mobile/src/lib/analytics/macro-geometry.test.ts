@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { macroSegments } from './macro-geometry';
+import { macroSegments, stackedMacroSegments } from './macro-geometry';
 
 describe('macro chart geometry', () => {
   it('keeps missing macros out of composition rather than making them zero', () => {
@@ -15,5 +15,12 @@ describe('macro chart geometry', () => {
       value: 0,
       fraction: 0,
     });
+  });
+
+  it('stacks only known macro values while retaining a recorded zero', () => {
+    expect(stackedMacroSegments({ protein: 20, carbs: null, fat: 0 })).toEqual([
+      { key: 'protein', value: 20, start: 0, end: 20 },
+      { key: 'fat', value: 0, start: 20, end: 20 },
+    ]);
   });
 });

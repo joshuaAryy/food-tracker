@@ -1,7 +1,11 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
-import { macroSegments, type MacroKey } from '@/lib/analytics/macro-geometry';
+import Svg, { Circle, Rect } from 'react-native-svg';
+import {
+  macroSegments,
+  stackedMacroSegments,
+  type MacroKey,
+} from '@/lib/analytics/macro-geometry';
 import { ChartFrame } from './chart-frame';
 
 const macroColors: Record<MacroKey, string> = {
@@ -13,15 +17,49 @@ const macroColors: Record<MacroKey, string> = {
 export function MacroChart({
   values,
   size = 180,
+  variant = 'donut',
   accessibilityLabel,
 }: {
   values: Record<MacroKey, number | null>;
   size?: number;
+  variant?: 'donut' | 'stacked_bar';
   accessibilityLabel: string;
 }) {
   const segments = useMemo(() => macroSegments(values), [values]);
+  const stackedSegments = useMemo(() => stackedMacroSegments(values), [values]);
   const radius = size * 0.34;
   const circumference = 2 * Math.PI * radius;
+  const stackedTotal = stackedSegments.at(-1)?.end ?? 0;
+  if (variant === 'stacked_bar') {
+    return (
+      <ChartFrame accessibilityLabel={accessibilityLabel}>
+        <View>
+          <Svg
+            width={size}
+            height={size * 0.34}
+            viewBox={`0 0 ${size} ${size * 0.34}`}
+          >
+            {stackedSegments.map((segment) => (
+              <Rect
+                key={segment.key}
+                x={
+                  stackedTotal === 0 ? 0 : (segment.start / stackedTotal) * size
+                }
+                y={0}
+                width={
+                  stackedTotal === 0 ? 0 : (segment.value / stackedTotal) * size
+                }
+                height={size * 0.34}
+                fill={macroColors[segment.key]}
+                stroke="#FFFFFF"
+                strokeWidth={2}
+              />
+            ))}
+          </Svg>
+        </View>
+      </ChartFrame>
+    );
+  }
   let offset = 0;
   return (
     <ChartFrame accessibilityLabel={accessibilityLabel}>

@@ -9,10 +9,19 @@ export function selectedIndexForScrubX(
   position: number,
   pointCount: number,
   width: number,
-): number {
-  if (pointCount <= 1 || width <= 0) return 0;
+): number | null {
+  if (pointCount <= 0) return null;
+  if (pointCount === 1 || width <= 0) return 0;
   const clamped = clampScrubX(position, width);
   return Math.round((clamped / width) * (pointCount - 1));
+}
+
+/** Prevents haptic feedback while a scrub remains on the same underlying day. */
+export function shouldAnnounceSelectionChange(
+  previousIndex: number | null,
+  nextIndex: number,
+): boolean {
+  return previousIndex !== nextIndex;
 }
 
 export function selectionForSharedDate(

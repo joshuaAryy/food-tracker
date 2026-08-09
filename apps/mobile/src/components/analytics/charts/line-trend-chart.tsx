@@ -1,11 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import Svg, { Line, Path } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
+import { Circle, Line, Path, Rect } from 'react-native-svg';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
-import { linePath, referenceLineY } from '@/lib/analytics/chart-geometry';
-import { selectedIndexForScrubX } from '@/lib/analytics/chart-interaction';
+import {
+  linePath,
+  pointX,
+  pointY,
+  referenceLineY,
+} from '@/lib/analytics/chart-geometry';
+import {
+  selectedIndexForScrubX,
+  shouldAnnounceSelectionChange,
+} from '@/lib/analytics/chart-interaction';
+import { referenceBand } from '@/lib/analytics/reference-geometry';
 import { ChartFrame } from './chart-frame';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
+import { CartesianPlot } from './cartesian-plot';
 
 export interface LineTrendDatum {
   date: string;
@@ -17,7 +28,10 @@ interface LineTrendChartProps {
   width: number;
   height?: number;
   color: string;
+  trendValues?: readonly (number | null)[] | undefined;
+  showRawPoints?: boolean | undefined;
   reference?: number | null;
+  referenceRange?: { lower: number; upper: number } | null;
   accessibilityLabel: string;
 }
 
@@ -27,14 +41,18 @@ export function LineTrendChart({
   width,
   height = 180,
   color,
+  trendValues,
+  showRawPoints = false,
   reference = null,
+  referenceRange = null,
   accessibilityLabel,
 }: LineTrendChartProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedIndexRef = useRef<number | null>(null);
   const domain = useMemo(
     () =>
       fixedDomain(
-        data.map((point) => point.value),
+        [...data.map((point) => point.value), ...(trendValues ?? [])],
         { includeZero: false },
       ),
     [data],
@@ -43,16 +61,24 @@ export function LineTrendChart({
     () =>
       domain === null
         ? ''
-        : linePath(
-            data.map((point) => point.value),
-            domain,
-            { width, height },
-          ),
-    [data, domain, height, width],
+        : linePath(trendValues ?? data.map((point) => point.value), domain, {
+            width,
+            height,
+          }),
+    [data, domain, height, trendValues, width],
   );
 
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
+  const rangeBand =
+    domain === null ? null : referenceBand(referenceRange, domain, height);
+  const selectIndex = useCallback((nextIndex: number) => {
+    if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    selectedIndexRef.current = nextIndex;
+    setSelectedIndex(nextIndex);
+  }, []);
   return (
     <ChartFrame
       accessibilityLabel={accessibilityLabel}
@@ -63,7 +89,22 @@ export function LineTrendChart({
       }
     >
       <View>
-        <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <CartesianPlot
+          width={width}
+          height={height}
+          pointCount={data.length}
+          selectedIndex={selectedIndex}
+        >
+          {rangeBand === null ? null : (
+            <Rect
+              x={0}
+              y={rangeBand.y}
+              width={width}
+              height={rangeBand.height}
+              fill={color}
+              opacity={0.12}
+            />
+          )}
           {domain !== null && reference !== null ? (
             <Line
               x1={0}
@@ -78,13 +119,41 @@ export function LineTrendChart({
           {path === '' ? null : (
             <Path d={path} fill="none" stroke={color} strokeWidth={3} />
           )}
-        </Svg>
+          {showRawPoints && domain !== null
+            ? data.map((point, index) => {
+                if (point.value === null || !Number.isFinite(point.value))
+                  return null;
+                const x = pointX(index, data.length, width);
+                const y = pointY(point.value, domain, height);
+                return (
+                  <Circle
+                    key={point.date}
+                    cx={x}
+                    cy={y}
+                    r={3}
+                    fill="#FFFFFF"
+                    stroke={color}
+                    strokeWidth={2}
+                  />
+                );
+              })
+            : null}
+        </CartesianPlot>
         <ChartSelectionOverlay
           width={width}
           height={height}
-          onScrub={(x) =>
-            setSelectedIndex(selectedIndexForScrubX(x, data.length, width))
-          }
+          onScrub={(x) => {
+            const index = selectedIndexForScrubX(x, data.length, width);
+            if (index !== null) selectIndex(index);
+          }}
+          onAccessibilityStep={(direction) => {
+            if (data.length === 0) return;
+            const currentIndex = selectedIndexRef.current ?? 0;
+            const delta = direction === 'increment' ? 1 : -1;
+            selectIndex(
+              Math.max(0, Math.min(data.length - 1, currentIndex + delta)),
+            );
+          }}
         />
       </View>
     </ChartFrame>

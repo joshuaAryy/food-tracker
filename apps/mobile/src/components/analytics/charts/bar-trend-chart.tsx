@@ -1,11 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import Svg, { Line, Rect } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
+import { Line, Path, Rect } from 'react-native-svg';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
-import { barRects, referenceLineY } from '@/lib/analytics/chart-geometry';
-import { selectedIndexForScrubX } from '@/lib/analytics/chart-interaction';
+import {
+  barRects,
+  linePath,
+  referenceLineY,
+} from '@/lib/analytics/chart-geometry';
+import {
+  selectedIndexForScrubX,
+  shouldAnnounceSelectionChange,
+} from '@/lib/analytics/chart-interaction';
 import { ChartFrame } from './chart-frame';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
+import { CartesianPlot } from './cartesian-plot';
 import type { LineTrendDatum } from './line-trend-chart';
 
 export function BarTrendChart({
@@ -13,6 +22,7 @@ export function BarTrendChart({
   width,
   height = 180,
   color,
+  trendValues,
   reference = null,
   accessibilityLabel,
 }: {
@@ -20,17 +30,19 @@ export function BarTrendChart({
   width: number;
   height?: number;
   color: string;
+  trendValues?: readonly (number | null)[] | undefined;
   reference?: number | null;
   accessibilityLabel: string;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedIndexRef = useRef<number | null>(null);
   const domain = useMemo(
     () =>
       fixedDomain(
-        data.map((point) => point.value),
+        [...data.map((point) => point.value), ...(trendValues ?? [])],
         { includeZero: true },
       ),
-    [data],
+    [data, trendValues],
   );
   const bars = useMemo(
     () =>
@@ -45,6 +57,20 @@ export function BarTrendChart({
   );
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
+  const trendPath = useMemo(
+    () =>
+      domain === null || trendValues === undefined
+        ? ''
+        : linePath(trendValues, domain, { width, height }),
+    [domain, height, trendValues, width],
+  );
+  const selectIndex = useCallback((nextIndex: number) => {
+    if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    selectedIndexRef.current = nextIndex;
+    setSelectedIndex(nextIndex);
+  }, []);
   return (
     <ChartFrame
       accessibilityLabel={accessibilityLabel}
@@ -55,7 +81,12 @@ export function BarTrendChart({
       }
     >
       <View>
-        <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <CartesianPlot
+          width={width}
+          height={height}
+          pointCount={data.length}
+          selectedIndex={selectedIndex}
+        >
           {domain !== null && reference !== null ? (
             <Line
               x1={0}
@@ -70,13 +101,25 @@ export function BarTrendChart({
           {bars.map((bar) => (
             <Rect key={bar.index} {...bar} fill={color} rx={3} />
           ))}
-        </Svg>
+          {trendPath === '' ? null : (
+            <Path d={trendPath} fill="none" stroke={color} strokeWidth={2.5} />
+          )}
+        </CartesianPlot>
         <ChartSelectionOverlay
           width={width}
           height={height}
-          onScrub={(x) =>
-            setSelectedIndex(selectedIndexForScrubX(x, data.length, width))
-          }
+          onScrub={(x) => {
+            const index = selectedIndexForScrubX(x, data.length, width);
+            if (index !== null) selectIndex(index);
+          }}
+          onAccessibilityStep={(direction) => {
+            if (data.length === 0) return;
+            const currentIndex = selectedIndexRef.current ?? 0;
+            const delta = direction === 'increment' ? 1 : -1;
+            selectIndex(
+              Math.max(0, Math.min(data.length - 1, currentIndex + delta)),
+            );
+          }}
         />
       </View>
     </ChartFrame>

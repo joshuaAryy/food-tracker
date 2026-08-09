@@ -23,12 +23,16 @@ export function decimateLabelIndexes(
   );
 }
 
-function yFor(value: number, domain: ChartDomain, height: number): number {
+export function pointY(
+  value: number,
+  domain: ChartDomain,
+  height: number,
+): number {
   if (domain.max === domain.min) return height / 2;
   return height - ((value - domain.min) / (domain.max - domain.min)) * height;
 }
 
-function xFor(index: number, count: number, width: number): number {
+export function pointX(index: number, count: number, width: number): number {
   return count <= 1 ? width / 2 : (index / (count - 1)) * width;
 }
 
@@ -51,12 +55,39 @@ export function linePath(
       const command = previousWasGap ? 'M' : 'L';
       previousWasGap = false;
       return [
-        `${command} ${coordinate(xFor(index, values.length, size.width))} ${coordinate(
-          yFor(value, domain, size.height),
+        `${command} ${coordinate(pointX(index, values.length, size.width))} ${coordinate(
+          pointY(value, domain, size.height),
         )}`,
       ];
     })
     .join(' ');
+}
+
+/**
+ * Keeps the dotted projection on the same fixed timeline as history and joins
+ * it to the last known historical point without manufacturing a missing value.
+ */
+export function forecastPathWithContinuity(
+  historical: readonly (number | null)[],
+  forecast: readonly number[],
+  domain: ChartDomain,
+  size: ChartSize,
+): string {
+  const historicalIndex = historical.reduce<number>(
+    (latestIndex, value, index) =>
+      value !== null && Number.isFinite(value) ? index : latestIndex,
+    -1,
+  );
+  if (historicalIndex < 0 || forecast.length === 0) return '';
+
+  const values = Array<number | null>(historical.length + forecast.length).fill(
+    null,
+  );
+  values[historicalIndex] = historical[historicalIndex] ?? null;
+  forecast.forEach((value, index) => {
+    values[historical.length + index] = value;
+  });
+  return linePath(values, domain, size);
 }
 
 export function barRects(
@@ -66,10 +97,10 @@ export function barRects(
 ): { index: number; x: number; y: number; width: number; height: number }[] {
   const slotWidth = size.width / Math.max(values.length, 1);
   const width = slotWidth * 0.8;
-  const baseline = yFor(0, domain, size.height);
+  const baseline = pointY(0, domain, size.height);
   return values.flatMap((value, index) => {
     if (value === null || !Number.isFinite(value)) return [];
-    const y = yFor(value, domain, size.height);
+    const y = pointY(value, domain, size.height);
     return [
       {
         index,
@@ -87,7 +118,7 @@ export function referenceLineY(
   domain: ChartDomain,
   height: number,
 ): number {
-  return yFor(reference, domain, height);
+  return pointY(reference, domain, height);
 }
 
 export function uncertaintyPolygon(
@@ -97,15 +128,36 @@ export function uncertaintyPolygon(
 ): string {
   const upper = points.map(
     (point, index) =>
-      `${coordinate(xFor(index, points.length, size.width))},${coordinate(
-        yFor(point.upper, domain, size.height),
+      `${coordinate(pointX(index, points.length, size.width))},${coordinate(
+        pointY(point.upper, domain, size.height),
       )}`,
   );
   const lower = [...points].reverse().map((point, reverseIndex) => {
     const index = points.length - reverseIndex - 1;
-    return `${coordinate(xFor(index, points.length, size.width))},${coordinate(
-      yFor(point.lower, domain, size.height),
+    return `${coordinate(pointX(index, points.length, size.width))},${coordinate(
+      pointY(point.lower, domain, size.height),
     )}`;
+  });
+  return [...upper, ...lower].join(' ');
+}
+
+export function uncertaintyPolygonAtOffset(
+  points: readonly { value: number; lower: number; upper: number }[],
+  domain: ChartDomain,
+  size: ChartSize,
+  offset: { startIndex: number; totalPointCount: number },
+): string {
+  const xAt = (index: number) =>
+    coordinate(
+      pointX(offset.startIndex + index, offset.totalPointCount, size.width),
+    );
+  const upper = points.map(
+    (point, index) =>
+      `${xAt(index)},${coordinate(pointY(point.upper, domain, size.height))}`,
+  );
+  const lower = [...points].reverse().map((point, reverseIndex) => {
+    const index = points.length - reverseIndex - 1;
+    return `${xAt(index)},${coordinate(pointY(point.lower, domain, size.height))}`;
   });
   return [...upper, ...lower].join(' ');
 }
