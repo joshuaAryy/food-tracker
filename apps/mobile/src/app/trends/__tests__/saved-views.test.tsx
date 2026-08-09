@@ -164,4 +164,39 @@ describe('Saved Views screen', () => {
       }).props.className,
     ).toContain('min-h-11');
   });
+
+  it('shows a recoverable error when pinning a saved view fails', async () => {
+    jest.spyOn(api.analytics, 'savedViews').mockResolvedValueOnce([
+      {
+        id: '1',
+        name: 'Protein · 30D',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:00:00.000Z',
+        unavailableMetrics: [],
+      },
+    ]);
+    jest
+      .spyOn(api.analytics, 'updatePreferences')
+      .mockRejectedValueOnce(new Error('offline'));
+    const user = userEvent.setup();
+    const screen = await render(<SavedViewsScreen />);
+
+    await user.press(
+      await screen.findByRole('button', { name: 'Pin Protein · 30D' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'The request could not be completed. Please try again.',
+      ),
+    ).toBeTruthy();
+  });
 });
