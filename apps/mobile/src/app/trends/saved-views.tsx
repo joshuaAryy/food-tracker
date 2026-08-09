@@ -58,6 +58,7 @@ export default function SavedViewsScreen() {
     setError(null);
     try {
       await api.analytics.deleteSavedView(id);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await load();
     } catch (cause) {
       setError(errorMessage(cause));

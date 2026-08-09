@@ -1,4 +1,6 @@
-import { render, userEvent } from '../../../test/render';
+import { Alert } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
 import SavedViewsScreen from '../saved-views';
 
@@ -31,7 +33,9 @@ jest.mock('expo-router', () => {
 
 jest.mock('expo-haptics', () => ({
   ImpactFeedbackStyle: { Light: 'light' },
+  NotificationFeedbackType: { Success: 'success' },
   impactAsync: jest.fn(),
+  notificationAsync: jest.fn(),
 }));
 
 describe('Saved Views screen', () => {
@@ -111,5 +115,30 @@ describe('Saved Views screen', () => {
       comparisonMetric: null,
     });
     expect(screen.queryByText('Needs replacement: retiredNutrient')).toBeNull();
+  });
+
+  it('confirms destructive deletion with feedback after the request succeeds', async () => {
+    jest.spyOn(api.analytics, 'deleteSavedView').mockResolvedValue({
+      id: '1',
+      deleted: true,
+    });
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+      const deleteAction = buttons?.find((button) => button.text === 'Delete');
+      deleteAction?.onPress?.();
+    });
+    const screen = await render(<SavedViewsScreen />);
+
+    await userEvent
+      .setup()
+      .press(
+        await screen.findByRole('button', {
+          name: 'Delete Historical unavailable nutrient',
+        }),
+      );
+
+    await waitFor(() =>
+      expect(api.analytics.deleteSavedView).toHaveBeenCalledWith('1'),
+    );
+    expect(Haptics.notificationAsync).toHaveBeenCalledWith('success');
   });
 });
