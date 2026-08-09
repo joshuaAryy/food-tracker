@@ -28,3 +28,11 @@ export function createNativeAnalyticsCache(staleAfterMs: number): AnalyticsCache
     staleAfterMs,
   });
 }
+
+export async function purgeNativeAnalyticsCache(userId: string): Promise<void> {
+  if (FileSystem.documentDirectory === null) return;
+  await FileSystem.deleteAsync(
+    `${FileSystem.documentDirectory}analytics/${encodeURIComponent(userId)}`,
+    { idempotent: true },
+  );
+}

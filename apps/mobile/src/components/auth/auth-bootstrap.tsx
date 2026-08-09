@@ -125,6 +125,19 @@ export function AuthBootstrap({
   const loadRuntimeRef = useRef(loadRuntime);
   const lastRedirectKeyRef = useRef<string | null>(null);
 
+  const purgeCurrentAnalyticsCache = async () => {
+    const state = storeRef.current?.getState().authState;
+    if (state === undefined || !('user' in state)) return;
+    try {
+      const { purgeNativeAnalyticsCache } = await import(
+        '@/lib/analytics/analytics-cache-native'
+      );
+      await purgeNativeAnalyticsCache(state.user.uid);
+    } catch {
+      // Local cache cleanup never blocks authentication lifecycle actions.
+    }
+  };
+
   useEffect(() => {
     let active = true;
     let stopStore: (() => void) | undefined;
@@ -183,6 +196,7 @@ export function AuthBootstrap({
         };
         setSignOut(() => async () => {
           pendingProviderCredential.clear('signOut');
+          await purgeCurrentAnalyticsCache();
           await store.getState().signOut();
           useAppStore.getState().resetUserData();
         });
@@ -192,6 +206,7 @@ export function AuthBootstrap({
             throw new Error('Account deletion is unavailable.');
           }
           await runtime.deleteAccount();
+          await purgeCurrentAnalyticsCache();
           try {
             await store.getState().signOut();
           } catch {
