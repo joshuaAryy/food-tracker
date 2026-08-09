@@ -298,6 +298,51 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('returns logging consistency from meal behavior, not nutrient availability', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.foodLog.createMany({
+      data: [
+        ...['breakfast', 'lunch', 'dinner'].map((mealType) => ({
+          userId: MOCK_USER_ID,
+          foodName: 'Complete meal coverage',
+          mealType: mealType as 'breakfast' | 'lunch' | 'dinner',
+          calories: 200,
+          protein: 20,
+          loggedAt: new Date(recentLocalDateTime(6)),
+        })),
+        {
+          userId: MOCK_USER_ID,
+          foodName: 'Partial meal coverage',
+          mealType: 'breakfast' as const,
+          calories: 200,
+          protein: 20,
+          loggedAt: new Date(recentLocalDateTime(5)),
+        },
+      ],
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'loggingConsistency' })
+      .expect(200);
+
+    expect(response.body.data.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          date: recentLocalDate(6),
+          loggingDayState: 'complete',
+          value: 100,
+        }),
+        expect.objectContaining({
+          date: recentLocalDate(5),
+          loggingDayState: 'partial',
+          value: 50,
+        }),
+      ]),
+    );
+  });
+
   it('returns allowlisted dual-axis comparison data with fixed full-period domains', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'complex' });
