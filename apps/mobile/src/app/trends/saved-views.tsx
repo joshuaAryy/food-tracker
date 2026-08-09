@@ -210,6 +210,7 @@ export default function SavedViewsScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Replace unavailable metric for ${view.name}`}
+                className="min-h-11 justify-center"
                 onPress={() => void beginReplacement(view)}
               >
                 <AppText variant="caption">Replace metric</AppText>
@@ -224,6 +225,7 @@ export default function SavedViewsScreen() {
                     key={metric.key}
                     accessibilityRole="button"
                     accessibilityLabel={`Use ${metric.displayName}`}
+                    className="min-h-11 justify-center"
                     onPress={() => void replaceMetric(view, metric.key)}
                   >
                     <AppText variant="caption">Use {metric.displayName}</AppText>
@@ -235,6 +237,7 @@ export default function SavedViewsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Open ${view.name}`}
+            className="min-h-11 justify-center"
             disabled={trendQueryFromSavedView(view) === null}
             onPress={() => {
               const query = trendQueryFromSavedView(view);
@@ -254,6 +257,7 @@ export default function SavedViewsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Duplicate ${view.name}`}
+            className="min-h-11 justify-center"
             onPress={() => void duplicate(view.id)}
           >
             <AppText variant="caption">Duplicate</AppText>
@@ -261,6 +265,7 @@ export default function SavedViewsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Rename ${view.name}`}
+            className="min-h-11 justify-center"
             onPress={() => {
               setEditingId(view.id);
               setEditingName(view.name);
@@ -272,6 +277,7 @@ export default function SavedViewsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Move ${view.name} earlier`}
+              className="min-h-11 justify-center"
               disabled={index === 0}
               onPress={() => void reorder(view.id, -1)}
             >
@@ -280,6 +286,7 @@ export default function SavedViewsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Move ${view.name} later`}
+              className="min-h-11 justify-center"
               disabled={index === views.length - 1}
               onPress={() => void reorder(view.id, 1)}
             >
@@ -292,6 +299,7 @@ export default function SavedViewsScreen() {
               pinnedId === view.id ? `Unpin ${view.name}` : `Pin ${view.name}`
             }
             onPress={() => void togglePin(view.id)}
+            className="min-h-11 justify-center"
           >
             <AppText variant="caption">
               {pinnedId === view.id ? 'Unpin' : 'Pin'}
@@ -300,6 +308,7 @@ export default function SavedViewsScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Delete ${view.name}`}
+            className="min-h-11 justify-center"
             onPress={() => confirmDelete(view)}
           >
             <AppText variant="caption" className="text-error">
