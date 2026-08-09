@@ -5,6 +5,7 @@ import {
   type AnalyticsMetricKey,
   type AnalyticsSavedView,
   type AnalyticsSavedViewCreateInput,
+  type AnalyticsSavedViewUpdateInput,
   type TrendQueryInput,
 } from '@food-tracker/shared';
 
@@ -65,6 +66,18 @@ export function savedViewInputFromTrend(
     visualization: trend.visualization,
     showReference: trend.showReference,
     coverageFilter: trend.coverageFilter,
+  };
+}
+
+/** Updating a saved view clears a prior comparison when the active Trend has none. */
+export function savedViewUpdateInputFromTrend(
+  trend: TrendQueryInput,
+  name?: string,
+): AnalyticsSavedViewUpdateInput {
+  const input = savedViewInputFromTrend(trend, name);
+  return {
+    ...input,
+    comparisonMetric: trend.comparisonMetric ?? null,
   };
 }
 

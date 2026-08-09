@@ -11,12 +11,16 @@ import { api, errorMessage } from '@/lib/api-client';
 import {
   autoSavedViewName,
   savedViewInputFromTrend,
+  savedViewUpdateInputFromTrend,
   trendQueryFromRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
 
 export default function SaveViewScreen() {
   const router = useRouter();
-  const { query: rawQuery } = useLocalSearchParams<{ query?: string }>();
+  const { query: rawQuery, savedViewId } = useLocalSearchParams<{
+    query?: string;
+    savedViewId?: string;
+  }>();
   const trend = useMemo(() => trendQueryFromRouteParam(rawQuery), [rawQuery]);
   const [name, setName] = useState(() =>
     trend === null
@@ -35,12 +39,19 @@ export default function SaveViewScreen() {
     else router.replace('/trends/saved-views' as never);
   };
 
-  const save = async () => {
+  const save = async (asNew: boolean) => {
     if (trend === null) return;
     setSaving(true);
     setError(null);
     try {
-      await api.analytics.createSavedView(savedViewInputFromTrend(trend, name));
+      if (savedViewId !== undefined && !asNew) {
+        await api.analytics.updateSavedView(
+          savedViewId,
+          savedViewUpdateInputFromTrend(trend, name),
+        );
+      } else {
+        await api.analytics.createSavedView(savedViewInputFromTrend(trend, name));
+      }
       router.replace('/trends/saved-views' as never);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -64,9 +75,27 @@ export default function SaveViewScreen() {
     <AppScreen
       contentClassName="gap-6 pb-8"
       footer={
-        <AppButton loading={saving} onPress={() => void save()}>
-          Save view
-        </AppButton>
+        <View className="gap-2">
+          {savedViewId === undefined ? null : (
+            <AppButton
+              loading={saving}
+              accessibilityLabel="Update existing view"
+              onPress={() => void save(false)}
+            >
+              Update existing
+            </AppButton>
+          )}
+          <AppButton
+            variant={savedViewId === undefined ? 'primary' : 'secondary'}
+            loading={saving}
+            accessibilityLabel={
+              savedViewId === undefined ? 'Save view' : 'Save as new view'
+            }
+            onPress={() => void save(true)}
+          >
+            {savedViewId === undefined ? 'Save view' : 'Save as new'}
+          </AppButton>
+        </View>
       }
     >
       <ScreenHeader
@@ -83,7 +112,7 @@ export default function SaveViewScreen() {
         }
       />
       {error === null ? null : (
-        <ErrorState message={error} onRetry={() => void save()} />
+        <ErrorState message={error} onRetry={() => void save(savedViewId === undefined)} />
       )}
       <View className="gap-2 rounded-app bg-module p-4">
         <AppText variant="label">{trend.primaryMetric}</AppText>

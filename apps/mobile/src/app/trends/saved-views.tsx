@@ -2,7 +2,10 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
-import type { AnalyticsSavedView } from '@food-tracker/shared';
+import type {
+  AnalyticsMetricDefinition,
+  AnalyticsSavedView,
+} from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
 import { AppInput } from '@/components/app-input';
 import { AppText } from '@/components/app-text';
@@ -20,6 +23,10 @@ export default function SavedViewsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [replacingId, setReplacingId] = useState<string | null>(null);
+  const [replacementMetrics, setReplacementMetrics] = useState<
+    AnalyticsMetricDefinition[]
+  >([]);
   const load = useCallback(async () => {
     try {
       const [savedViews, preferences] = await Promise.all([
@@ -101,6 +108,57 @@ export default function SavedViewsScreen() {
       setError(errorMessage(cause));
     }
   };
+  const canReplaceMetric = (
+    view: AnalyticsSavedView,
+    metric: AnalyticsMetricDefinition,
+  ) =>
+    metric.complexAvailable &&
+    metric.supportedAggregations.includes(
+      view.aggregation as (typeof metric.supportedAggregations)[number],
+    ) &&
+    metric.supportedVisualizations.includes(
+      view.visualization as (typeof metric.supportedVisualizations)[number],
+    ) &&
+    metric.supportedCoverageFilters.includes(
+      view.coverageFilter as (typeof metric.supportedCoverageFilters)[number],
+    );
+  const beginReplacement = async (view: AnalyticsSavedView) => {
+    setError(null);
+    try {
+      const catalog = await api.analytics.trendCatalog();
+      if (catalog.mode !== 'complex') {
+        setError('Saved view replacements are available in Complex mode only.');
+        return;
+      }
+      setReplacementMetrics(
+        catalog.metrics.filter((metric) => canReplaceMetric(view, metric)),
+      );
+      setReplacingId(view.id);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+  const replaceMetric = async (
+    view: AnalyticsSavedView,
+    primaryMetric: AnalyticsMetricDefinition['key'],
+  ) => {
+    setError(null);
+    try {
+      const savedView = await api.analytics.updateSavedView(view.id, {
+        primaryMetric,
+        comparisonMetric: null,
+      });
+      setViews((current) =>
+        current.map((currentView) =>
+          currentView.id === view.id ? savedView : currentView,
+        ),
+      );
+      setReplacingId(null);
+      setReplacementMetrics([]);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
   const confirmDelete = (view: AnalyticsSavedView) => {
     const proceed = () => void remove(view.id);
     if (Platform.OS === 'web') {
@@ -146,6 +204,33 @@ export default function SavedViewsScreen() {
               ? `${view.periodDays}D`
               : `Needs replacement: ${view.unavailableMetrics.join(', ')}`}
           </AppText>
+          {view.unavailableMetrics.length === 0 ? null : (
+            <View className="gap-2">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Replace unavailable metric for ${view.name}`}
+                onPress={() => void beginReplacement(view)}
+              >
+                <AppText variant="caption">Replace metric</AppText>
+              </Pressable>
+              {replacingId !== view.id ? null : replacementMetrics.length === 0 ? (
+                <AppText muted>
+                  No current metric supports this saved configuration.
+                </AppText>
+              ) : (
+                replacementMetrics.map((metric) => (
+                  <Pressable
+                    key={metric.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Use ${metric.displayName}`}
+                    onPress={() => void replaceMetric(view, metric.key)}
+                  >
+                    <AppText variant="caption">Use {metric.displayName}</AppText>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          )}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Open ${view.name}`}
@@ -158,6 +243,7 @@ export default function SavedViewsScreen() {
                 params: {
                   metric: query.primaryMetric,
                   query: trendQueryRouteParam(query),
+                  savedViewId: view.id,
                 },
               } as never);
             }}
