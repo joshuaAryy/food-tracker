@@ -256,6 +256,7 @@ export default function TrendDetailScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Configure this Trend"
+            className="min-h-11 justify-center"
             onPress={() =>
               router.push({
                 pathname: '/trends/configure',
@@ -268,6 +269,7 @@ export default function TrendDetailScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Save this Trend as a view"
+            className="min-h-11 justify-center"
             onPress={() =>
               router.push({
                 pathname: '/trends/save-view',
@@ -284,6 +286,7 @@ export default function TrendDetailScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="View food contributors"
+              className="min-h-11 justify-center"
               onPress={() =>
                 router.push({
                   pathname: '/trends/contributors',
