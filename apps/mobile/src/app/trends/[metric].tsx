@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   analyticsMetricForKey,
   analyticsMetricKeySchema,
+  canonicalTrendResponseSchema,
   type AnalyticsMetricKey,
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
@@ -18,6 +19,8 @@ import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
+import { analyticsCache, ANALYTICS_CACHE_KEYS } from '@/lib/analytics/analytics-cache-runtime';
 import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
 import {
   analyticsResourceReducer,
@@ -67,6 +70,7 @@ function loggingHeatmapColor(state: string): string {
 
 export default function TrendDetailScreen() {
   const router = useRouter();
+  const { userId } = useAuthRuntime();
   const { metric: rawMetric, query: rawQuery } = useLocalSearchParams<{
     metric?: string;
     query?: string;
@@ -108,16 +112,38 @@ export default function TrendDetailScreen() {
       }),
     [metric, restoredQuery, selectedRelativePeriod],
   );
+  const cacheKey = useMemo(
+    () => ANALYTICS_CACHE_KEYS.trend(JSON.stringify(activeQuery)),
+    [activeQuery],
+  );
 
   const load = useCallback(async (asRefresh = false) => {
+    if (!asRefresh && userId !== null) {
+      try {
+        const cached = await analyticsCache().read(
+          userId,
+          cacheKey,
+          (value): value is CanonicalTrendResponse =>
+            canonicalTrendResponseSchema.safeParse(value).success,
+        );
+        if (cached !== null) {
+          dispatchTrend({ type: 'commit', value: cached.value, updatedAt: cached.updatedAt });
+        }
+      } catch {
+        // Cache failures never block canonical network analytics.
+      }
+    }
     dispatchTrend({ type: asRefresh ? 'refresh' : 'load' });
     try {
       const replacement = await api.analytics.trend({ ...activeQuery });
       dispatchTrend({ type: 'commit', value: replacement, updatedAt: Date.now() });
+      if (userId !== null) {
+        void analyticsCache().write(userId, cacheKey, replacement).catch(() => undefined);
+      }
     } catch (cause) {
       dispatchTrend({ type: 'failure', message: errorMessage(cause) });
     }
-  }, [activeQuery]);
+  }, [activeQuery, cacheKey, userId]);
 
   useEffect(() => {
     void load();
