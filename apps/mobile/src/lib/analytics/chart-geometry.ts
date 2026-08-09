@@ -59,6 +59,29 @@ export function linePath(
     .join(' ');
 }
 
+export function barRects(
+  values: readonly (number | null)[],
+  domain: ChartDomain,
+  size: ChartSize,
+): { index: number; x: number; y: number; width: number; height: number }[] {
+  const slotWidth = size.width / Math.max(values.length, 1);
+  const width = slotWidth * 0.8;
+  const baseline = yFor(0, domain, size.height);
+  return values.flatMap((value, index) => {
+    if (value === null || !Number.isFinite(value)) return [];
+    const y = yFor(value, domain, size.height);
+    return [
+      {
+        index,
+        x: coordinate(index * slotWidth + (slotWidth - width) / 2),
+        y: coordinate(Math.min(y, baseline)),
+        width: coordinate(width),
+        height: coordinate(Math.abs(baseline - y)),
+      },
+    ];
+  });
+}
+
 export function referenceLineY(
   reference: number,
   domain: ChartDomain,

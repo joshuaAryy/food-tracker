@@ -5,9 +5,18 @@ import {
   linePath,
   referenceLineY,
   uncertaintyPolygon,
+  barRects,
 } from './chart-geometry';
 
 describe('analytics chart geometry', () => {
+  it('creates bars only for numeric points and preserves a zero bar', () => {
+    expect(
+      barRects([10, null, 0], { min: 0, max: 10 }, { width: 90, height: 100 }),
+    ).toEqual([
+      { index: 0, x: 3, y: 0, width: 24, height: 100 },
+      { index: 2, x: 63, y: 100, width: 24, height: 0 },
+    ]);
+  });
   it('decimates labels while keeping both bounds visible', () => {
     expect(decimateLabelIndexes(10, 4)).toEqual([0, 3, 6, 9]);
     expect(decimateLabelIndexes(3, 4)).toEqual([0, 1, 2]);
