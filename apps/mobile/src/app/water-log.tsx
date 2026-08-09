@@ -145,7 +145,12 @@ export default function WaterLogScreen() {
         <ScreenHeader
           title="Water entry"
           action={
-            <Pressable onPress={close}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close water logger"
+              className="min-h-11 justify-center"
+              onPress={close}
+            >
               <AppText>Close</AppText>
             </Pressable>
           }
@@ -190,7 +195,8 @@ export default function WaterLogScreen() {
         action={
           <Pressable
             accessibilityRole="button"
-            className="rounded-full bg-surface px-3.5 py-2"
+            accessibilityLabel="Close water logger"
+            className="min-h-11 justify-center rounded-full bg-surface px-3.5 py-2"
             onPress={close}
           >
             <AppText variant="label" className="text-sage-dark">
