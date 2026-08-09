@@ -89,6 +89,18 @@ describe('Insights pinned view', () => {
     );
   });
 
+  it('keeps the pinned Insights preview as a minimum-size accessible Trend entrypoint', async () => {
+    const screen = await render(<InsightsScreen />);
+
+    expect(
+      (
+        await screen.findByRole('button', {
+          name: 'Open pinned view: Protein · 30D',
+        })
+      ).props.className,
+    ).toContain('min-h-11');
+  });
+
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
     jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
       mode: 'simple',

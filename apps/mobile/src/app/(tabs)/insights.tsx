@@ -321,7 +321,7 @@ function PinnedInsightsView({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open pinned view: ${label}`}
-      className="gap-1 border-t border-line py-4 active:opacity-70"
+      className="min-h-11 gap-1 border-t border-line py-4 active:opacity-70"
       onPress={() =>
         router.push({
           pathname: '/trends/[metric]',
