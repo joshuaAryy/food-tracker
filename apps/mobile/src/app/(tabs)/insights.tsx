@@ -298,6 +298,7 @@ export default function InsightsScreen() {
   const [recommendationsError, setRecommendationsError] = useState<
     string | null
   >(null);
+  const [pinnedViewError, setPinnedViewError] = useState<string | null>(null);
 
   const loadReporting = useCallback(
     async (nextPeriod: 'week' | 'month', asRefresh = false) => {
@@ -308,15 +309,23 @@ export default function InsightsScreen() {
         const insights = await api.analytics.insights(nextPeriod);
         setReport(insights);
         if (insights.mode === 'complex') {
-          const [preferences, views] = await Promise.all([
-            api.analytics.preferences(),
-            api.analytics.savedViews(),
-          ]);
-          setAnalyticsPreferences(preferences);
-          setSavedViews(views);
+          try {
+            const [preferences, views] = await Promise.all([
+              api.analytics.preferences(),
+              api.analytics.savedViews(),
+            ]);
+            setAnalyticsPreferences(preferences);
+            setSavedViews(views);
+            setPinnedViewError(null);
+          } catch (pinnedError) {
+            setAnalyticsPreferences(null);
+            setSavedViews([]);
+            setPinnedViewError(errorMessage(pinnedError));
+          }
         } else {
           setAnalyticsPreferences(null);
           setSavedViews([]);
+          setPinnedViewError(null);
         }
       } catch (loadError) {
         setReportError(errorMessage(loadError));
@@ -439,6 +448,12 @@ export default function InsightsScreen() {
               views={savedViews}
             />
           ) : null}
+          {pinnedViewError === null ? null : (
+            <AppText variant="caption" muted>
+              Your primary view is unavailable right now. Insights remain up to
+              date.
+            </AppText>
+          )}
           <CanonicalInsightsContent insights={report} />
         </>
       )}

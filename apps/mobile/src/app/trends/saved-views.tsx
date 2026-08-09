@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, Platform, Pressable, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type { AnalyticsSavedView } from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
@@ -48,6 +49,18 @@ export default function SavedViewsScreen() {
     try {
       await api.analytics.deleteSavedView(id);
       await load();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+  const togglePin = async (id: string) => {
+    setError(null);
+    try {
+      const preferences = await api.analytics.updatePreferences({
+        pinnedSavedViewId: pinnedId === id ? null : id,
+      });
+      setPinnedId(preferences.pinnedSavedViewId);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (cause) {
       setError(errorMessage(cause));
     }
@@ -106,12 +119,7 @@ export default function SavedViewsScreen() {
             accessibilityLabel={
               pinnedId === view.id ? `Unpin ${view.name}` : `Pin ${view.name}`
             }
-            onPress={async () => {
-              const preferences = await api.analytics.updatePreferences({
-                pinnedSavedViewId: pinnedId === view.id ? null : view.id,
-              });
-              setPinnedId(preferences.pinnedSavedViewId);
-            }}
+            onPress={() => void togglePin(view.id)}
           >
             <AppText variant="caption">
               {pinnedId === view.id ? 'Unpin' : 'Pin'}
