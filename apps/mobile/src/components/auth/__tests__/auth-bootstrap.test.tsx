@@ -7,6 +7,7 @@ import type { FirebaseAuthUser } from '../../../services/auth-service';
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockReportDiagnostic = jest.fn();
+const mockPurgeNativeAnalyticsCache = jest.fn();
 let mockSegments: string[] = ['(auth)', 'loading'];
 
 jest.mock('expo-router', () => ({
@@ -18,6 +19,11 @@ jest.mock('@/lib/safe-diagnostics', () => ({
   reportDiagnostic: (...args: unknown[]) => mockReportDiagnostic(...args),
 }));
 
+jest.mock('@/lib/analytics/analytics-cache-native', () => ({
+  purgeNativeAnalyticsCache: (...args: unknown[]) =>
+    mockPurgeNativeAnalyticsCache(...args),
+}));
+
 type Runtime = {
   authService: {
     onIdTokenChanged(
@@ -26,6 +32,7 @@ type Runtime = {
     getIdToken(forceRefresh?: boolean): Promise<string>;
     signOut(): Promise<void>;
   };
+  deleteAccount?(): Promise<void>;
   getSetupStatus(): Promise<{ isComplete: boolean }>;
   configureApiSession(session: {
     clearSession(): Promise<void> | void;
@@ -54,11 +61,30 @@ function verifiedUser(): FirebaseAuthUser {
   };
 }
 
+function AnalyticsCleanupControls() {
+  const { deleteAccount, signOut } = useAuthRuntime();
+  return (
+    <>
+      <Pressable accessibilityRole="button" onPress={() => void signOut()}>
+        <Text>Sign out from test</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => void deleteAccount()}
+      >
+        <Text>Delete account from test</Text>
+      </Pressable>
+    </>
+  );
+}
+
 describe('AuthBootstrap initialization', () => {
   beforeEach(() => {
     mockReplace.mockClear();
     mockPush.mockClear();
     mockReportDiagnostic.mockClear();
+    mockPurgeNativeAnalyticsCache.mockReset();
+    mockPurgeNativeAnalyticsCache.mockResolvedValue(undefined);
     mockSegments = ['(auth)', 'loading'];
   });
 
@@ -342,5 +368,90 @@ describe('AuthBootstrap initialization', () => {
 
     screen.unmount();
     await waitFor(() => expect(unsubscribe).toHaveBeenCalledTimes(1));
+  });
+
+  it('purges the signed-in user analytics cache before signing out', async () => {
+    let listener: ((user: FirebaseAuthUser | null) => void) | undefined;
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    const runtime: Runtime = {
+      authService: {
+        onIdTokenChanged(next) {
+          listener = next;
+          return jest.fn();
+        },
+        getIdToken: jest.fn(),
+        signOut,
+      },
+      getSetupStatus: jest.fn().mockResolvedValue({ isComplete: true }),
+      configureApiSession: jest.fn(),
+    };
+    const screen = await render(
+      <TestAuthBootstrap loadRuntime={async () => runtime}>
+        <AnalyticsCleanupControls />
+      </TestAuthBootstrap>,
+    );
+
+    await act(async () => listener?.(verifiedUser()));
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('button', { name: 'Sign out from test' }));
+
+    await waitFor(() => {
+      expect(mockPurgeNativeAnalyticsCache).toHaveBeenCalledWith(
+        'firebase-user-1',
+      );
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    const purgeOrder =
+      mockPurgeNativeAnalyticsCache.mock.invocationCallOrder[0];
+    const signOutOrder = signOut.mock.invocationCallOrder[0];
+    expect(purgeOrder).toBeDefined();
+    expect(signOutOrder).toBeDefined();
+    expect(purgeOrder!).toBeLessThan(signOutOrder!);
+    screen.unmount();
+  });
+
+  it('purges the signed-in user analytics cache after server account deletion', async () => {
+    let listener: ((user: FirebaseAuthUser | null) => void) | undefined;
+    const deleteAccount = jest.fn().mockResolvedValue(undefined);
+    const runtime: Runtime = {
+      authService: {
+        onIdTokenChanged(next) {
+          listener = next;
+          return jest.fn();
+        },
+        getIdToken: jest.fn(),
+        signOut: jest.fn().mockResolvedValue(undefined),
+      },
+      deleteAccount,
+      getSetupStatus: jest.fn().mockResolvedValue({ isComplete: true }),
+      configureApiSession: jest.fn(),
+    };
+    const screen = await render(
+      <TestAuthBootstrap loadRuntime={async () => runtime}>
+        <AnalyticsCleanupControls />
+      </TestAuthBootstrap>,
+    );
+
+    await act(async () => listener?.(verifiedUser()));
+    await userEvent.setup().press(
+      await screen.findByRole('button', {
+        name: 'Delete account from test',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(deleteAccount).toHaveBeenCalledTimes(1);
+      expect(mockPurgeNativeAnalyticsCache).toHaveBeenCalledWith(
+        'firebase-user-1',
+      );
+    });
+    const deleteOrder = deleteAccount.mock.invocationCallOrder[0];
+    const purgeOrder =
+      mockPurgeNativeAnalyticsCache.mock.invocationCallOrder[0];
+    expect(deleteOrder).toBeDefined();
+    expect(purgeOrder).toBeDefined();
+    expect(deleteOrder!).toBeLessThan(purgeOrder!);
+    screen.unmount();
   });
 });
