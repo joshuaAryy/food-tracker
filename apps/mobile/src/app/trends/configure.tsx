@@ -244,18 +244,36 @@ export default function ConfigureTrendScreen() {
           </Pressable>
         ))}
       </View>
-      <Pressable
-        accessibilityRole="switch"
-        accessibilityState={{ checked: draft.showReference }}
-        className="min-h-11 rounded-app bg-module px-4 py-3"
-        onPress={() =>
-          setDraft(
-            updateTrendDraft(draft, { showReference: !draft.showReference }),
-          )
-        }
-      >
-        <AppText variant="label">Show target or reference</AppText>
-      </Pressable>
+      {definition.referenceSupport === 'none' ? null : (
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: draft.showReference }}
+          className="min-h-11 rounded-app bg-module px-4 py-3"
+          onPress={() =>
+            setDraft(
+              updateTrendDraft(draft, { showReference: !draft.showReference }),
+            )
+          }
+        >
+          <AppText variant="label">Show target or reference</AppText>
+        </Pressable>
+      )}
+      {supportsForecastControl(draft.primaryMetric) ? (
+        <Pressable
+          accessibilityRole="switch"
+          accessibilityState={{ checked: draft.includeForecast === true }}
+          className="min-h-11 rounded-app bg-module px-4 py-3"
+          onPress={() =>
+            setDraft(
+              updateTrendDraft(draft, {
+                includeForecast: draft.includeForecast !== true,
+              }),
+            )
+          }
+        >
+          <AppText variant="label">Show seven-day estimate</AppText>
+        </Pressable>
+      ) : null}
     </AppScreen>
   );
 }
