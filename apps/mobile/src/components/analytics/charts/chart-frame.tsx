@@ -8,7 +8,7 @@ export function ChartFrame({
   selectedDescription,
 }: {
   accessibilityLabel: string;
-  children: ReactNode;
+  children?: ReactNode | undefined;
   selectedDescription?: string | undefined;
 }) {
   return (
