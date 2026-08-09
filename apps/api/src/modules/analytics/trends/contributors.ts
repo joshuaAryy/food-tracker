@@ -102,9 +102,9 @@ export async function computeAnalyticsContributors(
   );
   const displayed = (options.includeAll ? all : all.slice(0, 3)).map(
     ({ foodName, value }) => ({
-    foodName,
-    value,
-    percentage: recordedTotal === 0 ? 0 : value / recordedTotal,
+      foodName,
+      value,
+      percentage: recordedTotal === 0 ? 0 : value / recordedTotal,
     }),
   );
   const remainderValue = all
