@@ -19,6 +19,10 @@ import { api, errorMessage } from '@/lib/api-client';
 import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
 import { coreTrendPresentation } from '@/lib/analytics/trend-presentation';
 import {
+  metricCoverageMessage,
+  referenceMessage,
+} from '@/lib/analytics/trend-data-state';
+import {
   trendQueryFromRouteParam,
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
@@ -142,6 +146,19 @@ export default function TrendDetailScreen() {
       }) ?? [],
     [trend],
   );
+  const metricCoverage = useMemo(() => {
+    const counts = { recorded: 0, partial: 0, unknown: 0 };
+    for (const point of trend?.points ?? []) {
+      if (point.kind === 'aggregated') {
+        counts.recorded += point.metricCounts.recorded;
+        counts.partial += point.metricCounts.partial;
+        counts.unknown += point.metricCounts.unknown;
+      } else if (point.metricDataState !== null) {
+        counts[point.metricDataState] += 1;
+      }
+    }
+    return counts;
+  }, [trend]);
 
   return (
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
@@ -252,6 +269,20 @@ export default function TrendDetailScreen() {
               ? 'No recorded values in this period.'
               : `Average ${trend.summary.average.toFixed(1)} ${definition.unit}`}
           </AppText>
+          {trend.trackingMode === 'complex' ? (
+            <View className="gap-1">
+              {referenceMessage(trend.reference) === null ? null : (
+                <AppText variant="caption" muted>
+                  {referenceMessage(trend.reference)}
+                </AppText>
+              )}
+              {metricCoverageMessage(metricCoverage) === null ? null : (
+                <AppText variant="caption" muted>
+                  {metricCoverageMessage(metricCoverage)}
+                </AppText>
+              )}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </AppScreen>
