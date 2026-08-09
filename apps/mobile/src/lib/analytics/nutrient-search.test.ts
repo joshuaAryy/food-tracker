@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { analyticsMetricsForMode } from '@food-tracker/shared';
 import { searchAnalyticsMetrics } from './nutrient-search';
 
 describe('analytics nutrient search', () => {
@@ -20,5 +21,11 @@ describe('analytics nutrient search', () => {
       first,
     );
     expect(first).toContain('iron');
+  });
+
+  it('searches only the catalog the backend allowed for the current mode', () => {
+    expect(
+      searchAnalyticsMetrics('vit', analyticsMetricsForMode('simple')),
+    ).toEqual([]);
   });
 });

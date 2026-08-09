@@ -77,9 +77,12 @@ function scoreMetric(
 
 export function searchAnalyticsMetrics(
   query: string,
+  metrics: readonly AnalyticsMetricDefinition[] = analyticsMetricsForMode(
+    'complex',
+  ),
 ): AnalyticsMetricDefinition[] {
   const normalizedQuery = normalize(query);
-  return analyticsMetricsForMode('complex')
+  return metrics
     .flatMap((metric) => {
       const score = scoreMetric(metric, normalizedQuery);
       return score === null ? [] : [{ metric, score }];
