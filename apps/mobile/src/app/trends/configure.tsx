@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  analyticsMetricForKey,
+  analyticsMetricsForMode,
+} from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -8,7 +12,9 @@ import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import {
   applyTrendDraft,
+  comparisonCandidates,
   createTrendDraft,
+  supportsForecastControl,
   updateTrendDraft,
 } from '@/lib/analytics/trend-config';
 import {
@@ -44,6 +50,8 @@ export default function ConfigureTrendScreen() {
       </AppScreen>
     );
   }
+  const definition = analyticsMetricForKey(draft.primaryMetric);
+  const candidates = comparisonCandidates(draft.primaryMetric);
   const apply = () => {
     const query = applyTrendDraft(active, draft);
     router.replace({
@@ -68,6 +76,152 @@ export default function ConfigureTrendScreen() {
           </Pressable>
         }
       />
+      <View className="gap-2">
+        <AppText variant="label">Primary metric</AppText>
+        {analyticsMetricsForMode('complex').map((metric) => (
+          <Pressable
+            key={metric.key}
+            accessibilityRole="button"
+            accessibilityState={{
+              selected: draft.primaryMetric === metric.key,
+            }}
+            className={`min-h-11 rounded-app px-4 py-3 ${draft.primaryMetric === metric.key ? 'bg-ink' : 'bg-module'}`}
+            onPress={() =>
+              setDraft(
+                updateTrendDraft(draft, {
+                  primaryMetric: metric.key,
+                  comparisonMetric: null,
+                  visualization: 'automatic',
+                  aggregation: 'automatic',
+                }),
+              )
+            }
+          >
+            <AppText
+              className={
+                draft.primaryMetric === metric.key ? 'text-white' : 'text-ink'
+              }
+            >
+              {metric.displayName}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+      <View className="gap-2">
+        <AppText variant="label">Compare with</AppText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{
+            selected: draft.comparisonMetric === undefined,
+          }}
+          className={`min-h-11 rounded-app px-4 py-3 ${draft.comparisonMetric === undefined ? 'bg-ink' : 'bg-module'}`}
+          onPress={() =>
+            setDraft(updateTrendDraft(draft, { comparisonMetric: null }))
+          }
+        >
+          <AppText
+            className={
+              draft.comparisonMetric === undefined ? 'text-white' : 'text-ink'
+            }
+          >
+            No comparison
+          </AppText>
+        </Pressable>
+        {candidates.map((candidate) => (
+          <Pressable
+            key={candidate}
+            accessibilityRole="button"
+            accessibilityState={{
+              selected: draft.comparisonMetric === candidate,
+            }}
+            className={`min-h-11 rounded-app px-4 py-3 ${draft.comparisonMetric === candidate ? 'bg-ink' : 'bg-module'}`}
+            onPress={() =>
+              setDraft(updateTrendDraft(draft, { comparisonMetric: candidate }))
+            }
+          >
+            <AppText
+              className={
+                draft.comparisonMetric === candidate ? 'text-white' : 'text-ink'
+              }
+            >
+              {analyticsMetricForKey(candidate).displayName}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+      <View className="gap-2">
+        <AppText variant="label">Period</AppText>
+        {[7, 30, 90].map((days) => (
+          <Pressable
+            key={days}
+            accessibilityRole="button"
+            className="min-h-11 rounded-app bg-module px-4 py-3"
+            onPress={() =>
+              setDraft(
+                updateTrendDraft(draft, { period: { kind: 'relative', days } }),
+              )
+            }
+          >
+            <AppText>{days}D</AppText>
+          </Pressable>
+        ))}
+        <Pressable
+          accessibilityRole="button"
+          className="min-h-11 rounded-app bg-module px-4 py-3"
+          onPress={() =>
+            router.push({
+              pathname: '/trends/custom-range',
+              params: { query: trendQueryRouteParam(draft) },
+            } as never)
+          }
+        >
+          <AppText>Custom Range</AppText>
+        </Pressable>
+      </View>
+      <View className="gap-2">
+        <AppText variant="label">Aggregation</AppText>
+        {definition.supportedAggregations.map((aggregation) => (
+          <Pressable
+            key={aggregation}
+            accessibilityRole="button"
+            accessibilityState={{ selected: draft.aggregation === aggregation }}
+            className={`min-h-11 rounded-app px-4 py-3 ${draft.aggregation === aggregation ? 'bg-ink' : 'bg-module'}`}
+            onPress={() => setDraft(updateTrendDraft(draft, { aggregation }))}
+          >
+            <AppText
+              className={
+                draft.aggregation === aggregation ? 'text-white' : 'text-ink'
+              }
+            >
+              {aggregation}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
+      <View className="gap-2">
+        <AppText variant="label">Visualization</AppText>
+        {definition.supportedVisualizations.map((visualization) => (
+          <Pressable
+            key={visualization}
+            accessibilityRole="button"
+            accessibilityState={{
+              selected: draft.visualization === visualization,
+            }}
+            className={`min-h-11 rounded-app px-4 py-3 ${draft.visualization === visualization ? 'bg-ink' : 'bg-module'}`}
+            onPress={() => setDraft(updateTrendDraft(draft, { visualization }))}
+          >
+            <AppText
+              className={
+                draft.visualization === visualization
+                  ? 'text-white'
+                  : 'text-ink'
+              }
+            >
+              {visualization}
+            </AppText>
+          </Pressable>
+        ))}
+      </View>
       <View className="gap-2">
         <AppText variant="label">Data coverage</AppText>
         {coverageOptions.map(([value, label]) => (

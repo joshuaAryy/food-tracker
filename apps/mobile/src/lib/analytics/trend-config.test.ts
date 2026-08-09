@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyTrendDraft,
+  comparisonCandidates,
   createTrendDraft,
+  supportsForecastControl,
   updateTrendDraft,
 } from './trend-config';
 
@@ -29,5 +31,13 @@ describe('Trend configuration draft', () => {
       comparisonMetric: 'weight',
     });
     expect(draft.comparisonMetric).toBe('weight');
+  });
+
+  it('offers only approved comparison candidates and only exposes forecasts for eligible metrics', () => {
+    expect(comparisonCandidates('protein')).toEqual(['carbs', 'weight']);
+    expect(comparisonCandidates('calories')).toEqual([]);
+    expect(supportsForecastControl('calories')).toBe(true);
+    expect(supportsForecastControl('weight')).toBe(true);
+    expect(supportsForecastControl('protein')).toBe(false);
   });
 });
