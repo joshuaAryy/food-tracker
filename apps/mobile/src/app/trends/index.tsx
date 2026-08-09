@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { FlatList, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   analyticsMetricForKey,
@@ -53,7 +53,11 @@ export default function TrendsExploreScreen() {
     return searchAnalyticsMetrics(query, catalog.metrics);
   }, [catalog, query]);
   return (
-    <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
+    <AppScreen
+      backgroundColor="#FFFFFF"
+      scroll={false}
+      contentClassName="flex-1 gap-5 pb-4"
+    >
       <ScreenHeader
         title="Explore Trends"
         subtitle={
@@ -75,31 +79,38 @@ export default function TrendsExploreScreen() {
       {catalogError === null ? null : (
         <ErrorState message={catalogError} onRetry={() => void loadCatalog()} />
       )}
-      <View className="gap-2">
-        {visibleMetrics.map((definition) => {
-          return (
-            <Pressable
-              key={definition.key}
-              accessibilityRole="button"
-              accessibilityLabel={`View ${definition.displayName} trend`}
-              className="min-h-11 rounded-app border border-line bg-module px-4 py-3 active:opacity-70"
-              onPress={() =>
-                router.push(trendRouteForMetric(definition.key) as never)
-              }
-            >
-              <AppText variant="label">{definition.displayName}</AppText>
-              <AppText variant="caption" muted>
-                {catalog?.mode === 'complex'
-                  ? `${definition.group} · ${definition.unit}`
-                  : definition.unit}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </View>
-      {catalog?.mode === 'complex' && visibleMetrics.length === 0 ? (
-        <AppText muted>No matching nutrition metrics.</AppText>
-      ) : null}
+      <FlatList
+        className="flex-1"
+        contentContainerClassName="gap-2 pb-8"
+        data={visibleMetrics}
+        keyExtractor={(definition) => definition.key}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        windowSize={5}
+        accessibilityLabel="Available analytics metrics"
+        renderItem={({ item: definition }) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`View ${definition.displayName} trend`}
+            className="min-h-11 rounded-app border border-line bg-module px-4 py-3 active:opacity-70"
+            onPress={() =>
+              router.push(trendRouteForMetric(definition.key) as never)
+            }
+          >
+            <AppText variant="label">{definition.displayName}</AppText>
+            <AppText variant="caption" muted>
+              {catalog?.mode === 'complex'
+                ? `${definition.group} · ${definition.unit}`
+                : definition.unit}
+            </AppText>
+          </Pressable>
+        )}
+        ListEmptyComponent={
+          catalog?.mode === 'complex' ? (
+            <AppText muted>No matching nutrition metrics.</AppText>
+          ) : null
+        }
+      />
     </AppScreen>
   );
 }
