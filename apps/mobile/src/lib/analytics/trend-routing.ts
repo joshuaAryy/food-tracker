@@ -1,4 +1,4 @@
-import type { AnalyticsMetricKey } from '@food-tracker/shared';
+import type { AnalyticsMetricKey, TrendQueryInput } from '@food-tracker/shared';
 
 export const simpleTrendMetrics = [
   'calories',
@@ -13,4 +13,31 @@ export const simpleTrendMetrics = [
 
 export function trendRouteForMetric(metric: AnalyticsMetricKey): string {
   return `/trends/${metric}`;
+}
+
+export function resolveTrendQuery({
+  metric,
+  restoredQuery,
+  selectedRelativePeriod,
+}: {
+  metric: AnalyticsMetricKey;
+  restoredQuery: TrendQueryInput | null;
+  selectedRelativePeriod: 7 | 30 | 90 | null;
+}): TrendQueryInput {
+  const query = restoredQuery ?? {
+    primaryMetric: metric,
+    period: { kind: 'relative' as const, days: 30 },
+    aggregation: 'automatic' as const,
+    visualization: 'automatic' as const,
+    showReference: true,
+    coverageFilter: 'all_logged_days' as const,
+  };
+  return {
+    ...query,
+    primaryMetric: metric,
+    period:
+      selectedRelativePeriod === null
+        ? query.period
+        : { kind: 'relative', days: selectedRelativePeriod },
+  };
 }

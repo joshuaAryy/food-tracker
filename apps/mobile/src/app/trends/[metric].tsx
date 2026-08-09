@@ -7,12 +7,17 @@ import {
   type AnalyticsMetricKey,
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
+import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
+import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
+import { MacroChart } from '@/components/analytics/charts/macro-chart';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
+import { coreTrendPresentation } from '@/lib/analytics/trend-presentation';
 import {
   trendQueryFromRouteParam,
   trendQueryRouteParam,
@@ -26,6 +31,28 @@ function referenceValue(response: CanonicalTrendResponse): number | null {
     response.reference.kind === 'limit'
     ? response.reference.value
     : null;
+}
+
+function referenceRange(response: CanonicalTrendResponse): {
+  lower: number;
+  upper: number;
+} | null {
+  return response.reference.kind === 'range'
+    ? { lower: response.reference.lower, upper: response.reference.upper }
+    : null;
+}
+
+function loggingHeatmapColor(state: string): string {
+  switch (state) {
+    case 'complete':
+      return '#33B866';
+    case 'partial':
+      return '#FFAD8F';
+    case 'in_progress':
+      return '#A5B4A2';
+    default:
+      return '#E7E7E7';
+  }
 }
 
 export default function TrendDetailScreen() {
@@ -46,26 +73,27 @@ export default function TrendDetailScreen() {
     : 'calories';
   const definition = analyticsMetricForKey(metric);
   const { width } = useWindowDimensions();
-  const [days, setDays] = useState<(typeof periods)[number]>(
+  const [selectedRelativePeriod, setSelectedRelativePeriod] = useState<
+    (typeof periods)[number] | null
+  >(
     restoredQuery?.period.kind === 'relative' &&
       periods.includes(restoredQuery.period.days as (typeof periods)[number])
       ? (restoredQuery.period.days as (typeof periods)[number])
-      : 30,
+      : restoredQuery === null
+        ? 30
+        : null,
   );
   const [trend, setTrend] = useState<CanonicalTrendResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const activeQuery = useMemo(
-    () => ({
-      ...restoredQuery,
-      primaryMetric: metric,
-      period: { kind: 'relative' as const, days },
-      aggregation: restoredQuery?.aggregation ?? 'automatic',
-      visualization: restoredQuery?.visualization ?? 'automatic',
-      showReference: restoredQuery?.showReference ?? true,
-      coverageFilter: restoredQuery?.coverageFilter ?? 'all_logged_days',
-    }),
-    [days, metric, restoredQuery],
+    () =>
+      resolveTrendQuery({
+        metric,
+        restoredQuery,
+        selectedRelativePeriod,
+      }),
+    [metric, restoredQuery, selectedRelativePeriod],
   );
 
   const load = useCallback(async () => {
@@ -94,6 +122,24 @@ export default function TrendDetailScreen() {
         date: point.kind === 'daily' ? point.date : point.bucketStartDate,
         value: point.value,
       })) ?? [],
+    [trend],
+  );
+  const presentation =
+    trend === null ? null : coreTrendPresentation(metric, trend.aggregation);
+  const loggingHeatmapPoints = useMemo(
+    () =>
+      trend?.points.flatMap((point) => {
+        if (point.kind !== 'daily') return [];
+        return [
+          {
+            date: point.date,
+            state:
+              point.loggingDayPhase === 'in_progress'
+                ? 'in_progress'
+                : point.loggingDayState,
+          } as const,
+        ];
+      }) ?? [],
     [trend],
   );
 
@@ -133,11 +179,15 @@ export default function TrendDetailScreen() {
           <Pressable
             key={period}
             accessibilityRole="button"
-            accessibilityState={{ selected: period === days }}
-            className={`min-h-11 rounded-full px-4 py-3 ${period === days ? 'bg-ink' : 'bg-module'}`}
-            onPress={() => setDays(period)}
+            accessibilityState={{ selected: period === selectedRelativePeriod }}
+            className={`min-h-11 rounded-full px-4 py-3 ${period === selectedRelativePeriod ? 'bg-ink' : 'bg-module'}`}
+            onPress={() => setSelectedRelativePeriod(period)}
           >
-            <AppText className={period === days ? 'text-white' : 'text-ink'}>
+            <AppText
+              className={
+                period === selectedRelativePeriod ? 'text-white' : 'text-ink'
+              }
+            >
               {period}D
             </AppText>
           </Pressable>
@@ -149,14 +199,17 @@ export default function TrendDetailScreen() {
       {loading ? <AppText muted>Loading trend…</AppText> : null}
       {trend !== null && !loading ? (
         <View className="gap-3">
-          {metric === 'macroComposition' &&
-          trend.macroComposition !== undefined ? (
+          {presentation === 'macro' && trend.macroComposition !== undefined ? (
             <View
               accessible
               accessibilityLabel="Macro composition from recorded food snapshots"
               className="gap-2 rounded-app bg-module p-4"
             >
               <AppText variant="label">Recorded macro composition</AppText>
+              <MacroChart
+                values={trend.macroComposition}
+                accessibilityLabel="Macro composition from recorded food snapshots"
+              />
               <AppText>
                 Protein: {trend.macroComposition.protein ?? 'Unknown'} g
               </AppText>
@@ -167,13 +220,29 @@ export default function TrendDetailScreen() {
                 Fat: {trend.macroComposition.fat ?? 'Unknown'} g
               </AppText>
             </View>
+          ) : presentation === 'logging_heatmap' ? (
+            <HeatmapChart
+              points={loggingHeatmapPoints}
+              colorForState={loggingHeatmapColor}
+              accessibilityLabel="Logging consistency by day"
+            />
+          ) : presentation === 'bars_with_trend' ? (
+            <BarTrendChart
+              data={dailyPoints}
+              width={Math.max(280, width - 40)}
+              color={metric === 'hydration' ? '#2F80ED' : '#C9242D'}
+              reference={referenceValue(trend)}
+              accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+            />
           ) : (
             <LineTrendChart
               data={dailyPoints}
               width={Math.max(280, width - 40)}
               color="#C9242D"
               reference={referenceValue(trend)}
-              accessibilityLabel={`${definition.displayName} trend for ${days} days`}
+              referenceRange={referenceRange(trend)}
+              showRawPoints={presentation === 'weight_line'}
+              accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
             />
           )}
           <AppText variant="caption" muted>
