@@ -121,7 +121,7 @@ function createTrendRequestContext(
 }
 
 function fixedAxisDomain(
-  points: readonly AnalyticsPoint[],
+  points: readonly Pick<AnalyticsPoint, 'value'>[],
   zeroBaseline = false,
 ) {
   const values = points.flatMap((point) =>
@@ -494,6 +494,15 @@ export async function computeCanonicalTrend(
     strategy === 'shared_unit'
       ? fixedAxisDomain([...primaryPoints, ...comparisonPoints], true)
       : null;
+  const normalizedDomain =
+    strategy === 'reference_normalized'
+      ? fixedAxisDomain(
+          [...primaryPoints, ...comparisonPoints].map((point) => ({
+            value: point.normalizedValue ?? null,
+          })),
+          true,
+        )
+      : null;
   return {
     ...response,
     points: primaryPoints,
@@ -502,9 +511,11 @@ export async function computeCanonicalTrend(
       metric: query.comparisonMetric,
       points: comparisonPoints,
       reference: comparison.reference,
-      sharedAxisDomain: sharedDomain,
-      primaryAxisDomain: sharedDomain ?? fixedAxisDomain(primaryPoints),
-      comparisonAxisDomain: sharedDomain ?? fixedAxisDomain(comparisonPoints),
+      sharedAxisDomain: sharedDomain ?? normalizedDomain,
+      primaryAxisDomain:
+        sharedDomain ?? normalizedDomain ?? fixedAxisDomain(primaryPoints),
+      comparisonAxisDomain:
+        sharedDomain ?? normalizedDomain ?? fixedAxisDomain(comparisonPoints),
     },
   };
 }

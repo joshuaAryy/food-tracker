@@ -8,6 +8,7 @@ import {
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
+import { ComparisonChart } from '@/components/analytics/charts/comparison-chart';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { MacroChart } from '@/components/analytics/charts/macro-chart';
@@ -125,6 +126,9 @@ export default function TrendDetailScreen() {
       trend?.points.map((point) => ({
         date: point.kind === 'daily' ? point.date : point.bucketStartDate,
         value: point.value,
+        ...(point.normalizedValue === undefined
+          ? {}
+          : { normalizedValue: point.normalizedValue }),
       })) ?? [],
     [trend],
   );
@@ -158,6 +162,29 @@ export default function TrendDetailScreen() {
       }
     }
     return counts;
+  }, [trend]);
+  const comparisonChart = useMemo(() => {
+    const comparison = trend?.comparison;
+    if (
+      comparison === undefined ||
+      comparison.primaryAxisDomain === null ||
+      comparison.comparisonAxisDomain === null
+    ) {
+      return null;
+    }
+    return {
+      strategy: comparison.strategy,
+      metric: comparison.metric,
+      primaryAxis: comparison.primaryAxisDomain,
+      comparisonAxis: comparison.comparisonAxisDomain,
+      comparisonPoints: comparison.points.map((point) => ({
+        date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+        value: point.value,
+        ...(point.normalizedValue === undefined
+          ? {}
+          : { normalizedValue: point.normalizedValue }),
+      })),
+    };
   }, [trend]);
 
   return (
@@ -233,7 +260,17 @@ export default function TrendDetailScreen() {
       {loading ? <AppText muted>Loading trend…</AppText> : null}
       {trend !== null && !loading ? (
         <View className="gap-3">
-          {presentation === 'macro' && trend.macroComposition !== undefined ? (
+          {comparisonChart !== null ? (
+            <ComparisonChart
+              primary={dailyPoints}
+              comparison={comparisonChart.comparisonPoints}
+              strategy={comparisonChart.strategy}
+              primaryAxis={comparisonChart.primaryAxis}
+              comparisonAxis={comparisonChart.comparisonAxis}
+              width={Math.max(280, width - 40)}
+              accessibilityLabel={`${definition.displayName} and ${analyticsMetricForKey(comparisonChart.metric).displayName} comparison for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+            />
+          ) : presentation === 'macro' && trend.macroComposition !== undefined ? (
             <View
               accessible
               accessibilityLabel="Macro composition from recorded food snapshots"

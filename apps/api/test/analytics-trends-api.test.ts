@@ -455,6 +455,11 @@ describe('canonical analytics trends API', () => {
       kind: 'minimum',
       value: 4700,
     });
+    expect(response.body.data.comparison).toMatchObject({
+      sharedAxisDomain: { minimum: 0, maximum: 0.5 },
+      primaryAxisDomain: { minimum: 0, maximum: 0.5 },
+      comparisonAxisDomain: { minimum: 0, maximum: 0.5 },
+    });
     expect(response.body.data.points).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
