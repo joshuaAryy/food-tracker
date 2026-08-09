@@ -199,4 +199,39 @@ describe('Saved Views screen', () => {
       ),
     ).toBeTruthy();
   });
+
+  it('confirms a successful pin with light haptic feedback', async () => {
+    jest.spyOn(api.analytics, 'savedViews').mockResolvedValueOnce([
+      {
+        id: '1',
+        name: 'Protein · 30D',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:00:00.000Z',
+        unavailableMetrics: [],
+      },
+    ]);
+    jest.spyOn(api.analytics, 'updatePreferences').mockResolvedValueOnce({
+      preferredSimpleMetric: 'calories',
+      pinnedSavedViewId: '1',
+    });
+    const user = userEvent.setup();
+    const screen = await render(<SavedViewsScreen />);
+
+    await user.press(
+      await screen.findByRole('button', { name: 'Pin Protein · 30D' }),
+    );
+
+    expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
+    expect(
+      screen.getByRole('button', { name: 'Unpin Protein · 30D' }),
+    ).toBeTruthy();
+  });
 });
