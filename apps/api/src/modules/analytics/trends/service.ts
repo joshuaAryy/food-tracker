@@ -20,6 +20,11 @@ import { metricReference, noReference } from './references.js';
 import { resolveAnalyticsPeriod } from './ranges.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 import { rollingAverageValues, smoothingWindowForTrend } from './smoothing.js';
+import {
+  eligibleCalorieForecastPoints,
+  DEFAULT_ANALYTICS_FORECAST_POLICY,
+} from './forecast-policy.js';
+import { selectDeterministicForecast } from './forecast.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -175,6 +180,44 @@ function inclusiveRangeDays(startDate: string, endDate: string): number {
   const start = new Date(`${startDate}T00:00:00.000Z`).getTime();
   const end = new Date(`${endDate}T00:00:00.000Z`).getTime();
   return Math.round((end - start) / (24 * 60 * 60 * 1000)) + 1;
+}
+
+function trendForecast({
+  metric,
+  includeForecast,
+  today,
+  dailyPoints,
+}: {
+  metric: TrendQueryInput['primaryMetric'];
+  includeForecast: boolean | undefined;
+  today: string;
+  dailyPoints: readonly AnalyticsDailyPoint[];
+}): CanonicalTrendResponse['forecast'] {
+  if (!includeForecast) return undefined;
+  if (metric !== 'calories' && metric !== 'weight') {
+    return { kind: 'unavailable', reason: 'not_applicable' };
+  }
+  const observations =
+    metric === 'calories'
+      ? eligibleCalorieForecastPoints(dailyPoints)
+      : dailyPoints.flatMap((point) =>
+          point.value === null ? [] : [{ date: point.date, value: point.value }],
+        );
+  const selected = selectDeterministicForecast(
+    observations,
+    DEFAULT_ANALYTICS_FORECAST_POLICY,
+  );
+  if (selected.kind === 'unavailable') return selected;
+  return {
+    kind: 'available',
+    model: selected.model,
+    todayDate: today,
+    horizonDays: selected.horizonDays,
+    points: selected.points.map((point, index) => ({
+      date: addLocalDays(today, index + 1),
+      ...point,
+    })),
+  };
 }
 
 type ColumnFoodMetric = (typeof COLUMN_BACKED_NUTRIENT_KEYS)[number];
@@ -423,6 +466,12 @@ export async function computeCanonicalTrend(
             rollingWindow,
           ),
         };
+  const forecast = trendForecast({
+    metric: query.primaryMetric,
+    includeForecast: query.includeForecast,
+    today,
+    dailyPoints,
+  });
   const response: CanonicalTrendResponse = {
     timezone,
     trackingMode: preferences?.mode ?? 'simple',
@@ -438,6 +487,7 @@ export async function computeCanonicalTrend(
     relatedMetrics: [...relatedAnalyticsMetricsForKey(query.primaryMetric)],
     points,
     ...(rollingTrend === undefined ? {} : { rollingTrend }),
+    ...(forecast === undefined ? {} : { forecast }),
     summary: {
       numericDayCount: numericValues.length,
       average:

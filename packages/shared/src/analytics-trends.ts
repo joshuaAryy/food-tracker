@@ -82,6 +82,19 @@ export interface AnalyticsAxisDomain {
   maximum: number;
 }
 
+export type AnalyticsForecast =
+  | {
+      kind: 'available';
+      model: 'mean' | 'linear_trend';
+      todayDate: string;
+      horizonDays: number;
+      points: { date: string; value: number; lower: number; upper: number }[];
+    }
+  | {
+      kind: 'unavailable';
+      reason: 'insufficient_coverage' | 'unstable' | 'not_applicable';
+    };
+
 export type AnalyticsReference =
   | {
       kind: 'target' | 'minimum' | 'limit';
@@ -144,6 +157,7 @@ export interface CanonicalTrendResponse {
     window: number;
     values: (number | null)[];
   };
+  forecast?: AnalyticsForecast;
   summary: { numericDayCount: number; average: number | null };
   comparison?: {
     strategy: AnalyticsComparisonStrategy;

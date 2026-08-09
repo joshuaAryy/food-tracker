@@ -99,6 +99,19 @@ describe('canonical analytics trends API', () => {
     );
   });
 
+  it('returns a typed unavailable calorie forecast instead of fabricating a sparse projection', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, includeForecast: true })
+      .expect(200);
+    expect(response.body.data.forecast).toEqual({
+      kind: 'unavailable',
+      reason: 'insufficient_coverage',
+    });
+  });
+
   it('returns a backend-owned rolling calorie series without smoothing across missing days', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });
