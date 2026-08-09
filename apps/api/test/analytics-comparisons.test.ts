@@ -18,4 +18,10 @@ describe('analytics comparison strategies', () => {
       'incompatible',
     );
   });
+
+  it('rejects self comparison through the shared allowlist', () => {
+    expect(resolveComparisonStrategy('protein', 'protein')).toBe(
+      'incompatible',
+    );
+  });
 });

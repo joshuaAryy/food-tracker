@@ -10,6 +10,9 @@ import {
   type AnalyticsUnit,
   type AnalyticsVisualization,
 } from './analytics-metrics.js';
+import type { AnalyticsComparisonStrategy } from './analytics-comparisons.js';
+
+export type { AnalyticsComparisonStrategy } from './analytics-comparisons.js';
 
 export const LOGGING_DAY_STATES = ['complete', 'partial', 'unlogged'] as const;
 export const LOGGING_DAY_PHASES = ['closed', 'in_progress'] as const;
@@ -73,11 +76,6 @@ export interface AnalyticsAggregatedPoint {
 }
 
 export type AnalyticsPoint = AnalyticsDailyPoint | AnalyticsAggregatedPoint;
-
-export type AnalyticsComparisonStrategy =
-  | 'shared_unit'
-  | 'dual_axis'
-  | 'reference_normalized';
 
 export interface AnalyticsAxisDomain {
   minimum: number;
