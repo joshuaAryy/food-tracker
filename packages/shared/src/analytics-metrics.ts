@@ -248,3 +248,22 @@ export function analyticsMetricIsAvailableInMode(
   const metric = analyticsMetricForKey(key);
   return mode === 'simple' ? metric.simpleAvailable : metric.complexAvailable;
 }
+
+const RELATED_METRIC_KEYS: Partial<
+  Record<AnalyticsMetricKey, readonly AnalyticsMetricKey[]>
+> = {
+  sodium: ['potassium'],
+  potassium: ['sodium'],
+  iron: ['vitaminC'],
+  vitaminC: ['iron'],
+  leucine: ['isoleucine', 'valine'],
+  isoleucine: ['leucine', 'valine'],
+  valine: ['leucine', 'isoleucine'],
+};
+
+/** Product-approved, non-causal navigation relationships for Complex details. */
+export function relatedAnalyticsMetricsForKey(
+  key: AnalyticsMetricKey,
+): readonly AnalyticsMetricKey[] {
+  return RELATED_METRIC_KEYS[key] ?? [];
+}

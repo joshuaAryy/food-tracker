@@ -335,6 +335,30 @@ export default function TrendDetailScreen() {
                   {metricCoverageMessage(metricCoverage)}
                 </AppText>
               )}
+              {trend.relatedMetrics.length === 0 ? null : (
+                <View className="gap-2 pt-2">
+                  <AppText variant="caption" muted>
+                    Related metrics
+                  </AppText>
+                  <View className="flex-row flex-wrap gap-2">
+                    {trend.relatedMetrics.map((relatedMetric) => (
+                      <Pressable
+                        key={relatedMetric}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${analyticsMetricForKey(relatedMetric).displayName} trend`}
+                        className="min-h-11 rounded-full bg-module px-4 py-3"
+                        onPress={() =>
+                          router.push(`/trends/${relatedMetric}` as never)
+                        }
+                      >
+                        <AppText variant="caption">
+                          {analyticsMetricForKey(relatedMetric).displayName}
+                        </AppText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              )}
             </View>
           ) : null}
         </View>

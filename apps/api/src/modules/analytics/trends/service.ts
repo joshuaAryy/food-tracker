@@ -6,6 +6,7 @@ import {
   type TrendQueryInput,
   COLUMN_BACKED_NUTRIENT_KEYS,
   NUTRIENT_CATALOG,
+  relatedAnalyticsMetricsForKey,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
 import { addLocalDays, localDate, localDateRange } from '../../../lib/dates.js';
@@ -434,6 +435,7 @@ export async function computeCanonicalTrend(
     firstEligibleDate,
     today,
     reference,
+    relatedMetrics: [...relatedAnalyticsMetricsForKey(query.primaryMetric)],
     points,
     ...(rollingTrend === undefined ? {} : { rollingTrend }),
     summary: {

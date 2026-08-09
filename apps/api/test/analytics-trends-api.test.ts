@@ -451,6 +451,7 @@ describe('canonical analytics trends API', () => {
       kind: 'limit',
       value: 2300,
     });
+    expect(response.body.data.relatedMetrics).toEqual(['potassium']);
     expect(response.body.data.comparison.reference).toMatchObject({
       kind: 'minimum',
       value: 4700,

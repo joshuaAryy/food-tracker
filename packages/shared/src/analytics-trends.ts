@@ -138,6 +138,7 @@ export interface CanonicalTrendResponse {
   firstEligibleDate: string | null;
   today: string;
   reference: AnalyticsReference;
+  relatedMetrics: AnalyticsMetricKey[];
   points: AnalyticsPoint[];
   rollingTrend?: {
     window: number;
