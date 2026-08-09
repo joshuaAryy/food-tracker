@@ -213,24 +213,157 @@ const analyticsNumberSchema = z.number().finite();
 const analyticsDateSchema = z.iso.date();
 const analyticsUnitSchema = z.string().min(1);
 const analyticsReferenceSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.enum(['target', 'minimum', 'limit']), value: analyticsNumberSchema, unit: analyticsUnitSchema, source: z.enum(['user', 'derived', 'default']) }),
-  z.object({ kind: z.literal('range'), lower: analyticsNumberSchema, upper: analyticsNumberSchema, unit: analyticsUnitSchema, source: z.enum(['user', 'derived', 'default']) }),
-  z.object({ kind: z.literal('none'), unit: analyticsUnitSchema, reason: z.enum(['not_configured', 'not_applicable']) }),
+  z.object({
+    kind: z.enum(['target', 'minimum', 'limit']),
+    value: analyticsNumberSchema,
+    unit: analyticsUnitSchema,
+    source: z.enum(['user', 'derived', 'default']),
+  }),
+  z.object({
+    kind: z.literal('range'),
+    lower: analyticsNumberSchema,
+    upper: analyticsNumberSchema,
+    unit: analyticsUnitSchema,
+    source: z.enum(['user', 'derived', 'default']),
+  }),
+  z.object({
+    kind: z.literal('none'),
+    unit: analyticsUnitSchema,
+    reason: z.enum(['not_configured', 'not_applicable']),
+  }),
 ]);
 const analyticsPointSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('daily'), date: analyticsDateSchema, loggingDayState: loggingDayStateSchema, loggingDayPhase: loggingDayPhaseSchema, metricDataState: metricDataStateSchema.nullable(), value: analyticsNumberSchema.nullable(), normalizedValue: analyticsNumberSchema.optional(), foodLogCount: z.number().int().nonnegative(), metricRecordedLogCount: z.number().int().nonnegative(), metricUnknownLogCount: z.number().int().nonnegative() }),
-  z.object({ kind: z.literal('aggregated'), bucketStartDate: analyticsDateSchema, bucketEndDate: analyticsDateSchema, value: analyticsNumberSchema.nullable(), normalizedValue: analyticsNumberSchema.optional(), loggingCounts: z.object({ complete: z.number().int().nonnegative(), partial: z.number().int().nonnegative(), inProgress: z.number().int().nonnegative(), unlogged: z.number().int().nonnegative() }), metricCounts: z.object({ recorded: z.number().int().nonnegative(), partial: z.number().int().nonnegative(), unknown: z.number().int().nonnegative() }), numericDayCount: z.number().int().nonnegative() }),
+  z.object({
+    kind: z.literal('daily'),
+    date: analyticsDateSchema,
+    loggingDayState: loggingDayStateSchema,
+    loggingDayPhase: loggingDayPhaseSchema,
+    metricDataState: metricDataStateSchema.nullable(),
+    value: analyticsNumberSchema.nullable(),
+    normalizedValue: analyticsNumberSchema.optional(),
+    foodLogCount: z.number().int().nonnegative(),
+    metricRecordedLogCount: z.number().int().nonnegative(),
+    metricUnknownLogCount: z.number().int().nonnegative(),
+  }),
+  z.object({
+    kind: z.literal('aggregated'),
+    bucketStartDate: analyticsDateSchema,
+    bucketEndDate: analyticsDateSchema,
+    value: analyticsNumberSchema.nullable(),
+    normalizedValue: analyticsNumberSchema.optional(),
+    loggingCounts: z.object({
+      complete: z.number().int().nonnegative(),
+      partial: z.number().int().nonnegative(),
+      inProgress: z.number().int().nonnegative(),
+      unlogged: z.number().int().nonnegative(),
+    }),
+    metricCounts: z.object({
+      recorded: z.number().int().nonnegative(),
+      partial: z.number().int().nonnegative(),
+      unknown: z.number().int().nonnegative(),
+    }),
+    numericDayCount: z.number().int().nonnegative(),
+  }),
 ]);
 
 export const canonicalTrendResponseSchema = z.object({
-  timezone: z.string().min(1), trackingMode: z.enum(['simple', 'complex']), primaryMetric: analyticsMetricKeySchema,
-  aggregation: z.enum(['daily', 'weekly', 'monthly']), resolvedRange: z.object({ startDate: analyticsDateSchema, endDate: analyticsDateSchema }), firstEligibleDate: analyticsDateSchema.nullable(), today: analyticsDateSchema,
-  reference: analyticsReferenceSchema, interpretation: z.object({ kind: z.enum(['below_range', 'above_range', 'within_range', 'below_minimum', 'meets_minimum', 'above_limit', 'within_limit']), message: z.string() }).nullable(), relatedMetrics: z.array(analyticsMetricKeySchema), points: z.array(analyticsPointSchema),
-  rollingTrend: z.object({ window: z.number().int().positive(), values: z.array(analyticsNumberSchema.nullable()) }).optional(),
-  forecast: z.discriminatedUnion('kind', [z.object({ kind: z.literal('available'), model: z.enum(['mean', 'linear_trend']), todayDate: analyticsDateSchema, horizonDays: z.number().int().positive(), points: z.array(z.object({ date: analyticsDateSchema, value: analyticsNumberSchema, lower: analyticsNumberSchema, upper: analyticsNumberSchema })) }), z.object({ kind: z.literal('unavailable'), reason: z.enum(['insufficient_coverage', 'unstable', 'not_applicable']) })]).optional(),
-  summary: z.object({ numericDayCount: z.number().int().nonnegative(), average: analyticsNumberSchema.nullable() }),
-  comparison: z.object({ strategy: z.enum(['shared_unit', 'dual_axis', 'reference_normalized', 'incompatible']), metric: analyticsMetricKeySchema, points: z.array(analyticsPointSchema), reference: analyticsReferenceSchema, sharedAxisDomain: z.object({ minimum: analyticsNumberSchema, maximum: analyticsNumberSchema }).nullable(), primaryAxisDomain: z.object({ minimum: analyticsNumberSchema, maximum: analyticsNumberSchema }).nullable(), comparisonAxisDomain: z.object({ minimum: analyticsNumberSchema, maximum: analyticsNumberSchema }).nullable() }).optional(),
-  macroComposition: z.object({ protein: analyticsNumberSchema.nullable(), carbs: analyticsNumberSchema.nullable(), fat: analyticsNumberSchema.nullable() }).optional(),
+  timezone: z.string().min(1),
+  trackingMode: z.enum(['simple', 'complex']),
+  primaryMetric: analyticsMetricKeySchema,
+  aggregation: z.enum(['daily', 'weekly', 'monthly']),
+  resolvedRange: z.object({
+    startDate: analyticsDateSchema,
+    endDate: analyticsDateSchema,
+  }),
+  firstEligibleDate: analyticsDateSchema.nullable(),
+  today: analyticsDateSchema,
+  reference: analyticsReferenceSchema,
+  interpretation: z
+    .object({
+      kind: z.enum([
+        'below_range',
+        'above_range',
+        'within_range',
+        'below_minimum',
+        'meets_minimum',
+        'above_limit',
+        'within_limit',
+      ]),
+      message: z.string(),
+    })
+    .nullable(),
+  relatedMetrics: z.array(analyticsMetricKeySchema),
+  points: z.array(analyticsPointSchema),
+  rollingTrend: z
+    .object({
+      window: z.number().int().positive(),
+      values: z.array(analyticsNumberSchema.nullable()),
+    })
+    .optional(),
+  forecast: z
+    .discriminatedUnion('kind', [
+      z.object({
+        kind: z.literal('available'),
+        model: z.enum(['mean', 'linear_trend']),
+        todayDate: analyticsDateSchema,
+        horizonDays: z.number().int().positive(),
+        points: z.array(
+          z.object({
+            date: analyticsDateSchema,
+            value: analyticsNumberSchema,
+            lower: analyticsNumberSchema,
+            upper: analyticsNumberSchema,
+          }),
+        ),
+      }),
+      z.object({
+        kind: z.literal('unavailable'),
+        reason: z.enum(['insufficient_coverage', 'unstable', 'not_applicable']),
+      }),
+    ])
+    .optional(),
+  summary: z.object({
+    numericDayCount: z.number().int().nonnegative(),
+    average: analyticsNumberSchema.nullable(),
+  }),
+  comparison: z
+    .object({
+      strategy: z.enum([
+        'shared_unit',
+        'dual_axis',
+        'reference_normalized',
+        'incompatible',
+      ]),
+      metric: analyticsMetricKeySchema,
+      points: z.array(analyticsPointSchema),
+      reference: analyticsReferenceSchema,
+      sharedAxisDomain: z
+        .object({
+          minimum: analyticsNumberSchema,
+          maximum: analyticsNumberSchema,
+        })
+        .nullable(),
+      primaryAxisDomain: z
+        .object({
+          minimum: analyticsNumberSchema,
+          maximum: analyticsNumberSchema,
+        })
+        .nullable(),
+      comparisonAxisDomain: z
+        .object({
+          minimum: analyticsNumberSchema,
+          maximum: analyticsNumberSchema,
+        })
+        .nullable(),
+    })
+    .optional(),
+  macroComposition: z
+    .object({
+      protein: analyticsNumberSchema.nullable(),
+      carbs: analyticsNumberSchema.nullable(),
+      fat: analyticsNumberSchema.nullable(),
+    })
+    .optional(),
 });
 
 export const canonicalInsightsResponseSchema = z.object({

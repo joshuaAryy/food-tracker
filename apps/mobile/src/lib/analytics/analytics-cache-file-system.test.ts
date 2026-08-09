@@ -24,7 +24,9 @@ describe('Expo analytics cache storage', () => {
       },
     });
 
-    await expect(storage.read('file:///documents/analytics/user.json')).resolves.toBe('cached');
+    await expect(
+      storage.read('file:///documents/analytics/user.json'),
+    ).resolves.toBe('cached');
     await storage.write('file:///documents/analytics/user.json.staged', 'next');
     await storage.move(
       'file:///documents/analytics/user.json.staged',

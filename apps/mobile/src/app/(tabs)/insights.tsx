@@ -1,8 +1,23 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, useWindowDimensions, View } from 'react-native';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { RefreshCw, X } from 'lucide-react-native';
-import { analyticsMetricForKey, canonicalInsightsResponseSchema } from '@food-tracker/shared';
+import {
+  analyticsMetricForKey,
+  canonicalInsightsResponseSchema,
+} from '@food-tracker/shared';
 import type {
   Recommendation,
   RecommendationSeverity,
@@ -39,7 +54,10 @@ import {
 } from '@/lib/analytics/saved-view-configuration';
 import { useAppStore } from '@/store/app-store';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
-import { analyticsCache, ANALYTICS_CACHE_KEYS } from '@/lib/analytics/analytics-cache-runtime';
+import {
+  analyticsCache,
+  ANALYTICS_CACHE_KEYS,
+} from '@/lib/analytics/analytics-cache-runtime';
 import { colors } from '@/theme/tokens';
 
 function IconDot({ name }: { name: ReportingIconName }) {
@@ -292,7 +310,8 @@ function PinnedInsightsView({
       current = false;
     };
   }, [query, queryKey]);
-  const label = pinnedQuery === null || pinned === undefined ? 'Calories' : pinned.name;
+  const label =
+    pinnedQuery === null || pinned === undefined ? 'Calories' : pinned.name;
   const previewPoints =
     preview?.points.map((point) => ({
       date: point.kind === 'daily' ? point.date : point.bucketStartDate,
@@ -370,23 +389,43 @@ export default function InsightsScreen() {
     async (nextPeriod: 'week' | 'month', asRefresh = false) => {
       const requestId = ++reportRequestId.current;
       dispatchReport({ type: asRefresh ? 'refresh' : 'load', requestId });
-      const cacheKey = nextPeriod === 'week' ? ANALYTICS_CACHE_KEYS.insightsWeek : ANALYTICS_CACHE_KEYS.insightsMonth;
+      const cacheKey =
+        nextPeriod === 'week'
+          ? ANALYTICS_CACHE_KEYS.insightsWeek
+          : ANALYTICS_CACHE_KEYS.insightsMonth;
       if (!asRefresh && userId !== null) {
         try {
           const cached = await analyticsCache().read(
             userId,
             cacheKey,
-            (value): value is CanonicalInsightsResponse => canonicalInsightsResponseSchema.safeParse(value).success,
+            (value): value is CanonicalInsightsResponse =>
+              canonicalInsightsResponseSchema.safeParse(value).success,
           );
-          if (cached !== null) dispatchReport({ type: 'commit', requestId, value: cached.value, updatedAt: cached.updatedAt });
+          if (cached !== null)
+            dispatchReport({
+              type: 'hydrate',
+              requestId,
+              value: cached.value,
+              updatedAt: cached.updatedAt,
+              stale: cached.stale,
+            });
+          if (cached !== null) dispatchReport({ type: 'refresh', requestId });
         } catch {
           // Cache failures never block canonical reporting.
         }
       }
       try {
         const insights = await api.analytics.insights(nextPeriod);
-        dispatchReport({ type: 'commit', requestId, value: insights, updatedAt: Date.now() });
-        if (userId !== null) void analyticsCache().write(userId, cacheKey, insights).catch(() => undefined);
+        dispatchReport({
+          type: 'commit',
+          requestId,
+          value: insights,
+          updatedAt: Date.now(),
+        });
+        if (userId !== null)
+          void analyticsCache()
+            .write(userId, cacheKey, insights)
+            .catch(() => undefined);
         if (insights.mode === 'complex') {
           try {
             const [preferences, views] = await Promise.all([
@@ -407,7 +446,11 @@ export default function InsightsScreen() {
           setPinnedViewError(null);
         }
       } catch (loadError) {
-        dispatchReport({ type: 'failure', requestId, message: errorMessage(loadError) });
+        dispatchReport({
+          type: 'failure',
+          requestId,
+          message: errorMessage(loadError),
+        });
       }
     },
     [userId],

@@ -16,11 +16,24 @@ export interface AnalyticsResource<T> {
 
 export type AnalyticsResourceAction<T> =
   | { type: 'load' | 'refresh'; requestId: number }
+  | {
+      type: 'hydrate';
+      requestId: number;
+      value: T;
+      updatedAt: number;
+      stale: boolean;
+    }
   | { type: 'commit'; requestId: number; value: T; updatedAt: number }
   | { type: 'failure'; requestId: number; message: string };
 
 export function initialAnalyticsResource<T>(): AnalyticsResource<T> {
-  return { value: null, updatedAt: null, status: 'idle', error: null, requestId: 0 };
+  return {
+    value: null,
+    updatedAt: null,
+    status: 'idle',
+    error: null,
+    requestId: 0,
+  };
 }
 
 /** Keeps prior validated facts visible until a whole replacement is committed. */
@@ -31,12 +44,32 @@ export function analyticsResourceReducer<T>(
   switch (action.type) {
     case 'load':
       return state.value === null
-        ? { ...state, requestId: action.requestId, status: 'loading', error: null }
-        : { ...state, requestId: action.requestId, status: 'refreshing', error: null };
+        ? {
+            ...state,
+            requestId: action.requestId,
+            status: 'loading',
+            error: null,
+          }
+        : {
+            ...state,
+            requestId: action.requestId,
+            status: 'refreshing',
+            error: null,
+          };
     case 'refresh':
       return state.value === null
-        ? { ...state, requestId: action.requestId, status: 'loading', error: null }
-        : { ...state, requestId: action.requestId, status: 'refreshing', error: null };
+        ? {
+            ...state,
+            requestId: action.requestId,
+            status: 'loading',
+            error: null,
+          }
+        : {
+            ...state,
+            requestId: action.requestId,
+            status: 'refreshing',
+            error: null,
+          };
     case 'commit':
       if (action.requestId !== state.requestId) return state;
       return {
@@ -44,6 +77,17 @@ export function analyticsResourceReducer<T>(
         updatedAt: action.updatedAt,
         status: 'ready',
         error: null,
+        requestId: action.requestId,
+      };
+    case 'hydrate':
+      if (action.requestId !== state.requestId) return state;
+      return {
+        value: action.value,
+        updatedAt: action.updatedAt,
+        status: action.stale ? 'stale' : 'ready',
+        error: action.stale
+          ? 'Showing cached analytics from an earlier refresh.'
+          : null,
         requestId: action.requestId,
       };
     case 'failure':

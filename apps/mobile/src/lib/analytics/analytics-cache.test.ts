@@ -4,7 +4,9 @@ import {
   type AnalyticsCacheStorage,
 } from './analytics-cache';
 
-function memoryStorage(): AnalyticsCacheStorage & { files: Map<string, string> } {
+function memoryStorage(): AnalyticsCacheStorage & {
+  files: Map<string, string>;
+} {
   const files = new Map<string, string>();
   return {
     files,
@@ -37,16 +39,29 @@ describe('analytics cache', () => {
     await cache.write('user-a', 'insights-week', { total: 10 });
 
     await expect(
-      cache.read('user-a', 'insights-week', (value): value is { total: number } =>
-        typeof value === 'object' &&
-        value !== null &&
-        typeof (value as { total?: unknown }).total === 'number',
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
       ),
-    ).resolves.toEqual({ value: { total: 10 }, updatedAt: 1_000, stale: false });
+    ).resolves.toEqual({
+      value: { total: 10 },
+      updatedAt: 1_000,
+      stale: false,
+    });
     await expect(
-      cache.read('user-b', 'insights-week', (value): value is unknown => value !== undefined),
+      cache.read(
+        'user-b',
+        'insights-week',
+        (value): value is unknown => value !== undefined,
+      ),
     ).resolves.toBeNull();
-    expect([...storage.files]).toEqual([['user-a/insights-week.json', expect.any(String)]]);
+    expect([...storage.files]).toEqual([
+      ['user-a/insights-week.json', expect.any(String)],
+    ]);
   });
 
   it('rejects schema-mismatched cache data and purges only the requested user', async () => {
@@ -61,7 +76,11 @@ describe('analytics cache', () => {
     await cache.write('user-b', 'trend', { total: 20 });
 
     await expect(
-      cache.read('user-a', 'trend', (value): value is never => typeof value === 'symbol'),
+      cache.read(
+        'user-a',
+        'trend',
+        (value): value is never => typeof value === 'symbol',
+      ),
     ).resolves.toBeNull();
     await cache.purge('user-a', ['trend']);
 

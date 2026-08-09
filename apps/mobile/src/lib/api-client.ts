@@ -509,10 +509,14 @@ export const api = {
         `/analytics/reports${reportsQueryString(query)}`,
       ),
     trend: (input: TrendQueryInput) =>
-      request<CanonicalTrendResponse>('/analytics/trends/query', {
-        method: 'POST',
-        body: input,
-      }, canonicalTrendResponseSchema as unknown as ResponseSchema<CanonicalTrendResponse>),
+      request<CanonicalTrendResponse>(
+        '/analytics/trends/query',
+        {
+          method: 'POST',
+          body: input,
+        },
+        canonicalTrendResponseSchema as unknown as ResponseSchema<CanonicalTrendResponse>,
+      ),
     trendCatalog: () =>
       request<{
         mode: 'simple' | 'complex';

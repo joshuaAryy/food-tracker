@@ -2,7 +2,10 @@ import type { AnalyticsCacheStorage } from './analytics-cache';
 
 export function createExpoAnalyticsCacheStorage(input: {
   documentDirectory: string;
-  makeDirectory(path: string, options: { intermediates: boolean }): Promise<void>;
+  makeDirectory(
+    path: string,
+    options: { intermediates: boolean },
+  ): Promise<void>;
   read(path: string): Promise<string>;
   write(path: string, value: string): Promise<void>;
   move(input: { from: string; to: string }): Promise<void>;

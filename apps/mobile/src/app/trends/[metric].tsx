@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -20,7 +27,10 @@ import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
-import { analyticsCache, ANALYTICS_CACHE_KEYS } from '@/lib/analytics/analytics-cache-runtime';
+import {
+  analyticsCache,
+  ANALYTICS_CACHE_KEYS,
+} from '@/lib/analytics/analytics-cache-runtime';
 import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
 import {
   analyticsResourceReducer,
@@ -118,34 +128,55 @@ export default function TrendDetailScreen() {
     [activeQuery],
   );
 
-  const load = useCallback(async (asRefresh = false) => {
-    const requestId = ++trendRequestId.current;
-    dispatchTrend({ type: asRefresh ? 'refresh' : 'load', requestId });
-    if (!asRefresh && userId !== null) {
-      try {
-        const cached = await analyticsCache().read(
-          userId,
-          cacheKey,
-          (value): value is CanonicalTrendResponse =>
-            canonicalTrendResponseSchema.safeParse(value).success,
-        );
-        if (cached !== null) {
-          dispatchTrend({ type: 'commit', requestId, value: cached.value, updatedAt: cached.updatedAt });
+  const load = useCallback(
+    async (asRefresh = false) => {
+      const requestId = ++trendRequestId.current;
+      dispatchTrend({ type: asRefresh ? 'refresh' : 'load', requestId });
+      if (!asRefresh && userId !== null) {
+        try {
+          const cached = await analyticsCache().read(
+            userId,
+            cacheKey,
+            (value): value is CanonicalTrendResponse =>
+              canonicalTrendResponseSchema.safeParse(value).success,
+          );
+          if (cached !== null) {
+            dispatchTrend({
+              type: 'hydrate',
+              requestId,
+              value: cached.value,
+              updatedAt: cached.updatedAt,
+              stale: cached.stale,
+            });
+            dispatchTrend({ type: 'refresh', requestId });
+          }
+        } catch {
+          // Cache failures never block canonical network analytics.
         }
-      } catch {
-        // Cache failures never block canonical network analytics.
       }
-    }
-    try {
-      const replacement = await api.analytics.trend({ ...activeQuery });
-      dispatchTrend({ type: 'commit', requestId, value: replacement, updatedAt: Date.now() });
-      if (userId !== null) {
-        void analyticsCache().write(userId, cacheKey, replacement).catch(() => undefined);
+      try {
+        const replacement = await api.analytics.trend({ ...activeQuery });
+        dispatchTrend({
+          type: 'commit',
+          requestId,
+          value: replacement,
+          updatedAt: Date.now(),
+        });
+        if (userId !== null) {
+          void analyticsCache()
+            .write(userId, cacheKey, replacement)
+            .catch(() => undefined);
+        }
+      } catch (cause) {
+        dispatchTrend({
+          type: 'failure',
+          requestId,
+          message: errorMessage(cause),
+        });
       }
-    } catch (cause) {
-      dispatchTrend({ type: 'failure', requestId, message: errorMessage(cause) });
-    }
-  }, [activeQuery, cacheKey, userId]);
+    },
+    [activeQuery, cacheKey, userId],
+  );
 
   useEffect(() => {
     void load();
@@ -329,7 +360,8 @@ export default function TrendDetailScreen() {
               width={Math.max(280, width - 40)}
               accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${trend.forecast.todayDate}`}
             />
-          ) : presentation === 'macro' && trend.macroComposition !== undefined ? (
+          ) : presentation === 'macro' &&
+            trend.macroComposition !== undefined ? (
             <View
               accessible
               accessibilityLabel="Macro composition from recorded food snapshots"
@@ -390,8 +422,8 @@ export default function TrendDetailScreen() {
           ) : trend.forecast?.kind === 'unavailable' &&
             activeQuery.includeForecast === true ? (
             <AppText variant="caption" muted>
-              A seven-day estimate is unavailable until enough stable history
-              is recorded.
+              A seven-day estimate is unavailable until enough stable history is
+              recorded.
             </AppText>
           ) : null}
           {trend.trackingMode === 'complex' ? (

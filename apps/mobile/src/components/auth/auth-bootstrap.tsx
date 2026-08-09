@@ -129,9 +129,8 @@ export function AuthBootstrap({
     const state = storeRef.current?.getState().authState;
     if (state === undefined || !('user' in state)) return;
     try {
-      const { purgeNativeAnalyticsCache } = await import(
-        '@/lib/analytics/analytics-cache-native'
-      );
+      const { purgeNativeAnalyticsCache } =
+        await import('@/lib/analytics/analytics-cache-native');
       await purgeNativeAnalyticsCache(state.user.uid);
     } catch {
       // Local cache cleanup never blocks authentication lifecycle actions.

@@ -215,7 +215,8 @@ export default function SavedViewsScreen() {
               >
                 <AppText variant="caption">Replace metric</AppText>
               </Pressable>
-              {replacingId !== view.id ? null : replacementMetrics.length === 0 ? (
+              {replacingId !== view.id ? null : replacementMetrics.length ===
+                0 ? (
                 <AppText muted>
                   No current metric supports this saved configuration.
                 </AppText>
@@ -228,7 +229,9 @@ export default function SavedViewsScreen() {
                     className="min-h-11 justify-center"
                     onPress={() => void replaceMetric(view, metric.key)}
                   >
-                    <AppText variant="caption">Use {metric.displayName}</AppText>
+                    <AppText variant="caption">
+                      Use {metric.displayName}
+                    </AppText>
                   </Pressable>
                 ))
               )}

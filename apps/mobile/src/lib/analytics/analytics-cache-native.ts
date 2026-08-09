@@ -1,5 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { createAnalyticsCache, type AnalyticsCache, type AnalyticsCacheStorage } from './analytics-cache';
+import {
+  createAnalyticsCache,
+  type AnalyticsCache,
+  type AnalyticsCacheStorage,
+} from './analytics-cache';
 import { createExpoAnalyticsCacheStorage } from './analytics-cache-file-system';
 
 export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
@@ -16,7 +20,9 @@ export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
   });
 }
 
-export function createNativeAnalyticsCache(staleAfterMs: number): AnalyticsCache {
+export function createNativeAnalyticsCache(
+  staleAfterMs: number,
+): AnalyticsCache {
   if (FileSystem.documentDirectory === null) {
     throw new Error('Analytics cache storage is unavailable.');
   }

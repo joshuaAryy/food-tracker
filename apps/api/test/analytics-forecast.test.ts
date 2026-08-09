@@ -22,7 +22,9 @@ function observations(values: readonly number[]): ForecastObservation[] {
 
 describe('deterministic analytics forecasts', () => {
   it('returns unavailable before policy coverage gates are met', () => {
-    expect(selectDeterministicForecast(observations([1, 2, 3]), policy)).toMatchObject({
+    expect(
+      selectDeterministicForecast(observations([1, 2, 3]), policy),
+    ).toMatchObject({
       kind: 'unavailable',
       reason: 'insufficient_coverage',
     });
@@ -47,7 +49,11 @@ describe('deterministic analytics forecasts', () => {
       observations([100, 101, 99, 100, 101, 99, 100, 101]),
       policy,
     );
-    expect(result).toMatchObject({ kind: 'available', model: 'mean', horizonDays: 7 });
+    expect(result).toMatchObject({
+      kind: 'available',
+      model: 'mean',
+      horizonDays: 7,
+    });
     if (result.kind === 'available') {
       expect(result.points).toHaveLength(7);
       expect(result.diagnostics.selectedMae).toBeLessThanOrEqual(
@@ -64,7 +70,9 @@ describe('deterministic analytics forecasts', () => {
     expect(result).toMatchObject({ kind: 'available', model: 'linear_trend' });
     if (result.kind === 'available') {
       expect(result.points[0]?.value).toBeGreaterThan(28);
-      expect(result.points[6]?.upper).toBeGreaterThan(result.points[0]?.upper ?? 0);
+      expect(result.points[6]?.upper).toBeGreaterThan(
+        result.points[0]?.upper ?? 0,
+      );
     }
   });
 });
