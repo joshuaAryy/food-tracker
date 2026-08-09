@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import type { AnalyticsCacheStorage } from './analytics-cache';
+import { createAnalyticsCache, type AnalyticsCache, type AnalyticsCacheStorage } from './analytics-cache';
 import { createExpoAnalyticsCacheStorage } from './analytics-cache-file-system';
 
 export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
@@ -13,5 +13,18 @@ export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
     write: FileSystem.writeAsStringAsync,
     move: FileSystem.moveAsync,
     remove: FileSystem.deleteAsync,
+  });
+}
+
+export function createNativeAnalyticsCache(staleAfterMs: number): AnalyticsCache {
+  if (FileSystem.documentDirectory === null) {
+    throw new Error('Analytics cache storage is unavailable.');
+  }
+  return createAnalyticsCache({
+    storage: createNativeAnalyticsCacheStorage(),
+    pathFor: (userId, key) =>
+      `${FileSystem.documentDirectory}analytics/${encodeURIComponent(userId)}/${key}.json`,
+    now: Date.now,
+    staleAfterMs,
   });
 }
