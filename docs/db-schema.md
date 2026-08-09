@@ -392,18 +392,18 @@ micronutrient UI.
 ### Other Future Models
 
 `CustomFood`, `SupplementLog`, and `MicronutrientLog` remain outside the MVP
-schema. Phase 17.5 plans an additive user-owned `WaterLog` model rather than
+schema. Phase 17.5 uses an additive user-owned `WaterLog` model rather than
 representing water as a FoodLog. It stores an amount in millilitres and the
 authoritative logged timestamp, supports edit/delete and quick-add through the
 same persistence path, and is the only source for hydration totals; water
 contained in food is excluded.
 
-Phase 17.5 also plans user-owned saved-view persistence for Complex analytics,
+Phase 17.5 also uses user-owned saved-view persistence for Complex analytics,
 including relative period configuration, metric/comparison selection,
 aggregation, visualization, target visibility, coverage filter, editable name,
-ordering, and one nullable primary pinned-view reference. These are planned
-schema decisions, not implemented tables or migrations in this documentation
-checkpoint.
+ordering, and one nullable primary pinned-view reference. The models and
+additive migrations are implemented; lifecycle and UI validation remain part
+of the active phase work.
 
 ### Phase 12.9B Slice 1 Mixed Meals
 

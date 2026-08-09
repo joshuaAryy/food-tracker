@@ -270,7 +270,7 @@ Relation:
 | `userId` | `String`, UUID foreign key, unique |
 | `mode` | `TrackingMode` enum |
 | `waterTrackingEnabled` | `Boolean`, default `false` |
-| `dailyWaterGoalMl` | Planned additive integer with server-owned default `2000` for Phase 17.5 hydration; not yet migrated |
+| `dailyWaterGoalMl` | Additive integer with server-owned default `2000` for Phase 17.5 hydration |
 
 Relation:
 - belongs to `User`; delete cascades from `User`
