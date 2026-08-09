@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useReducer, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { RefreshCw, X } from 'lucide-react-native';
@@ -26,6 +26,10 @@ import {
   SkeletonRail,
 } from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  analyticsResourceReducer,
+  initialAnalyticsResource,
+} from '@/lib/analytics/analytics-resource';
 import {
   pinnedInsightsTrendQuery,
   trendQueryRouteParam,
@@ -285,16 +289,17 @@ function PinnedInsightsView({
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const [period, setPeriod] = useState<'week' | 'month'>('week');
-  const [report, setReport] = useState<CanonicalInsightsResponse | null>(null);
+  const [reportResource, dispatchReport] = useReducer(
+    analyticsResourceReducer<CanonicalInsightsResponse>,
+    undefined,
+    initialAnalyticsResource<CanonicalInsightsResponse>,
+  );
+  const report = reportResource.value;
   const [analyticsPreferences, setAnalyticsPreferences] =
     useState<AnalyticsPreferenceValue | null>(null);
   const [savedViews, setSavedViews] = useState<AnalyticsSavedView[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [reportLoading, setReportLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [dismissingId, setDismissingId] = useState<string | null>(null);
-  const [reportError, setReportError] = useState<string | null>(null);
   const [recommendationsError, setRecommendationsError] = useState<
     string | null
   >(null);
@@ -302,12 +307,10 @@ export default function InsightsScreen() {
 
   const loadReporting = useCallback(
     async (nextPeriod: 'week' | 'month', asRefresh = false) => {
-      if (asRefresh) setRefreshing(true);
-      setReportLoading(true);
-      setReportError(null);
+      dispatchReport({ type: asRefresh ? 'refresh' : 'load' });
       try {
         const insights = await api.analytics.insights(nextPeriod);
-        setReport(insights);
+        dispatchReport({ type: 'commit', value: insights, updatedAt: Date.now() });
         if (insights.mode === 'complex') {
           try {
             const [preferences, views] = await Promise.all([
@@ -328,10 +331,7 @@ export default function InsightsScreen() {
           setPinnedViewError(null);
         }
       } catch (loadError) {
-        setReportError(errorMessage(loadError));
-      } finally {
-        setReportLoading(false);
-        if (asRefresh) setRefreshing(false);
+        dispatchReport({ type: 'failure', message: errorMessage(loadError) });
       }
     },
     [],
@@ -349,11 +349,10 @@ export default function InsightsScreen() {
 
   const loadInsights = useCallback(
     async (asRefresh = false) => {
-      if (asRefresh) setRefreshing(true);
-      setLoading(true);
-      await Promise.allSettled([loadReporting(period), loadRecommendations()]);
-      setLoading(false);
-      setRefreshing(false);
+      await Promise.allSettled([
+        loadReporting(period, asRefresh),
+        loadRecommendations(),
+      ]);
     },
     [loadRecommendations, loadReporting, period],
   );
@@ -385,13 +384,17 @@ export default function InsightsScreen() {
     }, [dataVersion, loadInsights]),
   );
 
-  if (loading && report === null && recommendations.length === 0) {
+  if (
+    reportResource.status === 'loading' &&
+    report === null &&
+    recommendations.length === 0
+  ) {
     return <InsightsSkeleton />;
   }
 
   return (
     <AppScreen
-      refreshing={refreshing}
+      refreshing={reportResource.status === 'refreshing'}
       contentClassName="gap-7"
       backgroundColor="#FFFFFF"
       onRefresh={() => void loadInsights(true)}
@@ -406,7 +409,10 @@ export default function InsightsScreen() {
         <ReportPeriodSelector
           period={period}
           onChange={changePeriod}
-          disabled={reportLoading}
+          disabled={
+            reportResource.status === 'loading' ||
+            reportResource.status === 'refreshing'
+          }
         />
         {report === null ? null : (
           <AppText variant="caption" className="text-muted">
@@ -415,19 +421,19 @@ export default function InsightsScreen() {
         )}
       </View>
 
-      {reportError === null ? null : (
+      {reportResource.error === null ? null : (
         <ErrorState
           title={
             report === null
               ? 'Reports are unavailable'
               : 'Couldn’t refresh reports'
           }
-          message={reportError}
+          message={reportResource.error}
           onRetry={() => void loadReporting(period, true)}
         />
       )}
       {report === null ? (
-        reportError === null ? (
+        reportResource.error === null ? (
           <ReportEmptyState
             title="No report yet"
             message="Log a meal to begin a useful period summary."
@@ -471,8 +477,8 @@ export default function InsightsScreen() {
           <AppButton
             variant="ghost"
             className="min-h-10 px-1 py-1"
-            loading={loading && report !== null}
-            disabled={loading || refreshing}
+            loading={reportResource.status === 'refreshing' && report !== null}
+            disabled={reportResource.status === 'loading'}
             onPress={() => void loadRecommendations()}
           >
             <View className="flex-row items-center gap-1.5">
