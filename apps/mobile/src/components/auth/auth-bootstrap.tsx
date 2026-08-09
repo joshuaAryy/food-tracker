@@ -19,6 +19,7 @@ import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 
 interface AuthRuntimeContextValue {
+  userId: string | null;
   markSetupComplete(): void;
   providerIds: string[];
   deleteAccount(): Promise<void>;
@@ -30,6 +31,7 @@ interface AuthRuntimeContextValue {
 const AuthRuntimeContext = createContext<AuthRuntimeContextValue | null>(null);
 
 const unavailableAuthRuntime: AuthRuntimeContextValue = {
+  userId: null,
   markSetupComplete: () => undefined,
   providerIds: [],
   deleteAccount: async () => {
@@ -276,6 +278,7 @@ export function AuthBootstrap({
           reauthenticateWithPassword === null
             ? unavailableAuthRuntime
             : {
+                userId: 'user' in authState ? authState.user.uid : null,
                 deleteAccount,
                 markSetupComplete,
                 providerIds:
