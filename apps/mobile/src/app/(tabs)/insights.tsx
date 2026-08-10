@@ -425,7 +425,12 @@ export default function InsightsScreen() {
         if (stage === 'report_failure_dispatched') {
           setInsightsFailureDiagnostic(diagnostic);
         }
-        setInsightsDiagnostic(diagnostic);
+        if (
+          stage !== 'cache_write_started' &&
+          stage !== 'cache_write_succeeded'
+        ) {
+          setInsightsDiagnostic(diagnostic);
+        }
         return diagnostic;
       };
       const errorDetails = (error: unknown) => ({
@@ -646,6 +651,11 @@ export default function InsightsScreen() {
           )}
         </View>
       )}
+      {reportResource.error === null && insightsDiagnostic !== null ? (
+        <AppText variant="caption" className="text-muted">
+          {formatStagingInsightsDiagnostic(insightsDiagnostic)}
+        </AppText>
+      ) : null}
       {report === null ? (
         reportResource.error === null ? (
           <ReportEmptyState

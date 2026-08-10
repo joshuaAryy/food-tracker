@@ -51,4 +51,13 @@ describe('staging Insights diagnostics', () => {
       'Diagnostic: canonical_schema_parse_failed · 2xx · INVALID_RESPONSE · cache yes · request 7 · report_failure_dispatched',
     );
   });
+
+  it('keeps the resolved and reducer commit boundary visible after success', () => {
+    expect(
+      formatStagingInsightsDiagnostic({
+        stage: 'report_commit_dispatched',
+        requestSequenceId: 7,
+      }),
+    ).toBe('Diagnostic: api_insights_resolved · report_commit_dispatched');
+  });
 });

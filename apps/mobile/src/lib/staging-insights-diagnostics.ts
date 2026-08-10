@@ -122,6 +122,9 @@ export function createStagingInsightsDiagnostic(
 export function formatStagingInsightsDiagnostic(
   diagnostic: StagingInsightsDiagnostic,
 ): string {
+  if (diagnostic.stage === 'report_commit_dispatched') {
+    return 'Diagnostic: api_insights_resolved · report_commit_dispatched';
+  }
   const parts = [
     diagnostic.failureStage ?? diagnostic.stage,
     diagnostic.statusClass,
