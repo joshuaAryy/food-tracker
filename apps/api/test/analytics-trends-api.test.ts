@@ -221,7 +221,7 @@ describe('canonical analytics trends API', () => {
         mealType: 'breakfast',
         calories: 200,
         protein: 31.5,
-        loggedAt: new Date(recentLocalDateTime(6)),
+        loggedAt: new Date(recentLocalDateTime(2)),
       },
     });
 
@@ -233,12 +233,12 @@ describe('canonical analytics trends API', () => {
     expect(response.body.data.points).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          date: recentLocalDate(6),
+          date: recentLocalDate(2),
           metricDataState: 'recorded',
           value: 31.5,
         }),
         expect.objectContaining({
-          date: recentLocalDate(5),
+          date: recentLocalDate(3),
           metricDataState: null,
           value: null,
         }),
@@ -304,7 +304,7 @@ describe('canonical analytics trends API', () => {
       data: {
         userId: MOCK_USER_ID,
         weightLb: 174.2,
-        loggedAt: new Date(recentLocalDateTime(6)),
+        loggedAt: new Date(recentLocalDateTime(2)),
       },
     });
 
@@ -316,9 +316,15 @@ describe('canonical analytics trends API', () => {
     expect(response.body.data.points).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          date: recentLocalDate(6),
+          date: recentLocalDate(2),
           value: 174.2,
           metricDataState: 'recorded',
+          loggingDayState: 'unlogged',
+        }),
+        expect.objectContaining({
+          date: recentLocalDate(3),
+          value: null,
+          metricDataState: null,
           loggingDayState: 'unlogged',
         }),
       ]),
@@ -566,6 +572,68 @@ describe('canonical analytics trends API', () => {
       ]),
     );
     expect(response.body.data).not.toHaveProperty('dailyBreakdowns');
+  });
+
+  it('serves WEEK and MONTH Insights when hydration begins inside each rolling window', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Existing food log',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 20,
+        loggedAt: new Date(recentLocalDateTime(6)),
+      },
+    });
+    await prisma.waterLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        amountMl: 750,
+        loggedAt: new Date(recentLocalDateTime(2)),
+      },
+    });
+
+    for (const period of ['week', 'month'] as const) {
+      const response = await api
+        .get(`/api/v1/analytics/insights?period=${period}`)
+        .expect(200);
+      const hydration = response.body.data.sections.hydration;
+
+      expect(Object.keys(response.body.data.sections)).toEqual([
+        'calories',
+        'protein',
+        'carbs',
+        'fat',
+        'macroComposition',
+        'weight',
+        'hydration',
+        'loggingConsistency',
+      ]);
+      expect(hydration).toMatchObject({
+        firstEligibleDate: recentLocalDate(2),
+        resolvedRange: {
+          startDate: recentLocalDate(period === 'week' ? 6 : 29),
+          endDate: recentLocalDate(),
+        },
+      });
+      expect(hydration.points).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            date: recentLocalDate(period === 'week' ? 6 : 29),
+            value: null,
+            metricDataState: null,
+            loggingDayState: period === 'week' ? 'partial' : 'unlogged',
+          }),
+          expect.objectContaining({
+            date: recentLocalDate(2),
+            value: 750,
+            metricDataState: 'recorded',
+          }),
+        ]),
+      );
+    }
   });
 
   it('keeps a complete logging day separate from partial Vitamin C snapshot coverage', async () => {

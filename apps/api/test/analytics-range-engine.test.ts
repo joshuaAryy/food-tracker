@@ -50,12 +50,39 @@ describe('analytics range engine', () => {
         period: {
           kind: 'custom',
           startDate: '2026-08-07',
+          endDate: '2026-08-06',
+        },
+        today: '2026-08-08',
+        firstEligibleDate: '2026-08-01',
+      }),
+    ).toThrow('must not follow');
+    expect(() =>
+      resolveAnalyticsPeriod({
+        period: {
+          kind: 'custom',
+          startDate: '2026-08-07',
           endDate: '2026-08-09',
         },
         today: '2026-08-08',
         firstEligibleDate: '2026-08-01',
       }),
     ).toThrow('future');
+  });
+
+  it('keeps a relative window full length when eligibility begins inside it', () => {
+    for (const days of [7, 30, 90]) {
+      expect(
+        resolveAnalyticsPeriod({
+          period: { kind: 'relative', days },
+          today: '2026-08-08',
+          firstEligibleDate: '2026-08-06',
+        }),
+      ).toMatchObject({
+        startDate: `2026-${days === 90 ? '05-11' : days === 30 ? '07-10' : '08-02'}`,
+        endDate: '2026-08-08',
+        dayCount: days,
+      });
+    }
   });
 
   it('preserves target, minimum, limit, and true range semantics without fabricating bounds', () => {

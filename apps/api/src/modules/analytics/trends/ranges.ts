@@ -68,7 +68,11 @@ export function resolveAnalyticsPeriod({
     throw new Error('Analytics ranges cannot include future dates');
   if (startDate > endDate)
     throw new Error('Analytics range start must not follow its end');
-  if (firstEligibleDate !== null && startDate < firstEligibleDate) {
+  if (
+    period.kind === 'custom' &&
+    firstEligibleDate !== null &&
+    startDate < firstEligibleDate
+  ) {
     throw new Error(
       'Analytics ranges cannot begin before the first eligible date',
     );

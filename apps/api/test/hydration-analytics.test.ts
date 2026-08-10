@@ -62,4 +62,44 @@ describe('hydration analytics', () => {
       ]),
     );
   });
+
+  it('keeps fresh 7D and 30D hydration windows full length without pre-eligibility values', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await prisma.waterLog.createMany({
+      data: [
+        { amountMl: 0, loggedAt: new Date(recentLocalDateTime(2)) },
+        { amountMl: 500, loggedAt: new Date(recentLocalDateTime(1)) },
+      ].map((log) => ({ ...log, userId: MOCK_USER_ID })),
+    });
+
+    for (const days of [7, 30]) {
+      const response = await api
+        .post('/api/v1/analytics/trends/query')
+        .send({ ...hydrationQuery, period: { kind: 'relative', days } })
+        .expect(200);
+
+      expect(response.body.data).toMatchObject({
+        resolvedRange: {
+          startDate: recentLocalDate(days - 1),
+          endDate: recentLocalDate(),
+        },
+        firstEligibleDate: recentLocalDate(2),
+      });
+      expect(response.body.data.points).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            date: recentLocalDate(days - 1),
+            value: null,
+            metricDataState: null,
+          }),
+          expect.objectContaining({
+            date: recentLocalDate(2),
+            value: 0,
+            metricDataState: 'recorded',
+          }),
+        ]),
+      );
+    }
+  });
 });
