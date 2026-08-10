@@ -15,9 +15,17 @@ import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend, createTrendRequestContext } from './service.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 import { computeAnalyticsContributors } from './contributors.js';
+import {
+  emitInsightsDiagnostic,
+  insightsDiagnosticErrorDetails,
+  insightsDiagnosticsEnabled,
+  type InsightsDiagnosticCategory,
+  type InsightsDiagnosticDetails,
+  type InsightsPeriod,
+  type InsightsTrackingMode,
+} from './insights-diagnostics.js';
 
 export const trendsRouter = Router();
-export const insightsRouter = Router();
 
 async function currentTrackingMode(
   userId: string,
@@ -104,45 +112,175 @@ trendsRouter.post(
   },
 );
 
-insightsRouter.get('/', async (request, response) => {
-  const userId = currentUserId(response);
-  const mode = await currentTrackingMode(userId);
-  const period = request.query.period === 'month' ? 'month' : 'week';
-  const days = period === 'month' ? 30 : 7;
-  const baseQuery = {
-    period: { kind: 'relative' as const, days },
-    aggregation: 'automatic' as const,
-    visualization: 'automatic' as const,
-    showReference: true,
-    coverageFilter: 'all_logged_days' as const,
+export interface InsightsRouteDependencies {
+  currentTrackingMode?: typeof currentTrackingMode;
+  createTrendRequestContext?: typeof createTrendRequestContext;
+  computeCanonicalTrend?: typeof computeCanonicalTrend;
+  emitDiagnostic?: (
+    category: InsightsDiagnosticCategory,
+    details: InsightsDiagnosticDetails,
+  ) => void;
+}
+
+export function createInsightsRouter(
+  dependencies: InsightsRouteDependencies = {},
+): Router {
+  const resolveTrackingMode =
+    dependencies.currentTrackingMode ?? currentTrackingMode;
+  const createContext =
+    dependencies.createTrendRequestContext ?? createTrendRequestContext;
+  const computeTrend =
+    dependencies.computeCanonicalTrend ?? computeCanonicalTrend;
+  const emitDiagnostic = dependencies.emitDiagnostic ?? emitInsightsDiagnostic;
+  const report = (
+    category: InsightsDiagnosticCategory,
+    details: InsightsDiagnosticDetails,
+  ): void => {
+    if (!insightsDiagnosticsEnabled()) return;
+    emitDiagnostic(category, details);
   };
-  const keys = [
-    'calories',
-    'protein',
-    'carbs',
-    'fat',
-    'macroComposition',
-    'weight',
-    'hydration',
-    'loggingConsistency',
-  ] as const;
-  const context = createTrendRequestContext(userId, keys);
-  const trends = await Promise.all(
-    keys.map(
-      async (primaryMetric) =>
-        [
-          primaryMetric,
-          await computeCanonicalTrend(
+  const router = Router();
+
+  router.get('/', async (request, response) => {
+    const requestId = response.locals.requestId as string | undefined;
+    const period: InsightsPeriod =
+      request.query.period === 'month' ? 'month' : 'week';
+    const baseDetails = { requestId, period };
+    report('insights_route_started', baseDetails);
+    const userId = currentUserId(response);
+    const modeDetails = { ...baseDetails };
+    report('insights_tracking_mode_started', modeDetails);
+    let mode: InsightsTrackingMode;
+    try {
+      mode = await resolveTrackingMode(userId);
+    } catch (error) {
+      report('insights_tracking_mode_failed', {
+        ...modeDetails,
+        ...insightsDiagnosticErrorDetails(error),
+      });
+      throw error;
+    }
+    report('insights_tracking_mode_succeeded', {
+      ...modeDetails,
+      trackingMode: mode,
+    });
+
+    const days = period === 'month' ? 30 : 7;
+    const baseQuery = {
+      period: { kind: 'relative' as const, days },
+      aggregation: 'automatic' as const,
+      visualization: 'automatic' as const,
+      showReference: true,
+      coverageFilter: 'all_logged_days' as const,
+    };
+    const keys = [
+      'calories',
+      'protein',
+      'carbs',
+      'fat',
+      'macroComposition',
+      'weight',
+      'hydration',
+      'loggingConsistency',
+    ] as const;
+
+    report('insights_context_started', {
+      ...baseDetails,
+      trackingMode: mode,
+    });
+    let context: ReturnType<typeof createTrendRequestContext>;
+    try {
+      context = createContext(userId, keys);
+    } catch (error) {
+      report('insights_context_failed', {
+        ...baseDetails,
+        trackingMode: mode,
+        ...insightsDiagnosticErrorDetails(error),
+      });
+      throw error;
+    }
+    if (context.base !== undefined) {
+      void context.base
+        .then(() => {
+          report('insights_context_succeeded', {
+            ...baseDetails,
+            trackingMode: mode,
+          });
+        })
+        .catch((error: unknown) => {
+          report('insights_context_failed', {
+            ...baseDetails,
+            trackingMode: mode,
+            ...insightsDiagnosticErrorDetails(error),
+          });
+        });
+    } else {
+      report('insights_context_succeeded', {
+        ...baseDetails,
+        trackingMode: mode,
+      });
+    }
+
+    const trends = await Promise.all(
+      keys.map(async (primaryMetric) => {
+        report('insights_metric_started', {
+          ...baseDetails,
+          trackingMode: mode,
+          metric: primaryMetric,
+        });
+        try {
+          const trend = await computeTrend(
             userId,
             { ...baseQuery, primaryMetric },
             context,
-          ),
-        ] as const,
-    ),
-  );
-  sendSuccess(response, {
-    mode,
-    period,
-    sections: Object.fromEntries(trends),
+          );
+          report('insights_metric_succeeded', {
+            ...baseDetails,
+            trackingMode: mode,
+            metric: primaryMetric,
+          });
+          return [primaryMetric, trend] as const;
+        } catch (error) {
+          report('insights_metric_failed', {
+            ...baseDetails,
+            trackingMode: mode,
+            metric: primaryMetric,
+            ...insightsDiagnosticErrorDetails(error),
+          });
+          throw error;
+        }
+      }),
+    );
+    report('insights_computation_succeeded', {
+      ...baseDetails,
+      trackingMode: mode,
+    });
+
+    report('insights_response_send_started', {
+      ...baseDetails,
+      trackingMode: mode,
+    });
+    try {
+      sendSuccess(response, {
+        mode,
+        period,
+        sections: Object.fromEntries(trends),
+      });
+    } catch (error) {
+      report('insights_response_send_failed', {
+        ...baseDetails,
+        trackingMode: mode,
+        ...insightsDiagnosticErrorDetails(error),
+      });
+      throw error;
+    }
+    report('insights_response_send_succeeded', {
+      ...baseDetails,
+      trackingMode: mode,
+    });
   });
-});
+
+  return router;
+}
+
+export const insightsRouter = createInsightsRouter();
