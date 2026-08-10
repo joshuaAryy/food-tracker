@@ -941,13 +941,20 @@ end
     const commands = buildPreparationCommands('/repo');
     expect(commands.map((command) => command.command)).toEqual([
       'corepack',
+      'corepack',
       'pod',
       'open',
     ]);
-    expect(commands[0]?.args).toContain('--clean');
-    expect(commands[0]?.args).toContain('--no-install');
-    expect(commands[1]?.args).toEqual(['install', '--repo-update']);
-    expect(commands[2]?.args).toEqual([
+    expect(commands[0]?.args).toEqual([
+      'pnpm',
+      '--filter',
+      '@food-tracker/shared',
+      'build',
+    ]);
+    expect(commands[1]?.args).toContain('--clean');
+    expect(commands[1]?.args).toContain('--no-install');
+    expect(commands[2]?.args).toEqual(['install', '--repo-update']);
+    expect(commands[3]?.args).toEqual([
       '-a',
       'Xcode',
       '/repo/apps/mobile/ios/FoodTracker.xcworkspace',
@@ -1055,7 +1062,7 @@ end
       isIgnored: () => true,
       isTracked: () => false,
     });
-    expect(order).toEqual(['corepack', 'pod', 'open']);
+    expect(order).toEqual(['corepack', 'corepack', 'pod', 'open']);
     const handoff = readFileSync(
       join(root, 'apps/mobile/ios/.xcode.env.local'),
       'utf8',

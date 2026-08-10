@@ -90,6 +90,8 @@ import type { NormalizedPhotoImage } from './photo-image-core';
 import {
   parseApiResponse as parseStandardApiResponse,
   sanitizePublicErrorDetails,
+  type ResponseParseDiagnostic,
+  type ResponseParseDiagnosticStage,
   type ResponseSchema,
 } from './api-response';
 import { reportDiagnostic } from './safe-diagnostics';
@@ -109,6 +111,21 @@ reportDiagnostic('api_target_resolved', {
 });
 
 export const API_URL = resolvedApiRuntime.apiUrl;
+export const API_RUNTIME_ENVIRONMENT = resolvedApiRuntime.environment;
+
+export type InsightsRequestDiagnosticStage =
+  | 'fetch_response_received'
+  | 'http_status_class'
+  | ResponseParseDiagnosticStage;
+
+export interface InsightsRequestDiagnosticEvent {
+  stage: InsightsRequestDiagnosticStage;
+  status?: number;
+}
+
+export type InsightsRequestDiagnostic = (
+  event: InsightsRequestDiagnosticEvent,
+) => void;
 
 let apiAuthSession: ApiAuthSession | null = null;
 
@@ -215,6 +232,7 @@ async function fetchWithAuth(
 export async function parseApiResponse<T>(
   response: Response,
   schema?: ResponseSchema<T>,
+  onStage?: ResponseParseDiagnostic,
 ): Promise<T> {
   return parseStandardApiResponse(
     response,
@@ -227,6 +245,7 @@ export async function parseApiResponse<T>(
         errorResponse.status,
         sanitizePublicErrorDetails(error.details as Record<string, unknown>),
       ),
+    onStage,
   );
 }
 
@@ -238,6 +257,7 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
   schema?: ResponseSchema<T>,
+  onInsightsDiagnostic?: InsightsRequestDiagnostic,
 ): Promise<T> {
   const { body, headers: providedHeaders, ...requestOptions } = options;
   const headers = new Headers(providedHeaders);
@@ -256,7 +276,18 @@ async function request<T>(
     withAuthorization(requestInit, token),
   );
 
-  return parseApiResponse(response, schema);
+  onInsightsDiagnostic?.({
+    stage: 'fetch_response_received',
+    status: response.status,
+  });
+  onInsightsDiagnostic?.({
+    stage: 'http_status_class',
+    status: response.status,
+  });
+
+  return parseApiResponse(response, schema, (stage, status) =>
+    onInsightsDiagnostic?.({ stage, status }),
+  );
 }
 
 async function requestRaw<T>(
@@ -527,11 +558,15 @@ export const api = {
         method: 'POST',
         body: { ...input, ...(includeAll ? { includeAll: true } : {}) },
       }),
-    insights: (period: 'week' | 'month') =>
+    insights: (
+      period: 'week' | 'month',
+      onDiagnostic?: InsightsRequestDiagnostic,
+    ) =>
       request<CanonicalInsightsResponse>(
         `/analytics/insights?period=${period}`,
         {},
         canonicalInsightsResponseSchema as unknown as ResponseSchema<CanonicalInsightsResponse>,
+        onDiagnostic,
       ),
     preferences: () =>
       request<{ preferences: AnalyticsPreferenceValue }>(

@@ -894,6 +894,11 @@ export function buildPreparationCommands(rootDir: string): WorkflowCommand[] {
   return [
     {
       command: 'corepack',
+      args: ['pnpm', '--filter', '@food-tracker/shared', 'build'],
+      cwd: paths.rootDir,
+    },
+    {
+      command: 'corepack',
       args: [
         'pnpm',
         'exec',
@@ -1281,7 +1286,7 @@ export function runStagingReleasePreparation(
   if (existsSync(iosDirectory)) assertNoSymlinkedNativeChildren(iosDirectory);
   const run = options.runCommand ?? defaultRunCommand;
   const commands = buildPreparationCommands(rootDir);
-  for (const command of commands.slice(0, 2)) {
+  for (const command of commands.slice(0, 3)) {
     run(command.command, command.args, command.cwd, childEnvironment);
   }
   assertSafeGeneratedIosDirectory(iosDirectory, rootDir, options);
@@ -1305,7 +1310,7 @@ export function runStagingReleasePreparation(
       'Native preparation changed tracked or unrelated Git state.',
     );
   }
-  const openCommand = commands[2];
+  const openCommand = commands[3];
   if (openCommand === undefined)
     throw new Error('Xcode handoff command was not generated.');
   run(openCommand.command, openCommand.args, openCommand.cwd, childEnvironment);

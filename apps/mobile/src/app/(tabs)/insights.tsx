@@ -42,7 +42,7 @@ import {
   SkeletonPill,
   SkeletonRail,
 } from '@/components/skeleton';
-import { api, errorMessage } from '@/lib/api-client';
+import { API_RUNTIME_ENVIRONMENT, api, errorMessage } from '@/lib/api-client';
 import {
   analyticsResourceReducer,
   initialAnalyticsResource,
@@ -58,6 +58,12 @@ import {
   analyticsCache,
   ANALYTICS_CACHE_KEYS,
 } from '@/lib/analytics/analytics-cache-runtime';
+import {
+  createStagingInsightsDiagnostic,
+  formatStagingInsightsDiagnostic,
+  type StagingInsightsDiagnostic,
+  type StagingInsightsDiagnosticStage,
+} from '@/lib/staging-insights-diagnostics';
 import { colors } from '@/theme/tokens';
 
 function IconDot({ name }: { name: ReportingIconName }) {
@@ -375,6 +381,10 @@ export default function InsightsScreen() {
   );
   const report = reportResource.value;
   const reportRequestId = useRef(0);
+  const [insightsDiagnostic, setInsightsDiagnostic] =
+    useState<StagingInsightsDiagnostic | null>(null);
+  const [insightsFailureDiagnostic, setInsightsFailureDiagnostic] =
+    useState<StagingInsightsDiagnostic | null>(null);
   const [analyticsPreferences, setAnalyticsPreferences] =
     useState<AnalyticsPreferenceValue | null>(null);
   const [savedViews, setSavedViews] = useState<AnalyticsSavedView[]>([]);
@@ -388,12 +398,56 @@ export default function InsightsScreen() {
   const loadReporting = useCallback(
     async (nextPeriod: 'week' | 'month', asRefresh = false) => {
       const requestId = ++reportRequestId.current;
+      let failureStage: StagingInsightsDiagnosticStage | undefined;
+      let cacheValueExists = false;
+      const reportInsightsDiagnostic = (
+        stage: StagingInsightsDiagnosticStage,
+        details: {
+          status?: unknown;
+          errorCode?: unknown;
+          cacheValueExists?: unknown;
+          failureStage?: unknown;
+        } = {},
+      ): StagingInsightsDiagnostic | null => {
+        const diagnostic = createStagingInsightsDiagnostic(
+          API_RUNTIME_ENVIRONMENT,
+          stage,
+          requestId,
+          details,
+        );
+        if (diagnostic === null || requestId !== reportRequestId.current) {
+          return null;
+        }
+        if (stage.endsWith('_failed')) {
+          failureStage = stage;
+          setInsightsFailureDiagnostic(diagnostic);
+        }
+        if (stage === 'report_failure_dispatched') {
+          setInsightsFailureDiagnostic(diagnostic);
+        }
+        setInsightsDiagnostic(diagnostic);
+        return diagnostic;
+      };
+      const errorDetails = (error: unknown) => ({
+        status:
+          typeof error === 'object' && error !== null
+            ? (error as { status?: unknown }).status
+            : undefined,
+        errorCode:
+          typeof error === 'object' && error !== null
+            ? (error as { code?: unknown }).code
+            : undefined,
+      });
+
+      reportInsightsDiagnostic('request_started');
+      setInsightsFailureDiagnostic(null);
       dispatchReport({ type: asRefresh ? 'refresh' : 'load', requestId });
       const cacheKey =
         nextPeriod === 'week'
           ? ANALYTICS_CACHE_KEYS.insightsWeek
           : ANALYTICS_CACHE_KEYS.insightsMonth;
       if (!asRefresh && userId !== null) {
+        reportInsightsDiagnostic('cache_read_started');
         try {
           const cached = await analyticsCache().read(
             userId,
@@ -409,23 +463,47 @@ export default function InsightsScreen() {
               updatedAt: cached.updatedAt,
               stale: cached.stale,
             });
+          cacheValueExists = cached !== null;
+          reportInsightsDiagnostic('cache_read_succeeded', {
+            cacheValueExists,
+          });
           if (cached !== null) dispatchReport({ type: 'refresh', requestId });
-        } catch {
+        } catch (cacheError) {
+          reportInsightsDiagnostic('cache_read_failed', {
+            ...errorDetails(cacheError),
+            cacheValueExists,
+          });
           // Cache failures never block canonical reporting.
         }
       }
       try {
-        const insights = await api.analytics.insights(nextPeriod);
+        const insights = await api.analytics.insights(nextPeriod, (event) => {
+          reportInsightsDiagnostic(event.stage, { status: event.status });
+        });
+        reportInsightsDiagnostic('api_insights_resolved');
         dispatchReport({
           type: 'commit',
           requestId,
           value: insights,
           updatedAt: Date.now(),
         });
-        if (userId !== null)
+        reportInsightsDiagnostic('report_commit_dispatched');
+        if (userId !== null) {
+          reportInsightsDiagnostic('cache_write_started');
           void analyticsCache()
             .write(userId, cacheKey, insights)
-            .catch(() => undefined);
+            .then(() => {
+              reportInsightsDiagnostic('cache_write_succeeded', {
+                cacheValueExists: true,
+              });
+            })
+            .catch((cacheError: unknown) => {
+              reportInsightsDiagnostic('cache_write_failed', {
+                ...errorDetails(cacheError),
+                cacheValueExists: true,
+              });
+            });
+        }
         if (insights.mode === 'complex') {
           try {
             const [preferences, views] = await Promise.all([
@@ -450,6 +528,11 @@ export default function InsightsScreen() {
           type: 'failure',
           requestId,
           message: errorMessage(loadError),
+        });
+        reportInsightsDiagnostic('report_failure_dispatched', {
+          ...errorDetails(loadError),
+          cacheValueExists,
+          failureStage,
         });
       }
     },
@@ -541,15 +624,27 @@ export default function InsightsScreen() {
       </View>
 
       {reportResource.error === null ? null : (
-        <ErrorState
-          title={
-            report === null
-              ? 'Reports are unavailable'
-              : 'Couldn’t refresh reports'
-          }
-          message={reportResource.error}
-          onRetry={() => void loadReporting(period, true)}
-        />
+        <View className="gap-2">
+          <ErrorState
+            title={
+              report === null
+                ? 'Reports are unavailable'
+                : 'Couldn’t refresh reports'
+            }
+            message={reportResource.error}
+            onRetry={() => void loadReporting(period, true)}
+          />
+          {insightsDiagnostic === null ||
+          insightsFailureDiagnostic === null ? null : (
+            <AppText variant="caption" className="text-muted">
+              {formatStagingInsightsDiagnostic({
+                ...insightsFailureDiagnostic,
+                stage: 'report_failure_dispatched',
+                failureStage: insightsFailureDiagnostic.stage,
+              })}
+            </AppText>
+          )}
+        </View>
       )}
       {report === null ? (
         reportResource.error === null ? (

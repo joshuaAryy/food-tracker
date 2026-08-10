@@ -104,4 +104,37 @@ describe('analytics resource state', () => {
       }),
     ).toEqual(newer);
   });
+
+  it('ignores stale failures and cache hydration after a newer request starts', () => {
+    const newer = analyticsResourceReducer(
+      analyticsResourceReducer(initialAnalyticsResource<number>(), {
+        type: 'load',
+        requestId: 2,
+      }),
+      {
+        type: 'hydrate',
+        requestId: 2,
+        value: 20,
+        updatedAt: 2,
+        stale: false,
+      },
+    );
+
+    expect(
+      analyticsResourceReducer(newer, {
+        type: 'failure',
+        requestId: 1,
+        message: 'Stale failure',
+      }),
+    ).toEqual(newer);
+    expect(
+      analyticsResourceReducer(newer, {
+        type: 'hydrate',
+        requestId: 1,
+        value: 10,
+        updatedAt: 1,
+        stale: true,
+      }),
+    ).toEqual(newer);
+  });
 });
