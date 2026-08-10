@@ -15,14 +15,6 @@ import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend, createTrendRequestContext } from './service.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 import { computeAnalyticsContributors } from './contributors.js';
-import {
-  createInsightsContextWithDiagnostics,
-  emitInsightsRequestStarted,
-  runInsightsComputationWithDiagnostics,
-  runInsightsMetricWithDiagnostics,
-  runInsightsTrackingModeWithDiagnostics,
-  sendInsightsWithDiagnostics,
-} from './route-diagnostics.js';
 
 export const trendsRouter = Router();
 export const insightsRouter = Router();
@@ -113,13 +105,8 @@ trendsRouter.post(
 );
 
 insightsRouter.get('/', async (request, response) => {
-  const requestId = response.locals.requestId as string | undefined;
-  emitInsightsRequestStarted(requestId);
   const userId = currentUserId(response);
-  const mode = await runInsightsTrackingModeWithDiagnostics(
-    () => currentTrackingMode(userId),
-    requestId,
-  );
+  const mode = await currentTrackingMode(userId);
   const period = request.query.period === 'month' ? 'month' : 'week';
   const days = period === 'month' ? 30 : 7;
   const baseQuery = {
@@ -139,40 +126,23 @@ insightsRouter.get('/', async (request, response) => {
     'hydration',
     'loggingConsistency',
   ] as const;
-  const context = await createInsightsContextWithDiagnostics(
-    () => createTrendRequestContext(userId, keys),
-    (createdContext) => createdContext.base,
-    requestId,
+  const context = createTrendRequestContext(userId, keys);
+  const trends = await Promise.all(
+    keys.map(
+      async (primaryMetric) =>
+        [
+          primaryMetric,
+          await computeCanonicalTrend(
+            userId,
+            { ...baseQuery, primaryMetric },
+            context,
+          ),
+        ] as const,
+    ),
   );
-  const trends = await runInsightsComputationWithDiagnostics(
-    () =>
-      Promise.all(
-        keys.map(
-          async (primaryMetric) =>
-            [
-              primaryMetric,
-              await runInsightsMetricWithDiagnostics(
-                primaryMetric,
-                () =>
-                  computeCanonicalTrend(
-                    userId,
-                    { ...baseQuery, primaryMetric },
-                    context,
-                  ),
-                requestId,
-              ),
-            ] as const,
-        ),
-      ),
-    requestId,
-  );
-  sendInsightsWithDiagnostics(
-    () =>
-      sendSuccess(response, {
-        mode,
-        period,
-        sections: Object.fromEntries(trends),
-      }),
-    requestId,
-  );
+  sendSuccess(response, {
+    mode,
+    period,
+    sections: Object.fromEntries(trends),
+  });
 });

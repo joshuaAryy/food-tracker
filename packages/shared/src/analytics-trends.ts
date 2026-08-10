@@ -369,5 +369,8 @@ export const canonicalTrendResponseSchema = z.object({
 export const canonicalInsightsResponseSchema = z.object({
   mode: z.enum(['simple', 'complex']),
   period: z.enum(['week', 'month']),
-  sections: z.record(analyticsMetricKeySchema, canonicalTrendResponseSchema),
+  sections: z.partialRecord(
+    analyticsMetricKeySchema,
+    canonicalTrendResponseSchema,
+  ),
 });

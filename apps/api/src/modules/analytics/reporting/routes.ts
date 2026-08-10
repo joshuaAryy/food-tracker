@@ -13,11 +13,6 @@ import { sendSuccess } from '../../../lib/responses.js';
 import { validateQuery, validatedQuery } from '../../../middleware/validate.js';
 import { computeProgress, computeReports } from './service.js';
 import { computeStreakCalendar } from './calendar-service.js';
-import {
-  parseReportsWithDiagnostics,
-  runReportsComputeWithDiagnostics,
-  sendReportsWithDiagnostics,
-} from './route-diagnostics.js';
 
 export const reportingRouter = Router();
 
@@ -49,15 +44,11 @@ reportingRouter.get(
   validateQuery(reportQuerySchema),
   async (_request, response) => {
     const query = validatedQuery<ReportQuery>(response);
-    const requestId = response.locals.requestId as string | undefined;
-    const data = await runReportsComputeWithDiagnostics(
-      () => computeReports(currentUserId(response), query.period, query.date),
-      requestId,
+    const data = await computeReports(
+      currentUserId(response),
+      query.period,
+      query.date,
     );
-    const parsed = parseReportsWithDiagnostics(
-      () => reportsResponseSchema.parse(data),
-      requestId,
-    );
-    sendReportsWithDiagnostics(() => sendSuccess(response, parsed), requestId);
+    sendSuccess(response, reportsResponseSchema.parse(data));
   },
 );
