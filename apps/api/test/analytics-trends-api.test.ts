@@ -14,6 +14,12 @@ const caloriesQuery = {
   coverageFilter: 'all_logged_days',
 };
 
+function diagnosticCalls(warn: { mock: { calls: unknown[][] } }) {
+  return warn.mock.calls
+    .filter((call) => call[0] === '[food-tracker:diagnostic]')
+    .map((call) => call[1] as Record<string, unknown>);
+}
+
 describe('canonical analytics trends API', () => {
   it('loads the selected FoodLog range once for a two-metric comparison', async () => {
     await seedProfile();
@@ -49,6 +55,64 @@ describe('canonical analytics trends API', () => {
       findMany.mockRestore();
     }
   });
+
+  it.each(['week', 'month'] as const)(
+    'keeps the %s canonical Insights response successful while emitting boundary diagnostics',
+    async (period) => {
+      await seedProfile();
+      await seedPreferences({ mode: 'complex' });
+      const warn = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+
+      try {
+        await api
+          .get(`/api/v1/analytics/insights?period=${period}`)
+          .expect(200);
+
+        const diagnostics = diagnosticCalls(warn);
+        expect(diagnostics).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ category: 'insights_request_started' }),
+            expect.objectContaining({
+              category: 'insights_tracking_mode_succeeded',
+            }),
+            expect.objectContaining({
+              category: 'insights_context_succeeded',
+            }),
+            expect.objectContaining({
+              category: 'insights_computation_succeeded',
+            }),
+            expect.objectContaining({
+              category: 'insights_response_send_succeeded',
+            }),
+          ]),
+        );
+        for (const metric of [
+          'calories',
+          'protein',
+          'carbs',
+          'fat',
+          'macroComposition',
+          'weight',
+          'hydration',
+          'loggingConsistency',
+        ]) {
+          expect(diagnostics).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                category: 'insights_metric_succeeded',
+                operation: 'analytics_insights_metric',
+                field: metric,
+              }),
+            ]),
+          );
+        }
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
 
   it('returns canonical calorie points with nullable gaps, not legacy zero fill', async () => {
     await seedProfile();
