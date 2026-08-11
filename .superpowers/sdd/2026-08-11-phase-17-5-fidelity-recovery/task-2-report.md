@@ -18,10 +18,10 @@
   `insights-v2-month`. The v1 keys and all current consumers remain unchanged.
 - Added mobile reducer/adapter/key tests and API v2 contract/parser tests.
 
-The existing R0.2 seven-node Figma ledger edit in
-`docs/superpowers/phase-17-5-fidelity-capture-ledger.md` was independently
-verified and preserved. It is pre-existing user work and is deliberately not
-included in this task's commit.
+The R0.2 seven-node Figma inspection in
+`docs/superpowers/phase-17-5-fidelity-capture-ledger.md` is a task-owned
+deliverable. It was independently verified, preserved through implementation,
+and committed with the round-1 hardening fix.
 
 ## Why
 
@@ -77,15 +77,9 @@ change production routes, screens, or native behavior.
 
 ## Git state
 
-The R0.2 code, tests, and this report are to be committed on the current
-branch with:
-
-```text
-feat: define versioned section-aware analytics contract
-```
-
-The pre-existing modified Figma ledger and protected untracked paths remain
-unstaged and untouched.
+- Initial R0.2 commit: `1469103 feat: define versioned section-aware analytics contract`.
+- The task-owned Figma ledger was added to the round-1 correction commit.
+- Protected untracked paths remained unstaged and untouched.
 
 ## Known limitations or risks
 
@@ -100,3 +94,54 @@ unstaged and untouched.
 
 Use this report-resource state and adapter at the R1 Insights component
 boundary, keeping the live data source unchanged until R10.
+
+## Fix round 1 — review corrections
+
+### Findings addressed
+
+- C1: terminal commits and failures now settle the union of expected/current
+  section keys. Omitted outcomes retain prior data as stale or become
+  unavailable without prior data; terminal states cannot leave a section
+  pending.
+- I1: v2 validation now rejects empty reports, key/primary-metric mismatches,
+  and envelope/trend mode mismatches. The v1 adapter inherits the same strict
+  semantic validation and rejects ambiguous candidates.
+- I2: `sectionRetry` now marks only its owning section pending, including a
+  target with no committed data. Healthy siblings remain available and the
+  retry intent remains a canonical whole-Insights request.
+- I3: cache hydration for the same request generation is ignored after a
+  network commit.
+- I4: report state now distinguishes `offline_cache` from `refresh_failed`
+  stale provenance and provides separate safe user-facing copy.
+- I5: the seven-node R0.2 Figma ledger addition is committed as task-owned
+  work, and the earlier ownership statement above is corrected.
+- M1: focused tests now cover whole-request and parser-driven failures,
+  omitted outcomes with and without prior data, empty reports, semantic
+  mismatches, target-only retry behavior, no-data retry, older generations,
+  hydrate-after-commit ordering, and stale provenance.
+
+### TDD evidence
+
+- Mobile RED: 15 tests ran; 9 failed and 6 passed on the reviewed defects.
+- API RED on `food_tracker_test`: 7 tests ran; 4 failed and 3 passed on empty,
+  key-mismatched, mode-mismatched, and malformed mixed responses.
+- Focused GREEN: mobile report-resource suite passed 15/15; API v2 contract
+  suite passed 7/7.
+
+### Final validation evidence
+
+- Node.js `v22.23.0`; pnpm `10.34.3`.
+- Shared build passed.
+- Shared, mobile, and API typechecks passed.
+- Scoped ESLint and Prettier checks passed.
+- Mobile analytics/cache/resource regressions: 4 files, 40 tests passed.
+- Auth cache-purge regressions: 1 suite, 12 tests passed.
+- API v1/v2 contract regressions on `food_tracker_test`: 2 files, 14 tests
+  passed; 14 migrations were present with no pending migrations.
+- `git diff --check` and staged diff checks passed before commit.
+- No live route, API endpoint/controller, cache consumer, Prisma schema,
+  migration, dependency, or lockfile changed.
+
+### Fix commit
+
+`51b0667c1089bd5ac7e345a1290a3b9b1ea82f49 fix: harden section-aware analytics state`
