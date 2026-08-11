@@ -1,7 +1,15 @@
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import type {
+  AnalyticsReportOverviewState,
+  AnalyticsReportSectionState,
+} from '@/lib/analytics/analytics-report-resource';
+import type { AnalyticsOverviewKey } from '@food-tracker/shared';
+
+type ReportGroupState =
+  | AnalyticsReportSectionState
+  | AnalyticsReportOverviewState<AnalyticsOverviewKey>;
 
 export function AnalyticsSectionError({
   title,
@@ -9,7 +17,7 @@ export function AnalyticsSectionError({
   onRetry,
 }: {
   title: string;
-  section: AnalyticsReportSectionState | undefined;
+  section: ReportGroupState | undefined;
   onRetry: () => void;
 }) {
   const retrying = section?.status === 'pending';

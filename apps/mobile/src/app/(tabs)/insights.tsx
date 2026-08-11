@@ -23,10 +23,12 @@ import type {
   RecommendationSeverity,
   RecommendationType,
   CanonicalInsightsResponse,
+  CanonicalInsightsResponseV2WithOverview,
   CanonicalTrendResponse,
   AnalyticsPreferenceValue,
   AnalyticsSavedView,
   AnalyticsSectionKey,
+  AnalyticsOverviewKey,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
@@ -75,6 +77,20 @@ import { colors } from '@/theme/tokens';
 
 function IconDot({ name }: { name: ReportingIconName }) {
   return <ReportingIcon name={name} size={32} />;
+}
+
+function legacyReportFromV2(
+  report: CanonicalInsightsResponseV2WithOverview,
+): CanonicalInsightsResponse {
+  return {
+    mode: report.mode,
+    period: report.period,
+    sections: Object.fromEntries(
+      Object.entries(report.sections).flatMap(([key, result]) =>
+        result?.status === 'available' ? [[key, result.data]] : [],
+      ),
+    ),
+  };
 }
 
 function severityLabel(severity: RecommendationSeverity): string {
@@ -413,6 +429,7 @@ export default function InsightsScreen() {
       nextPeriod: 'week' | 'month',
       asRefresh = false,
       retrySection: AnalyticsSectionKey | null = null,
+      retryOverview: AnalyticsOverviewKey | null = null,
     ) => {
       const requestId = ++reportRequestId.current;
       let failureStage: StagingInsightsDiagnosticStage | undefined;
@@ -464,19 +481,29 @@ export default function InsightsScreen() {
       reportInsightsDiagnostic('request_started');
       setInsightsFailureDiagnostic(null);
       dispatchReport({
-        type: asRefresh || retrySection !== null ? 'refresh' : 'load',
+        type:
+          asRefresh || retrySection !== null || retryOverview !== null
+            ? 'refresh'
+            : 'load',
         requestId,
       });
       dispatchSectionReport(
-        retrySection === null
-          ? { type: asRefresh ? 'refresh' : 'load', requestId }
-          : { type: 'sectionRetry', requestId, section: retrySection },
+        retryOverview !== null
+          ? { type: 'overviewRetry', requestId, overview: retryOverview }
+          : retrySection === null
+            ? { type: asRefresh ? 'refresh' : 'load', requestId }
+            : { type: 'sectionRetry', requestId, section: retrySection },
       );
       const cacheKey =
         nextPeriod === 'week'
           ? ANALYTICS_CACHE_KEYS.insightsWeek
           : ANALYTICS_CACHE_KEYS.insightsMonth;
-      if (!asRefresh && retrySection === null && userId !== null) {
+      if (
+        !asRefresh &&
+        retrySection === null &&
+        retryOverview === null &&
+        userId !== null
+      ) {
         reportInsightsDiagnostic('cache_read_started');
         try {
           const cached = await analyticsCache().read(
@@ -528,30 +555,25 @@ export default function InsightsScreen() {
         const insights = await api.analytics.insights(nextPeriod, (event) => {
           reportInsightsDiagnostic(event.stage, { status: event.status });
         });
+        const legacyInsights = legacyReportFromV2(insights);
         reportInsightsDiagnostic('api_insights_resolved');
         dispatchReport({
           type: 'commit',
           requestId,
-          value: insights,
+          value: legacyInsights,
           updatedAt: Date.now(),
         });
-        const adapted = adaptCanonicalInsightsResponseV1(
-          insights,
-          new Date().toISOString(),
-        );
-        if (adapted !== null) {
-          dispatchSectionReport({
-            type: 'commit',
-            requestId,
-            report: adapted,
-            updatedAt: Date.now(),
-          });
-        }
+        dispatchSectionReport({
+          type: 'commit',
+          requestId,
+          report: insights,
+          updatedAt: Date.now(),
+        });
         reportInsightsDiagnostic('report_commit_dispatched');
         if (userId !== null) {
           reportInsightsDiagnostic('cache_write_started');
           void analyticsCache()
-            .write(userId, cacheKey, insights)
+            .write(userId, cacheKey, legacyInsights)
             .then(() => {
               reportInsightsDiagnostic('cache_write_succeeded');
             })
@@ -622,9 +644,9 @@ export default function InsightsScreen() {
     setPeriod(nextPeriod);
   };
 
-  const retrySimpleSection = useCallback(
-    (section: AnalyticsSectionKey) => {
-      void loadReporting(period, false, section);
+  const retrySimpleOverview = useCallback(
+    (overview: AnalyticsOverviewKey) => {
+      void loadReporting(period, false, null, overview);
     },
     [loadReporting, period],
   );
@@ -722,7 +744,7 @@ export default function InsightsScreen() {
           resource={sectionReportResource}
           onExploreTrends={() => router.push('/trends' as never)}
           onLogWater={() => router.push('/water-log' as never)}
-          onSectionRetry={retrySimpleSection}
+          onOverviewRetry={retrySimpleOverview}
         />
       ) : report === null ? (
         reportResource.error === null ? (

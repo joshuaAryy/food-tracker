@@ -1,18 +1,17 @@
+import type { AnalyticsOverviewLoggingConsistency } from '@food-tracker/shared';
 import { View } from 'react-native';
-import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import type { AnalyticsReportOverviewState } from '@/lib/analytics/analytics-report-resource';
 import type { HeatmapState } from '@/lib/analytics/heatmap-geometry';
 import { AnalyticsSectionError } from './analytics-section-error';
 
-function heatmapState(state: string): HeatmapState {
-  if (state === 'complete') return 'complete';
-  if (state === 'partial') return 'partial';
-  if (state === 'unlogged') return 'unlogged';
-  return 'unlogged';
+function heatmapState(
+  state: AnalyticsOverviewLoggingConsistency['days'][number]['loggingDayState'],
+): HeatmapState {
+  return state;
 }
 
 function colorForState(state: HeatmapState): string {
@@ -22,15 +21,13 @@ function colorForState(state: HeatmapState): string {
 }
 
 export function LoggingConsistencyCard({
-  section,
-  onOpenTrend,
+  overview,
   onRetry,
 }: {
-  section: AnalyticsReportSectionState | undefined;
-  onOpenTrend: () => void;
+  overview: AnalyticsReportOverviewState<'loggingConsistency'> | undefined;
   onRetry: () => void;
 }) {
-  const data = section?.data ?? null;
+  const data = overview?.data ?? null;
   return (
     <View
       testID="simple-insights-section-logging-consistency"
@@ -40,36 +37,27 @@ export function LoggingConsistencyCard({
       {data === null ? (
         <AnalyticsSectionError
           title="Logging consistency"
-          section={section}
+          section={overview}
           onRetry={onRetry}
         />
       ) : (
         <AppCard elevated className="gap-3 p-[18px]">
           <AppText variant="caption" className="text-muted">
-            REPORT · {data.summary.numericDayCount} recorded days
+            REPORT · {data.completeDayCount} complete · {data.partialDayCount}{' '}
+            partial · {data.unloggedDayCount} unlogged
           </AppText>
           <HeatmapChart
-            points={data.points.map((point) => ({
-              date: point.kind === 'daily' ? point.date : point.bucketStartDate,
-              state: heatmapState(
-                point.kind === 'daily' ? point.loggingDayState : 'unlogged',
-              ),
+            points={data.days.map((day) => ({
+              date: day.date,
+              state: heatmapState(day.loggingDayState),
             }))}
             colorForState={colorForState}
             accessibilityLabel="Logging consistency calendar"
           />
           <AppText variant="caption" className="text-muted">
-            Complete, partial, and unlogged days remain distinct from metric
-            coverage.
+            Current day remains in progress; nutrient availability does not
+            change logging completeness.
           </AppText>
-          <AppButton
-            accessibilityLabel="Open logging consistency trend"
-            variant="secondary"
-            className="min-h-11 rounded-[14px] py-2"
-            onPress={onOpenTrend}
-          >
-            Explore consistency trend
-          </AppButton>
         </AppCard>
       )}
     </View>

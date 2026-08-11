@@ -1,9 +1,12 @@
-import { Image, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import hydrationBadge from '@/assets/reporting/hydration-badge.png';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import { ReportingSectionHeading } from '@/components/reporting-section-heading';
+import type {
+  AnalyticsReportOverviewState,
+  AnalyticsReportSectionState,
+} from '@/lib/analytics/analytics-report-resource';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function liters(value: number | null): string {
@@ -11,30 +14,30 @@ function liters(value: number | null): string {
 }
 
 export function HydrationInsightsCard({
-  section,
+  overview,
+  trend,
   onLogWater,
   onOpenTrend,
   onRetry,
 }: {
-  section: AnalyticsReportSectionState | undefined;
+  overview: AnalyticsReportOverviewState<'hydration'> | undefined;
+  trend: AnalyticsReportSectionState | undefined;
   onLogWater: () => void;
   onOpenTrend: () => void;
   onRetry: () => void;
 }) {
-  const data = section?.data ?? null;
-  const goal = data?.reference.kind === 'target' ? data.reference.value : null;
+  const data = overview?.data ?? null;
+  const progress =
+    data === null || data.total === null || data.goal <= 0
+      ? 0
+      : Math.min(100, (data.total / data.goal) * 100);
   return (
     <View testID="simple-insights-section-hydration" className="gap-3">
-      <View className="flex-row items-center gap-3">
-        <Image source={hydrationBadge} className="h-[34px] w-[34px]" />
-        <AppText variant="heading" className="text-[25px] leading-8 text-ink">
-          Hydration
-        </AppText>
-      </View>
+      <ReportingSectionHeading icon="detail" title="Hydration" />
       {data === null ? (
         <AnalyticsSectionError
           title="Hydration"
-          section={section}
+          section={overview}
           onRetry={onRetry}
         />
       ) : (
@@ -44,39 +47,58 @@ export function HydrationInsightsCard({
           </AppText>
           <View className="flex-row items-end justify-between gap-3">
             <AppText variant="number" className="text-[32px] leading-10">
-              {liters(data.summary.average)}
+              {liters(data.total)}
             </AppText>
             <AppText variant="caption" className="text-muted">
-              {goal === null
-                ? 'No goal set'
-                : `of ${(goal / 1000).toFixed(1)} L goal`}
+              of {(data.goal / 1000).toFixed(1)} L goal
             </AppText>
           </View>
           <View className="h-2 overflow-hidden rounded-full bg-module">
             <View
               className="h-full rounded-full bg-primary"
-              style={{
-                width: `${goal === null || data.summary.average === null ? 0 : Math.min(100, (data.summary.average / goal) * 100)}%`,
-              }}
+              style={{ width: `${progress}%` }}
             />
           </View>
-          <View className="flex-row gap-2">
+          <View className="flex-row items-center justify-between gap-3">
+            <AppText variant="label">
+              {data.total === null
+                ? 'No water logged today'
+                : 'Explicit water total'}
+            </AppText>
             <AppButton
               accessibilityLabel="Log water"
-              className="min-h-11 flex-1 rounded-[14px] py-2"
+              className="min-h-10 rounded-[19px] px-4 py-1"
               onPress={onLogWater}
             >
-              Log water
-            </AppButton>
-            <AppButton
-              accessibilityLabel="Open hydration trend"
-              variant="secondary"
-              className="min-h-11 flex-1 rounded-[14px] py-2"
-              onPress={onOpenTrend}
-            >
-              7-day trend
+              + 250 mL
             </AppButton>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open other water amount"
+            onPress={onLogWater}
+          >
+            <AppText variant="caption" className="text-primary-dark">
+              Other amount ›
+            </AppText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open hydration trend"
+            onPress={onOpenTrend}
+          >
+            <View className="flex-row items-center justify-between border-t border-line pt-3">
+              <AppText variant="label">7-day hydration trend</AppText>
+              <AppText variant="heading" className="text-muted">
+                ›
+              </AppText>
+            </View>
+          </Pressable>
+          {trend?.data === null || trend?.data === undefined ? null : (
+            <AppText variant="caption" className="text-muted">
+              {trend.data.summary.numericDayCount} recorded hydration days
+            </AppText>
+          )}
         </AppCard>
       )}
     </View>

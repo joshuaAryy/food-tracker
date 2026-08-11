@@ -56,7 +56,7 @@ import type {
   ReportsResponse,
   StreakCalendarResponse,
   CanonicalTrendResponse,
-  CanonicalInsightsResponse,
+  CanonicalInsightsResponseV2WithOverview,
   TrendQueryInput,
   AnalyticsPreferenceUpdateInput,
   AnalyticsPreferenceValue,
@@ -77,7 +77,7 @@ import {
   photoAnalysisResultSchema,
   photoAnalysisConfirmationResponseSchema,
   canonicalTrendResponseSchema,
-  canonicalInsightsResponseSchema,
+  canonicalInsightsResponseV2WithOverviewSchema,
 } from '@food-tracker/shared';
 import { File } from 'expo-file-system';
 import Constants from 'expo-constants';
@@ -562,10 +562,10 @@ export const api = {
       period: 'week' | 'month',
       onDiagnostic?: InsightsRequestDiagnostic,
     ) =>
-      request<CanonicalInsightsResponse>(
+      request<CanonicalInsightsResponseV2WithOverview>(
         `/analytics/insights?period=${period}`,
         {},
-        canonicalInsightsResponseSchema as unknown as ResponseSchema<CanonicalInsightsResponse>,
+        canonicalInsightsResponseV2WithOverviewSchema as unknown as ResponseSchema<CanonicalInsightsResponseV2WithOverview>,
         onDiagnostic,
       ),
     preferences: () =>

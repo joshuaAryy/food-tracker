@@ -1,91 +1,112 @@
-import { View } from 'react-native';
-import { AppButton } from '@/components/app-button';
+import type { AnalyticsOverviewMacros } from '@food-tracker/shared';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { MacroChart } from '@/components/analytics/charts/macro-chart';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import type {
+  AnalyticsReportOverviewState,
+  AnalyticsReportSectionState,
+} from '@/lib/analytics/analytics-report-resource';
 import { AnalyticsSectionError } from './analytics-section-error';
 
-function macroValue(
-  section: AnalyticsReportSectionState | undefined,
-): number | null {
-  return section?.data?.summary.average ?? null;
+function grams(value: number | null): string {
+  return value === null ? '—' : `${Math.round(value)} g`;
 }
 
-function macroLabel(label: string, value: number | null): string {
-  return value === null ? `${label} · —` : `${label} · ${Math.round(value)} g`;
+function trendData(section: AnalyticsReportSectionState | undefined) {
+  return (
+    section?.data?.points.map((point) => ({
+      date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+      value: point.value,
+    })) ?? []
+  );
 }
 
 export function MacroBalanceCard({
-  protein,
-  carbs,
-  fat,
-  macroComposition,
+  overview,
+  proteinTrend,
   onOpenTrend,
   onRetry,
 }: {
-  protein: AnalyticsReportSectionState | undefined;
-  carbs: AnalyticsReportSectionState | undefined;
-  fat: AnalyticsReportSectionState | undefined;
-  macroComposition: AnalyticsReportSectionState | undefined;
+  overview: AnalyticsReportOverviewState<'macros'> | undefined;
+  proteinTrend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
 }) {
-  const values = {
-    protein: macroValue(protein),
-    carbs: macroValue(carbs),
-    fat: macroValue(fat),
-  };
-  const allUnavailable =
-    protein?.data === null && carbs?.data === null && fat?.data === null;
-  const compositionDays = macroComposition?.data?.summary.numericDayCount ?? 0;
+  const { width } = useWindowDimensions();
+  const data = overview?.data ?? null;
   return (
     <View testID="simple-insights-section-macro-balance" className="gap-3">
       <ReportingSectionHeading icon="macros" title="Macro balance" />
-      {allUnavailable ? (
+      {data === null ? (
         <AnalyticsSectionError
           title="Macro balance"
-          section={protein ?? carbs ?? fat}
+          section={overview}
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-3 p-[18px]">
-          <AppText variant="caption" className="text-muted">
-            REPORT · Period composition · {compositionDays} recorded days
-          </AppText>
-          <View className="flex-row items-center gap-4">
-            <MacroChart
-              values={values}
-              size={112}
-              accessibilityLabel="Macro balance composition"
-            />
-            <View className="min-w-0 flex-1 gap-2">
-              <AppText variant="label">
-                {macroLabel('Protein', values.protein)}
-              </AppText>
-              <AppText variant="label">
-                {macroLabel('Carbs', values.carbs)}
-              </AppText>
-              <AppText variant="label">{macroLabel('Fat', values.fat)}</AppText>
-            </View>
-          </View>
-          {values.protein === null ||
-          values.carbs === null ||
-          values.fat === null ? (
+        <Pressable
+          accessibilityLabel="Open macro trends"
+          accessibilityRole="button"
+          onPress={onOpenTrend}
+        >
+          <AppCard elevated className="gap-3 p-[18px]">
             <AppText variant="caption" className="text-muted">
-              Some macro facts are unavailable and remain a gap.
+              REPORT · Period composition
             </AppText>
-          ) : null}
-          <AppButton
-            accessibilityLabel="Open macro balance trend"
-            variant="secondary"
-            className="min-h-11 rounded-[14px] py-2"
-            onPress={onOpenTrend}
-          >
-            Explore macro trend
-          </AppButton>
-        </AppCard>
+            <View className="flex-row items-center gap-4">
+              <MacroChart
+                values={{
+                  protein: data.protein.grams,
+                  carbs: data.carbs.grams,
+                  fat: data.fat.grams,
+                }}
+                size={112}
+                accessibilityLabel="Macro balance composition"
+              />
+              <View className="min-w-0 flex-1 gap-2">
+                {[
+                  ['Protein', data.protein.grams, data.protein.percentage],
+                  ['Carbs', data.carbs.grams, data.carbs.percentage],
+                  ['Fat', data.fat.grams, data.fat.percentage],
+                ].map(([label, value, percentage]) => (
+                  <View
+                    key={label as string}
+                    className="flex-row justify-between gap-2"
+                  >
+                    <AppText variant="label">
+                      {label as string} · {grams(value as number | null)}
+                    </AppText>
+                    <AppText variant="caption" className="text-ink">
+                      {percentage === null ? '—' : `${percentage}%`}
+                    </AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+            <View className="flex-row items-center justify-between border-t border-line pt-3">
+              <AppText variant="caption" className="text-muted">
+                TREND · Protein
+              </AppText>
+              {proteinTrend?.data === null ||
+              proteinTrend?.data === undefined ? (
+                <AppText variant="caption" className="text-muted">
+                  Unavailable
+                </AppText>
+              ) : (
+                <LineTrendChart
+                  data={trendData(proteinTrend)}
+                  width={Math.max(150, width - 210)}
+                  height={50}
+                  color="#C9242D"
+                  accessibilityLabel="Protein trend"
+                />
+              )}
+            </View>
+          </AppCard>
+        </Pressable>
       )}
     </View>
   );

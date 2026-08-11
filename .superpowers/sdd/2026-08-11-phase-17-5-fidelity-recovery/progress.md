@@ -16,7 +16,7 @@ Execution corrections governing every task:
 
 Task 1 R0.1: complete
 Task 2 R0.2: complete
-Task 3 R1.1: pending — corrected implementation is in the working tree after the authorized overview-contract prerequisite
+Task 3 R1.1: complete — corrected Simple overview consumes v2 overview facts and section-aware state; Complex/Recommendations/Pinned remain Task 4
 Task 3A R1.0a: complete — authorized v2 overview contract/resource extension; approved after fix round 3
 Task 3B R1.0b: complete — authoritative overview calculators, v2 route outcomes, global-vs-section failure tests, and Simple allowlist regression committed locally; PostgreSQL test DB green
 Task 4 R1.2: pending
@@ -71,4 +71,5 @@ Task 37 R12.2: pending
 - Approved execution-order deviation: R1.0b pulls forward only the backend/shared/API overview fact calculators and typed independent outcomes required by R1.1; R10.1–R10.5 full production fault-isolation/cache/resource work remains later and must not duplicate these interfaces.
 - Task 3B implementation: `38dff05`/`4c1ddd5` contract foundation was extended with `apps/api/src/modules/analytics/trends/overview.ts`, route v2 overview outcomes, local-date hydration/weight facts, historical policy-based streak input, and failure seams. API overview/resilience/contract/trend regressions passed on `food_tracker_test`.
 - Task 3 R1.1 rework: exact Figma `338:98` was re-inspected before implementation. Simple cards now consume typed overview outcomes for period summary, energy, macros, curated Fiber/Sodium/Vitamin C, Hydration, Weight, and Logging Consistency; embedded charts consume only canonical trend points. Curated nutrient rows are informational and non-navigable. Focused Jest fidelity tests passed.
+- Task 3 R1.1 review capture: exact Figma `338:98` screenshot/design context was inspected; visual requirements recorded were period pills/summary, purpose-built report cards, embedded trend surfaces, non-navigable curated highlights, logged-drinks-only hydration, authoritative current weight, heatmap completeness, and Simple capability copy. Automated component/typecheck evidence is green; physical 390pt comparison remains user-operated.
 - Authorized execution-order note: the API client now validates the overview-required v2 response and temporarily adapts available v2 core sections to the legacy report resource for Complex work; full v2 cache/resource wiring remains R10.2–R10.5.

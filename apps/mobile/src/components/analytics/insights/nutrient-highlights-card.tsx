@@ -1,81 +1,76 @@
+import type { AnalyticsOverviewNutrientHighlight } from '@food-tracker/shared';
 import { View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import type { AnalyticsReportOverviewState } from '@/lib/analytics/analytics-report-resource';
 import { AnalyticsSectionError } from './analytics-section-error';
 
-function highlight(
-  label: string,
-  section: AnalyticsReportSectionState | undefined,
-) {
-  const value = section?.data?.summary.average;
-  const reference = section?.data?.reference;
-  const status =
-    reference?.kind === 'target'
-      ? value === null || value === undefined
-        ? 'Unknown'
-        : value >= reference.value
-          ? 'Goal reached'
-          : 'In progress'
-      : 'Recorded';
-  return {
-    label,
-    value:
-      value === null || value === undefined ? '—' : `${Math.round(value)} g`,
-    status,
-  };
+function label(metric: AnalyticsOverviewNutrientHighlight['metric']): string {
+  if (metric === 'vitaminC') return 'Vitamin C';
+  return metric === 'fiber' ? 'Fiber' : 'Sodium';
+}
+
+function valueCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
+  return highlight.value === null
+    ? 'Unknown'
+    : `${highlight.value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${highlight.unit}`;
+}
+
+function statusCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
+  if (highlight.status === 'unknown') return 'Unavailable';
+  if (highlight.status === 'above_limit') return 'Above limit';
+  if (highlight.status === 'within_limit') return 'Within limit';
+  if (highlight.status === 'meets_minimum') return 'Goal reached';
+  return 'Near goal';
 }
 
 export function NutrientHighlightsCard({
-  protein,
-  carbs,
-  fat,
+  overview,
   onRetry,
 }: {
-  protein: AnalyticsReportSectionState | undefined;
-  carbs: AnalyticsReportSectionState | undefined;
-  fat: AnalyticsReportSectionState | undefined;
+  overview: AnalyticsReportOverviewState<'nutrientHighlights'> | undefined;
   onRetry: () => void;
 }) {
-  const entries = [
-    highlight('Protein', protein),
-    highlight('Carbs', carbs),
-    highlight('Fat', fat),
-  ];
-  const allUnavailable =
-    protein?.data === null && carbs?.data === null && fat?.data === null;
+  const data = overview?.data ?? null;
   return (
     <View
       testID="simple-insights-section-nutrient-highlights"
       className="gap-3"
     >
       <ReportingSectionHeading icon="nutrients" title="Nutrient highlights" />
-      {allUnavailable ? (
+      {data === null ? (
         <AnalyticsSectionError
           title="Nutrient highlights"
-          section={protein ?? carbs ?? fat}
+          section={overview}
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-3 p-[18px]">
-          {entries.map((entry, index) => (
+        <AppCard elevated className="gap-0 p-[18px]">
+          {data.highlights.map((highlight, index) => (
             <View
-              key={entry.label}
+              key={highlight.metric}
               className={
                 index === 0
-                  ? 'flex-row items-center justify-between gap-3'
-                  : 'flex-row items-center justify-between gap-3 border-t border-line pt-3'
+                  ? 'flex-row items-center justify-between gap-3 pb-3'
+                  : 'flex-row items-center justify-between gap-3 border-t border-line py-3'
               }
             >
               <View className="gap-0.5">
-                <AppText variant="label">{entry.label}</AppText>
+                <AppText variant="label">{label(highlight.metric)}</AppText>
                 <AppText variant="caption" className="text-muted">
-                  {entry.value}
+                  {valueCopy(highlight)}
                 </AppText>
               </View>
-              <AppText variant="caption" className="text-primary-dark">
-                {entry.status}
+              <AppText
+                variant="caption"
+                className={
+                  highlight.status === 'above_limit'
+                    ? 'text-[#eb1226]'
+                    : 'text-primary-dark'
+                }
+              >
+                {statusCopy(highlight)}
               </AppText>
             </View>
           ))}

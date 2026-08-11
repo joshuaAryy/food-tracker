@@ -1,4 +1,4 @@
-import type { AnalyticsSectionKey } from '@food-tracker/shared';
+import type { AnalyticsOverviewKey } from '@food-tracker/shared';
 import { View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
@@ -15,14 +15,13 @@ export function SimpleInsightsOverview({
   resource,
   onExploreTrends,
   onLogWater,
-  onSectionRetry,
+  onOverviewRetry,
 }: {
   resource: AnalyticsReportResourceState;
   onExploreTrends: () => void;
   onLogWater: () => void;
-  onSectionRetry: (section: AnalyticsSectionKey) => void;
+  onOverviewRetry: (overview: AnalyticsOverviewKey) => void;
 }) {
-  const sections = resource.sections;
   const stale = resource.staleSource === 'refresh_failed';
   const refreshing = resource.status === 'refreshing';
   const earlierAnalyticsAt =
@@ -55,47 +54,47 @@ export function SimpleInsightsOverview({
       ) : null}
       <InsightsPeriodSummary
         period={resource.period ?? 'week'}
-        consistency={sections.loggingConsistency?.data ?? null}
+        summary={resource.overview.periodSummary}
+        onRetry={() => onOverviewRetry('periodSummary')}
       />
       <EnergyBalanceCard
-        section={sections.calories}
+        overview={resource.overview.energy}
+        trend={resource.sections.calories}
         onOpenTrend={onExploreTrends}
-        onRetry={() => onSectionRetry('calories')}
+        onRetry={() => onOverviewRetry('energy')}
       />
       <MacroBalanceCard
-        protein={sections.protein}
-        carbs={sections.carbs}
-        fat={sections.fat}
-        macroComposition={sections.macroComposition}
+        overview={resource.overview.macros}
+        proteinTrend={resource.sections.protein}
         onOpenTrend={onExploreTrends}
-        onRetry={() => onSectionRetry('protein')}
+        onRetry={() => onOverviewRetry('macros')}
       />
       <NutrientHighlightsCard
-        protein={sections.protein}
-        carbs={sections.carbs}
-        fat={sections.fat}
-        onRetry={() => onSectionRetry('protein')}
+        overview={resource.overview.nutrientHighlights}
+        onRetry={() => onOverviewRetry('nutrientHighlights')}
       />
       <HydrationInsightsCard
-        section={sections.hydration}
+        overview={resource.overview.hydration}
+        trend={resource.sections.hydration}
         onLogWater={onLogWater}
         onOpenTrend={onExploreTrends}
-        onRetry={() => onSectionRetry('hydration')}
+        onRetry={() => onOverviewRetry('hydration')}
       />
       <WeightDirectionCard
-        section={sections.weight}
+        overview={resource.overview.weight}
+        trend={resource.sections.weight}
         onOpenTrend={onExploreTrends}
-        onRetry={() => onSectionRetry('weight')}
+        onRetry={() => onOverviewRetry('weight')}
       />
       <LoggingConsistencyCard
-        section={sections.loggingConsistency}
-        onOpenTrend={onExploreTrends}
-        onRetry={() => onSectionRetry('loggingConsistency')}
+        overview={resource.overview.loggingConsistency}
+        onRetry={() => onOverviewRetry('loggingConsistency')}
       />
       <View className="gap-2 rounded-[18px] bg-module p-4">
         <AppText variant="label">Explore every trend</AppText>
         <AppText variant="caption" className="text-muted">
-          Open the complete Simple reporting catalog for your available metrics.
+          Simple mode keeps trend controls curated. Advanced micronutrient
+          drill-down, comparisons, and saved analysis stay in Complex mode.
         </AppText>
         <AppButton
           accessibilityLabel="Explore all trends"

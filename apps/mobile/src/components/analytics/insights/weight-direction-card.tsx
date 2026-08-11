@@ -1,65 +1,118 @@
-import { useWindowDimensions, View } from 'react-native';
-import { AppButton } from '@/components/app-button';
+import type { AnalyticsOverviewWeight } from '@food-tracker/shared';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
-import type { AnalyticsReportSectionState } from '@/lib/analytics/analytics-report-resource';
+import type {
+  AnalyticsReportOverviewState,
+  AnalyticsReportSectionState,
+} from '@/lib/analytics/analytics-report-resource';
 import { AnalyticsSectionError } from './analytics-section-error';
 
+function changeCopy(change: AnalyticsOverviewWeight['change']): string {
+  if (change.value === null || change.direction === 'unknown')
+    return 'No 30-day change yet';
+  const sign = change.value > 0 ? '+' : '';
+  return `${sign}${change.value.toFixed(1)} lb over ${change.periodDays} days`;
+}
+
+function goalCopy(status: AnalyticsOverviewWeight['goalPathStatus']): string {
+  switch (status) {
+    case 'moving_toward':
+      return 'Moving toward goal';
+    case 'moving_away':
+      return 'Moving away from goal';
+    case 'at_goal':
+      return 'At goal';
+    case 'no_goal':
+      return 'No weight goal configured';
+    default:
+      return 'Goal direction unavailable';
+  }
+}
+
 export function WeightDirectionCard({
-  section,
+  overview,
+  trend,
   onOpenTrend,
   onRetry,
 }: {
-  section: AnalyticsReportSectionState | undefined;
+  overview: AnalyticsReportOverviewState<'weight'> | undefined;
+  trend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
 }) {
   const { width } = useWindowDimensions();
-  const data = section?.data ?? null;
-  const value = data?.summary.average;
+  const data = overview?.data ?? null;
+  const chartData =
+    trend?.data?.points.map((point) => ({
+      date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+      value: point.value,
+    })) ?? [];
   return (
     <View testID="simple-insights-section-weight-direction" className="gap-3">
       <ReportingSectionHeading icon="weight" title="Weight direction" />
       {data === null ? (
         <AnalyticsSectionError
           title="Weight"
-          section={section}
+          section={overview}
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-3 p-[18px]">
-          <AppText variant="caption" className="text-muted">
-            REPORT · Current weight
-          </AppText>
-          <AppText variant="number" className="text-[30px] leading-9">
-            {value === null || value === undefined
-              ? '—'
-              : `${value.toFixed(1)} lb`}
-          </AppText>
-          <View className="rounded-[12px] bg-module p-2">
-            <LineTrendChart
-              data={data.points.map((point) => ({
-                date:
-                  point.kind === 'daily' ? point.date : point.bucketStartDate,
-                value: point.value,
-              }))}
-              width={Math.max(220, width - 76)}
-              height={44}
-              color="#337AC7"
-              accessibilityLabel="Weight direction trend"
-            />
-          </View>
-          <AppButton
-            accessibilityLabel="Open weight trend"
-            variant="secondary"
-            className="min-h-11 rounded-[14px] py-2"
-            onPress={onOpenTrend}
-          >
-            Explore weight trend
-          </AppButton>
-        </AppCard>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open Weight trend"
+          onPress={onOpenTrend}
+        >
+          <AppCard elevated className="gap-3 p-[18px]">
+            <AppText variant="caption" className="text-muted">
+              REPORT · Current weight
+            </AppText>
+            <View className="flex-row items-end justify-between gap-3">
+              <AppText variant="number" className="text-[30px] leading-9">
+                {data.current === null ? '—' : `${data.current.toFixed(1)} lb`}
+              </AppText>
+              <AppText variant="caption" className="text-primary-dark">
+                {changeCopy(data.change)}
+              </AppText>
+            </View>
+            <View className="rounded-[12px] bg-module p-2">
+              {chartData.length === 0 ? (
+                <AppText variant="caption" className="text-muted">
+                  Weight trend unavailable
+                </AppText>
+              ) : (
+                <LineTrendChart
+                  data={chartData}
+                  width={Math.max(220, width - 76)}
+                  height={74}
+                  color="#337AC7"
+                  reference={
+                    data.reference.kind === 'target'
+                      ? data.reference.value
+                      : null
+                  }
+                  accessibilityLabel="Weight direction trend"
+                />
+              )}
+            </View>
+            <View className="flex-row items-center justify-between gap-3">
+              <AppText variant="caption" className="text-muted">
+                {goalCopy(data.goalPathStatus)}
+              </AppText>
+              {data.forecast.status === 'available' ? (
+                <AppText variant="caption" className="text-muted">
+                  {data.forecast.data.horizonDays}d projection available
+                </AppText>
+              ) : (
+                <AppText variant="caption" className="text-muted">
+                  Forecast unavailable
+                </AppText>
+              )}
+            </View>
+          </AppCard>
+        </Pressable>
       )}
     </View>
   );
