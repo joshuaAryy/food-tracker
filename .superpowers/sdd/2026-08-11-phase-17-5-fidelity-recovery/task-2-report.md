@@ -145,3 +145,53 @@ boundary, keeping the live data source unchanged until R10.
 ### Fix commit
 
 `51b0667c1089bd5ac7e345a1290a3b9b1ea82f49 fix: harden section-aware analytics state`
+
+## Fix round 2 — complete request phases and hydration ordering
+
+### Findings addressed
+
+- C1: every v2 commit and hydration now starts from all eight
+  `ANALYTICS_INSIGHTS_SECTION_KEYS`. A partial initial report therefore
+  materializes every section, and each omitted no-prior section settles as
+  unavailable and retryable.
+- I2: report state now records `initial_load`, `canonical_refresh`, and
+  `section_retry` separately from each request phase. A failed section retry
+  settles only its target, clears that target's pending state, and leaves
+  healthy siblings exactly available, non-error, and non-retryable.
+- M1: focused coverage now includes partial initial network and cache reports,
+  retry failure with and without target data, refresh hydration races before
+  and after failure, retry hydration races before and after failure, initial
+  network failure followed by cache recovery, and monotonic cache timestamps.
+- Cache hydration is now an initial-load fallback only. It can recover an
+  initial request with no network-committed report, but cannot replace a
+  network commit, refresh, section retry, or either later request's failed
+  state. Multiple initial cache candidates advance only to a newer timestamp.
+- Live routes, cache consumers, endpoints, Prisma schema/migrations,
+  dependencies, and the lockfile remain unchanged.
+
+### TDD evidence
+
+- RED: the focused mobile report-resource run executed 24 tests; 9 failed and
+  15 passed. Failures directly exposed incomplete eight-section
+  materialization, global sibling contamination on retry failure, missing
+  request-kind/phase state, refresh hydration overwrite, and non-monotonic
+  initial cache hydration.
+- GREEN: the final focused report-resource suite passed 25/25 tests.
+
+### Final validation evidence
+
+- Node.js `v22.23.0`; pnpm `10.34.3`.
+- Shared build passed.
+- Shared, mobile, and API typechecks passed against the committed tree.
+- Scoped ESLint and Prettier checks passed; `git diff --check` passed.
+- Mobile analytics/cache/resource regressions: 4 files, 50 tests passed.
+- Auth cache-purge regressions: 1 suite, 12 tests passed.
+- API v1/v2 contract regressions on
+  `postgresql://postgres:postgres@localhost:5432/food_tracker_test`: 2 files,
+  14 tests passed; 14 migrations were present with no pending migrations.
+- No visual/device validation was applicable because live routes and screens
+  remain unchanged until R10.
+
+### Fix commit
+
+`ece33c89493f943d53dadd65328c07f8ed4921d8 fix: complete analytics report request phases`
