@@ -58,5 +58,16 @@ export function createExpoAnalyticsCacheStorage(input: {
       await ensureDirectory(path);
       await input.remove(path, { idempotent: true });
     },
+    async purgeDirectory(path) {
+      const directory = path.endsWith('/') ? path : `${path}/`;
+      const ready = directoryReady.get(directory);
+      if (ready !== undefined) await ready.catch(() => undefined);
+      directoryReady.delete(directory);
+      try {
+        await input.remove(directory, { idempotent: true });
+      } finally {
+        directoryReady.delete(directory);
+      }
+    },
   };
 }

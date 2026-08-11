@@ -3,11 +3,15 @@ import { Pressable, Text } from 'react-native';
 import { act, render, userEvent, waitFor } from '../../../test/render';
 import { AuthBootstrap, useAuthRuntime } from '../auth-bootstrap';
 import type { FirebaseAuthUser } from '../../../services/auth-service';
+import {
+  createAnalyticsCache,
+  type AnalyticsCacheStorage,
+} from '@/lib/analytics/analytics-cache';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockReportDiagnostic = jest.fn();
-const mockPurgeNativeAnalyticsCache = jest.fn();
+const mockPurgeAnalyticsCache = jest.fn();
 let mockSegments: string[] = ['(auth)', 'loading'];
 
 jest.mock('expo-router', () => ({
@@ -19,9 +23,8 @@ jest.mock('@/lib/safe-diagnostics', () => ({
   reportDiagnostic: (...args: unknown[]) => mockReportDiagnostic(...args),
 }));
 
-jest.mock('@/lib/analytics/analytics-cache-native', () => ({
-  purgeNativeAnalyticsCache: (...args: unknown[]) =>
-    mockPurgeNativeAnalyticsCache(...args),
+jest.mock('@/lib/analytics/analytics-cache-runtime', () => ({
+  purgeAnalyticsCache: (...args: unknown[]) => mockPurgeAnalyticsCache(...args),
 }));
 
 type Runtime = {
@@ -61,6 +64,40 @@ function verifiedUser(): FirebaseAuthUser {
   };
 }
 
+function lifecycleCache() {
+  const files = new Map<string, string>();
+  const storage: AnalyticsCacheStorage = {
+    read: async (path) => files.get(path) ?? null,
+    write: async (path, value) => {
+      files.set(path, value);
+    },
+    replace: async (from, to) => {
+      const value = files.get(from);
+      if (value === undefined) throw new Error('Missing staged cache file');
+      files.set(to, value);
+      files.delete(from);
+    },
+    remove: async (path) => {
+      files.delete(path);
+    },
+    purgeDirectory: async (directory) => {
+      for (const path of files.keys()) {
+        if (path.startsWith(directory)) files.delete(path);
+      }
+    },
+  };
+  return {
+    files,
+    cache: createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `analytics/${userId}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${userId}/`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    }),
+  };
+}
+
 function AnalyticsCleanupControls() {
   const { deleteAccount, signOut } = useAuthRuntime();
   return (
@@ -83,8 +120,8 @@ describe('AuthBootstrap initialization', () => {
     mockReplace.mockClear();
     mockPush.mockClear();
     mockReportDiagnostic.mockClear();
-    mockPurgeNativeAnalyticsCache.mockReset();
-    mockPurgeNativeAnalyticsCache.mockResolvedValue(undefined);
+    mockPurgeAnalyticsCache.mockReset();
+    mockPurgeAnalyticsCache.mockResolvedValue(undefined);
     mockSegments = ['(auth)', 'loading'];
   });
 
@@ -397,17 +434,96 @@ describe('AuthBootstrap initialization', () => {
       .press(await screen.findByRole('button', { name: 'Sign out from test' }));
 
     await waitFor(() => {
-      expect(mockPurgeNativeAnalyticsCache).toHaveBeenCalledWith(
-        'firebase-user-1',
-      );
+      expect(mockPurgeAnalyticsCache).toHaveBeenCalledWith('firebase-user-1');
     });
     expect(signOut).toHaveBeenCalledTimes(1);
-    const purgeOrder =
-      mockPurgeNativeAnalyticsCache.mock.invocationCallOrder[0];
+    const purgeOrder = mockPurgeAnalyticsCache.mock.invocationCallOrder[0];
     const signOutOrder = signOut.mock.invocationCallOrder[0];
     expect(purgeOrder).toBeDefined();
     expect(signOutOrder).toBeDefined();
     expect(purgeOrder!).toBeLessThan(signOutOrder!);
+    screen.unmount();
+  });
+
+  it('does not trap sign-out when coordinated analytics purge fails', async () => {
+    let listener: ((user: FirebaseAuthUser | null) => void) | undefined;
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    mockPurgeAnalyticsCache.mockRejectedValueOnce(
+      new Error('cache unavailable'),
+    );
+    const runtime: Runtime = {
+      authService: {
+        onIdTokenChanged(next) {
+          listener = next;
+          return jest.fn();
+        },
+        getIdToken: jest.fn(),
+        signOut,
+      },
+      getSetupStatus: jest.fn().mockResolvedValue({ isComplete: true }),
+      configureApiSession: jest.fn(),
+    };
+    const screen = await render(
+      <TestAuthBootstrap loadRuntime={async () => runtime}>
+        <AnalyticsCleanupControls />
+      </TestAuthBootstrap>,
+    );
+
+    await act(async () => listener?.(verifiedUser()));
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('button', { name: 'Sign out from test' }));
+
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(mockPurgeAnalyticsCache).toHaveBeenCalledWith('firebase-user-1');
+    screen.unmount();
+  });
+
+  it('purges and rewrites the same account cache without restarting the process', async () => {
+    let listener: ((user: FirebaseAuthUser | null) => void) | undefined;
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    const { cache, files } = lifecycleCache();
+    await cache.write('firebase-user-1', 'insights-week', { total: 10 });
+    mockPurgeAnalyticsCache.mockImplementation((userId: string) =>
+      cache.purge(userId),
+    );
+    const runtime: Runtime = {
+      authService: {
+        onIdTokenChanged(next) {
+          listener = next;
+          return jest.fn();
+        },
+        getIdToken: jest.fn(),
+        signOut,
+      },
+      getSetupStatus: jest.fn().mockResolvedValue({ isComplete: true }),
+      configureApiSession: jest.fn(),
+    };
+    const screen = await render(
+      <TestAuthBootstrap loadRuntime={async () => runtime}>
+        <AnalyticsCleanupControls />
+      </TestAuthBootstrap>,
+    );
+
+    await act(async () => listener?.(verifiedUser()));
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('button', { name: 'Sign out from test' }));
+    await waitFor(() => expect(signOut).toHaveBeenCalledTimes(1));
+    expect(files.size).toBe(0);
+
+    await act(async () => listener?.(verifiedUser()));
+    await cache.write('firebase-user-1', 'insights-week', { total: 20 });
+    await expect(
+      cache.read(
+        'firebase-user-1',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 20 } });
     screen.unmount();
   });
 
@@ -442,13 +558,10 @@ describe('AuthBootstrap initialization', () => {
 
     await waitFor(() => {
       expect(deleteAccount).toHaveBeenCalledTimes(1);
-      expect(mockPurgeNativeAnalyticsCache).toHaveBeenCalledWith(
-        'firebase-user-1',
-      );
+      expect(mockPurgeAnalyticsCache).toHaveBeenCalledWith('firebase-user-1');
     });
     const deleteOrder = deleteAccount.mock.invocationCallOrder[0];
-    const purgeOrder =
-      mockPurgeNativeAnalyticsCache.mock.invocationCallOrder[0];
+    const purgeOrder = mockPurgeAnalyticsCache.mock.invocationCallOrder[0];
     expect(deleteOrder).toBeDefined();
     expect(purgeOrder).toBeDefined();
     expect(deleteOrder!).toBeLessThan(purgeOrder!);

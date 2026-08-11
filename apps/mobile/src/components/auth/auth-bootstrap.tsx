@@ -17,7 +17,7 @@ import { pendingProviderCredential } from '@/services/pending-provider-state';
 import type { AuthenticationService } from '@/services/auth-service';
 import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
-import { purgeNativeAnalyticsCache } from '@/lib/analytics/analytics-cache-native';
+import { purgeAnalyticsCache } from '@/lib/analytics/analytics-cache-runtime';
 
 interface AuthRuntimeContextValue {
   userId: string | null;
@@ -130,7 +130,7 @@ export function AuthBootstrap({
     const state = storeRef.current?.getState().authState;
     if (state === undefined || !('user' in state)) return;
     try {
-      await purgeNativeAnalyticsCache(state.user.uid);
+      await purgeAnalyticsCache(state.user.uid);
     } catch {
       // Local cache cleanup never blocks authentication lifecycle actions.
     }

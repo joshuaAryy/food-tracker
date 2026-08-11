@@ -6,6 +6,9 @@ import {
 } from './analytics-cache';
 import { createExpoAnalyticsCacheStorage } from './analytics-cache-file-system';
 
+const STALE_AFTER_MS = 15 * 60 * 1000;
+let nativeCache: AnalyticsCache | null = null;
+
 export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
   if (FileSystem.documentDirectory === null) {
     throw new Error('Analytics cache storage is unavailable.');
@@ -29,15 +32,19 @@ export function createNativeAnalyticsCache(
     storage: createNativeAnalyticsCacheStorage(),
     pathFor: (userId, key) =>
       `${FileSystem.documentDirectory}analytics/${encodeURIComponent(userId)}/${key}.json`,
+    userDirectoryFor: (userId) =>
+      `${FileSystem.documentDirectory}analytics/${encodeURIComponent(userId)}/`,
     now: Date.now,
     staleAfterMs,
   });
 }
 
+export function getNativeAnalyticsCache(): AnalyticsCache {
+  nativeCache ??= createNativeAnalyticsCache(STALE_AFTER_MS);
+  return nativeCache;
+}
+
 export async function purgeNativeAnalyticsCache(userId: string): Promise<void> {
   if (FileSystem.documentDirectory === null) return;
-  await FileSystem.deleteAsync(
-    `${FileSystem.documentDirectory}analytics/${encodeURIComponent(userId)}`,
-    { idempotent: true },
-  );
+  await getNativeAnalyticsCache().purge(userId);
 }

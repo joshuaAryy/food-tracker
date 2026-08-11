@@ -23,7 +23,19 @@ function memoryStorage(): AnalyticsCacheStorage & {
     remove: async (path) => {
       files.delete(path);
     },
+    purgeDirectory: async (directory: string) => {
+      for (const path of files.keys()) {
+        if (path.startsWith(directory)) files.delete(path);
+      }
+    },
   };
+}
+
+function purgeUser(
+  cache: ReturnType<typeof createAnalyticsCache>,
+  userId: string,
+): Promise<void> {
+  return (cache.purge as unknown as (userId: string) => Promise<void>)(userId);
 }
 
 describe('analytics cache', () => {
@@ -82,7 +94,7 @@ describe('analytics cache', () => {
         (value): value is never => typeof value === 'symbol',
       ),
     ).resolves.toBeNull();
-    await cache.purge('user-a', ['trend']);
+    await purgeUser(cache, 'user-a');
 
     expect(storage.files.has('user-a/trend.json')).toBe(false);
     expect(storage.files.has('user-b/trend.json')).toBe(true);
@@ -188,6 +200,7 @@ describe('analytics cache', () => {
       storage,
       pathFor: (userId, key) =>
         `analytics/${encodeURIComponent(userId)}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${encodeURIComponent(userId)}/`,
       now: () => 1_000,
       staleAfterMs: 500,
     });
@@ -196,7 +209,7 @@ describe('analytics cache', () => {
     storage.files.set('analytics/user%2Fa/insights-week.json.staged', 'staged');
     await cache.write('other-user', 'insights-week', { total: 20 });
 
-    await cache.purge('user/a', ['insights-week']);
+    await purgeUser(cache, 'user/a');
 
     expect([...storage.files.keys()]).toEqual([
       'analytics/other-user/insights-week.json',
@@ -209,6 +222,7 @@ describe('analytics cache', () => {
       storage,
       pathFor: (userId, key) =>
         `analytics/${encodeURIComponent(userId)}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${encodeURIComponent(userId)}/`,
       now: () => 1_000,
       staleAfterMs: 500,
     });
@@ -378,5 +392,161 @@ describe('analytics cache', () => {
     expect(storage.files.get('user-a/insights-week.json.staged')).toBe(
       '{not-json',
     );
+  });
+
+  it('purges a user and allows a same-instance write to recreate the partition', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `analytics/${userId}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${userId}/`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user-a', 'insights-week', { total: 10 });
+    await purgeUser(cache, 'user-a');
+
+    expect(
+      [...storage.files.keys()].filter((path) =>
+        path.startsWith('analytics/user-a/'),
+      ),
+    ).toEqual([]);
+
+    await cache.write('user-a', 'insights-week', { total: 20 });
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 20 } });
+  });
+
+  it('waits for in-flight and queued writes before purging a user', async () => {
+    const storage = memoryStorage();
+    const originalWrite = storage.write;
+    let releaseFirstStage!: () => void;
+    let firstStageStarted!: () => void;
+    const firstStage = new Promise<void>((resolve) => {
+      firstStageStarted = resolve;
+    });
+    const firstStageRelease = new Promise<void>((resolve) => {
+      releaseFirstStage = resolve;
+    });
+    let pauseFirstStage = true;
+    storage.write = async (path, value) => {
+      if (
+        pauseFirstStage &&
+        path.startsWith('analytics/user-a/') &&
+        path.endsWith('.staged') &&
+        !storage.files.has(path)
+      ) {
+        firstStageStarted();
+        await firstStageRelease;
+      }
+      await originalWrite(path, value);
+    };
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `analytics/${userId}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${userId}/`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    const first = cache.write('user-a', 'insights-week', { total: 10 });
+    await firstStage;
+    const second = cache.write('user-a', 'insights-week', { total: 20 });
+    const otherUser = cache.write('user-b', 'insights-week', { total: 30 });
+    const purge = purgeUser(cache, 'user-a');
+    let purgeResolved = false;
+    void purge.then(() => {
+      purgeResolved = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(purgeResolved).toBe(false);
+    await expect(otherUser).resolves.toBeUndefined();
+    releaseFirstStage();
+    pauseFirstStage = false;
+    await expect(Promise.all([first, second, purge])).resolves.toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(purgeResolved).toBe(true);
+    expect(
+      [...storage.files.keys()].filter((path) =>
+        path.startsWith('analytics/user-a/'),
+      ),
+    ).toEqual([]);
+
+    await cache.write('user-a', 'insights-week', { total: 40 });
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 40 } });
+    expect(storage.files.has('analytics/user-b/insights-week.json')).toBe(true);
+  });
+
+  it('holds a new same-user write behind an active purge barrier', async () => {
+    const storage = memoryStorage();
+    const originalPurgeDirectory = storage.purgeDirectory;
+    let releasePurge!: () => void;
+    let purgeStarted!: () => void;
+    const purgeRelease = new Promise<void>((resolve) => {
+      releasePurge = resolve;
+    });
+    const purgeStart = new Promise<void>((resolve) => {
+      purgeStarted = resolve;
+    });
+    storage.purgeDirectory = async (directory) => {
+      purgeStarted();
+      await purgeRelease;
+      await originalPurgeDirectory(directory);
+    };
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `analytics/${userId}/${key}.json`,
+      userDirectoryFor: (userId) => `analytics/${userId}/`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    const purge = cache.purge('user-a');
+    await purgeStart;
+    const write = cache.write('user-a', 'insights-week', { total: 50 });
+    let writeResolved = false;
+    void write.then(() => {
+      writeResolved = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(writeResolved).toBe(false);
+
+    releasePurge();
+    await expect(Promise.all([purge, write])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 50 } });
   });
 });

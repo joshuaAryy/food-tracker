@@ -35,6 +35,14 @@ function createFilesystem() {
     remove: async (path: string) => {
       calls.push(`remove:${path}`);
       files.delete(path);
+      if (path.endsWith('/')) {
+        for (const directory of directories) {
+          if (directory.startsWith(path)) directories.delete(directory);
+        }
+        for (const file of files.keys()) {
+          if (file.startsWith(path)) files.delete(file);
+        }
+      }
     },
   };
 }
@@ -115,5 +123,32 @@ describe('Expo analytics cache storage', () => {
     );
     expect(filesystem.files.get(committedPath)).toBe('old');
     expect(filesystem.files.get(stagedPath)).toBe('new');
+  });
+
+  it('invalidates memoized readiness when a user directory is purged', async () => {
+    const filesystem = createFilesystem();
+    const storage = createExpoAnalyticsCacheStorage({
+      documentDirectory: 'file:///documents/',
+      makeDirectory: filesystem.makeDirectory,
+      read: filesystem.read,
+      write: filesystem.write,
+      remove: filesystem.remove,
+    }) as ReturnType<typeof createExpoAnalyticsCacheStorage> & {
+      purgeDirectory(path: string): Promise<void>;
+    };
+    const userDirectory = 'file:///documents/analytics/user-a/';
+    const stagedPath = `${userDirectory}insights-week.json.staged`;
+
+    await storage.write(stagedPath, 'before-purge');
+    await storage.purgeDirectory(userDirectory);
+    await storage.write(stagedPath, 'after-purge');
+
+    expect(filesystem.calls).toEqual([
+      `mkdir:${userDirectory}`,
+      `write:${stagedPath}:before-purge`,
+      `remove:${userDirectory}`,
+      `mkdir:${userDirectory}`,
+      `write:${stagedPath}:after-purge`,
+    ]);
   });
 });
