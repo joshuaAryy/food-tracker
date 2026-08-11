@@ -195,3 +195,47 @@ boundary, keeping the live data source unchanged until R10.
 ### Fix commit
 
 `ece33c89493f943d53dadd65328c07f8ed4921d8 fix: complete analytics report request phases`
+
+## Fix round 3 — idempotent terminal failures
+
+### Finding addressed
+
+- New I1: a matching-generation duplicate `failure` now returns the exact
+  existing state once a request is already `network_failed`. This prevents a
+  settled section-retry failure from falling through to report-wide failure
+  settlement and preserves its target and healthy siblings unchanged.
+- Canonical-refresh failure is likewise idempotent: a duplicate terminal
+  action does not rebuild or mutate the settled `refresh_failed` report.
+- The guard is limited to the `failure` action. Initial-load cache hydration
+  still accepts `initial_load/network_failed`; the focused recovery test now
+  dispatches a duplicate initial failure before successful cache hydration.
+- No live route, cache consumer, endpoint, shared contract, Prisma schema or
+  migration, dependency, lockfile, screen, or protected path changed.
+
+### TDD evidence
+
+- RED: the focused report-resource suite ran 27 tests; the 2 new duplicate
+  terminal failure tests failed and the prior 25 passed. The section-retry
+  duplicate contaminated healthy siblings, while the canonical-refresh
+  duplicate returned a new state object.
+- GREEN: the focused report-resource suite passed 27/27 after the minimal
+  `network_failed` terminal guard.
+
+### Final validation evidence
+
+- Node.js `v22.23.0`; pnpm `10.34.3`.
+- Shared build and shared/mobile/API typechecks passed.
+- Mobile analytics/cache/resource regressions: 4 files, 52 tests passed (the
+  prior 50 plus 2 new idempotency regressions).
+- Auth cache-purge regressions: 1 suite, 12 tests passed.
+- API v1/v2 contract regressions on
+  `postgresql://postgres:postgres@localhost:5432/food_tracker_test`: 2 files,
+  14 tests passed; 14 migrations were present with no pending migrations.
+- Scoped ESLint and Prettier checks passed; `git diff --check` and staged diff
+  checks passed.
+- No visual or device validation was applicable because live routes and
+  screens remain unchanged.
+
+### Fix commit
+
+`b9c400c9dc184caddfa88af6bbb4b6fc3e536fde fix: make analytics terminal failures idempotent`
