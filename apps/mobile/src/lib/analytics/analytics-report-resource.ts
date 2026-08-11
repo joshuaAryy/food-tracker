@@ -313,7 +313,12 @@ export function analyticsReportResourceReducer(
     }
     case 'failure': {
       if (action.requestId !== state.requestId) return state;
-      if (state.requestPhase === 'network_committed') return state;
+      if (
+        state.requestPhase === 'network_committed' ||
+        state.requestPhase === 'network_failed'
+      ) {
+        return state;
+      }
 
       if (state.requestKind === 'section_retry' && state.retry !== null) {
         const target = state.retry.section;

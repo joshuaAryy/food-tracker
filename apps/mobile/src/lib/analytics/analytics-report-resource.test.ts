@@ -483,6 +483,49 @@ describe('analytics report resource state', () => {
     });
   });
 
+  it('ignores a duplicate terminal failure after a section retry failure', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({
+          calories: available('calories', 1846),
+          hydration: available('hydration', 1630),
+        }),
+        updatedAt: 2,
+      },
+    );
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(ready, {
+        type: 'sectionRetry',
+        requestId: 2,
+        section: 'hydration',
+      }),
+      { type: 'failure', requestId: 2 },
+    );
+    const duplicate = analyticsReportResourceReducer(failed, {
+      type: 'failure',
+      requestId: 2,
+    });
+
+    expect(duplicate).toBe(failed);
+    expect(duplicate.sections.calories).toMatchObject({
+      status: 'available',
+      data: { summary: { average: 1846 } },
+      error: null,
+      retryable: false,
+    });
+    expect(duplicate.sections.hydration).toMatchObject({
+      status: 'stale',
+      data: { summary: { average: 1630 } },
+      retryable: true,
+    });
+  });
+
   it('marks a no-data retry target pending and settles it unavailable on failure', () => {
     const retrying = analyticsReportResourceReducer(
       initialAnalyticsReportResource(),
@@ -642,6 +685,34 @@ describe('analytics report resource state', () => {
     });
   });
 
+  it('ignores a duplicate terminal failure after a canonical refresh failure', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({ calories: available('calories', 1900) }),
+        updatedAt: 2,
+      },
+    );
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(ready, {
+        type: 'refresh',
+        requestId: 2,
+      }),
+      { type: 'failure', requestId: 2 },
+    );
+    const duplicate = analyticsReportResourceReducer(failed, {
+      type: 'failure',
+      requestId: 2,
+    });
+
+    expect(duplicate).toBe(failed);
+  });
+
   it('ignores cache hydration during and after a section retry failure', () => {
     const ready = analyticsReportResourceReducer(
       analyticsReportResourceReducer(initialAnalyticsReportResource(), {
@@ -692,7 +763,11 @@ describe('analytics report resource state', () => {
       }),
       { type: 'failure', requestId: 1 },
     );
-    const hydrated = analyticsReportResourceReducer(failed, {
+    const duplicateFailure = analyticsReportResourceReducer(failed, {
+      type: 'failure',
+      requestId: 1,
+    });
+    const hydrated = analyticsReportResourceReducer(duplicateFailure, {
       type: 'hydrate',
       requestId: 1,
       report: report({ calories: available('calories', 1700) }),
