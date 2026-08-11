@@ -1,7 +1,7 @@
 export interface AnalyticsCacheStorage {
   read(path: string): Promise<string | null>;
   write(path: string, value: string): Promise<void>;
-  move(from: string, to: string): Promise<void>;
+  replace(from: string, to: string): Promise<void>;
   remove(path: string): Promise<void>;
 }
 
@@ -43,6 +43,7 @@ export function createAnalyticsCache(input: {
   staleAfterMs: number;
 }): AnalyticsCache {
   const pathFor = input.pathFor;
+  const pendingWrites = new Map<string, Promise<void>>();
   return {
     async read<T>(
       userId: string,
@@ -83,8 +84,24 @@ export function createAnalyticsCache(input: {
         updatedAt: input.now(),
         value,
       };
-      await input.storage.write(stagedPath, JSON.stringify(entry));
-      await input.storage.move(stagedPath, path);
+      const writeKey = `${userId}\u0000${key}`;
+      const previous = pendingWrites.get(writeKey) ?? Promise.resolve();
+      // Keep the fixed staged path safe while allowing unrelated cache keys to
+      // continue independently.
+      const current = previous
+        .catch(() => undefined)
+        .then(async () => {
+          await input.storage.write(stagedPath, JSON.stringify(entry));
+          await input.storage.replace(stagedPath, path);
+        });
+      pendingWrites.set(writeKey, current);
+      try {
+        await current;
+      } finally {
+        if (pendingWrites.get(writeKey) === current) {
+          pendingWrites.delete(writeKey);
+        }
+      }
     },
     async purge(userId, keys) {
       await Promise.all(

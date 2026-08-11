@@ -1,8 +1,9 @@
-import { render } from '../../../test/render';
+import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
 import InsightsScreen from '../insights';
 
-let mockFocusInvoked = false;
+const mockCacheWrite = jest.fn();
+let mockDataVersion = 0;
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -18,16 +19,26 @@ jest.mock('expo-constants', () => ({
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (effect: () => void | (() => void)) => {
-    if (!mockFocusInvoked) {
-      mockFocusInvoked = true;
-      effect();
-    }
+    const React = jest.requireActual('react') as typeof import('react');
+    React.useEffect(effect, [effect]);
   },
   useRouter: () => ({ push: jest.fn() }),
 }));
 
+jest.mock('@/lib/analytics/analytics-cache-runtime', () => ({
+  ANALYTICS_CACHE_KEYS: {
+    insightsWeek: 'insights-week',
+    insightsMonth: 'insights-month',
+  },
+  analyticsCache: () => ({
+    read: jest.fn().mockResolvedValue(null),
+    write: mockCacheWrite,
+    purge: jest.fn(),
+  }),
+}));
+
 jest.mock('@/store/app-store', () => ({
-  useAppStore: () => 0,
+  useAppStore: () => mockDataVersion,
 }));
 
 jest.mock('@/components/auth/auth-bootstrap', () => ({
@@ -37,7 +48,9 @@ jest.mock('@/components/auth/auth-bootstrap', () => ({
 describe('Insights pinned view', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
-    mockFocusInvoked = false;
+    mockCacheWrite.mockReset();
+    mockCacheWrite.mockResolvedValue(undefined);
+    mockDataVersion = 0;
     jest.spyOn(api.analytics, 'insights').mockResolvedValue({
       mode: 'complex',
       sections: {
@@ -118,5 +131,47 @@ describe('Insights pinned view', () => {
     expect(screen.getByText('—')).toBeTruthy();
     expect(screen.getByText('1 recorded g days')).toBeTruthy();
     expect(screen.queryByText('0.0')).toBeNull();
+  });
+
+  it('loads each selected period once in both directions and writes each response once', async () => {
+    const screen = await render(<InsightsScreen />);
+    await waitFor(() => expect(api.analytics.insights).toHaveBeenCalled());
+
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('tab', { name: 'Month reports' }));
+    await waitFor(() =>
+      expect(api.analytics.insights).toHaveBeenCalledTimes(2),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await userEvent
+      .setup()
+      .press(await screen.findByRole('tab', { name: 'Week reports' }));
+    await waitFor(() =>
+      expect(api.analytics.insights).toHaveBeenCalledTimes(3),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    const insightCalls = (api.analytics.insights as unknown as jest.Mock).mock
+      .calls as Array<['week' | 'month', unknown?]>;
+    expect(insightCalls.map(([value]) => value)).toEqual([
+      'week',
+      'month',
+      'week',
+    ]);
+    expect(mockCacheWrite).toHaveBeenCalledTimes(3);
+  });
+
+  it('refreshes once when the analytics data version changes', async () => {
+    const screen = await render(<InsightsScreen />);
+    await waitFor(() =>
+      expect(api.analytics.insights).toHaveBeenCalledTimes(1),
+    );
+
+    mockDataVersion = 1;
+    screen.rerender(<InsightsScreen />);
+    await waitFor(() =>
+      expect(api.analytics.insights).toHaveBeenCalledTimes(2),
+    );
   });
 });

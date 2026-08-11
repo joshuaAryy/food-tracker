@@ -15,7 +15,6 @@ export function createNativeAnalyticsCacheStorage(): AnalyticsCacheStorage {
     makeDirectory: FileSystem.makeDirectoryAsync,
     read: FileSystem.readAsStringAsync,
     write: FileSystem.writeAsStringAsync,
-    move: FileSystem.moveAsync,
     remove: FileSystem.deleteAsync,
   });
 }

@@ -8,7 +8,6 @@ export function createExpoAnalyticsCacheStorage(input: {
   ): Promise<void>;
   read(path: string): Promise<string>;
   write(path: string, value: string): Promise<void>;
-  move(input: { from: string; to: string }): Promise<void>;
   remove(path: string, options: { idempotent: boolean }): Promise<void>;
 }): AnalyticsCacheStorage {
   const analyticsDirectory = `${input.documentDirectory}analytics/`;
@@ -41,9 +40,19 @@ export function createExpoAnalyticsCacheStorage(input: {
       await ensureDirectory(path);
       await input.write(path, value);
     },
-    async move(from, to) {
+    // SDK 56 legacy iOS moveAsync removes `to` before moving `from`. Read the
+    // staged payload and use the platform's atomic string write for replacement
+    // so a failed final write leaves the previous committed file untouched.
+    async replace(from, to) {
       await Promise.all([ensureDirectory(from), ensureDirectory(to)]);
-      await input.move({ from, to });
+      const value = await input.read(from);
+      await input.write(to, value);
+      try {
+        await input.remove(from, { idempotent: true });
+      } catch {
+        // The committed destination is already valid; the fixed staged path
+        // can be overwritten by the next write or removed during purge.
+      }
     },
     async remove(path) {
       await ensureDirectory(path);

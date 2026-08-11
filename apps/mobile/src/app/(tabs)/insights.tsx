@@ -498,14 +498,11 @@ export default function InsightsScreen() {
           void analyticsCache()
             .write(userId, cacheKey, insights)
             .then(() => {
-              reportInsightsDiagnostic('cache_write_succeeded', {
-                cacheValueExists: true,
-              });
+              reportInsightsDiagnostic('cache_write_succeeded');
             })
             .catch((cacheError: unknown) => {
               reportInsightsDiagnostic('cache_write_failed', {
                 ...errorDetails(cacheError),
-                cacheValueExists: true,
               });
             });
         }
@@ -567,7 +564,6 @@ export default function InsightsScreen() {
   const changePeriod = (nextPeriod: 'week' | 'month') => {
     if (nextPeriod === period) return;
     setPeriod(nextPeriod);
-    void loadReporting(nextPeriod);
   };
 
   const dismissRecommendation = useCallback(async (id: string) => {

@@ -5,6 +5,7 @@ function createFilesystem() {
   const calls: string[] = [];
   const directories = new Set(['file:///documents/']);
   const files = new Map<string, string>();
+  const failedWrites = new Set<string>();
   const parentDirectory = (path: string) =>
     path.slice(0, path.lastIndexOf('/') + 1);
 
@@ -12,6 +13,7 @@ function createFilesystem() {
     calls,
     directories,
     files,
+    failedWrites,
     makeDirectory: async (path: string) => {
       calls.push(`mkdir:${path}`);
       directories.add(path);
@@ -27,17 +29,8 @@ function createFilesystem() {
       if (!directories.has(parentDirectory(path))) {
         throw new Error('Parent directory does not exist');
       }
+      if (failedWrites.has(path)) throw new Error('Atomic write failed');
       files.set(path, value);
-    },
-    move: async ({ from, to }: { from: string; to: string }) => {
-      calls.push(`move:${from}:${to}`);
-      if (!directories.has(parentDirectory(to))) {
-        throw new Error('Parent directory does not exist');
-      }
-      const value = files.get(from);
-      if (value === undefined) throw new Error('Missing staged file');
-      files.set(to, value);
-      files.delete(from);
     },
     remove: async (path: string) => {
       calls.push(`remove:${path}`);
@@ -47,14 +40,13 @@ function createFilesystem() {
 }
 
 describe('Expo analytics cache storage', () => {
-  it('creates nested parents before the first staged write and keeps atomic order', async () => {
+  it('creates nested parents before staged write and atomic replacement', async () => {
     const filesystem = createFilesystem();
     const storage = createExpoAnalyticsCacheStorage({
       documentDirectory: 'file:///documents/',
       makeDirectory: filesystem.makeDirectory,
       read: filesystem.read,
       write: filesystem.write,
-      move: filesystem.move,
       remove: filesystem.remove,
     });
     const stagedPath =
@@ -62,16 +54,19 @@ describe('Expo analytics cache storage', () => {
     const committedPath = stagedPath.replace('.staged', '');
 
     await storage.write(stagedPath, 'next');
-    await storage.move(stagedPath, committedPath);
+    await storage.replace(stagedPath, committedPath);
 
     expect(filesystem.directories).toContain(
       'file:///documents/analytics/user%2Fspecial/',
     );
     expect(filesystem.files.get(committedPath)).toBe('next');
+    expect(filesystem.files.has(stagedPath)).toBe(false);
     expect(filesystem.calls).toEqual([
       'mkdir:file:///documents/analytics/user%2Fspecial/',
       `write:${stagedPath}:next`,
-      `move:${stagedPath}:${committedPath}`,
+      `read:${stagedPath}`,
+      `write:${committedPath}:next`,
+      `remove:${stagedPath}`,
     ]);
   });
 
@@ -82,7 +77,6 @@ describe('Expo analytics cache storage', () => {
       makeDirectory: filesystem.makeDirectory,
       read: filesystem.read,
       write: filesystem.write,
-      move: filesystem.move,
       remove: filesystem.remove,
     });
 
@@ -97,5 +91,29 @@ describe('Expo analytics cache storage', () => {
     expect(filesystem.directories).not.toContain(
       'file:///documents/analytics/user/',
     );
+  });
+
+  it('preserves the existing destination when the atomic final write fails', async () => {
+    const filesystem = createFilesystem();
+    const storage = createExpoAnalyticsCacheStorage({
+      documentDirectory: 'file:///documents/',
+      makeDirectory: filesystem.makeDirectory,
+      read: filesystem.read,
+      write: filesystem.write,
+      remove: filesystem.remove,
+    });
+    const stagedPath =
+      'file:///documents/analytics/user/insights-week.json.staged';
+    const committedPath = stagedPath.replace('.staged', '');
+
+    await storage.write(committedPath, 'old');
+    await storage.write(stagedPath, 'new');
+    filesystem.failedWrites.add(committedPath);
+
+    await expect(storage.replace(stagedPath, committedPath)).rejects.toThrow(
+      'Atomic write failed',
+    );
+    expect(filesystem.files.get(committedPath)).toBe('old');
+    expect(filesystem.files.get(stagedPath)).toBe('new');
   });
 });

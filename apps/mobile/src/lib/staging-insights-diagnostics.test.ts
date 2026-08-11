@@ -60,4 +60,13 @@ describe('staging Insights diagnostics', () => {
       }),
     ).toBe('Diagnostic: api_insights_resolved · report_commit_dispatched');
   });
+
+  it('does not claim a cache value exists when a cache write fails', () => {
+    expect(
+      formatStagingInsightsDiagnostic({
+        stage: 'cache_write_failed',
+        requestSequenceId: 7,
+      }),
+    ).toBe('Diagnostic: cache_write_failed');
+  });
 });
