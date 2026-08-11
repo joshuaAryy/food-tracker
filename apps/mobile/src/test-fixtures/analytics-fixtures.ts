@@ -17,7 +17,7 @@ export const analyticsFixtureLayouts = {
 export const analyticsReferenceFixtures = {
   trueRange: {
     kind: 'range',
-    lower: 1900,
+    lower: 1700,
     upper: 2300,
     unit: 'kcal',
     source: 'derived',
@@ -73,9 +73,14 @@ const canonicalCoverageDays = [
   'complete' | 'partial' | 'unlogged',
 ])[];
 
+function loggingDayPhaseFor(date: string): 'closed' | 'in_progress' {
+  return date === '2026-08-04' ? 'in_progress' : 'closed';
+}
+
 function pointsForMetric(
   value: number,
   selectedValue = value,
+  valuesByDate: Readonly<Record<string, number>> = {},
 ): CanonicalTrendResponse['points'] {
   return canonicalCoverageDays.map(([date, loggingDayState]) => {
     if (loggingDayState === 'unlogged') {
@@ -83,7 +88,7 @@ function pointsForMetric(
         kind: 'daily' as const,
         date,
         loggingDayState,
-        loggingDayPhase: 'closed' as const,
+        loggingDayPhase: loggingDayPhaseFor(date),
         metricDataState: null,
         value: null,
         foodLogCount: 0,
@@ -95,12 +100,13 @@ function pointsForMetric(
       kind: 'daily' as const,
       date,
       loggingDayState,
-      loggingDayPhase: 'closed' as const,
+      loggingDayPhase: loggingDayPhaseFor(date),
       metricDataState:
         loggingDayState === 'partial'
           ? ('partial' as const)
           : ('recorded' as const),
-      value: date === '2026-07-29' ? selectedValue : value,
+      value:
+        valuesByDate[date] ?? (date === '2026-07-29' ? selectedValue : value),
       foodLogCount: loggingDayState === 'partial' ? 2 : 3,
       metricRecordedLogCount: loggingDayState === 'partial' ? 1 : 3,
       metricUnknownLogCount: loggingDayState === 'partial' ? 1 : 0,
@@ -108,7 +114,10 @@ function pointsForMetric(
   });
 }
 
-export const loggingAndCoveragePoints = pointsForMetric(1818, 2490);
+export const loggingAndCoveragePoints = pointsForMetric(1792, 2490, {
+  '2026-07-27': 1782,
+  '2026-07-28': 2400,
+});
 
 const sparseVitaminDPoints: CanonicalTrendResponse['points'] =
   canonicalCoverageDays.map(([date, loggingDayState]) => {
@@ -117,7 +126,7 @@ const sparseVitaminDPoints: CanonicalTrendResponse['points'] =
         kind: 'daily' as const,
         date,
         loggingDayState,
-        loggingDayPhase: 'closed' as const,
+        loggingDayPhase: loggingDayPhaseFor(date),
         metricDataState: null,
         value: null,
         foodLogCount: 0,
@@ -130,7 +139,7 @@ const sparseVitaminDPoints: CanonicalTrendResponse['points'] =
         kind: 'daily' as const,
         date,
         loggingDayState,
-        loggingDayPhase: 'closed' as const,
+        loggingDayPhase: loggingDayPhaseFor(date),
         metricDataState: 'recorded' as const,
         value: 18.2,
         foodLogCount: 3,
@@ -142,7 +151,7 @@ const sparseVitaminDPoints: CanonicalTrendResponse['points'] =
       kind: 'daily' as const,
       date,
       loggingDayState,
-      loggingDayPhase: 'closed' as const,
+      loggingDayPhase: loggingDayPhaseFor(date),
       metricDataState: 'unknown' as const,
       value: null,
       foodLogCount: loggingDayState === 'partial' ? 2 : 3,
@@ -286,6 +295,7 @@ export const complexInsightsFixture = {
 } satisfies CanonicalInsightsResponse;
 
 export const firstUseCaloriesTrendFixture = trendFixture('calories', {
+  reference: { kind: 'none', unit: 'kcal', reason: 'not_configured' },
   points: [
     {
       kind: 'daily',
@@ -307,6 +317,7 @@ export const firstUseCaloriesTrendFixture = trendFixture('calories', {
 });
 
 export const firstUseProteinTrendFixture = trendFixture('protein', {
+  reference: { kind: 'none', unit: 'g', reason: 'not_configured' },
   points: [
     {
       kind: 'daily',

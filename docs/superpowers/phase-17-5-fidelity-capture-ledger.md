@@ -14,13 +14,13 @@ implementations and visual captures.
 | `517:73` | Handoff contract | Unknown and unlogged remain gaps; completeness, metric coverage, references, forecasts, and hydration are independent. 320pt reflows and stale refresh retains committed UI. | Insights still renders its existing flat report sections. | `analytics-fixtures.test.ts`: gap, capability, reference, and state-contract assertions. |
 | `524:21` | Final-node index | Approved nodes include Simple/Complex Insights, detailed Trends, water, range, compare, saved views, and final state masters. | No node-to-test ledger existed. | This ledger; each listed node has an explicit fixture or test mapping. |
 | `490:21` | Complex Insights / 320 | Compact overview retains hierarchy, 1,846 kcal average, macro/nutrient/weight facts, and completeness. | R0.1 does not render the Complex overview at 320pt. | `analyticsFixtureLayouts.compact320` fixture-contract only. |
-| `490:319` | Calories Trends / 320 | `JUL 6 – AUG 4`; selected `Jul 29` is `2,490 kcal · Complete day`; coverage is `27 logged · 21 complete · 3 partial · 3 unlogged`. | Existing Trend test previously supplied an Aug 1–7 response. | `trend-detail.test.tsx` renders `caloriesTrendFixture` at 320pt and asserts its 280pt rendered inspection control; fixture test asserts dates, counts, selected point, and 1,846 average. |
+| `490:319` | Calories Trends / 320 | `JUL 6 – AUG 4`; selected `Jul 29` is `2,490 kcal · Complete day`; coverage is `27 logged · 21 complete · 3 partial · 3 unlogged`, with 22 numeric days inside the usual range. | Existing Trend test previously supplied an Aug 1–7 response. | `trend-detail.test.tsx` renders `caloriesTrendFixture` at 320pt and asserts its JS-owned 280pt inspection-control width; fixture test asserts dates, states, range membership, selected point, and 1,846 average. |
 | `492:21` | Insights / Large Type / 390 | Large Type preserves report facts while content grows vertically. | R0.1 does not render the Insights overview under a font-scale fixture. | `analyticsFixtureLayouts.largeType390` fixture-contract only. |
-| `492:319` | Calories Trends / Large Type / 390 | Large Type keeps controls, selected-day facts, coverage, and contributors readable. | Existing Trend test had no Large Type layout execution. | `trend-detail.test.tsx` renders `caloriesTrendFixture` with the Large Type dimensions and asserts the 350pt rendered inspection control plus canonical content. |
+| `492:319` | Calories Trends / Large Type / 390 | Large Type keeps controls, selected-day facts, coverage, and contributors readable. | R0.1 cannot prove native visual type scaling, reflow, or final Figma composition. | `trend-detail.test.tsx` supplies the Large Type input, asserts native text scaling is not disabled, confirms content remains under the production scroll container, and checks the JS-owned 350pt inspection-control width. This is not a native visual-layout claim. |
 | `477:21` | Loading skeleton | Shows `Insights` and `Month · Loading analytics`, never zero-filled analytics. | Current skeleton remains generic. | `analyticsStateFixtures.loading` fixture-contract only. |
 | `510:437` | Refresh pending | Retains 1,846 kcal committed analytics while refreshing. | Current refresh behavior is not a final-node visual match yet. | `analyticsStateFixtures.refreshPending` fixture-contract only. |
 | `510:467` | Refresh failed / stale | Keeps earlier analytics and exposes refresh failure/retry. | Current error copy is not final-node matched. | `analyticsStateFixtures.staleCached` fixture-contract only. |
-| `495:21` | First-use analytics | Today has one meal, `612` kcal, `38 g protein`, and a `2 / 7 days` unlock state. | The old fixture reused 1,846 kcal and omitted protein/unlock facts. | Fixture test asserts all four facts and canonical summaries; `insights-pinned.test.tsx` renders the state fixture and asserts 612.0 kcal and 38.0 g on screen. |
+| `495:21` | First-use analytics | Today has one meal, `612` kcal, `38 g protein`, and a `2 / 7 days` unlock state. | The current flat Insights section cannot compose the final one-meal/unlock node in R0.1. | Fixture test asserts all four facts, summaries, and kcal/g reference units. `insights-pinned.test.tsx` only proves the existing flat section path renders 612.0 kcal and 38.0 g; it does not claim final one-meal/unlock composition. |
 | `492:455` | Current period in progress | In-progress logging is distinct from completeness and metric coverage. | Current screen lacks this final-state presentation. | `analyticsStateFixtures.currentPeriodInProgress` and the fixture contract preserve the state boundary only. |
 | `492:753` | Section error | A failed area leaves energy, macro, nutrient, and consistency content available. | Section-aware rendering is not R0.1 production scope. | `analyticsStateFixtures.sectionFailure` fixture-contract only. |
 | `477:141` | Full analytics unavailable | Full outage is retryable while food, weight, and water logging remain available. | Current report-level error does not match final copy. | `analyticsStateFixtures.fullUnavailable` fixture-contract only. |
@@ -51,8 +51,10 @@ implementations and visual captures.
 ## R0.1 correction note
 
 The canonical Calories fixture is one coherent `JUL 6 – AUG 4` response:
-`today` is Aug 4, it contains the Figma coverage states (21 complete, 3
-partial, 3 unlogged), its 24 numeric values average exactly 1,846 kcal, and
-the Jul 29 recorded value is 2,490 kcal. The first-use fixture is independent
+`today` is Aug 4 and remains `in_progress` even though its logging state is
+unlogged and metric availability is absent. It contains the Figma coverage
+states (21 complete, 3 partial, 3 unlogged), 22 numeric days inside the
+declared usual range, two outside days including Jul 29 at 2,490 kcal, and a
+24-value average of exactly 1,846 kcal. The first-use fixture is independent
 of that period and preserves its real one-meal 612 kcal / 38 g protein and
-2-of-7 unlock facts.
+2-of-7 unlock facts with kcal/g reference units.

@@ -129,7 +129,7 @@ describe('Trend detail screen', () => {
     expect(screen.getByText('Average 1846.0 kcal')).toBeTruthy();
   });
 
-  it('retains canonical content under the Large Type fixture', async () => {
+  it('keeps the rendered accessibility path reachable with a Large Type input', async () => {
     mockWindowDimensions = {
       ...analyticsStateFixtures.layouts.largeType390,
       height: 844,
@@ -138,14 +138,25 @@ describe('Trend detail screen', () => {
 
     const screen = await render(<TrendDetailScreen />);
 
-    expect(
-      await screen.findByLabelText(
-        'Calories trend for 2026-07-06 through 2026-08-04',
-      ),
-    ).toBeTruthy();
+    const trend = await screen.findByLabelText(
+      'Calories trend for 2026-07-06 through 2026-08-04',
+    );
+    const average = screen.getByText('Average 1846.0 kcal');
+    let ancestor = average.parent;
+    while (
+      ancestor !== null &&
+      ancestor.props.contentContainerStyle === undefined
+    ) {
+      ancestor = ancestor.parent;
+    }
+
+    expect(trend).toBeTruthy();
+    expect(average.props.allowFontScaling).not.toBe(false);
+    expect(ancestor?.props.contentContainerStyle).toEqual({
+      backgroundColor: '#FFFFFF',
+    });
     expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
       expect.objectContaining({ width: 350 }),
     );
-    expect(screen.getByText('Average 1846.0 kcal')).toBeTruthy();
   });
 });

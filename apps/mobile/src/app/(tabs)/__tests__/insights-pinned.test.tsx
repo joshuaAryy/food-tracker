@@ -141,7 +141,7 @@ describe('Insights pinned view', () => {
     expect(screen.queryByText('0.0')).toBeNull();
   });
 
-  it('renders the first-use state fixture with today’s 612 kcal and 38 g protein facts', async () => {
+  it('renders first-use canonical totals through the existing flat section path', async () => {
     jest
       .spyOn(api.analytics, 'insights')
       .mockResolvedValueOnce(analyticsStateFixtures.firstUse.report as never);
