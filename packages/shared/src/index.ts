@@ -5,6 +5,7 @@ export * from './analytics-metrics.js';
 export * from './analytics-comparisons.js';
 export * from './analytics-saved-views.js';
 export * from './analytics-trends.js';
+export * from './analytics-insights.js';
 export * from './nutrients.js';
 export * from './reporting.js';
 export * from './reporting-goals.js';
