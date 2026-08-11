@@ -1,5 +1,9 @@
 import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
+import {
+  complexInsightsFixture,
+  simpleInsightsFixture,
+} from '../../../test-fixtures/analytics-fixtures';
 import InsightsScreen from '../insights';
 
 const mockCacheWrite = jest.fn();
@@ -52,9 +56,11 @@ describe('Insights pinned view', () => {
     mockCacheWrite.mockResolvedValue(undefined);
     mockDataVersion = 0;
     jest.spyOn(api.analytics, 'insights').mockResolvedValue({
-      mode: 'complex',
+      ...complexInsightsFixture,
       sections: {
+        ...complexInsightsFixture.sections,
         calories: {
+          ...complexInsightsFixture.sections.calories,
           primaryMetric: 'calories',
           summary: { average: 2000, numericDayCount: 7 },
         },
@@ -116,9 +122,10 @@ describe('Insights pinned view', () => {
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
     jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
-      mode: 'simple',
+      ...simpleInsightsFixture,
       sections: {
         protein: {
+          ...simpleInsightsFixture.sections.protein,
           primaryMetric: 'protein',
           summary: { average: null, numericDayCount: 1 },
         },
