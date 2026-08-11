@@ -1,5 +1,6 @@
 import {
   analyticsSectionKeySchema,
+  ANALYTICS_OVERVIEW_KEYS,
   canonicalInsightsResponseV2Schema,
   parseCanonicalInsightsResponseV1,
   type AnalyticsSectionKey,
@@ -24,6 +25,8 @@ export function adaptCanonicalInsightsResponseV1(
   // CanonicalInsightsResponse interface; keep that bridge after validation.
   const v1Report = parsedV1.data as CanonicalInsightsResponse;
 
+  if (Object.keys(v1Report.sections).length === 0) return null;
+
   const sections: Partial<
     Record<AnalyticsSectionKey, AnalyticsSectionResult<CanonicalTrendResponse>>
   > = {};
@@ -42,6 +45,16 @@ export function adaptCanonicalInsightsResponseV1(
     mode: v1Report.mode,
     period: v1Report.period,
     sections,
+    overview: Object.fromEntries(
+      ANALYTICS_OVERVIEW_KEYS.map((key) => [
+        key,
+        {
+          status: 'failed' as const,
+          code: 'section_unavailable' as const,
+          retryable: true as const,
+        },
+      ]),
+    ),
   };
   const parsedV2 = canonicalInsightsResponseV2Schema.safeParse(candidate);
   return parsedV2.success

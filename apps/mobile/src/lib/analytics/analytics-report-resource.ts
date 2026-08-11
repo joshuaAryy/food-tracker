@@ -1,5 +1,9 @@
 import {
   ANALYTICS_INSIGHTS_SECTION_KEYS,
+  ANALYTICS_OVERVIEW_KEYS,
+  type AnalyticsOverviewDataByKey,
+  type AnalyticsOverviewKey,
+  type AnalyticsOverviewResult,
   type AnalyticsSectionKey,
   type AnalyticsSectionResult,
   type CanonicalInsightsResponseV2,
@@ -10,7 +14,8 @@ export type AnalyticsReportRequestKind =
   | 'none'
   | 'initial_load'
   | 'canonical_refresh'
-  | 'section_retry';
+  | 'section_retry'
+  | 'overview_retry';
 
 export type AnalyticsReportRequestPhase =
   | 'idle'
@@ -41,15 +46,31 @@ export interface AnalyticsReportSectionState {
   retryable: boolean;
 }
 
-export interface AnalyticsReportRetryIntent {
-  kind: 'canonical_insights_request';
-  section: AnalyticsSectionKey;
+export interface AnalyticsReportOverviewState {
+  data: AnalyticsOverviewDataByKey[AnalyticsOverviewKey] | null;
+  fetchedAt: string | null;
+  status: AnalyticsReportSectionStatus;
+  error: string | null;
+  retryable: boolean;
 }
+
+export type AnalyticsReportRetryIntent =
+  | {
+      kind: 'canonical_insights_request';
+      target: 'section';
+      section: AnalyticsSectionKey;
+    }
+  | {
+      kind: 'canonical_insights_request';
+      target: 'overview';
+      overview: AnalyticsOverviewKey;
+    };
 
 export interface AnalyticsReportResourceState {
   mode: CanonicalInsightsResponseV2['mode'] | null;
   period: CanonicalInsightsResponseV2['period'] | null;
   sections: Partial<Record<AnalyticsSectionKey, AnalyticsReportSectionState>>;
+  overview: Partial<Record<AnalyticsOverviewKey, AnalyticsReportOverviewState>>;
   updatedAt: number | null;
   status: AnalyticsReportResourceStatus;
   staleSource: 'offline_cache' | 'refresh_failed' | null;
@@ -76,7 +97,12 @@ export type AnalyticsReportResourceAction =
       updatedAt: number;
     }
   | { type: 'failure'; requestId: number }
-  | { type: 'sectionRetry'; requestId: number; section: AnalyticsSectionKey };
+  | { type: 'sectionRetry'; requestId: number; section: AnalyticsSectionKey }
+  | {
+      type: 'overviewRetry';
+      requestId: number;
+      overview: AnalyticsOverviewKey;
+    };
 
 const SECTION_ERROR_MESSAGE =
   'This analytics section is temporarily unavailable. Please try again.';
@@ -92,6 +118,11 @@ const OMITTED_SECTION_RESULT = {
   retryable: true,
 } as const satisfies Extract<AnalyticsSectionResult, { status: 'failed' }>;
 
+const OMITTED_OVERVIEW_RESULT = OMITTED_SECTION_RESULT satisfies Extract<
+  AnalyticsOverviewResult<never>,
+  { status: 'failed' }
+>;
+
 export function safeAnalyticsSectionError(
   result: Extract<AnalyticsSectionResult, { status: 'failed' }>,
 ): string {
@@ -104,6 +135,7 @@ export function initialAnalyticsReportResource(): AnalyticsReportResourceState {
     mode: null,
     period: null,
     sections: {},
+    overview: {},
     updatedAt: null,
     status: 'idle',
     staleSource: null,
@@ -115,9 +147,14 @@ export function initialAnalyticsReportResource(): AnalyticsReportResourceState {
   };
 }
 
-function hasCommittedSection(state: AnalyticsReportResourceState): boolean {
-  return Object.values(state.sections).some(
-    (section) => section !== undefined && section.data !== null,
+function hasCommittedData(state: AnalyticsReportResourceState): boolean {
+  return (
+    Object.values(state.sections).some(
+      (section) => section !== undefined && section.data !== null,
+    ) ||
+    Object.values(state.overview).some(
+      (overview) => overview !== undefined && overview.data !== null,
+    )
   );
 }
 
@@ -142,6 +179,29 @@ function pendingSection(
     error: null,
     retryable: false,
   };
+}
+
+function pendingOverviewGroup(
+  overview: AnalyticsReportOverviewState | undefined,
+): AnalyticsReportOverviewState {
+  return {
+    data: overview?.data ?? null,
+    fetchedAt: overview?.fetchedAt ?? null,
+    status: 'pending',
+    error: null,
+    retryable: false,
+  };
+}
+
+function pendingOverview(
+  overview: AnalyticsReportResourceState['overview'],
+): AnalyticsReportResourceState['overview'] {
+  return Object.fromEntries(
+    Object.entries(overview).map(([key, group]) => [
+      key,
+      pendingOverviewGroup(group),
+    ]),
+  ) as AnalyticsReportResourceState['overview'];
 }
 
 function sectionState(
@@ -176,6 +236,40 @@ function sectionState(
       };
 }
 
+function overviewState(
+  result: AnalyticsOverviewResult<
+    AnalyticsOverviewDataByKey[AnalyticsOverviewKey]
+  >,
+  prior: AnalyticsReportOverviewState | undefined,
+  stale: boolean,
+): AnalyticsReportOverviewState {
+  if (result.status === 'available') {
+    return {
+      data: result.data,
+      fetchedAt: result.fetchedAt,
+      status: stale ? 'stale' : 'available',
+      error: null,
+      retryable: false,
+    };
+  }
+
+  const error = safeAnalyticsSectionError(result);
+  return prior?.data === null || prior?.data === undefined
+    ? {
+        data: null,
+        fetchedAt: null,
+        status: 'unavailable',
+        error,
+        retryable: result.retryable,
+      }
+    : {
+        ...prior,
+        status: 'stale',
+        error,
+        retryable: result.retryable,
+      };
+}
+
 function mergeReport(
   state: AnalyticsReportResourceState,
   report: CanonicalInsightsResponseV2,
@@ -183,6 +277,7 @@ function mergeReport(
   stale: boolean,
 ): AnalyticsReportResourceState {
   const sections: AnalyticsReportResourceState['sections'] = {};
+  const overview: AnalyticsReportResourceState['overview'] = {};
   const expectedKeys = new Set<AnalyticsSectionKey>([
     ...ANALYTICS_INSIGHTS_SECTION_KEYS,
     ...(Object.keys(state.sections) as AnalyticsSectionKey[]),
@@ -195,11 +290,24 @@ function mergeReport(
       stale,
     );
   }
+  const expectedOverviewKeys = new Set<AnalyticsOverviewKey>([
+    ...ANALYTICS_OVERVIEW_KEYS,
+    ...(Object.keys(state.overview) as AnalyticsOverviewKey[]),
+    ...(Object.keys(report.overview ?? {}) as AnalyticsOverviewKey[]),
+  ]);
+  for (const key of expectedOverviewKeys) {
+    overview[key] = overviewState(
+      report.overview?.[key] ?? OMITTED_OVERVIEW_RESULT,
+      state.overview[key],
+      stale,
+    );
+  }
   return {
     ...state,
     mode: report.mode,
     period: report.period,
     sections,
+    overview,
     updatedAt,
     status: stale ? 'stale' : 'ready',
     staleSource: stale ? 'offline_cache' : null,
@@ -232,6 +340,30 @@ function settleReportFailure(
   ) as AnalyticsReportResourceState['sections'];
 }
 
+function settleOverviewFailure(
+  state: AnalyticsReportResourceState,
+): AnalyticsReportResourceState['overview'] {
+  return Object.fromEntries(
+    Object.entries(state.overview).map(([key, overview]) => [
+      key,
+      overview?.data === null || overview?.data === undefined
+        ? {
+            data: null,
+            fetchedAt: null,
+            status: 'unavailable' as const,
+            error: SECTION_ERROR_MESSAGE,
+            retryable: true,
+          }
+        : {
+            ...overview,
+            status: 'stale' as const,
+            error: REPORT_REFRESH_FAILED_MESSAGE,
+            retryable: true,
+          },
+    ]),
+  ) as AnalyticsReportResourceState['overview'];
+}
+
 /** Keeps validated committed siblings visible across canonical whole-report refreshes. */
 export function analyticsReportResourceReducer(
   state: AnalyticsReportResourceState,
@@ -242,8 +374,9 @@ export function analyticsReportResourceReducer(
       return {
         ...state,
         sections: pendingSections(state.sections),
+        overview: pendingOverview(state.overview),
         requestId: action.requestId,
-        status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        status: hasCommittedData(state) ? 'refreshing' : 'loading',
         staleSource: null,
         error: null,
         retry: null,
@@ -254,8 +387,9 @@ export function analyticsReportResourceReducer(
       return {
         ...state,
         sections: pendingSections(state.sections),
+        overview: pendingOverview(state.overview),
         requestId: action.requestId,
-        status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        status: hasCommittedData(state) ? 'refreshing' : 'loading',
         staleSource: null,
         error: null,
         retry: null,
@@ -270,11 +404,36 @@ export function analyticsReportResourceReducer(
           [action.section]: pendingSection(state.sections[action.section]),
         },
         requestId: action.requestId,
-        status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        status: hasCommittedData(state) ? 'refreshing' : 'loading',
         staleSource: null,
         error: null,
-        retry: { kind: 'canonical_insights_request', section: action.section },
+        retry: {
+          kind: 'canonical_insights_request',
+          target: 'section',
+          section: action.section,
+        },
         requestKind: 'section_retry',
+        requestPhase: 'pending',
+      };
+    case 'overviewRetry':
+      return {
+        ...state,
+        overview: {
+          ...state.overview,
+          [action.overview]: pendingOverviewGroup(
+            state.overview[action.overview],
+          ),
+        },
+        requestId: action.requestId,
+        status: hasCommittedData(state) ? 'refreshing' : 'loading',
+        staleSource: null,
+        error: null,
+        retry: {
+          kind: 'canonical_insights_request',
+          target: 'overview',
+          overview: action.overview,
+        },
+        requestKind: 'overview_retry',
         requestPhase: 'pending',
       };
     case 'commit':
@@ -289,7 +448,7 @@ export function analyticsReportResourceReducer(
         (state.requestPhase === 'pending' ||
           state.requestPhase === 'network_failed' ||
           state.requestPhase === 'cache_hydrated') &&
-        (!hasCommittedSection(state) || state.staleSource === 'offline_cache');
+        (!hasCommittedData(state) || state.staleSource === 'offline_cache');
       const hasHydratedCache =
         state.requestPhase === 'cache_hydrated' ||
         state.staleSource === 'offline_cache';
@@ -320,7 +479,10 @@ export function analyticsReportResourceReducer(
         return state;
       }
 
-      if (state.requestKind === 'section_retry' && state.retry !== null) {
+      if (
+        state.requestKind === 'section_retry' &&
+        state.retry?.target === 'section'
+      ) {
         const target = state.retry.section;
         const sections = {
           ...state.sections,
@@ -330,7 +492,7 @@ export function analyticsReportResourceReducer(
             false,
           ),
         };
-        return hasCommittedSection(state)
+        return hasCommittedData(state)
           ? {
               ...state,
               sections,
@@ -352,6 +514,41 @@ export function analyticsReportResourceReducer(
       }
 
       if (
+        state.requestKind === 'overview_retry' &&
+        state.retry?.target === 'overview'
+      ) {
+        const target = state.retry.overview;
+        if (target === undefined) return state;
+        const overview = {
+          ...state.overview,
+          [target]: overviewState(
+            OMITTED_OVERVIEW_RESULT,
+            state.overview[target],
+            false,
+          ),
+        };
+        return hasCommittedData(state)
+          ? {
+              ...state,
+              overview,
+              status: 'ready',
+              staleSource: null,
+              error: null,
+              retry: null,
+              requestPhase: 'network_failed',
+            }
+          : {
+              ...state,
+              overview,
+              status: 'error',
+              staleSource: null,
+              error: REPORT_UNAVAILABLE_MESSAGE,
+              retry: null,
+              requestPhase: 'network_failed',
+            };
+      }
+
+      if (
         state.requestKind === 'initial_load' &&
         state.staleSource === 'offline_cache'
       ) {
@@ -362,10 +559,12 @@ export function analyticsReportResourceReducer(
       }
 
       const sections = settleReportFailure(state);
-      return hasCommittedSection(state)
+      const overview = settleOverviewFailure(state);
+      return hasCommittedData(state)
         ? {
             ...state,
             sections,
+            overview,
             status: 'stale',
             staleSource: 'refresh_failed',
             error: REPORT_REFRESH_FAILED_MESSAGE,
@@ -375,6 +574,7 @@ export function analyticsReportResourceReducer(
         : {
             ...state,
             sections,
+            overview,
             status: 'error',
             staleSource: null,
             error: REPORT_UNAVAILABLE_MESSAGE,

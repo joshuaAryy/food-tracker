@@ -89,3 +89,25 @@ current branch at `f036184`.
 | `492:753` | A Weight-local failure is a 250pt card beneath the Weight direction heading: `Weight couldn’t load`, safe explanatory copy that names still-available sibling areas, and a 44pt `Retry weight` action. Energy, macros, nutrients, hydration, and consistency remain mounted. | The live route uses `AnalyticsResource<CanonicalInsightsResponse>` and a single report-level `ErrorState`; `CanonicalInsightsContent` receives raw sections, so it cannot render a local error/retry while retaining sibling cards. | Route Simple through the R0.2 report resource and validated v1 adapter; use an `AnalyticsSectionError` boundary per owned card and dispatch canonical-request section retry without unmounting siblings. |
 | `510:437` | Refresh pending preserves the earlier Energy balance card (`1,846 kcal` in the reference) as interactive content. A compact state surface says `Refreshing…` and explains that no analytics clear before validation. | Legacy refresh toggles a report-wide `refreshing` state and the generic content has no section state or refresh-pending treatment; it cannot represent retained committed sections as pending. | Preserve mounted card data from R0.2 during refresh and render a non-destructive refresh notice; do not fabricate the reference value. |
 | `510:467` | Refresh failure keeps the earlier interactive Energy balance card visible, identifies that earlier analytics are being shown, provides `Couldn’t refresh` copy with prior-time context, and exposes `Retry` plus `Keep viewing`. | The route replaces this with a generic report-level `ErrorState` and does not expose R0.2 stale provenance or a composed stale surface alongside retained cards. | Render safe stale/refresh failure copy beside the retained Simple composition and use the canonical retry callback; leave staging diagnostic handling unchanged for R12. |
+
+## R1.0a v2 overview-contract reinspection
+
+Before Task 3A contract work, final node `338:98` was re-opened with
+`get_design_context` from Figma file `GFLStsF0ADwaizoVKGeLny`. This entry
+records the information boundary required by that node; it does not authorize
+new presentation work or copy the illustrated values into product data.
+
+| Overview group | Authoritative facts required by the node | Capability and failure boundary |
+| --- | --- | --- |
+| Period summary | Resolved displayed period, logged and eligible-day counts, streak, current-day phase, and consistency interpretation. | These are backend facts; the mobile client may format them but must not derive counts, streak, phase, or interpretation. |
+| Energy | Period average, target or range context, within-range count, and previous-period comparison/status. | This is a report summary distinct from the Calories trend section; a group failure is local and must not erase the core trend result. |
+| Macros | Period protein/carbohydrate/fat grams and percentages with backend-owned status. | Protein’s detailed trend remains a core section; overview composition does not calculate percentages on mobile. |
+| Nutrient highlights | Exactly Fiber, Sodium, and Vitamin C, each with identity, value and unit, availability, reference, and status. | They are overview-only, non-navigable Simple highlights; they do not extend `SIMPLE_ANALYTICS_METRIC_KEYS` or authorize nutrient routes. |
+| Hydration | Today total under the backend timezone policy, goal, progress/status, and the relationship to the canonical hydration trend. | A hydration outcome failure is local and cannot remove healthy overview or trend outcomes. |
+| Weight | Current value, change/direction, goal-path status, reference context, and an independently resolved forecast. | Base Weight facts and forecast are separate outcomes; a forecast failure remains inside Weight and cannot erase base Weight facts. |
+| Logging consistency | Complete, partial, and unlogged counts; in-progress distinction; streak and eligibility facts; and heatmap/report facts. | Logging completeness remains separate from metric availability and is backend-owned. |
+| Recommendations and Explore | The node presents a separate recommendations area and an Explore-all-trends entry. | Neither is an overview analytics outcome in Task 3A; this task adds no recommendation facts, new endpoint, or navigation capability. |
+
+The overview map must therefore support independent `available` and `failed`
+outcomes for its seven groups, while malformed envelopes and global request
+failures remain report-level. Unknown values remain gaps, not zeroes.

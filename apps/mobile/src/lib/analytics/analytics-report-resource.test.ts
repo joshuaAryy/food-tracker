@@ -391,7 +391,11 @@ describe('analytics report resource state', () => {
 
     expect(retrying).toMatchObject({
       status: 'refreshing',
-      retry: { kind: 'canonical_insights_request', section: 'hydration' },
+      retry: {
+        kind: 'canonical_insights_request',
+        target: 'section',
+        section: 'hydration',
+      },
       sections: {
         calories: { status: 'available', data: expect.any(Object) },
         hydration: { status: 'pending', data: null, error: null },
