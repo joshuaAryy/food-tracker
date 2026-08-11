@@ -1,5 +1,7 @@
+import { ANALYTICS_OVERVIEW_KEYS } from '@food-tracker/shared';
 import type {
   AnalyticsOverviewKey,
+  AnalyticsOverviewResultMap,
   CanonicalInsightsResponseV2,
 } from '@food-tracker/shared';
 import { describe, expect, it } from 'vitest';
@@ -18,7 +20,8 @@ function availablePeriodSummary(loggedDayCount: number) {
     data: {
       resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
       loggedDayCount,
-      eligibleDayCount: 7,
+      eligibleLoggedDayCount: loggedDayCount,
+      eligibleTotalDayCount: 7,
       streak: { currentDays: 1, longestDays: 2 },
       currentDayPhase: 'in_progress' as const,
       consistency: 29,
@@ -38,6 +41,9 @@ function failedOverview() {
 function report(
   overview: Partial<NonNullable<CanonicalInsightsResponseV2['overview']>>,
 ): CanonicalInsightsResponseV2 {
+  const completeOverview = Object.fromEntries(
+    ANALYTICS_OVERVIEW_KEYS.map((key) => [key, failedOverview()]),
+  ) as AnalyticsOverviewResultMap;
   return {
     contractVersion: 2,
     mode: 'simple',
@@ -62,7 +68,7 @@ function report(
         },
       },
     },
-    overview,
+    overview: { ...completeOverview, ...overview },
   };
 }
 

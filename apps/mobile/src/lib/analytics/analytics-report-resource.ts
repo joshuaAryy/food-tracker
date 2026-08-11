@@ -46,13 +46,17 @@ export interface AnalyticsReportSectionState {
   retryable: boolean;
 }
 
-export interface AnalyticsReportOverviewState {
-  data: AnalyticsOverviewDataByKey[AnalyticsOverviewKey] | null;
+export type AnalyticsReportOverviewState<K extends AnalyticsOverviewKey> = {
+  data: AnalyticsOverviewDataByKey[K] | null;
   fetchedAt: string | null;
   status: AnalyticsReportSectionStatus;
   error: string | null;
   retryable: boolean;
-}
+};
+
+export type AnalyticsReportOverviewStateByKey = {
+  [K in AnalyticsOverviewKey]: AnalyticsReportOverviewState<K>;
+};
 
 export type AnalyticsReportRetryIntent =
   | {
@@ -70,7 +74,7 @@ export interface AnalyticsReportResourceState {
   mode: CanonicalInsightsResponseV2['mode'] | null;
   period: CanonicalInsightsResponseV2['period'] | null;
   sections: Partial<Record<AnalyticsSectionKey, AnalyticsReportSectionState>>;
-  overview: Partial<Record<AnalyticsOverviewKey, AnalyticsReportOverviewState>>;
+  overview: Partial<AnalyticsReportOverviewStateByKey>;
   updatedAt: number | null;
   status: AnalyticsReportResourceStatus;
   staleSource: 'offline_cache' | 'refresh_failed' | null;
@@ -181,9 +185,9 @@ function pendingSection(
   };
 }
 
-function pendingOverviewGroup(
-  overview: AnalyticsReportOverviewState | undefined,
-): AnalyticsReportOverviewState {
+function pendingOverviewGroup<K extends AnalyticsOverviewKey>(
+  overview: AnalyticsReportOverviewState<K> | undefined,
+): AnalyticsReportOverviewState<K> {
   return {
     data: overview?.data ?? null,
     fetchedAt: overview?.fetchedAt ?? null,
@@ -236,13 +240,11 @@ function sectionState(
       };
 }
 
-function overviewState(
-  result: AnalyticsOverviewResult<
-    AnalyticsOverviewDataByKey[AnalyticsOverviewKey]
-  >,
-  prior: AnalyticsReportOverviewState | undefined,
+function overviewState<K extends AnalyticsOverviewKey>(
+  result: AnalyticsOverviewResult<AnalyticsOverviewDataByKey[K]>,
+  prior: AnalyticsReportOverviewState<K> | undefined,
   stale: boolean,
-): AnalyticsReportOverviewState {
+): AnalyticsReportOverviewState<K> {
   if (result.status === 'available') {
     return {
       data: result.data,
@@ -295,8 +297,16 @@ function mergeReport(
     ...(Object.keys(state.overview) as AnalyticsOverviewKey[]),
     ...(Object.keys(report.overview ?? {}) as AnalyticsOverviewKey[]),
   ]);
+  // The runtime key comes from the validated v2 map. Keep the public state
+  // keyed below while using a union view only for this dynamic merge loop.
+  const overviewByRuntimeKey = overview as Partial<
+    Record<
+      AnalyticsOverviewKey,
+      AnalyticsReportOverviewState<AnalyticsOverviewKey>
+    >
+  >;
   for (const key of expectedOverviewKeys) {
-    overview[key] = overviewState(
+    overviewByRuntimeKey[key] = overviewState(
       report.overview?.[key] ?? OMITTED_OVERVIEW_RESULT,
       state.overview[key],
       stale,

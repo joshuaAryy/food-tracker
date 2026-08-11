@@ -1,5 +1,6 @@
 import {
   canonicalInsightsResponseV2Schema,
+  canonicalInsightsResponseV2WithOverviewSchema,
   type AnalyticsMetricKey,
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
@@ -41,7 +42,8 @@ function overview() {
       data: {
         resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
         loggedDayCount: 2,
-        eligibleDayCount: 7,
+        eligibleLoggedDayCount: 2,
+        eligibleTotalDayCount: 7,
         streak: { currentDays: 1, longestDays: 2 },
         currentDayPhase: 'in_progress' as const,
         consistency: 29,
@@ -163,12 +165,43 @@ function overview() {
         partialDayCount: 1,
         unloggedDayCount: 5,
         inProgressDayCount: 1,
-        eligibleDayCount: 7,
+        eligibleLoggedDayCount: 2,
+        eligibleTotalDayCount: 7,
         streak: { currentDays: 1, longestDays: 2 },
         days: [
           {
-            date: '2026-08-07',
+            date: '2026-08-01',
+            loggingDayState: 'complete' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-02',
             loggingDayState: 'partial' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-03',
+            loggingDayState: 'unlogged' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-04',
+            loggingDayState: 'unlogged' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-05',
+            loggingDayState: 'unlogged' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-06',
+            loggingDayState: 'unlogged' as const,
+            loggingDayPhase: 'closed' as const,
+          },
+          {
+            date: '2026-08-07',
+            loggingDayState: 'unlogged' as const,
             loggingDayPhase: 'in_progress' as const,
           },
         ],
@@ -298,6 +331,223 @@ describe('canonical Insights response v2 contract', () => {
         }).success,
       ).toBe(false);
     }
+  });
+
+  it('rejects contradictory overview facts instead of normalizing them on mobile', () => {
+    const valid = overview();
+    const responseForOverview = (candidate: unknown) => ({
+      contractVersion: 2,
+      mode: 'simple',
+      period: 'week',
+      sections: {
+        calories: {
+          status: 'available',
+          data: trend('calories'),
+          fetchedAt: '2026-08-11T12:00:00.000Z',
+        },
+      },
+      overview: candidate,
+    });
+    const reversedRange = {
+      ...valid,
+      periodSummary: {
+        ...valid.periodSummary,
+        data: {
+          ...valid.periodSummary.data,
+          resolvedRange: { startDate: '2026-08-07', endDate: '2026-08-01' },
+        },
+      },
+    };
+    const inconsistentSummary = {
+      ...valid,
+      periodSummary: {
+        ...valid.periodSummary,
+        data: {
+          ...valid.periodSummary.data,
+          eligibleLoggedDayCount: 8,
+          consistency: 101,
+        },
+      },
+    };
+    const invalidEnergy = {
+      ...valid,
+      energy: {
+        ...valid.energy,
+        data: {
+          ...valid.energy.data,
+          reference: {
+            ...valid.energy.data.reference,
+            lower: 2400,
+            upper: 1800,
+          },
+          numericDayCount: 1,
+          withinRangeDayCount: 2,
+          status: 'no_reference',
+        },
+      },
+    };
+    const invalidHydration = {
+      ...valid,
+      hydration: {
+        ...valid.hydration,
+        data: { ...valid.hydration.data, total: null, status: 'goal_met' },
+      },
+    };
+    const invalidWeight = {
+      ...valid,
+      weight: {
+        ...valid.weight,
+        data: {
+          ...valid.weight.data,
+          current: null,
+          availability: 'recorded',
+          change: { ...valid.weight.data.change, value: null, direction: 'up' },
+          reference: { kind: 'none', unit: 'lb', reason: 'not_configured' },
+          goalPathStatus: 'at_goal',
+        },
+      },
+    };
+    const invalidLoggingCounts = {
+      ...valid,
+      loggingConsistency: {
+        ...valid.loggingConsistency,
+        data: {
+          ...valid.loggingConsistency.data,
+          completeDayCount: 2,
+          eligibleLoggedDayCount: 8,
+          eligibleTotalDayCount: 1,
+        },
+      },
+    };
+    const invalidForecast = {
+      ...valid,
+      weight: {
+        ...valid.weight,
+        data: {
+          ...valid.weight.data,
+          forecast: {
+            status: 'available',
+            fetchedAt: '2026-08-11T12:00:00.000Z',
+            data: {
+              todayDate: '2026-08-07',
+              horizonDays: 1,
+              points: [
+                { date: '2026-08-08', value: 130, lower: 131, upper: 132 },
+              ],
+            },
+          },
+        },
+      },
+    };
+    const invalidNutrientStatus = {
+      ...valid,
+      nutrientHighlights: {
+        ...valid.nutrientHighlights,
+        data: {
+          ...valid.nutrientHighlights.data,
+          highlights: [
+            {
+              ...valid.nutrientHighlights.data.highlights[0],
+              value: 40,
+              status: 'below_minimum',
+            },
+            valid.nutrientHighlights.data.highlights[1],
+            valid.nutrientHighlights.data.highlights[2],
+          ],
+        },
+      },
+    };
+    const invalidMacros = {
+      ...valid,
+      macros: {
+        ...valid.macros,
+        data: {
+          ...valid.macros.data,
+          status: 'unknown',
+          protein: { grams: null, percentage: 20 },
+        },
+      },
+    };
+    const invalidLoggingDays = {
+      ...valid,
+      loggingConsistency: {
+        ...valid.loggingConsistency,
+        data: {
+          ...valid.loggingConsistency.data,
+          days: [
+            valid.loggingConsistency.data.days[0]!,
+            valid.loggingConsistency.data.days[0]!,
+            ...valid.loggingConsistency.data.days.slice(2),
+          ],
+        },
+      },
+    };
+
+    for (const candidate of [
+      reversedRange,
+      inconsistentSummary,
+      invalidEnergy,
+      invalidHydration,
+      invalidWeight,
+      invalidLoggingCounts,
+      invalidForecast,
+      invalidNutrientStatus,
+      invalidMacros,
+      invalidLoggingDays,
+    ]) {
+      expect(
+        canonicalInsightsResponseV2Schema.safeParse(
+          responseForOverview(candidate),
+        ).success,
+      ).toBe(false);
+    }
+  });
+
+  it('requires every overview ownership boundary when an overview is present', () => {
+    const partialOverview: Record<string, unknown> = { ...overview() };
+    delete partialOverview.hydration;
+    expect(
+      canonicalInsightsResponseV2Schema.safeParse({
+        contractVersion: 2,
+        mode: 'simple',
+        period: 'week',
+        sections: {
+          calories: {
+            status: 'failed',
+            code: 'section_unavailable',
+            retryable: true,
+          },
+        },
+        overview: partialOverview,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('uses the overview-required schema for the recovered production Insights route', () => {
+    const coreOnly = {
+      contractVersion: 2,
+      mode: 'simple',
+      period: 'week',
+      sections: {
+        calories: {
+          status: 'available' as const,
+          data: trend('calories'),
+          fetchedAt: '2026-08-11T12:00:00.000Z',
+        },
+      },
+    };
+    expect(canonicalInsightsResponseV2Schema.safeParse(coreOnly).success).toBe(
+      true,
+    );
+    expect(
+      canonicalInsightsResponseV2WithOverviewSchema.safeParse(coreOnly).success,
+    ).toBe(false);
+    expect(
+      canonicalInsightsResponseV2WithOverviewSchema.safeParse({
+        ...coreOnly,
+        overview: overview(),
+      }).success,
+    ).toBe(true);
   });
 
   it('rejects malformed result envelopes and unknown fields rather than producing a partial report', () => {
