@@ -38,9 +38,11 @@ export interface AnalyticsReportResourceState {
   sections: Partial<Record<AnalyticsSectionKey, AnalyticsReportSectionState>>;
   updatedAt: number | null;
   status: AnalyticsReportResourceStatus;
+  staleSource: 'offline_cache' | 'refresh_failed' | null;
   error: string | null;
   requestId: number;
   retry: AnalyticsReportRetryIntent | null;
+  networkCommitted: boolean;
 }
 
 export type AnalyticsReportResourceAction =
@@ -63,8 +65,17 @@ export type AnalyticsReportResourceAction =
 
 const SECTION_ERROR_MESSAGE =
   'This analytics section is temporarily unavailable. Please try again.';
-const REPORT_ERROR_MESSAGE =
+const REPORT_UNAVAILABLE_MESSAGE =
   'Analytics are temporarily unavailable. Please try again.';
+const REPORT_REFRESH_FAILED_MESSAGE =
+  "Couldn't refresh analytics. Showing earlier data.";
+const REPORT_OFFLINE_MESSAGE = 'Offline. Showing saved analytics.';
+
+const OMITTED_SECTION_RESULT = {
+  status: 'failed',
+  code: 'section_unavailable',
+  retryable: true,
+} as const satisfies Extract<AnalyticsSectionResult, { status: 'failed' }>;
 
 export function safeAnalyticsSectionError(
   result: Extract<AnalyticsSectionResult, { status: 'failed' }>,
@@ -80,15 +91,17 @@ export function initialAnalyticsReportResource(): AnalyticsReportResourceState {
     sections: {},
     updatedAt: null,
     status: 'idle',
+    staleSource: null,
     error: null,
     requestId: 0,
     retry: null,
+    networkCommitted: false,
   };
 }
 
 function hasCommittedSection(state: AnalyticsReportResourceState): boolean {
   return Object.values(state.sections).some(
-    (section) => section?.data !== null,
+    (section) => section !== undefined && section.data !== null,
   );
 }
 
@@ -98,11 +111,21 @@ function pendingSections(
   return Object.fromEntries(
     Object.entries(sections).map(([key, section]) => [
       key,
-      section?.data === null || section?.data === undefined
-        ? section
-        : { ...section, status: 'pending' as const, error: null },
+      pendingSection(section),
     ]),
   ) as AnalyticsReportResourceState['sections'];
+}
+
+function pendingSection(
+  section: AnalyticsReportSectionState | undefined,
+): AnalyticsReportSectionState {
+  return {
+    data: section?.data ?? null,
+    fetchedAt: section?.fetchedAt ?? null,
+    status: 'pending',
+    error: null,
+    retryable: false,
+  };
 }
 
 function sectionState(
@@ -143,12 +166,15 @@ function mergeReport(
   updatedAt: number,
   stale: boolean,
 ): AnalyticsReportResourceState {
-  const sections = { ...state.sections };
-  for (const [key, result] of Object.entries(report.sections)) {
-    if (result === undefined) continue;
-    sections[key as AnalyticsSectionKey] = sectionState(
-      result,
-      sections[key as AnalyticsSectionKey],
+  const sections: AnalyticsReportResourceState['sections'] = {};
+  const expectedKeys = new Set<AnalyticsSectionKey>([
+    ...(Object.keys(state.sections) as AnalyticsSectionKey[]),
+    ...(Object.keys(report.sections) as AnalyticsSectionKey[]),
+  ]);
+  for (const key of expectedKeys) {
+    sections[key] = sectionState(
+      report.sections[key] ?? OMITTED_SECTION_RESULT,
+      state.sections[key],
       stale,
     );
   }
@@ -159,9 +185,35 @@ function mergeReport(
     sections,
     updatedAt,
     status: stale ? 'stale' : 'ready',
-    error: stale ? REPORT_ERROR_MESSAGE : null,
+    staleSource: stale ? 'offline_cache' : null,
+    error: stale ? REPORT_OFFLINE_MESSAGE : null,
     retry: null,
+    networkCommitted: !stale,
   };
+}
+
+function settleReportFailure(
+  state: AnalyticsReportResourceState,
+): AnalyticsReportResourceState['sections'] {
+  return Object.fromEntries(
+    Object.entries(state.sections).map(([key, section]) => [
+      key,
+      section?.data === null || section?.data === undefined
+        ? {
+            data: null,
+            fetchedAt: null,
+            status: 'unavailable' as const,
+            error: SECTION_ERROR_MESSAGE,
+            retryable: true,
+          }
+        : {
+            ...section,
+            status: 'stale' as const,
+            error: REPORT_REFRESH_FAILED_MESSAGE,
+            retryable: true,
+          },
+    ]),
+  ) as AnalyticsReportResourceState['sections'];
 }
 
 /** Keeps validated committed siblings visible across canonical whole-report refreshes. */
@@ -177,43 +229,59 @@ export function analyticsReportResourceReducer(
         sections: pendingSections(state.sections),
         requestId: action.requestId,
         status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        staleSource: null,
         error: null,
         retry: null,
+        networkCommitted: false,
       };
     case 'sectionRetry':
       return {
         ...state,
-        sections: pendingSections(state.sections),
+        sections: {
+          ...state.sections,
+          [action.section]: pendingSection(state.sections[action.section]),
+        },
         requestId: action.requestId,
         status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        staleSource: null,
         error: null,
         retry: { kind: 'canonical_insights_request', section: action.section },
+        networkCommitted: false,
       };
     case 'commit':
       if (action.requestId !== state.requestId) return state;
       return mergeReport(state, action.report, action.updatedAt, false);
     case 'hydrate':
-      if (state.requestId !== 0 && action.requestId !== state.requestId) {
+      if (action.requestId !== state.requestId || state.networkCommitted) {
         return state;
       }
       return {
         ...mergeReport(state, action.report, action.updatedAt, action.stale),
         requestId: action.requestId,
+        networkCommitted: false,
       };
-    case 'failure':
+    case 'failure': {
       if (action.requestId !== state.requestId) return state;
+      const sections = settleReportFailure(state);
       return hasCommittedSection(state)
         ? {
             ...state,
+            sections,
             status: 'stale',
-            error: REPORT_ERROR_MESSAGE,
+            staleSource: 'refresh_failed',
+            error: REPORT_REFRESH_FAILED_MESSAGE,
             retry: null,
+            networkCommitted: false,
           }
         : {
             ...state,
+            sections,
             status: 'error',
-            error: REPORT_ERROR_MESSAGE,
+            staleSource: null,
+            error: REPORT_UNAVAILABLE_MESSAGE,
             retry: null,
+            networkCommitted: false,
           };
+    }
   }
 }

@@ -53,15 +53,46 @@ export interface CanonicalInsightsResponseV2 {
   >;
 }
 
-export const canonicalInsightsResponseV2Schema = z.strictObject({
-  contractVersion: z.literal(2),
-  mode: z.enum(['simple', 'complex']),
-  period: z.enum(['week', 'month']),
-  sections: z.partialRecord(
-    analyticsSectionKeySchema,
-    analyticsSectionResultSchema,
-  ),
-});
+export const canonicalInsightsResponseV2Schema = z
+  .strictObject({
+    contractVersion: z.literal(2),
+    mode: z.enum(['simple', 'complex']),
+    period: z.enum(['week', 'month']),
+    sections: z.partialRecord(
+      analyticsSectionKeySchema,
+      analyticsSectionResultSchema,
+    ),
+  })
+  .superRefine((report, context) => {
+    const sections = Object.entries(report.sections);
+    if (sections.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        message: 'At least one analytics section result is required.',
+        path: ['sections'],
+      });
+      return;
+    }
+
+    for (const [key, result] of sections) {
+      if (result?.status !== 'available') continue;
+      if (result.data.primaryMetric !== key) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Analytics section key must match its primary metric.',
+          path: ['sections', key, 'data', 'primaryMetric'],
+        });
+      }
+      if (result.data.trackingMode !== report.mode) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'Analytics section tracking mode must match the report mode.',
+          path: ['sections', key, 'data', 'trackingMode'],
+        });
+      }
+    }
+  });
 
 /** Validates legacy reports before a caller can normalize them into v2. */
 export function parseCanonicalInsightsResponseV1(value: unknown) {

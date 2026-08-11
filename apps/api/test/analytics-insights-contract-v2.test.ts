@@ -6,10 +6,13 @@ import {
 import { describe, expect, it } from 'vitest';
 import { parseApiResponse } from '../../mobile/src/lib/api-response.js';
 
-function trend(primaryMetric: AnalyticsMetricKey): CanonicalTrendResponse {
+function trend(
+  primaryMetric: AnalyticsMetricKey,
+  trackingMode: 'simple' | 'complex' = 'simple',
+): CanonicalTrendResponse {
   return {
     timezone: 'America/New_York',
-    trackingMode: 'simple',
+    trackingMode,
     primaryMetric,
     aggregation: 'daily',
     resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
@@ -75,6 +78,51 @@ describe('canonical Insights response v2 contract', () => {
     ).toBe(false);
   });
 
+  it('rejects an empty successful report', () => {
+    expect(
+      canonicalInsightsResponseV2Schema.safeParse({
+        contractVersion: 2,
+        mode: 'simple',
+        period: 'week',
+        sections: {},
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a section whose key does not match its primary metric', () => {
+    expect(
+      canonicalInsightsResponseV2Schema.safeParse({
+        contractVersion: 2,
+        mode: 'simple',
+        period: 'week',
+        sections: {
+          calories: {
+            status: 'available',
+            data: trend('hydration'),
+            fetchedAt: '2026-08-11T12:00:00.000Z',
+          },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects available trends whose tracking mode differs from the envelope', () => {
+    expect(
+      canonicalInsightsResponseV2Schema.safeParse({
+        contractVersion: 2,
+        mode: 'simple',
+        period: 'week',
+        sections: {
+          calories: {
+            status: 'available',
+            data: trend('calories', 'complex'),
+            fetchedAt: '2026-08-11T12:00:00.000Z',
+          },
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it('keeps malformed v2 parser failures report-level', async () => {
     await expect(
       parseApiResponse(
@@ -86,6 +134,31 @@ describe('canonical Insights response v2 contract', () => {
             calories: {
               status: 'failed',
               code: 'database_down',
+              retryable: true,
+            },
+          },
+        }),
+        canonicalInsightsResponseV2Schema,
+      ),
+    ).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+
+  it('rejects a malformed mixed response at the report parser boundary', async () => {
+    await expect(
+      parseApiResponse(
+        responseFor({
+          contractVersion: 2,
+          mode: 'simple',
+          period: 'week',
+          sections: {
+            calories: {
+              status: 'available',
+              data: trend('hydration'),
+              fetchedAt: '2026-08-11T12:00:00.000Z',
+            },
+            hydration: {
+              status: 'failed',
+              code: 'section_unavailable',
               retryable: true,
             },
           },

@@ -32,6 +32,23 @@ implementations and visual captures.
 | `490:496` | Compare picker / 320 | Compatible metrics can link, normalize, or use honest separate scales. | No R0.1 compare visual assertion. | `analyticsStateFixtures.complexCapabilities` fixture-contract only; Simple exclusions are asserted in the fixture test. |
 | `492:1236` | Saved views long name / 320 | A pinned view has a long name; reordering changes only library order. | No R0.1 saved-view visual assertion. | `longSavedViewFixture` and fixture test assert the long-name source; existing saved-view regression remains unchanged. |
 
+## R0.2 section-aware contract inspection
+
+All seven R0.2 nodes were re-inspected individually with
+`get_design_context` before contract or reducer implementation. The table
+below records the concrete boundary gap against the implementation at task base
+`84dda7b`.
+
+| Node | Contract evidence from final reference | Concrete task-base discrepancy | R0.2 contract consequence |
+| --- | --- | --- | --- |
+| `517:73` | Refresh keeps committed UI until a validated replacement is ready; one section failure never destroys successful sections; offline uses cached analytics with a timestamp. | `CanonicalInsightsResponse` contains only raw trend values and `AnalyticsResource<T>` owns one all-or-nothing value, error, and status. Neither can represent section-owned pending, stale, error, or retry state. | Add a versioned section-result envelope and a separate report resource with per-section committed state while leaving the v1 live resource unchanged. |
+| `524:21` | The exact state masters are `510:437`, `510:467`, `492:753`, `477:141`, and `492:1279`; hidden drafts are not authoritative. | The existing ledger maps those nodes to R0.1 fixtures, but no stable section-aware presentation boundary exists for later R1 components. | R1 must consume the new report/section state interface before R10 changes the network source. |
+| `510:437` | “Refreshing committed analytics” keeps the earlier 1,846 kcal card visible and interactive; nothing clears before validation. | The whole-report reducer preserves its single committed value, but it cannot mark individual sections pending or express a section-owned retry without treating the report as one replacement. | Canonical refresh marks committed sections pending without clearing any sibling and uses request generations to reject older completions. |
+| `510:467` | A rejected refresh keeps earlier interactive analytics, shows their prior timestamp, and offers Retry. | Whole-report failure can retain the old v1 report as stale, but a mixed refresh cannot commit successful sibling replacements while retaining only a failed section as stale/error. | Mixed-result merge replaces successful sections and retains only failed prior sections as stale/error; absent failed sections become unavailable. |
+| `492:753` | A failed Weight area is local and retryable while Energy, Macros, Hydration, and Consistency remain available. | V1 sections are raw `CanonicalTrendResponse` values, the API route uses rejecting `Promise.all`, and the mobile resource has no section failure variant. | Define strict `available`/`failed` results with a generic public error and a section Retry intent that may launch the canonical whole-report request without blanking siblings. |
+| `477:141` | An unreadable/invalid analytics snapshot is a full report failure; logging remains safe and available. | Parser/auth/network/global failures currently flow through the same single resource error string and cannot be distinguished from a future section outcome at the stable presentation boundary. | Malformed envelopes and global failures remain report-level and never become an empty or partially successful report. |
+| `492:1279` | Offline mode keeps the full cached report visible and identifies when it was last updated. | The existing cache safely partitions by UID and preserves atomic replacement, serialization, purge barriers, and stale timestamps, but only v1 keys `insights-week` and `insights-month` exist. | Add distinct `insights-v2-week`/`insights-v2-month` keys; validate any v1 success before adapting it and never overwrite a v1 entry in place. |
+
 ## Screenshot acceptance checklist
 
 - Render the real canonical response at 390pt, 320pt, and 390pt Large Type;
