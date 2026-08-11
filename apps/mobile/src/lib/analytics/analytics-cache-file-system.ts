@@ -11,15 +11,26 @@ export function createExpoAnalyticsCacheStorage(input: {
   move(input: { from: string; to: string }): Promise<void>;
   remove(path: string, options: { idempotent: boolean }): Promise<void>;
 }): AnalyticsCacheStorage {
-  const directory = `${input.documentDirectory}analytics/`;
-  let directoryReady: Promise<void> | null = null;
-  const ensureDirectory = () => {
-    directoryReady ??= input.makeDirectory(directory, { intermediates: true });
-    return directoryReady;
+  const analyticsDirectory = `${input.documentDirectory}analytics/`;
+  const directoryReady = new Map<string, Promise<void>>();
+  const ensureDirectory = (path: string) => {
+    const slashIndex = path.lastIndexOf('/');
+    const directory =
+      slashIndex >= 0 ? path.slice(0, slashIndex + 1) : analyticsDirectory;
+    const ready = directoryReady.get(directory);
+    if (ready !== undefined) return ready;
+    const creation = input
+      .makeDirectory(directory, { intermediates: true })
+      .catch((error: unknown) => {
+        directoryReady.delete(directory);
+        throw error;
+      });
+    directoryReady.set(directory, creation);
+    return creation;
   };
   return {
     async read(path) {
-      await ensureDirectory();
+      await ensureDirectory(path);
       try {
         return await input.read(path);
       } catch {
@@ -27,15 +38,15 @@ export function createExpoAnalyticsCacheStorage(input: {
       }
     },
     async write(path, value) {
-      await ensureDirectory();
+      await ensureDirectory(path);
       await input.write(path, value);
     },
     async move(from, to) {
-      await ensureDirectory();
+      await Promise.all([ensureDirectory(from), ensureDirectory(to)]);
       await input.move({ from, to });
     },
     async remove(path) {
-      await ensureDirectory();
+      await ensureDirectory(path);
       await input.remove(path, { idempotent: true });
     },
   };

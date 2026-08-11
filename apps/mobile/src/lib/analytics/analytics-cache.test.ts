@@ -118,4 +118,114 @@ describe('analytics cache', () => {
     });
     expect(storage.files.has('user-a/insights-week.json.staged')).toBe(false);
   });
+
+  it('preserves the committed entry when staging fails', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `${userId}/${key}.json`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user-a', 'insights-week', { total: 10 });
+    const write = storage.write;
+    storage.write = async (path, value) => {
+      if (path.endsWith('.staged')) throw new Error('staged write failed');
+      await write(path, value);
+    };
+
+    await expect(
+      cache.write('user-a', 'insights-week', { total: 20 }),
+    ).rejects.toThrow('staged write failed');
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 10 } });
+  });
+
+  it('preserves the committed entry when the atomic move fails', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `${userId}/${key}.json`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user-a', 'insights-week', { total: 10 });
+    storage.move = async () => {
+      throw new Error('atomic move failed');
+    };
+
+    await expect(
+      cache.write('user-a', 'insights-week', { total: 20 }),
+    ).rejects.toThrow('atomic move failed');
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 10 } });
+    expect(storage.files.has('user-a/insights-week.json')).toBe(true);
+  });
+
+  it('purges committed and staged entries without crossing encoded user partitions', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) =>
+        `analytics/${encodeURIComponent(userId)}/${key}.json`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user/a', 'insights-week', { total: 10 });
+    storage.files.set('analytics/user%2Fa/insights-week.json.staged', 'staged');
+    await cache.write('other-user', 'insights-week', { total: 20 });
+
+    await cache.purge('user/a', ['insights-week']);
+
+    expect([...storage.files.keys()]).toEqual([
+      'analytics/other-user/insights-week.json',
+    ]);
+  });
+
+  it('reads and validates entries for UIDs with filesystem-significant characters', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) =>
+        `analytics/${encodeURIComponent(userId)}/${key}.json`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+    const userId = 'uid/../other?value#fragment';
+
+    await cache.write(userId, 'insights-week', { total: 10 });
+
+    await expect(
+      cache.read(
+        userId,
+        'insights-week',
+        (value): value is { total: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          typeof (value as { total?: unknown }).total === 'number',
+      ),
+    ).resolves.toMatchObject({ value: { total: 10 } });
+    expect([...storage.files.keys()]).toEqual([
+      `analytics/${encodeURIComponent(userId)}/insights-week.json`,
+    ]);
+  });
 });
