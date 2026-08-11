@@ -1,9 +1,23 @@
-import type {
-  AnalyticsSectionKey,
-  AnalyticsSectionResult,
-  CanonicalInsightsResponseV2,
-  CanonicalTrendResponse,
+import {
+  ANALYTICS_INSIGHTS_SECTION_KEYS,
+  type AnalyticsSectionKey,
+  type AnalyticsSectionResult,
+  type CanonicalInsightsResponseV2,
+  type CanonicalTrendResponse,
 } from '@food-tracker/shared';
+
+export type AnalyticsReportRequestKind =
+  | 'none'
+  | 'initial_load'
+  | 'canonical_refresh'
+  | 'section_retry';
+
+export type AnalyticsReportRequestPhase =
+  | 'idle'
+  | 'pending'
+  | 'cache_hydrated'
+  | 'network_committed'
+  | 'network_failed';
 
 export type AnalyticsReportResourceStatus =
   | 'idle'
@@ -42,7 +56,8 @@ export interface AnalyticsReportResourceState {
   error: string | null;
   requestId: number;
   retry: AnalyticsReportRetryIntent | null;
-  networkCommitted: boolean;
+  requestKind: AnalyticsReportRequestKind;
+  requestPhase: AnalyticsReportRequestPhase;
 }
 
 export type AnalyticsReportResourceAction =
@@ -95,7 +110,8 @@ export function initialAnalyticsReportResource(): AnalyticsReportResourceState {
     error: null,
     requestId: 0,
     retry: null,
-    networkCommitted: false,
+    requestKind: 'none',
+    requestPhase: 'idle',
   };
 }
 
@@ -168,6 +184,7 @@ function mergeReport(
 ): AnalyticsReportResourceState {
   const sections: AnalyticsReportResourceState['sections'] = {};
   const expectedKeys = new Set<AnalyticsSectionKey>([
+    ...ANALYTICS_INSIGHTS_SECTION_KEYS,
     ...(Object.keys(state.sections) as AnalyticsSectionKey[]),
     ...(Object.keys(report.sections) as AnalyticsSectionKey[]),
   ]);
@@ -188,7 +205,6 @@ function mergeReport(
     staleSource: stale ? 'offline_cache' : null,
     error: stale ? REPORT_OFFLINE_MESSAGE : null,
     retry: null,
-    networkCommitted: !stale,
   };
 }
 
@@ -223,6 +239,17 @@ export function analyticsReportResourceReducer(
 ): AnalyticsReportResourceState {
   switch (action.type) {
     case 'load':
+      return {
+        ...state,
+        sections: pendingSections(state.sections),
+        requestId: action.requestId,
+        status: hasCommittedSection(state) ? 'refreshing' : 'loading',
+        staleSource: null,
+        error: null,
+        retry: null,
+        requestKind: 'initial_load',
+        requestPhase: 'pending',
+      };
     case 'refresh':
       return {
         ...state,
@@ -232,7 +259,8 @@ export function analyticsReportResourceReducer(
         staleSource: null,
         error: null,
         retry: null,
-        networkCommitted: false,
+        requestKind: 'canonical_refresh',
+        requestPhase: 'pending',
       };
     case 'sectionRetry':
       return {
@@ -246,22 +274,88 @@ export function analyticsReportResourceReducer(
         staleSource: null,
         error: null,
         retry: { kind: 'canonical_insights_request', section: action.section },
-        networkCommitted: false,
+        requestKind: 'section_retry',
+        requestPhase: 'pending',
       };
     case 'commit':
       if (action.requestId !== state.requestId) return state;
-      return mergeReport(state, action.report, action.updatedAt, false);
-    case 'hydrate':
-      if (action.requestId !== state.requestId || state.networkCommitted) {
+      return {
+        ...mergeReport(state, action.report, action.updatedAt, false),
+        requestPhase: 'network_committed',
+      };
+    case 'hydrate': {
+      const isInitialFallback =
+        state.requestKind === 'initial_load' &&
+        (state.requestPhase === 'pending' ||
+          state.requestPhase === 'network_failed' ||
+          state.requestPhase === 'cache_hydrated') &&
+        (!hasCommittedSection(state) || state.staleSource === 'offline_cache');
+      const hasHydratedCache =
+        state.requestPhase === 'cache_hydrated' ||
+        state.staleSource === 'offline_cache';
+      const isNewerCacheValue =
+        !hasHydratedCache ||
+        state.updatedAt === null ||
+        action.updatedAt > state.updatedAt;
+      if (
+        action.requestId !== state.requestId ||
+        !isInitialFallback ||
+        !isNewerCacheValue
+      ) {
         return state;
       }
       return {
         ...mergeReport(state, action.report, action.updatedAt, action.stale),
         requestId: action.requestId,
-        networkCommitted: false,
+        requestKind: 'initial_load',
+        requestPhase: 'cache_hydrated',
       };
+    }
     case 'failure': {
       if (action.requestId !== state.requestId) return state;
+      if (state.requestPhase === 'network_committed') return state;
+
+      if (state.requestKind === 'section_retry' && state.retry !== null) {
+        const target = state.retry.section;
+        const sections = {
+          ...state.sections,
+          [target]: sectionState(
+            OMITTED_SECTION_RESULT,
+            state.sections[target],
+            false,
+          ),
+        };
+        return hasCommittedSection(state)
+          ? {
+              ...state,
+              sections,
+              status: 'ready',
+              staleSource: null,
+              error: null,
+              retry: null,
+              requestPhase: 'network_failed',
+            }
+          : {
+              ...state,
+              sections,
+              status: 'error',
+              staleSource: null,
+              error: REPORT_UNAVAILABLE_MESSAGE,
+              retry: null,
+              requestPhase: 'network_failed',
+            };
+      }
+
+      if (
+        state.requestKind === 'initial_load' &&
+        state.staleSource === 'offline_cache'
+      ) {
+        return {
+          ...state,
+          requestPhase: 'network_failed',
+        };
+      }
+
       const sections = settleReportFailure(state);
       return hasCommittedSection(state)
         ? {
@@ -271,7 +365,7 @@ export function analyticsReportResourceReducer(
             staleSource: 'refresh_failed',
             error: REPORT_REFRESH_FAILED_MESSAGE,
             retry: null,
-            networkCommitted: false,
+            requestPhase: 'network_failed',
           }
         : {
             ...state,
@@ -280,7 +374,7 @@ export function analyticsReportResourceReducer(
             staleSource: null,
             error: REPORT_UNAVAILABLE_MESSAGE,
             retry: null,
-            networkCommitted: false,
+            requestPhase: 'network_failed',
           };
     }
   }

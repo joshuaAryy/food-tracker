@@ -19,6 +19,16 @@ import {
 import { adaptCanonicalInsightsResponseV1 } from './analytics-v1-adapter';
 
 const fetchedAt = '2026-08-11T12:00:00.000Z';
+const expectedSectionKeys = [
+  'calories',
+  'protein',
+  'carbs',
+  'fat',
+  'macroComposition',
+  'weight',
+  'hydration',
+  'loggingConsistency',
+] as const;
 
 function trend(
   primaryMetric: AnalyticsMetricKey,
@@ -76,6 +86,80 @@ function report(
 }
 
 describe('analytics report resource state', () => {
+  it('materializes all eight section states after an initial partial network commit', () => {
+    const state = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({ calories: available('calories', 1900) }),
+        updatedAt: 2,
+      },
+    );
+
+    expect(Object.keys(state.sections)).toEqual(expectedSectionKeys);
+    expect(state).toMatchObject({
+      status: 'ready',
+      requestKind: 'initial_load',
+      requestPhase: 'network_committed',
+      sections: {
+        calories: { status: 'available', data: { summary: { average: 1900 } } },
+        protein: { status: 'unavailable', data: null, retryable: true },
+        carbs: { status: 'unavailable', data: null, retryable: true },
+        fat: { status: 'unavailable', data: null, retryable: true },
+        macroComposition: {
+          status: 'unavailable',
+          data: null,
+          retryable: true,
+        },
+        weight: { status: 'unavailable', data: null, retryable: true },
+        hydration: { status: 'unavailable', data: null, retryable: true },
+        loggingConsistency: {
+          status: 'unavailable',
+          data: null,
+          retryable: true,
+        },
+      },
+    });
+  });
+
+  it('materializes all eight section states after an initial partial stale hydration', () => {
+    const state = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'hydrate',
+        requestId: 1,
+        report: report({ calories: available('calories', 1700) }),
+        updatedAt: 1,
+        stale: true,
+      },
+    );
+
+    expect(Object.keys(state.sections)).toEqual(expectedSectionKeys);
+    expect(state).toMatchObject({
+      status: 'stale',
+      staleSource: 'offline_cache',
+      requestKind: 'initial_load',
+      requestPhase: 'cache_hydrated',
+      sections: {
+        calories: { status: 'stale', data: { summary: { average: 1700 } } },
+        protein: { status: 'unavailable', data: null, retryable: true },
+        hydration: { status: 'unavailable', data: null, retryable: true },
+        loggingConsistency: {
+          status: 'unavailable',
+          data: null,
+          retryable: true,
+        },
+      },
+    });
+  });
+
   it('keeps committed siblings while a canonical refresh is pending and merges a local failure as stale', () => {
     const committed = analyticsReportResourceReducer(
       initialAnalyticsReportResource(),
@@ -315,6 +399,90 @@ describe('analytics report resource state', () => {
     });
   });
 
+  it('settles only a no-data retry target when its canonical request fails', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({ calories: available('calories', 1846) }),
+        updatedAt: 2,
+      },
+    );
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(ready, {
+        type: 'sectionRetry',
+        requestId: 2,
+        section: 'hydration',
+      }),
+      { type: 'failure', requestId: 2 },
+    );
+
+    expect(failed).toMatchObject({
+      status: 'ready',
+      staleSource: null,
+      error: null,
+      requestKind: 'section_retry',
+      requestPhase: 'network_failed',
+      sections: {
+        calories: {
+          status: 'available',
+          data: { summary: { average: 1846 } },
+          error: null,
+          retryable: false,
+        },
+        hydration: {
+          status: 'unavailable',
+          data: null,
+          error:
+            'This analytics section is temporarily unavailable. Please try again.',
+          retryable: true,
+        },
+      },
+    });
+  });
+
+  it('settles only a retry target with prior data as stale after failure', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({
+          calories: available('calories', 1846),
+          hydration: available('hydration', 1630),
+        }),
+        updatedAt: 2,
+      },
+    );
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(ready, {
+        type: 'sectionRetry',
+        requestId: 2,
+        section: 'hydration',
+      }),
+      { type: 'failure', requestId: 2 },
+    );
+
+    expect(failed.sections.calories).toMatchObject({
+      status: 'available',
+      data: { summary: { average: 1846 } },
+      error: null,
+      retryable: false,
+    });
+    expect(failed.sections.hydration).toMatchObject({
+      status: 'stale',
+      data: { summary: { average: 1630 } },
+      retryable: true,
+    });
+  });
+
   it('marks a no-data retry target pending and settles it unavailable on failure', () => {
     const retrying = analyticsReportResourceReducer(
       initialAnalyticsReportResource(),
@@ -398,6 +566,205 @@ describe('analytics report resource state', () => {
     });
 
     expect(lateHydration).toEqual(committed);
+  });
+
+  it('ignores older hydration while a canonical refresh is pending', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({ calories: available('calories', 1900) }),
+        updatedAt: 2,
+      },
+    );
+    const refreshing = analyticsReportResourceReducer(ready, {
+      type: 'refresh',
+      requestId: 2,
+    });
+    const hydration = analyticsReportResourceReducer(refreshing, {
+      type: 'hydrate',
+      requestId: 2,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    });
+
+    expect(hydration).toEqual(refreshing);
+    expect(hydration).toMatchObject({
+      status: 'refreshing',
+      requestKind: 'canonical_refresh',
+      requestPhase: 'pending',
+      updatedAt: 2,
+      sections: { calories: { data: { summary: { average: 1900 } } } },
+    });
+  });
+
+  it('ignores older hydration after a canonical refresh failure', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({ calories: available('calories', 1900) }),
+        updatedAt: 2,
+      },
+    );
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(ready, {
+        type: 'refresh',
+        requestId: 2,
+      }),
+      { type: 'failure', requestId: 2 },
+    );
+    const hydration = analyticsReportResourceReducer(failed, {
+      type: 'hydrate',
+      requestId: 2,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    });
+
+    expect(hydration).toEqual(failed);
+    expect(hydration).toMatchObject({
+      status: 'stale',
+      staleSource: 'refresh_failed',
+      requestKind: 'canonical_refresh',
+      requestPhase: 'network_failed',
+      updatedAt: 2,
+      sections: { calories: { data: { summary: { average: 1900 } } } },
+    });
+  });
+
+  it('ignores cache hydration during and after a section retry failure', () => {
+    const ready = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      {
+        type: 'commit',
+        requestId: 1,
+        report: report({
+          calories: available('calories', 1900),
+          hydration: available('hydration', 1630),
+        }),
+        updatedAt: 2,
+      },
+    );
+    const retrying = analyticsReportResourceReducer(ready, {
+      type: 'sectionRetry',
+      requestId: 2,
+      section: 'hydration',
+    });
+    const hydrateAction = {
+      type: 'hydrate' as const,
+      requestId: 2,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    };
+
+    expect(analyticsReportResourceReducer(retrying, hydrateAction)).toEqual(
+      retrying,
+    );
+
+    const failed = analyticsReportResourceReducer(retrying, {
+      type: 'failure',
+      requestId: 2,
+    });
+    expect(analyticsReportResourceReducer(failed, hydrateAction)).toEqual(
+      failed,
+    );
+  });
+
+  it('accepts cache hydration after an initial network failure with no committed report', () => {
+    const failed = analyticsReportResourceReducer(
+      analyticsReportResourceReducer(initialAnalyticsReportResource(), {
+        type: 'load',
+        requestId: 1,
+      }),
+      { type: 'failure', requestId: 1 },
+    );
+    const hydrated = analyticsReportResourceReducer(failed, {
+      type: 'hydrate',
+      requestId: 1,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    });
+
+    expect(hydrated).toMatchObject({
+      status: 'stale',
+      staleSource: 'offline_cache',
+      requestKind: 'initial_load',
+      requestPhase: 'cache_hydrated',
+      updatedAt: 1,
+      sections: { calories: { data: { summary: { average: 1700 } } } },
+    });
+  });
+
+  it('keeps the newest cache hydration during initial load', () => {
+    const loading = analyticsReportResourceReducer(
+      initialAnalyticsReportResource(),
+      { type: 'load', requestId: 1 },
+    );
+    const newest = analyticsReportResourceReducer(loading, {
+      type: 'hydrate',
+      requestId: 1,
+      report: report({ calories: available('calories', 1900) }),
+      updatedAt: 2,
+      stale: true,
+    });
+    const older = analyticsReportResourceReducer(newest, {
+      type: 'hydrate',
+      requestId: 1,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    });
+
+    expect(older).toEqual(newest);
+    expect(older).toMatchObject({
+      requestKind: 'initial_load',
+      requestPhase: 'cache_hydrated',
+      updatedAt: 2,
+      sections: { calories: { data: { summary: { average: 1900 } } } },
+    });
+  });
+
+  it('accepts a newer cache hydration during initial load', () => {
+    const loading = analyticsReportResourceReducer(
+      initialAnalyticsReportResource(),
+      { type: 'load', requestId: 1 },
+    );
+    const older = analyticsReportResourceReducer(loading, {
+      type: 'hydrate',
+      requestId: 1,
+      report: report({ calories: available('calories', 1700) }),
+      updatedAt: 1,
+      stale: true,
+    });
+    const newer = analyticsReportResourceReducer(older, {
+      type: 'hydrate',
+      requestId: 1,
+      report: report({ calories: available('calories', 1900) }),
+      updatedAt: 2,
+      stale: true,
+    });
+
+    expect(newer).toMatchObject({
+      requestKind: 'initial_load',
+      requestPhase: 'cache_hydrated',
+      updatedAt: 2,
+      sections: { calories: { data: { summary: { average: 1900 } } } },
+    });
   });
 
   it('distinguishes offline cache from a later refresh failure with safe copy', () => {
