@@ -1,9 +1,16 @@
 import { render } from '../../../test/render';
+import { Dimensions } from 'react-native';
 import { api } from '../../../lib/api-client';
 import { caloriesTrendFixture } from '../../../test-fixtures/analytics-fixtures';
+import { analyticsStateFixtures } from '../../../test-fixtures/analytics-state-fixtures';
 import TrendDetailScreen from '../[metric]';
 
 let mockRouteParams: { metric?: string; query?: string } = {};
+let mockWindowDimensions: ReturnType<typeof Dimensions.get> = {
+  ...analyticsStateFixtures.layouts.standard390,
+  height: 844,
+  scale: 3,
+};
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -31,7 +38,15 @@ const trendResponse = caloriesTrendFixture;
 describe('Trend detail screen', () => {
   beforeEach(() => {
     mockRouteParams = { metric: 'calories' };
+    mockWindowDimensions = {
+      ...analyticsStateFixtures.layouts.standard390,
+      height: 844,
+      scale: 3,
+    };
     jest.restoreAllMocks();
+    jest
+      .spyOn(Dimensions, 'get')
+      .mockImplementation(() => mockWindowDimensions);
     jest
       .spyOn(api.analytics, 'trend')
       .mockResolvedValue(trendResponse as never);
@@ -42,7 +57,7 @@ describe('Trend detail screen', () => {
 
     expect(
       await screen.findByLabelText(
-        'Calories trend for 2026-08-01 through 2026-08-07',
+        'Calories trend for 2026-07-06 through 2026-08-04',
       ),
     ).toBeTruthy();
     expect(screen.queryByLabelText('Configure this Trend')).toBeNull();
@@ -77,7 +92,7 @@ describe('Trend detail screen', () => {
 
     expect(
       await screen.findByLabelText(
-        'Protein trend for 2026-08-01 through 2026-08-07',
+        'Protein trend for 2026-07-06 through 2026-08-04',
       ),
     ).toBeTruthy();
     expect(api.analytics.trend).toHaveBeenCalledWith(
@@ -92,5 +107,45 @@ describe('Trend detail screen', () => {
         coverageFilter: 'complete_only',
       }),
     );
+  });
+
+  it('renders the exact canonical 30-day fixture at compact width', async () => {
+    mockWindowDimensions = {
+      ...analyticsStateFixtures.layouts.compact320,
+      height: 693,
+      scale: 2,
+    };
+
+    const screen = await render(<TrendDetailScreen />);
+
+    expect(
+      await screen.findByLabelText(
+        'Calories trend for 2026-07-06 through 2026-08-04',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
+      expect.objectContaining({ width: 280 }),
+    );
+    expect(screen.getByText('Average 1846.0 kcal')).toBeTruthy();
+  });
+
+  it('retains canonical content under the Large Type fixture', async () => {
+    mockWindowDimensions = {
+      ...analyticsStateFixtures.layouts.largeType390,
+      height: 844,
+      scale: 3,
+    };
+
+    const screen = await render(<TrendDetailScreen />);
+
+    expect(
+      await screen.findByLabelText(
+        'Calories trend for 2026-07-06 through 2026-08-04',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
+      expect.objectContaining({ width: 350 }),
+    );
+    expect(screen.getByText('Average 1846.0 kcal')).toBeTruthy();
   });
 });

@@ -4,6 +4,8 @@ import {
   activeScrubTrendFixture,
   caloriesTrendFixture,
   complexInsightsFixture,
+  firstUseCaloriesTrendFixture,
+  firstUseProteinTrendFixture,
   longSavedViewFixture,
   sparseVitaminDTrendFixture,
   waterLogFixtures,
@@ -39,14 +41,18 @@ export const analyticsStateFixtures = {
   },
   firstUse: {
     nodeId: '495:21',
+    today: {
+      mealCount: 1,
+      calories: 612,
+      proteinGrams: 38,
+    },
+    unlock: { loggedDays: 2, requiredDays: 7 },
     report: {
       mode: 'simple',
       period: 'week',
       sections: {
-        calories: {
-          ...caloriesTrendFixture,
-          summary: { numericDayCount: 1, average: 1846 },
-        },
+        calories: firstUseCaloriesTrendFixture,
+        protein: firstUseProteinTrendFixture,
       },
     } satisfies CanonicalInsightsResponse,
   },
@@ -68,7 +74,7 @@ export const analyticsStateFixtures = {
   activeScrub: {
     nodeId: '492:1097',
     trend: activeScrubTrendFixture,
-    selectedDate: '2026-08-01',
+    selectedDate: '2026-07-29',
     selectedValue: 2490,
   },
   offlineCached: {

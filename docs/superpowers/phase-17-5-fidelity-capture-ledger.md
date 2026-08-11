@@ -3,47 +3,56 @@
 ## Capture basis
 
 All nodes below were inspected with `get_design_context` from Figma file
-`GFLStsF0ADwaizoVKGeLny` before fixture work began. This ledger records the
-visual/state facts that the R0.1 fixtures preserve; it does not declare the
-later production recovery work complete.
+`GFLStsF0ADwaizoVKGeLny` before fixture work began. R0.1 supplies canonical
+fixture contracts and the explicitly named screen regressions below. A
+`fixture-contract only` mapping is deliberately not a claim that the current
+screen renders that final Figma state; later recovery tasks own those render
+implementations and visual captures.
 
-| Node | Final reference | Concrete observation | Current-code discrepancy | Fixture/test mapping |
+| Node | Final reference | Concrete observation | Current-code discrepancy | R0.1 assertion mapping |
 | --- | --- | --- | --- | --- |
-| `517:73` | Handoff contract | Unknown and unlogged remain gaps; completeness, metric coverage, references, forecasts, and hydration are independent facts. 320pt reflows rather than scales; stale refresh retains committed UI. | `insights.tsx` currently consumes a whole-report resource and flat section rows, so it has no fixture-backed section-state contract. | `analytics-fixtures.test.ts` gap/capability assertions; all state fixtures. |
-| `524:21` | Final-node index | The approved final set includes Simple/Complex Insights, detailed trends, water, custom range, compare, saved views, and state masters. | No existing node-to-test capture map. | This ledger and the screenshot checklist. |
-| `490:21` | Complex Insights at 320pt | Compact width retains the report hierarchy: 1,846 kcal average, macro values, nutrient status, weight, and completeness rather than scaling them away. | No 320pt analytics layout fixture or render regression exists. | `analyticsFixtureLayouts.compact320`; future Complex overview render test. |
-| `490:319` | Calories Trends at 320pt | Compact Trends preserves Configure, 7D/30D/90D/Custom, selected-day data, and `27 logged · 21 complete · 3 partial · 3 unlogged`. | The existing Trend test has one small inline response and no shared compact fixture. | `analyticsFixtureLayouts.compact320`; `caloriesTrendFixture`. |
-| `492:21` | Insights Large Type at 390pt | Large Type retains the hierarchy and the same report facts while supporting vertical growth. | No explicit Large Type fixture or render regression exists. | `analyticsFixtureLayouts.largeType390`. |
-| `492:319` | Calories Trends Large Type at 390pt | Large Type keeps period controls, selected-day readout, coverage, and contributors readable. | No Large Type Trend fixture exists. | `analyticsFixtureLayouts.largeType390`; `caloriesTrendFixture`. |
-| `477:21` | Loading skeleton | Loading presents `Insights` and `Month · Loading analytics`, not zero-filled analytics. | Existing skeleton is generic and has no final-node fixture mapping. | `analyticsStateFixtures.loading`. |
-| `510:437` | Refresh pending | Refreshing retains 1,846 kcal committed analytics and remains interactive. | Current whole-report loading state does not encode this final visual state as a fixture. | `analyticsStateFixtures.refreshPending`. |
-| `510:467` | Refresh failed with stale data | Earlier analytics stays visible with `Couldn’t refresh`, `Retry`, and `Keep viewing`. | Existing error handling is report-wide rather than captured as a stale committed state fixture. | `analyticsStateFixtures.staleCached`. |
-| `495:21` | First-use analytics | Early logging exposes today's recorded totals and a 2/7-day path to unlock trends. | Existing empty branch does not have a real-shaped first-use fixture. | `analyticsStateFixtures.firstUse`. |
-| `492:455` | Current period in progress | Current period explicitly includes in-progress logging while retaining independent nutrient/report facts. | Existing tests do not provide an in-progress-day shared fixture. | `loggingAndCoveragePoints`; `analyticsStateFixtures.currentPeriodInProgress`. |
-| `492:753` | Section error | A failed report area must not remove the successful energy, macro, nutrient, or consistency content. | No section-failure fixture exists; section-aware response work is deferred to R0.2. | `analyticsStateFixtures.sectionFailure`. |
-| `477:141` | Full analytics unavailable | Full outage is retryable, while food, weight, and water logging remain available. | Existing report-level error copy is not represented by a final-node state fixture. | `analyticsStateFixtures.fullUnavailable`. |
-| `492:1058` | Forecast unavailable | Forecast hides when recent data is insufficient or too variable; historical values are not forecasts. | Existing forecast policy is covered, but no shared unavailable-state fixture exists. | `analyticsStateFixtures.forecastUnavailable`; `caloriesTrendFixture.forecast`. |
-| `492:1097` | Active scrub | The selected date has a stable `2,490 kcal · Complete day` readout; focus does not change the authoritative reference. | Existing chart interaction tests have no final-state fixture. | `analyticsStateFixtures.activeScrub`; future chart render test. |
-| `492:1279` | Offline cached analytics | Cached report facts remain visible offline with an explicit stale timestamp/state. | Cache tests cover persistence but no final-screen cached fixture exists. | `analyticsStateFixtures.offlineCached`. |
-| `490:550` | Log Water at 320pt | Presets are 250/350/500/750 mL; only explicit drinks count toward hydration; actions keep 44pt targets. | Current water test asserts only the close target; it has no shared water-log fixture. | `waterLogFixtures`; future Log Water fidelity test. |
-| `490:455` | Custom range at 320pt | The range is inclusive, bounded by logged history, day-precise, and reports automatic aggregation. | Existing custom-range test uses inline route data and no shared fixture. | `savedViewTrendQueryFixture`; future range fidelity test. |
-| `490:496` | Compare picker at 320pt | Comparison capability is explicit: compatible metrics may link, normalize, or use honest separate scales. | Existing Configure flow has no shared capability fixture. | `analyticsStateFixtures.complexCapabilities`; future compare fidelity test. |
-| `492:1236` | Saved views long name at 320pt | A primary pinned view has a deliberately long name; reordering affects only the library, not Insights report order. | Existing saved-view tests use short inline names and no long-name fixture. | `longSavedViewFixture`; future saved-view render test. |
+| `517:73` | Handoff contract | Unknown and unlogged remain gaps; completeness, metric coverage, references, forecasts, and hydration are independent. 320pt reflows and stale refresh retains committed UI. | Insights still renders its existing flat report sections. | `analytics-fixtures.test.ts`: gap, capability, reference, and state-contract assertions. |
+| `524:21` | Final-node index | Approved nodes include Simple/Complex Insights, detailed Trends, water, range, compare, saved views, and final state masters. | No node-to-test ledger existed. | This ledger; each listed node has an explicit fixture or test mapping. |
+| `490:21` | Complex Insights / 320 | Compact overview retains hierarchy, 1,846 kcal average, macro/nutrient/weight facts, and completeness. | R0.1 does not render the Complex overview at 320pt. | `analyticsFixtureLayouts.compact320` fixture-contract only. |
+| `490:319` | Calories Trends / 320 | `JUL 6 – AUG 4`; selected `Jul 29` is `2,490 kcal · Complete day`; coverage is `27 logged · 21 complete · 3 partial · 3 unlogged`. | Existing Trend test previously supplied an Aug 1–7 response. | `trend-detail.test.tsx` renders `caloriesTrendFixture` at 320pt and asserts its 280pt rendered inspection control; fixture test asserts dates, counts, selected point, and 1,846 average. |
+| `492:21` | Insights / Large Type / 390 | Large Type preserves report facts while content grows vertically. | R0.1 does not render the Insights overview under a font-scale fixture. | `analyticsFixtureLayouts.largeType390` fixture-contract only. |
+| `492:319` | Calories Trends / Large Type / 390 | Large Type keeps controls, selected-day facts, coverage, and contributors readable. | Existing Trend test had no Large Type layout execution. | `trend-detail.test.tsx` renders `caloriesTrendFixture` with the Large Type dimensions and asserts the 350pt rendered inspection control plus canonical content. |
+| `477:21` | Loading skeleton | Shows `Insights` and `Month · Loading analytics`, never zero-filled analytics. | Current skeleton remains generic. | `analyticsStateFixtures.loading` fixture-contract only. |
+| `510:437` | Refresh pending | Retains 1,846 kcal committed analytics while refreshing. | Current refresh behavior is not a final-node visual match yet. | `analyticsStateFixtures.refreshPending` fixture-contract only. |
+| `510:467` | Refresh failed / stale | Keeps earlier analytics and exposes refresh failure/retry. | Current error copy is not final-node matched. | `analyticsStateFixtures.staleCached` fixture-contract only. |
+| `495:21` | First-use analytics | Today has one meal, `612` kcal, `38 g protein`, and a `2 / 7 days` unlock state. | The old fixture reused 1,846 kcal and omitted protein/unlock facts. | Fixture test asserts all four facts and canonical summaries; `insights-pinned.test.tsx` renders the state fixture and asserts 612.0 kcal and 38.0 g on screen. |
+| `492:455` | Current period in progress | In-progress logging is distinct from completeness and metric coverage. | Current screen lacks this final-state presentation. | `analyticsStateFixtures.currentPeriodInProgress` and the fixture contract preserve the state boundary only. |
+| `492:753` | Section error | A failed area leaves energy, macro, nutrient, and consistency content available. | Section-aware rendering is not R0.1 production scope. | `analyticsStateFixtures.sectionFailure` fixture-contract only. |
+| `477:141` | Full analytics unavailable | Full outage is retryable while food, weight, and water logging remain available. | Current report-level error does not match final copy. | `analyticsStateFixtures.fullUnavailable` fixture-contract only. |
+| `492:1058` | Forecast unavailable | Forecast is hidden when stable coverage is insufficient; historical data is not fabricated. | Final forecast presentation is later work. | `analyticsStateFixtures.forecastUnavailable` and fixture test assert `unavailable`; no final-node render claim. |
+| `492:1097` | Active scrub | Selected `Jul 29` has stable `2,490 kcal · Complete day`; focus does not change the reference. | Current chart test does not start from this final selected state. | `analyticsStateFixtures.activeScrub` and fixture test assert the exact selected date/value in the canonical response. |
+| `492:1279` | Offline cached analytics | Cached report remains visible with an offline timestamp/state. | Current cache UI is not final-node matched. | `analyticsStateFixtures.offlineCached` fixture-contract only. |
+| `490:550` | Log Water / 320 | Presets are 250/350/500/750 mL; only explicit drinks count; targets remain about 44pt. | No R0.1 Log Water render assertion. | `waterLogFixtures` fixture-contract only; explicit-log typing is validated by the existing water regressions. |
+| `490:455` | Custom range / 320 | Inclusive history bounds, day precision, automatic aggregation, no future dates. | No R0.1 custom-range visual assertion. | `savedViewTrendQueryFixture` fixture-contract only; existing custom-range regression remains unchanged. |
+| `490:496` | Compare picker / 320 | Compatible metrics can link, normalize, or use honest separate scales. | No R0.1 compare visual assertion. | `analyticsStateFixtures.complexCapabilities` fixture-contract only; Simple exclusions are asserted in the fixture test. |
+| `492:1236` | Saved views long name / 320 | A pinned view has a long name; reordering changes only library order. | No R0.1 saved-view visual assertion. | `longSavedViewFixture` and fixture test assert the long-name source; existing saved-view regression remains unchanged. |
 
 ## Screenshot acceptance checklist
 
-- Render the same real-shaped fixture at 390pt, 320pt, and 390pt Large Type;
-  preserve readable hierarchy and approximately 44pt touch targets.
-- Verify complete, partial, unlogged, and in-progress logging states without
-  using metric availability to change a logging state.
-- Verify recorded, partial, and unknown metric coverage with unknown rendered
-  as a gap, never as zero.
-- Verify true range, one-bound target, and no-bound reference semantics without
-  inventing a range from a target.
-- Verify sparse Vitamin D remains sparse, forecast-unavailable does not show a
-  projection, and selected scrub focus does not mutate a reference.
-- Verify stale/refresh/section-error/offline states retain committed healthy
-  facts and present retry affordances without internal diagnostics.
-- Verify the saved-view long name wraps, water fixtures count explicit drinks
-  only, and Simple omits custom range, saved views, two-metric comparison, and
-  the full nutrient library.
+- Render the real canonical response at 390pt, 320pt, and 390pt Large Type;
+  preserve hierarchy and about 44pt targets.
+- Preserve complete, partial, unlogged, and in-progress logging states without
+  converting missing metric data into a logging-state change.
+- Preserve recorded, partial, and unknown metric coverage with unknown as a
+  gap, never zero.
+- Keep true-range, one-bound, and no-bound references semantically distinct.
+- Keep sparse Vitamin D sparse, do not fabricate unavailable forecasts, and do
+  not let scrub focus mutate a reference.
+- Keep healthy committed data visible during stale, refresh, section-error, and
+  offline states; use retry affordances without internal diagnostics.
+- Verify explicit-drink hydration, long saved-view wrapping, and Simple-mode
+  exclusion of Complex-only controls.
+
+## R0.1 correction note
+
+The canonical Calories fixture is one coherent `JUL 6 – AUG 4` response:
+`today` is Aug 4, it contains the Figma coverage states (21 complete, 3
+partial, 3 unlogged), its 24 numeric values average exactly 1,846 kcal, and
+the Jul 29 recorded value is 2,490 kcal. The first-use fixture is independent
+of that period and preserves its real one-meal 612 kcal / 38 g protein and
+2-of-7 unlock facts.

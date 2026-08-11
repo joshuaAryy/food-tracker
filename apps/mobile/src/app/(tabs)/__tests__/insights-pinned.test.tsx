@@ -4,6 +4,7 @@ import {
   complexInsightsFixture,
   simpleInsightsFixture,
 } from '../../../test-fixtures/analytics-fixtures';
+import { analyticsStateFixtures } from '../../../test-fixtures/analytics-state-fixtures';
 import InsightsScreen from '../insights';
 
 const mockCacheWrite = jest.fn();
@@ -138,6 +139,19 @@ describe('Insights pinned view', () => {
     expect(screen.getByText('—')).toBeTruthy();
     expect(screen.getByText('1 recorded g days')).toBeTruthy();
     expect(screen.queryByText('0.0')).toBeNull();
+  });
+
+  it('renders the first-use state fixture with today’s 612 kcal and 38 g protein facts', async () => {
+    jest
+      .spyOn(api.analytics, 'insights')
+      .mockResolvedValueOnce(analyticsStateFixtures.firstUse.report as never);
+
+    const screen = await render(<InsightsScreen />);
+
+    expect(await screen.findByText('612.0')).toBeTruthy();
+    expect(screen.getByText('1 recorded kcal days')).toBeTruthy();
+    expect(screen.getByText('38.0')).toBeTruthy();
+    expect(screen.getByText('1 recorded g days')).toBeTruthy();
   });
 
   it('loads each selected period once in both directions and writes each response once', async () => {

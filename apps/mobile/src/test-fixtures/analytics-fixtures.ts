@@ -35,63 +35,121 @@ export const analyticsReferenceFixtures = {
   },
 } as const satisfies Record<string, AnalyticsReference>;
 
-export const loggingAndCoveragePoints = [
-  {
-    kind: 'daily',
-    date: '2026-08-01',
-    loggingDayState: 'complete',
-    loggingDayPhase: 'closed',
-    metricDataState: 'recorded',
-    value: 1846,
-    foodLogCount: 3,
-    metricRecordedLogCount: 3,
-    metricUnknownLogCount: 0,
-  },
-  {
-    kind: 'daily',
-    date: '2026-08-02',
-    loggingDayState: 'partial',
-    loggingDayPhase: 'closed',
-    metricDataState: 'partial',
-    value: 1768,
-    foodLogCount: 2,
-    metricRecordedLogCount: 1,
-    metricUnknownLogCount: 1,
-  },
-  {
-    kind: 'daily',
-    date: '2026-08-03',
-    loggingDayState: 'unlogged',
-    loggingDayPhase: 'closed',
-    metricDataState: null,
-    value: null,
-    foodLogCount: 0,
-    metricRecordedLogCount: 0,
-    metricUnknownLogCount: 0,
-  },
-  {
-    kind: 'daily',
-    date: '2026-08-04',
-    loggingDayState: 'complete',
-    loggingDayPhase: 'closed',
-    metricDataState: 'unknown',
-    value: null,
-    foodLogCount: 3,
-    metricRecordedLogCount: 0,
-    metricUnknownLogCount: 3,
-  },
-  {
-    kind: 'daily',
-    date: '2026-08-05',
-    loggingDayState: 'partial',
-    loggingDayPhase: 'in_progress',
-    metricDataState: 'recorded',
-    value: 520,
-    foodLogCount: 1,
-    metricRecordedLogCount: 1,
-    metricUnknownLogCount: 0,
-  },
-] as const satisfies readonly CanonicalTrendResponse['points'][number][];
+/**
+ * The Figma 30D state explicitly reports 21 complete, 3 partial, and 3
+ * unlogged coverage entries. The three omitted calendar dates remain gaps,
+ * rather than being fabricated as zero-valued days.
+ */
+const canonicalCoverageDays = [
+  ['2026-07-06', 'complete'],
+  ['2026-07-07', 'complete'],
+  ['2026-07-08', 'complete'],
+  ['2026-07-09', 'complete'],
+  ['2026-07-11', 'partial'],
+  ['2026-07-12', 'complete'],
+  ['2026-07-13', 'complete'],
+  ['2026-07-14', 'complete'],
+  ['2026-07-15', 'complete'],
+  ['2026-07-16', 'complete'],
+  ['2026-07-17', 'complete'],
+  ['2026-07-18', 'unlogged'],
+  ['2026-07-19', 'complete'],
+  ['2026-07-21', 'complete'],
+  ['2026-07-22', 'complete'],
+  ['2026-07-23', 'complete'],
+  ['2026-07-24', 'partial'],
+  ['2026-07-25', 'complete'],
+  ['2026-07-26', 'complete'],
+  ['2026-07-27', 'complete'],
+  ['2026-07-28', 'complete'],
+  ['2026-07-29', 'complete'],
+  ['2026-07-31', 'unlogged'],
+  ['2026-08-01', 'complete'],
+  ['2026-08-02', 'partial'],
+  ['2026-08-03', 'complete'],
+  ['2026-08-04', 'unlogged'],
+] as const satisfies readonly (readonly [
+  string,
+  'complete' | 'partial' | 'unlogged',
+])[];
+
+function pointsForMetric(
+  value: number,
+  selectedValue = value,
+): CanonicalTrendResponse['points'] {
+  return canonicalCoverageDays.map(([date, loggingDayState]) => {
+    if (loggingDayState === 'unlogged') {
+      return {
+        kind: 'daily' as const,
+        date,
+        loggingDayState,
+        loggingDayPhase: 'closed' as const,
+        metricDataState: null,
+        value: null,
+        foodLogCount: 0,
+        metricRecordedLogCount: 0,
+        metricUnknownLogCount: 0,
+      };
+    }
+    return {
+      kind: 'daily' as const,
+      date,
+      loggingDayState,
+      loggingDayPhase: 'closed' as const,
+      metricDataState:
+        loggingDayState === 'partial'
+          ? ('partial' as const)
+          : ('recorded' as const),
+      value: date === '2026-07-29' ? selectedValue : value,
+      foodLogCount: loggingDayState === 'partial' ? 2 : 3,
+      metricRecordedLogCount: loggingDayState === 'partial' ? 1 : 3,
+      metricUnknownLogCount: loggingDayState === 'partial' ? 1 : 0,
+    };
+  });
+}
+
+export const loggingAndCoveragePoints = pointsForMetric(1818, 2490);
+
+const sparseVitaminDPoints: CanonicalTrendResponse['points'] =
+  canonicalCoverageDays.map(([date, loggingDayState]) => {
+    if (loggingDayState === 'unlogged') {
+      return {
+        kind: 'daily' as const,
+        date,
+        loggingDayState,
+        loggingDayPhase: 'closed' as const,
+        metricDataState: null,
+        value: null,
+        foodLogCount: 0,
+        metricRecordedLogCount: 0,
+        metricUnknownLogCount: 0,
+      };
+    }
+    if (date === '2026-07-29') {
+      return {
+        kind: 'daily' as const,
+        date,
+        loggingDayState,
+        loggingDayPhase: 'closed' as const,
+        metricDataState: 'recorded' as const,
+        value: 18.2,
+        foodLogCount: 3,
+        metricRecordedLogCount: 1,
+        metricUnknownLogCount: 2,
+      };
+    }
+    return {
+      kind: 'daily' as const,
+      date,
+      loggingDayState,
+      loggingDayPhase: 'closed' as const,
+      metricDataState: 'unknown' as const,
+      value: null,
+      foodLogCount: loggingDayState === 'partial' ? 2 : 3,
+      metricRecordedLogCount: 0,
+      metricUnknownLogCount: loggingDayState === 'partial' ? 2 : 3,
+    };
+  });
 
 function trendFixture(
   primaryMetric: AnalyticsMetricKey,
@@ -102,6 +160,9 @@ function trendFixture(
     readonly average?: number | null;
     readonly numericDayCount?: number;
     readonly forecast?: CanonicalTrendResponse['forecast'];
+    readonly resolvedRange?: CanonicalTrendResponse['resolvedRange'];
+    readonly firstEligibleDate?: string;
+    readonly today?: string;
   } = {},
 ): CanonicalTrendResponse {
   const points = [...(options.points ?? loggingAndCoveragePoints)];
@@ -110,15 +171,17 @@ function trendFixture(
     trackingMode: options.trackingMode ?? 'simple',
     primaryMetric,
     aggregation: 'daily',
-    resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
-    firstEligibleDate: '2026-08-01',
-    today: '2026-08-05',
+    resolvedRange:
+      options.resolvedRange ??
+      ({ startDate: '2026-07-06', endDate: '2026-08-04' } as const),
+    firstEligibleDate: options.firstEligibleDate ?? '2026-07-06',
+    today: options.today ?? '2026-08-04',
     reference: options.reference ?? analyticsReferenceFixtures.noBound,
     interpretation: null,
     relatedMetrics: [],
     points,
     summary: {
-      numericDayCount: options.numericDayCount ?? 3,
+      numericDayCount: options.numericDayCount ?? 24,
       average: options.average ?? 1846,
     },
     ...(options.forecast === undefined ? {} : { forecast: options.forecast }),
@@ -127,25 +190,18 @@ function trendFixture(
 
 export const caloriesTrendFixture = trendFixture('calories', {
   reference: analyticsReferenceFixtures.trueRange,
+  points: loggingAndCoveragePoints,
   average: 1846,
+  numericDayCount: 24,
   forecast: { kind: 'unavailable', reason: 'insufficient_coverage' },
 });
 
-export const activeScrubTrendFixture: CanonicalTrendResponse = {
-  ...caloriesTrendFixture,
-  points: caloriesTrendFixture.points.map((point) =>
-    point.kind === 'daily' && point.date === '2026-08-01'
-      ? { ...point, value: 2490 }
-      : point,
-  ),
-};
+export const activeScrubTrendFixture = caloriesTrendFixture;
 
 export const sparseVitaminDTrendFixture = trendFixture('vitaminD', {
   trackingMode: 'complex',
   reference: analyticsReferenceFixtures.noBound,
-  points: loggingAndCoveragePoints.map((point) =>
-    point.date === '2026-08-01' ? { ...point, value: 18.2 } : point,
-  ),
+  points: sparseVitaminDPoints,
   average: 18.2,
   numericDayCount: 1,
 });
@@ -157,14 +213,17 @@ export const simpleInsightsFixture = {
     calories: caloriesTrendFixture,
     protein: trendFixture('protein', {
       reference: { kind: 'target', value: 145, unit: 'g', source: 'user' },
+      points: pointsForMetric(149),
       average: 149,
     }),
     carbs: trendFixture('carbs', {
       reference: { kind: 'target', value: 250, unit: 'g', source: 'user' },
+      points: pointsForMetric(269),
       average: 269,
     }),
     fat: trendFixture('fat', {
       reference: { kind: 'target', value: 65, unit: 'g', source: 'user' },
+      points: pointsForMetric(49),
       average: 49,
     }),
     macroComposition: trendFixture('macroComposition', {
@@ -173,13 +232,16 @@ export const simpleInsightsFixture = {
     }),
     weight: trendFixture('weight', {
       reference: { kind: 'target', value: 128, unit: 'lb', source: 'user' },
+      points: pointsForMetric(129.4),
       average: 129.4,
     }),
     hydration: trendFixture('hydration', {
       reference: { kind: 'target', value: 2000, unit: 'mL', source: 'user' },
+      points: pointsForMetric(1630),
       average: 1630,
     }),
     loggingConsistency: trendFixture('loggingConsistency', {
+      points: pointsForMetric(87),
       average: 87,
     }),
   },
@@ -211,15 +273,59 @@ export const complexInsightsFixture = {
     vitaminC: trendFixture('vitaminC', {
       trackingMode: 'complex',
       reference: { kind: 'minimum', value: 90, unit: 'mg', source: 'derived' },
+      points: pointsForMetric(96),
       average: 96,
     }),
     sodium: trendFixture('sodium', {
       trackingMode: 'complex',
       reference: { kind: 'limit', value: 2300, unit: 'mg', source: 'derived' },
+      points: pointsForMetric(2516),
       average: 2516,
     }),
   },
 } satisfies CanonicalInsightsResponse;
+
+export const firstUseCaloriesTrendFixture = trendFixture('calories', {
+  points: [
+    {
+      kind: 'daily',
+      date: '2026-08-05',
+      loggingDayState: 'partial',
+      loggingDayPhase: 'in_progress',
+      metricDataState: 'recorded',
+      value: 612,
+      foodLogCount: 1,
+      metricRecordedLogCount: 1,
+      metricUnknownLogCount: 0,
+    },
+  ],
+  average: 612,
+  numericDayCount: 1,
+  resolvedRange: { startDate: '2026-07-30', endDate: '2026-08-05' },
+  firstEligibleDate: '2026-07-30',
+  today: '2026-08-05',
+});
+
+export const firstUseProteinTrendFixture = trendFixture('protein', {
+  points: [
+    {
+      kind: 'daily',
+      date: '2026-08-05',
+      loggingDayState: 'partial',
+      loggingDayPhase: 'in_progress',
+      metricDataState: 'recorded',
+      value: 38,
+      foodLogCount: 1,
+      metricRecordedLogCount: 1,
+      metricUnknownLogCount: 0,
+    },
+  ],
+  average: 38,
+  numericDayCount: 1,
+  resolvedRange: { startDate: '2026-07-30', endDate: '2026-08-05' },
+  firstEligibleDate: '2026-07-30',
+  today: '2026-08-05',
+});
 
 export const savedViewFixture: AnalyticsSavedView = {
   id: '4f1c4898-0123-4567-89ab-cdef01234567',
