@@ -26,12 +26,14 @@ import type {
   CanonicalTrendResponse,
   AnalyticsPreferenceValue,
   AnalyticsSavedView,
+  AnalyticsSectionKey,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
+import { SimpleInsightsOverview } from '@/components/analytics/insights/simple-insights-overview';
 import { ReportPeriodSelector } from '@/components/report-period-selector';
 import {
   ReportingIcon,
@@ -47,6 +49,11 @@ import {
   analyticsResourceReducer,
   initialAnalyticsResource,
 } from '@/lib/analytics/analytics-resource';
+import {
+  analyticsReportResourceReducer,
+  initialAnalyticsReportResource,
+} from '@/lib/analytics/analytics-report-resource';
+import { adaptCanonicalInsightsResponseV1 } from '@/lib/analytics/analytics-v1-adapter';
 import {
   pinnedInsightsTrendQuery,
   trendQueryFromSavedView,
@@ -373,11 +380,17 @@ function PinnedInsightsView({
 export default function InsightsScreen() {
   const dataVersion = useAppStore((state) => state.dataVersion);
   const { userId } = useAuthRuntime();
+  const router = useRouter();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [reportResource, dispatchReport] = useReducer(
     analyticsResourceReducer<CanonicalInsightsResponse>,
     undefined,
     initialAnalyticsResource<CanonicalInsightsResponse>,
+  );
+  const [sectionReportResource, dispatchSectionReport] = useReducer(
+    analyticsReportResourceReducer,
+    undefined,
+    initialAnalyticsReportResource,
   );
   const report = reportResource.value;
   const reportRequestId = useRef(0);
@@ -396,7 +409,11 @@ export default function InsightsScreen() {
   const [pinnedViewError, setPinnedViewError] = useState<string | null>(null);
 
   const loadReporting = useCallback(
-    async (nextPeriod: 'week' | 'month', asRefresh = false) => {
+    async (
+      nextPeriod: 'week' | 'month',
+      asRefresh = false,
+      retrySection: AnalyticsSectionKey | null = null,
+    ) => {
       const requestId = ++reportRequestId.current;
       let failureStage: StagingInsightsDiagnosticStage | undefined;
       let cacheValueExists = false;
@@ -446,12 +463,20 @@ export default function InsightsScreen() {
 
       reportInsightsDiagnostic('request_started');
       setInsightsFailureDiagnostic(null);
-      dispatchReport({ type: asRefresh ? 'refresh' : 'load', requestId });
+      dispatchReport({
+        type: asRefresh || retrySection !== null ? 'refresh' : 'load',
+        requestId,
+      });
+      dispatchSectionReport(
+        retrySection === null
+          ? { type: asRefresh ? 'refresh' : 'load', requestId }
+          : { type: 'sectionRetry', requestId, section: retrySection },
+      );
       const cacheKey =
         nextPeriod === 'week'
           ? ANALYTICS_CACHE_KEYS.insightsWeek
           : ANALYTICS_CACHE_KEYS.insightsMonth;
-      if (!asRefresh && userId !== null) {
+      if (!asRefresh && retrySection === null && userId !== null) {
         reportInsightsDiagnostic('cache_read_started');
         try {
           const cached = await analyticsCache().read(
@@ -468,11 +493,29 @@ export default function InsightsScreen() {
               updatedAt: cached.updatedAt,
               stale: cached.stale,
             });
+          if (cached !== null) {
+            const adapted = adaptCanonicalInsightsResponseV1(
+              cached.value,
+              new Date(cached.updatedAt).toISOString(),
+            );
+            if (adapted !== null) {
+              dispatchSectionReport({
+                type: 'hydrate',
+                requestId,
+                report: adapted,
+                updatedAt: cached.updatedAt,
+                stale: cached.stale,
+              });
+            }
+          }
           cacheValueExists = cached !== null;
           reportInsightsDiagnostic('cache_read_succeeded', {
             cacheValueExists,
           });
-          if (cached !== null) dispatchReport({ type: 'refresh', requestId });
+          if (cached !== null) {
+            dispatchReport({ type: 'refresh', requestId });
+            dispatchSectionReport({ type: 'refresh', requestId });
+          }
         } catch (cacheError) {
           reportInsightsDiagnostic('cache_read_failed', {
             ...errorDetails(cacheError),
@@ -492,6 +535,18 @@ export default function InsightsScreen() {
           value: insights,
           updatedAt: Date.now(),
         });
+        const adapted = adaptCanonicalInsightsResponseV1(
+          insights,
+          new Date().toISOString(),
+        );
+        if (adapted !== null) {
+          dispatchSectionReport({
+            type: 'commit',
+            requestId,
+            report: adapted,
+            updatedAt: Date.now(),
+          });
+        }
         reportInsightsDiagnostic('report_commit_dispatched');
         if (userId !== null) {
           reportInsightsDiagnostic('cache_write_started');
@@ -531,6 +586,7 @@ export default function InsightsScreen() {
           requestId,
           message: errorMessage(loadError),
         });
+        dispatchSectionReport({ type: 'failure', requestId });
         reportInsightsDiagnostic('report_failure_dispatched', {
           ...errorDetails(loadError),
           cacheValueExists,
@@ -565,6 +621,15 @@ export default function InsightsScreen() {
     if (nextPeriod === period) return;
     setPeriod(nextPeriod);
   };
+
+  const retrySimpleSection = useCallback(
+    (section: AnalyticsSectionKey) => {
+      void loadReporting(period, false, section);
+    },
+    [loadReporting, period],
+  );
+
+  const isSimpleOverview = sectionReportResource.mode === 'simple';
 
   const dismissRecommendation = useCallback(async (id: string) => {
     setDismissingId(id);
@@ -624,7 +689,7 @@ export default function InsightsScreen() {
         )}
       </View>
 
-      {reportResource.error === null ? null : (
+      {reportResource.error === null || isSimpleOverview ? null : (
         <View className="gap-2">
           <ErrorState
             title={
@@ -652,7 +717,14 @@ export default function InsightsScreen() {
           {formatStagingInsightsDiagnostic(insightsDiagnostic)}
         </AppText>
       ) : null}
-      {report === null ? (
+      {isSimpleOverview ? (
+        <SimpleInsightsOverview
+          resource={sectionReportResource}
+          onExploreTrends={() => router.push('/trends' as never)}
+          onLogWater={() => router.push('/water-log' as never)}
+          onSectionRetry={retrySimpleSection}
+        />
+      ) : report === null ? (
         reportResource.error === null ? (
           <ReportEmptyState
             title="No report yet"

@@ -75,3 +75,17 @@ declared usual range, two outside days including Jul 29 at 2,490 kcal, and a
 24-value average of exactly 1,846 kcal. The first-use fixture is independent
 of that period and preserves its real one-meal 612 kcal / 38 g protein and
 2-of-7 unlock facts with kcal/g reference units.
+
+## R1.1 Simple Insights implementation inspection
+
+The following final nodes were re-inspected individually with
+`get_design_context` from Figma file `GFLStsF0ADwaizoVKGeLny` before the
+Task 3 production implementation. The discrepancies below are against the
+current branch at `f036184`.
+
+| Node | Final reference evidence | Concrete current-code discrepancy | R1.1 consequence |
+| --- | --- | --- | --- |
+| `338:98` | The 390pt Simple overview is an ordered scroll composition: period header; This week/month summary; Energy balance card with compact embedded trend and trend entry; Macro balance card with donut, rows, and protein trend; Nutrient highlights; Weight direction; Logging consistency; Hydration; and a separate recommendations area. Cards are 350pt wide with quiet bordered, rounded surfaces and section headings. | `insights.tsx` renders `CanonicalInsightsContent`, which maps `Object.values(report.sections)` into identical divider rows with a rounded average and generic `View <metric> trend` navigation. It has no composed summary, no ordered Simple hierarchy, no compact chart treatments, no hydration card, and no card-local failure boundary. | Replace the flat presentation only for Simple with explicit, ordered section components driven by section state; keep its data values canonical rather than the Figma sample values. |
+| `492:753` | A Weight-local failure is a 250pt card beneath the Weight direction heading: `Weight couldn’t load`, safe explanatory copy that names still-available sibling areas, and a 44pt `Retry weight` action. Energy, macros, nutrients, hydration, and consistency remain mounted. | The live route uses `AnalyticsResource<CanonicalInsightsResponse>` and a single report-level `ErrorState`; `CanonicalInsightsContent` receives raw sections, so it cannot render a local error/retry while retaining sibling cards. | Route Simple through the R0.2 report resource and validated v1 adapter; use an `AnalyticsSectionError` boundary per owned card and dispatch canonical-request section retry without unmounting siblings. |
+| `510:437` | Refresh pending preserves the earlier Energy balance card (`1,846 kcal` in the reference) as interactive content. A compact state surface says `Refreshing…` and explains that no analytics clear before validation. | Legacy refresh toggles a report-wide `refreshing` state and the generic content has no section state or refresh-pending treatment; it cannot represent retained committed sections as pending. | Preserve mounted card data from R0.2 during refresh and render a non-destructive refresh notice; do not fabricate the reference value. |
+| `510:467` | Refresh failure keeps the earlier interactive Energy balance card visible, identifies that earlier analytics are being shown, provides `Couldn’t refresh` copy with prior-time context, and exposes `Retry` plus `Keep viewing`. | The route replaces this with a generic report-level `ErrorState` and does not expose R0.2 stale provenance or a composed stale surface alongside retained cards. | Render safe stale/refresh failure copy beside the retained Simple composition and use the canonical retry callback; leave staging diagnostic handling unchanged for R12. |

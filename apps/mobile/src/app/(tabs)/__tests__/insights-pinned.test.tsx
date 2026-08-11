@@ -135,10 +135,8 @@ describe('Insights pinned view', () => {
 
     const screen = await render(<InsightsScreen />);
 
-    expect(await screen.findByText('Protein')).toBeTruthy();
-    expect(screen.getByText('—')).toBeTruthy();
-    expect(screen.getByText('1 recorded g days')).toBeTruthy();
-    expect(screen.queryByText('0.0')).toBeNull();
+    expect(await screen.findByText('Protein · —')).toBeTruthy();
+    expect(screen.queryByText('0 g')).toBeNull();
   });
 
   it('renders first-use canonical totals through the existing flat section path', async () => {
@@ -148,10 +146,9 @@ describe('Insights pinned view', () => {
 
     const screen = await render(<InsightsScreen />);
 
-    expect(await screen.findByText('612.0')).toBeTruthy();
-    expect(screen.getByText('1 recorded kcal days')).toBeTruthy();
-    expect(screen.getByText('38.0')).toBeTruthy();
-    expect(screen.getByText('1 recorded g days')).toBeTruthy();
+    expect(await screen.findByText('612 kcal')).toBeTruthy();
+    expect(screen.getByText('Protein · 38 g')).toBeTruthy();
+    expect(screen.queryByText('0 kcal')).toBeNull();
   });
 
   it('loads each selected period once in both directions and writes each response once', async () => {
