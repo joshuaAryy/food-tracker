@@ -1,11 +1,16 @@
 import { Router } from 'express';
 import {
+  ANALYTICS_OVERVIEW_KEYS,
+  canonicalInsightsResponseV2WithOverviewSchema,
   analyticsMetricCatalogSchema,
   analyticsMetricIsAvailableInMode,
   analyticsMetricsForMode,
   analyticsContributorsQueryInputSchema,
   trendQueryInputSchema,
   type TrendQueryInput,
+  type AnalyticsSectionFailure,
+  type AnalyticsSectionResult,
+  type AnalyticsOverviewResultMap,
 } from '@food-tracker/shared';
 import { currentUserId } from '../../../lib/auth.js';
 import { AppError } from '../../../lib/errors.js';
@@ -15,6 +20,10 @@ import { validateBody, validatedBody } from '../../../middleware/validate.js';
 import { computeCanonicalTrend, createTrendRequestContext } from './service.js';
 import { resolveComparisonStrategy } from './comparisons.js';
 import { computeAnalyticsContributors } from './contributors.js';
+import {
+  computeInsightsOverview,
+  type InsightsOverviewDependencies,
+} from './overview.js';
 import {
   emitInsightsDiagnostic,
   insightsDiagnosticErrorDetails,
@@ -116,6 +125,8 @@ export interface InsightsRouteDependencies {
   currentTrackingMode?: typeof currentTrackingMode;
   createTrendRequestContext?: typeof createTrendRequestContext;
   computeCanonicalTrend?: typeof computeCanonicalTrend;
+  computeOverview?: typeof computeInsightsOverview;
+  overviewDependencies?: InsightsOverviewDependencies;
   emitDiagnostic?: (
     category: InsightsDiagnosticCategory,
     details: InsightsDiagnosticDetails,
@@ -131,6 +142,8 @@ export function createInsightsRouter(
     dependencies.createTrendRequestContext ?? createTrendRequestContext;
   const computeTrend =
     dependencies.computeCanonicalTrend ?? computeCanonicalTrend;
+  const computeOverview =
+    dependencies.computeOverview ?? computeInsightsOverview;
   const emitDiagnostic = dependencies.emitDiagnostic ?? emitInsightsDiagnostic;
   const report = (
     category: InsightsDiagnosticCategory,
@@ -221,6 +234,16 @@ export function createInsightsRouter(
       });
     }
 
+    if (context.base !== undefined) {
+      await context.base;
+    }
+
+    const failedSection: AnalyticsSectionFailure = {
+      status: 'failed',
+      code: 'section_unavailable',
+      retryable: true,
+    };
+    const fetchedAt = new Date().toISOString();
     const trends = await Promise.all(
       keys.map(async (primaryMetric) => {
         report('insights_metric_started', {
@@ -239,7 +262,14 @@ export function createInsightsRouter(
             trackingMode: mode,
             metric: primaryMetric,
           });
-          return [primaryMetric, trend] as const;
+          return [
+            primaryMetric,
+            {
+              status: 'available' as const,
+              data: trend,
+              fetchedAt,
+            } satisfies AnalyticsSectionResult,
+          ] as const;
         } catch (error) {
           report('insights_metric_failed', {
             ...baseDetails,
@@ -247,10 +277,21 @@ export function createInsightsRouter(
             metric: primaryMetric,
             ...insightsDiagnosticErrorDetails(error),
           });
-          throw error;
+          return [primaryMetric, failedSection] as const;
         }
       }),
     );
+    const overview: AnalyticsOverviewResultMap =
+      context.base === undefined && dependencies.computeOverview === undefined
+        ? (Object.fromEntries(
+            ANALYTICS_OVERVIEW_KEYS.map((key) => [key, failedSection]),
+          ) as AnalyticsOverviewResultMap)
+        : await computeOverview(
+            userId,
+            period,
+            context,
+            dependencies.overviewDependencies,
+          );
     report('insights_computation_succeeded', {
       ...baseDetails,
       trackingMode: mode,
@@ -261,11 +302,16 @@ export function createInsightsRouter(
       trackingMode: mode,
     });
     try {
-      sendSuccess(response, {
-        mode,
-        period,
-        sections: Object.fromEntries(trends),
-      });
+      sendSuccess(
+        response,
+        canonicalInsightsResponseV2WithOverviewSchema.parse({
+          contractVersion: 2,
+          mode,
+          period,
+          sections: Object.fromEntries(trends),
+          overview,
+        }),
+      );
     } catch (error) {
       report('insights_response_send_failed', {
         ...baseDetails,

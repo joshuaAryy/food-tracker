@@ -44,7 +44,9 @@ describe('canonical analytics trends API', () => {
     try {
       await api.get('/api/v1/analytics/insights?period=month').expect(200);
 
-      expect(findMany).toHaveBeenCalledTimes(1);
+      // The overview adds one bounded previous-period read while the
+      // canonical trend sections continue to share their selected range.
+      expect(findMany).toHaveBeenCalledTimes(2);
     } finally {
       findMany.mockRestore();
     }
@@ -563,7 +565,7 @@ describe('canonical analytics trends API', () => {
       .get('/api/v1/analytics/insights?period=week')
       .expect(200);
 
-    expect(response.body.data.sections.calories.points).toEqual(
+    expect(response.body.data.sections.calories.data.points).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           loggingDayState: 'unlogged',
@@ -599,7 +601,7 @@ describe('canonical analytics trends API', () => {
       const response = await api
         .get(`/api/v1/analytics/insights?period=${period}`)
         .expect(200);
-      const hydration = response.body.data.sections.hydration;
+      const hydration = response.body.data.sections.hydration.data;
 
       expect(Object.keys(response.body.data.sections)).toEqual([
         'calories',

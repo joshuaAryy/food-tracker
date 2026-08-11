@@ -30,7 +30,10 @@ type DiagnosticEvent = {
   details: InsightsDiagnosticDetails;
 };
 
-function trend(primaryMetric: AnalyticsMetricKey): CanonicalTrendResponse {
+function trend(
+  primaryMetric: AnalyticsMetricKey,
+  trackingMode: 'simple' | 'complex' = 'simple',
+): CanonicalTrendResponse {
   const unit =
     primaryMetric === 'weight'
       ? 'lb'
@@ -45,7 +48,7 @@ function trend(primaryMetric: AnalyticsMetricKey): CanonicalTrendResponse {
               : 'g';
   return {
     timezone: 'America/Toronto',
-    trackingMode: 'simple',
+    trackingMode,
     primaryMetric,
     aggregation: 'daily',
     resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
@@ -68,7 +71,8 @@ function testApp(
   >;
   const computeCanonicalTrend: NonNullable<
     InsightsRouteDependencies['computeCanonicalTrend']
-  > = async (_userId, query: TrendQueryInput) => trend(query.primaryMetric);
+  > = async (_userId, query: TrendQueryInput) =>
+    trend(query.primaryMetric, 'complex');
   const app = express();
   app.use(
     requestContext({
@@ -158,7 +162,7 @@ describe('staging Insights route diagnostics', () => {
     ).toBe(true);
   });
 
-  it('identifies a failing metric while preserving the generic 500 envelope', async () => {
+  it('identifies a failing metric while preserving healthy siblings', async () => {
     vi.stubEnv('APP_ENV', 'staging');
     const events: DiagnosticEvent[] = [];
     const computeCanonicalTrend: NonNullable<
@@ -173,22 +177,20 @@ describe('staging Insights route diagnostics', () => {
           'Error: private details\n    at /app/apps/api/dist/modules/analytics/trends/ranges.js:72:11\n    at /app/node_modules/prisma/client.js:1:1';
         throw error;
       }
-      return trend(query.primaryMetric);
+      return trend(query.primaryMetric, 'complex');
     };
 
     const response = await request(
       testApp(events, { computeCanonicalTrend }),
     ).get('/api/v1/analytics/insights?period=week');
 
-    expect(response.status).toBe(500);
-    expect(response.body).toEqual({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'The request could not be completed.',
-        details: {},
-      },
+    expect(response.status).toBe(200);
+    expect(response.body.data.sections.hydration).toEqual({
+      status: 'failed',
+      code: 'section_unavailable',
+      retryable: true,
     });
+    expect(response.body.data.sections.calories.status).toBe('available');
     const failure = events.find(
       (event) => event.category === 'insights_metric_failed',
     );

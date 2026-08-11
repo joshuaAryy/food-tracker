@@ -42,6 +42,7 @@ function loadTrendBase(userId: string) {
       where: { userId },
       select: {
         goalType: true,
+        targetWeightLb: true,
         targetCalories: true,
         targetProteinGrams: true,
         targetCarbsGrams: true,
@@ -108,12 +109,15 @@ function loadTrendData(
   ]);
 }
 
-interface TrendRequestContext {
+export interface TrendRequestContext {
   base: ReturnType<typeof loadTrendBase>;
   dataByRange: Map<string, ReturnType<typeof loadTrendData>>;
   needsWaterLogs: boolean;
   needsWeightLogs: boolean;
 }
+
+export type TrendRequestBase = Awaited<ReturnType<typeof loadTrendBase>>;
+export type TrendRangeData = Awaited<ReturnType<typeof loadTrendData>>;
 
 export function createTrendRequestContext(
   userId: string,
@@ -125,6 +129,31 @@ export function createTrendRequestContext(
     needsWaterLogs: metrics.includes('hydration'),
     needsWeightLogs: metrics.includes('weight'),
   };
+}
+
+/**
+ * Shares the bounded request data cache between core trend and overview
+ * calculators. Overview facts must use the same FoodLog snapshots and local
+ * date boundaries as the canonical trend engine.
+ */
+export async function getTrendRequestRangeData(
+  userId: string,
+  context: TrendRequestContext,
+  startDate: string,
+  endDate: string,
+): Promise<TrendRangeData> {
+  const [profile] = await context.base;
+  const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
+  const rangeKey = `${startDate}:${endDate}`;
+  const existing = context.dataByRange.get(rangeKey);
+  if (existing !== undefined) return existing;
+  const rangeData = loadTrendData(
+    userId,
+    localDateRange(timezone, { startDate, endDate }),
+    context,
+  );
+  context.dataByRange.set(rangeKey, rangeData);
+  return rangeData;
 }
 
 function fixedAxisDomain(
