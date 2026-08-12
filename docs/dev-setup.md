@@ -184,6 +184,51 @@ not automatically reverse a migration. Confirm managed-database backup and
 restore ownership before storing user data, apply a small environment-appropriate
 spend limit or alert, and remove idle services before ending staging work.
 
+### Deterministic Phase 17.5 staging QA data
+
+The API includes a staging-only reset-and-reseed command for visual QA. Run it
+inside the existing Railway `staging` environment, where `DATABASE_URL` is
+already injected; do not copy secrets into a shell history or documentation:
+
+```bash
+railway run --service food-tracker-staging-api --environment staging -- \
+  env APP_ENV=staging corepack pnpm --filter @food-tracker/api seed:staging-analytics-qa -- \
+  --firebase-uid <existing-staging-firebase-uid> \
+  --anchor-date 2026-08-12 \
+  --reset
+```
+
+`--email <existing-staging-email>` may be supplied instead of the UID, or
+alongside it as a cross-check. The command refuses production and non-staging
+environments, requires an explicit target and `--reset`, and changes only that
+Firebase-linked user's analytics fixture state. It preserves the user and
+Firebase ownership identity. The fixture contains 210 prior days plus the
+anchor day, mixed complete/partial/unlogged logging behavior, weight and water
+observations, sparse micronutrients, four saved views with exactly one pinned,
+and production-shaped recommendations.
+
+The account must be created and signed into staging once by the user before
+this command can run. Never substitute another staging account and never place
+credentials, tokens, or service-account material in this repository.
+
+### Phase 17.5 staging Simulator workflow
+
+After the generated `apps/mobile/ios/FoodTracker.xcworkspace` exists, start a
+staging-configured LAN Metro server for the installed Debug development client
+with:
+
+```bash
+corepack pnpm ios:staging-simulator
+```
+
+The command validates the Railway staging API target, staging Firebase public
+configuration, and dotenv guardrails before starting Metro. It removes only
+inherited Debug/Release flags that would suppress bundling or client variables;
+it does not change the standalone Release workflow or print secret values.
+Build/install the workspace with the iOS Simulator workflow, then connect the
+development client to the LAN URL shown by Expo. Authenticate only through the
+normal staging Firebase flow using the dedicated QA account.
+
 ## 5. Prepare Prisma
 
 From the repository root:
