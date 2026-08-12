@@ -1,5 +1,6 @@
 import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
+import type { AnalyticsOverviewResultMap } from '@food-tracker/shared';
 import {
   complexInsightsFixture,
   simpleInsightsFixture,
@@ -9,6 +10,31 @@ import InsightsScreen from '../insights';
 
 const mockCacheWrite = jest.fn();
 let mockDataVersion = 0;
+
+const fetchedAt = '2026-08-11T12:00:00.000Z';
+
+function failedOverview() {
+  return {
+    status: 'failed' as const,
+    code: 'section_unavailable' as const,
+    retryable: true as const,
+  };
+}
+
+function overviewWith(
+  overrides: Partial<AnalyticsOverviewResultMap> = {},
+): AnalyticsOverviewResultMap {
+  return {
+    periodSummary: failedOverview(),
+    energy: failedOverview(),
+    macros: failedOverview(),
+    nutrientHighlights: failedOverview(),
+    hydration: failedOverview(),
+    weight: failedOverview(),
+    loggingConsistency: failedOverview(),
+    ...overrides,
+  };
+}
 
 jest.mock('expo-constants', () => ({
   __esModule: true,
@@ -93,6 +119,9 @@ describe('Insights pinned view', () => {
     } as never);
     jest.spyOn(api.recommendations, 'generate').mockResolvedValue([] as never);
     jest.spyOn(api.recommendations, 'list').mockResolvedValue([]);
+    jest
+      .spyOn(api.analytics, 'reports')
+      .mockRejectedValue(new Error('Nutrient report unavailable'));
   });
 
   it('loads a pinned saved configuration as an independent canonical trend preview', async () => {
@@ -124,6 +153,18 @@ describe('Insights pinned view', () => {
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
     jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
       ...simpleInsightsFixture,
+      overview: overviewWith({
+        macros: {
+          status: 'available',
+          fetchedAt,
+          data: {
+            protein: { grams: null, percentage: null },
+            carbs: { grams: null, percentage: null },
+            fat: { grams: null, percentage: null },
+            status: 'unknown',
+          },
+        },
+      }),
       sections: {
         protein: {
           ...simpleInsightsFixture.sections.protein,
@@ -140,9 +181,54 @@ describe('Insights pinned view', () => {
   });
 
   it('renders first-use canonical totals through the existing flat section path', async () => {
-    jest
-      .spyOn(api.analytics, 'insights')
-      .mockResolvedValueOnce(analyticsStateFixtures.firstUse.report as never);
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
+      ...analyticsStateFixtures.firstUse.report,
+      overview: overviewWith({
+        periodSummary: {
+          status: 'available',
+          fetchedAt,
+          data: {
+            resolvedRange: {
+              startDate: '2026-07-30',
+              endDate: '2026-08-05',
+            },
+            loggedDayCount: 1,
+            eligibleLoggedDayCount: 1,
+            eligibleTotalDayCount: 7,
+            streak: { currentDays: 1, longestDays: 1 },
+            currentDayPhase: 'in_progress',
+            consistency: 14,
+            interpretation: 'building',
+          },
+        },
+        energy: {
+          status: 'available',
+          fetchedAt,
+          data: {
+            average: 612,
+            numericDayCount: 1,
+            reference: {
+              kind: 'none',
+              unit: 'kcal',
+              reason: 'not_configured',
+            },
+            withinRangeDayCount: 0,
+            comparison: { direction: 'unknown', percentage: null },
+            status: 'no_reference',
+          },
+        },
+        macros: {
+          status: 'available',
+          fetchedAt,
+          data: {
+            protein: { grams: 38, percentage: null },
+            carbs: { grams: null, percentage: null },
+            fat: { grams: null, percentage: null },
+            status: 'partial',
+          },
+        },
+      }),
+    } as never);
 
     const screen = await render(<InsightsScreen />);
 

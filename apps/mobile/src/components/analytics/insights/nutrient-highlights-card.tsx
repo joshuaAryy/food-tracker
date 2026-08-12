@@ -21,6 +21,12 @@ function statusCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
   if (highlight.status === 'unknown') return 'Unavailable';
   if (highlight.status === 'above_limit') return 'Above limit';
   if (highlight.status === 'within_limit') return 'Within limit';
+  if (highlight.status === 'above_target') return 'Above target';
+  if (highlight.status === 'meets_target') return 'At target';
+  if (highlight.status === 'below_target') return 'Near target';
+  if (highlight.status === 'above_range') return 'Above range';
+  if (highlight.status === 'within_range') return 'Within range';
+  if (highlight.status === 'below_range') return 'Below range';
   if (highlight.status === 'meets_minimum') return 'Goal reached';
   return 'Near goal';
 }
@@ -28,16 +34,15 @@ function statusCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
 export function NutrientHighlightsCard({
   overview,
   onRetry,
+  testID = 'simple-insights-section-nutrient-highlights',
 }: {
   overview: AnalyticsReportOverviewState<'nutrientHighlights'> | undefined;
   onRetry: () => void;
+  testID?: string;
 }) {
   const data = overview?.data ?? null;
   return (
-    <View
-      testID="simple-insights-section-nutrient-highlights"
-      className="gap-3"
-    >
+    <View testID={testID} className="gap-3">
       <ReportingSectionHeading icon="nutrients" title="Nutrient highlights" />
       {data === null ? (
         <AnalyticsSectionError
@@ -65,7 +70,8 @@ export function NutrientHighlightsCard({
               <AppText
                 variant="caption"
                 className={
-                  highlight.status === 'above_limit'
+                  highlight.status === 'above_limit' ||
+                  highlight.status === 'above_range'
                     ? 'text-[#eb1226]'
                     : 'text-primary-dark'
                 }

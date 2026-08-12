@@ -311,6 +311,22 @@ function nutrientReportFacts(
         periodGoal !== null && periodGoal > 0
           ? roundTo((value.total / periodGoal) * 100, 1)
           : null;
+      const status =
+        periodGoal === null || percentage === null
+          ? 'unknown'
+          : resolvedGoal.direction === 'limit'
+            ? value.total <= periodGoal
+              ? 'within_limit'
+              : 'above_limit'
+            : resolvedGoal.direction === 'minimum'
+              ? value.total < periodGoal
+                ? 'below_minimum'
+                : 'meets_minimum'
+              : value.total < periodGoal
+                ? 'below_target'
+                : value.total > periodGoal
+                  ? 'above_target'
+                  : 'meets_target';
       return [
         key,
         {
@@ -326,6 +342,7 @@ function nutrientReportFacts(
           goal: resolvedGoal,
           periodGoal,
           percentage,
+          status,
         },
       ];
     }),
