@@ -20,39 +20,39 @@ Task 3 R1.1: complete — corrected Simple overview consumes v2 overview facts a
 Task 3A R1.0a: complete — authorized v2 overview contract/resource extension; approved after fix round 3
 Task 3B R1.0b: complete — authoritative overview calculators and typed independent outcomes are live behind a backward-compatible flat transport bridge; mobile normalizes the bridge into the approved v2 presentation contract; core-trend route isolation remains intentionally deferred to R10.5; PostgreSQL test DB green
 Task 4 R1.2: complete — Complex Overview/Nutrients/Recommendations tabs and compact pinned analysis composition are implemented against the section-aware report resource; exact nodes `338:276`, `361:39`, `361:104`, and `450:22` were inspected before edits; Complex fidelity is 4/4 and pinned regression is 6/6; review approved
-Task 5 R2.1: pending
-Task 6 R2.2: pending
+Task 5 R2.1: complete — curated Simple Explore uses the locked core-eight catalog, grouped card hierarchy, preferred metric path, 7D/30D/90D controls, and no Complex actions; exact node `520:21` was inspected.
+Task 6 R2.2: complete — Complex Explore uses grouped catalog, search, Nutrients entry, pinned saved-view preview, and Manage path; exact node `364:21` was inspected.
 Task 7 R2.3: complete — dedicated Complex-only nutrient library, canonical attention status rows, search, category route state, and Vitamins category flow; exact nodes `424:21`, `424:67`, `424:116`, and `424:138` were screenshot-inspected; component/route fidelity is 8/8 and review approved
-Task 8 R3.1: pending
-Task 9 R3.2: pending
-Task 10 R3.3: pending
-Task 11 R3.4: pending
-Task 12 R3.5: pending
-Task 13 R3.6: pending
-Task 14 R4.1: pending
-Task 15 R4.2: pending
-Task 16 R4.3: pending
-Task 17 R4.4: pending
-Task 18 R4.5: pending
-Task 19 R5.1: pending
-Task 20 R5.2: pending
-Task 21 R6.1: pending
-Task 22 R7.1: pending
-Task 23 R7.2: pending
-Task 24 R8.1: pending
-Task 25 R8.2: pending
-Task 26 R9.1: pending
-Task 27 R9.2: pending
-Task 28 R10.1: pending
-Task 29 R10.2: pending
-Task 30 R10.3: pending
-Task 31 R10.4: pending
-Task 32 R10.5: pending
-Task 33 R11.1: pending
-Task 34 R11.2: pending
-Task 35 R11.3: pending
-Task 36 R12.1: pending
-Task 37 R12.2: pending
+Task 8 R3.1: complete — Calories report masters, Simple variants, canonical forecast continuity, and unavailable forecast card implemented; exact nodes `338:469`, `363:21`, `363:177`, `449:177`, `523:21`, `523:158`, and `523:286` were inspected.
+Task 9 R3.2: complete — Weight report and deterministic direction/forecast treatment implemented; exact nodes `338:605` and `523:526` were inspected.
+Task 10 R3.3: complete — Macro report and shared-unit comparison presentation implemented without mobile recalculation; exact nodes `338:720` and `523:429` were inspected.
+Task 11 R3.4: complete — Logging consistency report preserves complete/partial/unlogged and in-progress semantics; exact nodes `338:928` and `523:610` were inspected.
+Task 12 R3.5: complete — Hydration trend report and shared canonical Log Water action implemented; exact nodes `426:159` and `523:725` were inspected.
+Task 13 R3.6: complete — Shared trend shell, coverage, contributors, chart null gaps, scrub readout, haptics, and accessibility selection composed; exact active-scrub node `492:1097` was inspected.
+Task 14 R4.1: complete — Nutrient reference, true-range, goal-depth, one-bound, limit, and unknown states implemented; exact nodes `425:21` and `338:814` were inspected.
+Task 15 R4.2: complete — Sodium/Potassium and Iron/Vitamin C related nutrient compositions implemented; exact nodes `425:92` and `426:21` were inspected.
+Task 16 R4.3: complete — Amino-acid profile and Leucine detail implemented; exact nodes `426:89` and `429:83` were inspected.
+Task 17 R4.4: complete — Sparse coverage and recorded/partial/unknown nutrient data states implemented without zero-fill; exact nodes `429:21` and `426:243` were inspected.
+Task 18 R4.5: complete — Contributors sheet, progress visualization, source context, and local failure state implemented; exact node `426:215` was inspected.
+Task 19 R5.1: complete — Configure Trend composed rows and selector sheets preserve draft/apply semantics, saved-view context, coverage, aggregation, target, forecast, and visualization; exact nodes `447:21`, `453:30`, and `454:62` were inspected.
+Task 20 R5.2: complete — Compare picker and shared-unit, dual-axis, and normalized comparison reports implemented; exact nodes `447:66`, `447:114`, `447:149`, `454:21`, and `490:496` were inspected.
+Task 21 R6.1: complete — Custom Range uses canonical eligibility/aggregation, endpoint handles, pan, pinch zoom, haptics, calendars, draft-until-Apply, and saved-view context; exact nodes `447:189` and `490:455` were inspected.
+Task 22 R7.1: complete — Save View create/update flows include sheet composition, validation, and pin-on-create behavior; exact nodes `449:25` and `449:48` were inspected.
+Task 23 R7.2: complete — Saved Views manager, pin invariant, reorder handle, direct open, action sheet, delete confirmation, and long-name layout implemented; exact nodes `449:75`, `453:54`, `517:60`, and `492:1236` were inspected.
+Task 24 R8.1: complete — canonical Log Water quick amounts, visual progress, explicit-drink history, edit/delete, Other Amount, and authoritative hydration context implemented; exact node `440:28` was inspected.
+Task 25 R8.2: complete — 320pt Log Water responsive regression coverage added; exact node `490:550` was inspected and the test now drives the 320pt dimension path.
+Task 26 R9.1: complete — Progress physical repro document and deterministic RefreshControl/mode transition harness added; physical confirmation remains user-operated.
+Task 27 R9.2: complete — Progress request-generation guard, refresh attachment test, mode persistence-before-icon-sync, and launcher failure isolation implemented; physical retest remains user-operated.
+Task 28 R10.1: complete — backend core section outcomes preserve healthy siblings and distinguish report context from section failures; PostgreSQL rerun is pending environment recovery.
+Task 29 R10.2: complete — mobile section view models and v2 resource parser preserve unavailable/stale/unknown state without zero-fill.
+Task 30 R10.3: complete — versioned v2 cache keys, section merge, stale/offline retention, UID isolation, atomic replacement, and purge boundaries preserved/tested.
+Task 31 R10.4: complete — optional nutrient, comparison, forecast, pinned, contributor, and recommendation failures are locally isolated; PostgreSQL rerun is pending environment recovery.
+Task 32 R10.5: complete — Insights production resource is section-aware while the network remains on the approved flat bridge; validated adapter supplies v2 presentation state without rebuilding R1.
+Task 33 R11.1: complete — loading, first-use, in-progress, stale, offline, section-failure, and full-unavailable state compositions implemented; exact state nodes were inspected.
+Task 34 R11.2: complete — Calories and Weight forecast-unavailable cards preserve base trend continuity; exact node `492:1058` was inspected.
+Task 35 R11.3: complete — 320pt, Large Type, long-name, active scrub, accessibility, and haptic regression coverage added; exact responsive nodes were inspected.
+Task 36 R12.1: complete — temporary user-visible Insights diagnostics removed, visibility regression added, and safe server diagnostic audit recorded.
+Task 37 R12.2: blocked — final source hardening and owned-file validation are complete, but the required API/database gate remains blocked by PostgreSQL P1001 for `food_tracker_test`, and physical iPhone acceptance remains user-operated. Node 22 mobile Vitest (49 files/354 tests) and Jest (47 suites/130 tests) are green; no physical validation is claimed.
 
 ## Review history
 
@@ -78,3 +78,7 @@ Task 37 R12.2: pending
 - R1.2 Figma capture: exact final nodes `338:276`, `361:39`, `361:104`, and `450:22` were opened and compared before implementation. The recovered UI uses explicit Complex tabs, composed overview cards, a dedicated nutrient entry/report state, deterministic recommendation states, and a compact pinned primary-view card with Manage; the prior giant standalone generic chart was removed. Automated evidence: Complex fidelity Jest 4/4, pinned Insights Jest 6/6, nutrient library route fidelity 8/8, and mobile typecheck green. Physical 390pt comparison remains user-operated.
 - R1.2 review correction: Complex fidelity evidence is 4/4, not 2/2. Nutrient retry preserves committed details and section ownership; recommendation history is supplied canonically; the staged nutrient route dependency is included. Review approved.
 - R2.3 Figma capture: exact final nodes `424:21`, `424:67`, `424:116`, and `424:138` were screenshot-inspected. The library requires a real Needs attention section, search/result state, category counts, and category navigation. `ReportingNutrientStatus` is now shared/schema-validated and computed by the backend; the mobile library only filters and presents those statuses. The route gates Simple mode before requesting the Complex nutrient report. Component/route evidence is 8/8; review approved. Physical 390/320 comparison remains user-operated.
+- R2–R12 implementation review: the independent reviewer initially found five Important gaps: silent Log Water fallback and edit-time timezone race, missing mounted Custom Range zoom, premature v2 transport cutover, and weak compact-layout tests. Each was reproduced or made RED, corrected, and rerun. The final review is APPROVED with no Critical or Important findings. Log Water now requires authoritative hydration context and generation-guards edited record loads; Custom Range supports one-touch-grant to second-touch pinch promotion; mobile transport uses the flat bridge until R10.5 while adapting validated overview facts; compact tests mock 320pt runtime dimensions and assert compact wrappers.
+- PostgreSQL validation attempt: documented recovery commands were followed, Docker Desktop restart was attempted, but the daemon still exposes no `/Users/teiko/.docker/run/docker.sock`; API tests continue to fail with P1001 against `food_tracker_test`. No development database or local backup state was reset or touched.
+- Final owned-source validation: Node `v22.23.0` and pnpm `10.34.3`; shared typecheck/build, API typecheck/lint, mobile typecheck/lint, mobile Vitest `49 files/354 tests`, mobile Jest `47 suites/130 tests`, targeted Figma interaction suites, and `git diff --check` passed. A concurrent full-suite attempt produced timing-only failures in the Custom Range and Expo config tests; serial Node 22 reruns passed without changing those tests. A targeted command launched from `apps/mobile` selected Node 24 and was discarded as invalid evidence.
+- R12.2 release gate: temporary user-visible diagnostics are removed; safe development diagnostics remain staging/dev-only and contain no response bodies, IDs, cache state, parser stages, or backend categories. Root format/lint/typecheck/build/test and API integration tests still require the dedicated PostgreSQL test database; no database reset or development-data operation was authorized. Physical iPhone checks remain pending user operation.
