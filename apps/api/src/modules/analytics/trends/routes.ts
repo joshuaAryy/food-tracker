@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   ANALYTICS_OVERVIEW_KEYS,
+  canonicalInsightsResponseV2WithOverviewSchema,
   canonicalInsightsResponseWithOverviewSchema,
   analyticsMetricCatalogSchema,
   analyticsMetricIsAvailableInMode,
@@ -156,6 +157,7 @@ export function createInsightsRouter(
     const requestId = response.locals.requestId as string | undefined;
     const period: InsightsPeriod =
       request.query.period === 'month' ? 'month' : 'week';
+    const useV2Contract = request.query.contractVersion === '2';
     const baseDetails = { requestId, period };
     report('insights_route_started', baseDetails);
     const userId = currentUserId(response);
@@ -262,6 +264,16 @@ export function createInsightsRouter(
             metric: primaryMetric,
             ...insightsDiagnosticErrorDetails(error),
           });
+          if (useV2Contract) {
+            return [
+              primaryMetric,
+              {
+                status: 'failed' as const,
+                code: 'section_unavailable' as const,
+                retryable: true as const,
+              },
+            ] as const;
+          }
           throw error;
         }
       }),
@@ -283,7 +295,7 @@ export function createInsightsRouter(
             period,
             context,
             dependencies.overviewDependencies,
-          ).catch((error: unknown) => {
+          ).catch(() => {
             return Object.fromEntries(
               ANALYTICS_OVERVIEW_KEYS.map((key) => [
                 key,
@@ -305,15 +317,29 @@ export function createInsightsRouter(
       trackingMode: mode,
     });
     try {
-      sendSuccess(
-        response,
-        canonicalInsightsResponseWithOverviewSchema.parse({
-          mode,
-          period,
-          sections: Object.fromEntries(trends),
-          overview,
-        }),
-      );
+      const fetchedAt = new Date().toISOString();
+      const payload = useV2Contract
+        ? canonicalInsightsResponseV2WithOverviewSchema.parse({
+            contractVersion: 2,
+            mode,
+            period,
+            sections: Object.fromEntries(
+              trends.map(([key, result]) => [
+                key,
+                'status' in result
+                  ? result
+                  : { status: 'available', data: result, fetchedAt },
+              ]),
+            ),
+            overview,
+          })
+        : canonicalInsightsResponseWithOverviewSchema.parse({
+            mode,
+            period,
+            sections: Object.fromEntries(trends),
+            overview,
+          });
+      sendSuccess(response, payload);
     } catch (error) {
       report('insights_response_send_failed', {
         ...baseDetails,

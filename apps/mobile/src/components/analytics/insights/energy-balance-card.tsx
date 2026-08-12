@@ -1,7 +1,4 @@
-import type {
-  AnalyticsOverviewEnergy,
-  CanonicalTrendResponse,
-} from '@food-tracker/shared';
+import type { AnalyticsOverviewEnergy } from '@food-tracker/shared';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';

@@ -133,6 +133,12 @@ describe('canonical Insights v2 overview facts', () => {
     expect(periodSummary).toMatchObject({
       status: 'available',
       data: {
+        todaySoFar: {
+          date: recentLocalDate(),
+          mealCount: 1,
+          calories: { value: 100, state: 'recorded' },
+          protein: { value: 5, state: 'recorded' },
+        },
         eligibleLoggedDayCount: 3,
         eligibleTotalDayCount: 3,
       },

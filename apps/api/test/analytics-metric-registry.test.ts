@@ -33,6 +33,10 @@ describe('analytics metric registry', () => {
       unit: 'mL',
       simpleAvailable: true,
       complexAvailable: true,
+      supportedCoverageFilters: [],
+    });
+    expect(analyticsMetricForKey('weight')).toMatchObject({
+      supportedCoverageFilters: [],
     });
     expect(analyticsMetricForKey('vitaminC')).toMatchObject({
       unit: 'mg',

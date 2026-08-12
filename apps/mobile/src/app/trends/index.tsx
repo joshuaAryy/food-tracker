@@ -1,20 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  analyticsMetricForKey,
-  type AnalyticsMetricDefinition,
+import type {
+  AnalyticsMetricDefinition,
+  AnalyticsMetricKey,
+  AnalyticsPreferenceValue,
+  AnalyticsSavedView,
 } from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
-import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { ScreenHeader } from '@/components/screen-header';
+import { ExploreAll } from '@/components/analytics/trends/explore-all';
+import { ExploreCurated } from '@/components/analytics/trends/explore-curated';
 import { api, errorMessage } from '@/lib/api-client';
-import { searchAnalyticsMetrics } from '@/lib/analytics/nutrient-search';
+import { trendRouteForMetric } from '@/lib/analytics/trend-routing';
 import {
-  simpleTrendMetrics,
-  trendRouteForMetric,
-} from '@/lib/analytics/trend-routing';
+  trendQueryFromSavedView,
+  trendQueryRouteParam,
+} from '@/lib/analytics/saved-view-configuration';
+
+const fallbackPreference: AnalyticsPreferenceValue = {
+  preferredSimpleMetric: 'calories',
+  pinnedSavedViewId: null,
+};
 
 export default function TrendsExploreScreen() {
   const router = useRouter();
@@ -23,11 +29,29 @@ export default function TrendsExploreScreen() {
     metrics: AnalyticsMetricDefinition[];
   } | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [preferences, setPreferences] =
+    useState<AnalyticsPreferenceValue>(fallbackPreference);
+  const [savedViews, setSavedViews] = useState<AnalyticsSavedView[]>([]);
   const [query, setQuery] = useState('');
+  const [secondaryError, setSecondaryError] = useState<string | null>(null);
+
   const loadCatalog = useCallback(async () => {
     setCatalogError(null);
     try {
-      setCatalog(await api.analytics.trendCatalog());
+      const nextCatalog = await api.analytics.trendCatalog();
+      setCatalog(nextCatalog);
+      try {
+        const nextPreferences = await api.analytics.preferences();
+        setPreferences(nextPreferences);
+        if (nextCatalog.mode === 'complex') {
+          setSavedViews(await api.analytics.savedViews());
+        } else {
+          setSavedViews([]);
+        }
+        setSecondaryError(null);
+      } catch (cause) {
+        setSecondaryError(errorMessage(cause));
+      }
     } catch (cause) {
       setCatalogError(errorMessage(cause));
     }
@@ -37,80 +61,61 @@ export default function TrendsExploreScreen() {
     void loadCatalog();
   }, [loadCatalog]);
 
-  const visibleMetrics = useMemo(() => {
-    if (catalog === null) {
-      return simpleTrendMetrics.map(analyticsMetricForKey);
-    }
-    if (catalog.mode === 'simple') {
-      const allowed = new Map(
-        catalog.metrics.map((metric) => [metric.key, metric]),
-      );
-      return simpleTrendMetrics.flatMap((metric) => {
-        const definition = allowed.get(metric);
-        return definition === undefined ? [] : [definition];
-      });
-    }
-    return searchAnalyticsMetrics(query, catalog.metrics);
-  }, [catalog, query]);
+  const definitions = useMemo(() => catalog?.metrics ?? [], [catalog?.metrics]);
+  const openMetric = (metric: AnalyticsMetricKey) => {
+    router.push(trendRouteForMetric(metric) as never);
+  };
+  const openSavedView = (view: AnalyticsSavedView) => {
+    const query = trendQueryFromSavedView(view);
+    if (query === null) return;
+    router.push({
+      pathname: '/trends/[metric]',
+      params: {
+        metric: query.primaryMetric,
+        query: trendQueryRouteParam(query),
+      },
+    } as never);
+  };
+
   return (
     <AppScreen
       backgroundColor="#FFFFFF"
-      scroll={false}
-      contentClassName="flex-1 gap-5 pb-4"
+      contentClassName="gap-7 pb-8"
+      onRefresh={() => void loadCatalog()}
+      refreshing={catalog === null && catalogError === null}
     >
-      <ScreenHeader
-        title="Explore Trends"
-        subtitle={
-          catalog?.mode === 'complex'
-            ? 'Search the nutrition metrics available to your account.'
-            : 'Choose a focused view for the last 7, 30, or 90 days.'
-        }
-      />
-      {catalog?.mode === 'complex' ? (
-        <TextInput
-          accessibilityLabel="Search nutrition metrics"
-          className="min-h-11 rounded-control border border-line bg-module px-4 text-ink"
-          placeholder="Search vitamins, minerals, and more"
-          placeholderTextColor="#777777"
-          value={query}
-          onChangeText={setQuery}
+      {catalogError !== null ? (
+        <ErrorState message={catalogError} onRetry={() => void loadCatalog()} />
+      ) : catalog === null ? null : catalog.mode === 'simple' ? (
+        <ExploreCurated
+          definitions={definitions}
+          preferredMetric={preferences.preferredSimpleMetric}
+          onBack={() => router.back()}
+          onMetric={openMetric}
+        />
+      ) : (
+        <ExploreAll
+          definitions={definitions}
+          savedViews={savedViews}
+          pinnedSavedViewId={preferences.pinnedSavedViewId}
+          query={query}
+          onQueryChange={setQuery}
+          onBack={() => router.back()}
+          onMetric={openMetric}
+          onOpenSavedView={openSavedView}
+          onManageSavedViews={() => router.push('/trends/saved-views' as never)}
+          onOpenNutrientLibrary={() =>
+            router.push('/trends/nutrients' as never)
+          }
+        />
+      )}
+      {secondaryError !== null ? (
+        <ErrorState
+          title="Some Explore details are unavailable"
+          message="The metric catalog remains available. Retry to load saved-view details."
+          onRetry={() => void loadCatalog()}
         />
       ) : null}
-      {catalogError === null ? null : (
-        <ErrorState message={catalogError} onRetry={() => void loadCatalog()} />
-      )}
-      <FlatList
-        className="flex-1"
-        contentContainerClassName="gap-2 pb-8"
-        data={visibleMetrics}
-        keyExtractor={(definition) => definition.key}
-        initialNumToRender={12}
-        maxToRenderPerBatch={12}
-        windowSize={5}
-        accessibilityLabel="Available analytics metrics"
-        renderItem={({ item: definition }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`View ${definition.displayName} trend`}
-            className="min-h-11 rounded-app border border-line bg-module px-4 py-3 active:opacity-70"
-            onPress={() =>
-              router.push(trendRouteForMetric(definition.key) as never)
-            }
-          >
-            <AppText variant="label">{definition.displayName}</AppText>
-            <AppText variant="caption" muted>
-              {catalog?.mode === 'complex'
-                ? `${definition.group} · ${definition.unit}`
-                : definition.unit}
-            </AppText>
-          </Pressable>
-        )}
-        ListEmptyComponent={
-          catalog?.mode === 'complex' ? (
-            <AppText muted>No matching nutrition metrics.</AppText>
-          ) : null
-        }
-      />
     </AppScreen>
   );
 }

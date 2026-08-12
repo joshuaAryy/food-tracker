@@ -1,12 +1,16 @@
 import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
-import type { AnalyticsOverviewResultMap } from '@food-tracker/shared';
+import {
+  ANALYTICS_INSIGHTS_SECTION_KEYS,
+  type AnalyticsOverviewResultMap,
+} from '@food-tracker/shared';
 import {
   complexInsightsFixture,
   simpleInsightsFixture,
 } from '../../../test-fixtures/analytics-fixtures';
 import { analyticsStateFixtures } from '../../../test-fixtures/analytics-state-fixtures';
 import InsightsScreen from '../insights';
+import { adaptCanonicalInsightsResponseWithOverview } from '@/lib/analytics/analytics-v1-adapter';
 
 const mockCacheWrite = jest.fn();
 let mockDataVersion = 0;
@@ -34,6 +38,33 @@ function overviewWith(
     loggingConsistency: failedOverview(),
     ...overrides,
   };
+}
+
+function v2Report(
+  report: unknown,
+  overview: AnalyticsOverviewResultMap = overviewWith(),
+) {
+  const legacy = report as {
+    mode: 'simple' | 'complex';
+    period: 'week' | 'month';
+    sections: Record<string, unknown>;
+  };
+  const adapted = adaptCanonicalInsightsResponseWithOverview(
+    {
+      ...legacy,
+      sections: Object.fromEntries(
+        ANALYTICS_INSIGHTS_SECTION_KEYS.flatMap((key) =>
+          legacy.sections[key] === undefined
+            ? []
+            : [[key, legacy.sections[key]]],
+        ),
+      ),
+      overview,
+    },
+    fetchedAt,
+  );
+  if (adapted === null) throw new Error('Invalid Insights test fixture');
+  return adapted;
 }
 
 jest.mock('expo-constants', () => ({
@@ -82,7 +113,7 @@ describe('Insights pinned view', () => {
     mockCacheWrite.mockReset();
     mockCacheWrite.mockResolvedValue(undefined);
     mockDataVersion = 0;
-    jest.spyOn(api.analytics, 'insights').mockResolvedValue({
+    jest.spyOn(api.analytics, 'insights').mockResolvedValue(v2Report({
       ...complexInsightsFixture,
       sections: {
         ...complexInsightsFixture.sections,
@@ -92,7 +123,7 @@ describe('Insights pinned view', () => {
           summary: { average: 2000, numericDayCount: 7 },
         },
       },
-    } as never);
+    }) as never);
     jest.spyOn(api.analytics, 'preferences').mockResolvedValue({
       preferredSimpleMetric: 'calories',
       pinnedSavedViewId: 'saved-view-1',
@@ -151,9 +182,17 @@ describe('Insights pinned view', () => {
   });
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
-    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(v2Report({
       ...simpleInsightsFixture,
-      overview: overviewWith({
+      sections: {
+        ...simpleInsightsFixture.sections,
+        protein: {
+          ...simpleInsightsFixture.sections.protein,
+          primaryMetric: 'protein',
+          summary: { average: null, numericDayCount: 1 },
+        },
+      },
+    }, overviewWith({
         macros: {
           status: 'available',
           fetchedAt,
@@ -164,15 +203,7 @@ describe('Insights pinned view', () => {
             status: 'unknown',
           },
         },
-      }),
-      sections: {
-        protein: {
-          ...simpleInsightsFixture.sections.protein,
-          primaryMetric: 'protein',
-          summary: { average: null, numericDayCount: 1 },
-        },
-      },
-    } as never);
+      })) as never);
 
     const screen = await render(<InsightsScreen />);
 
@@ -181,9 +212,9 @@ describe('Insights pinned view', () => {
   });
 
   it('renders first-use canonical totals through the existing flat section path', async () => {
-    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce({
-      ...analyticsStateFixtures.firstUse.report,
-      overview: overviewWith({
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(v2Report(
+      analyticsStateFixtures.firstUse.report,
+      overviewWith({
         periodSummary: {
           status: 'available',
           fetchedAt,
@@ -192,13 +223,19 @@ describe('Insights pinned view', () => {
               startDate: '2026-07-30',
               endDate: '2026-08-05',
             },
+            todaySoFar: {
+              date: '2026-08-05',
+              mealCount: 1,
+              calories: { value: 612, state: 'recorded' },
+              protein: { value: 38, state: 'recorded' },
+            },
             loggedDayCount: 1,
             eligibleLoggedDayCount: 1,
             eligibleTotalDayCount: 7,
             streak: { currentDays: 1, longestDays: 1 },
             currentDayPhase: 'in_progress',
             consistency: 14,
-            interpretation: 'building',
+            interpretation: 'first_use',
           },
         },
         energy: {
@@ -228,12 +265,14 @@ describe('Insights pinned view', () => {
           },
         },
       }),
-    } as never);
+    ) as never);
 
     const screen = await render(<InsightsScreen />);
 
-    expect(await screen.findByText('612 kcal')).toBeTruthy();
-    expect(screen.getByText('Protein · 38 g')).toBeTruthy();
+    expect(await screen.findByText('612')).toBeTruthy();
+    expect(
+      screen.getByText('38 g protein · current recorded totals'),
+    ).toBeTruthy();
     expect(screen.queryByText('0 kcal')).toBeNull();
   });
 

@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Path } from 'react-native-svg';
 import type { AnalyticsComparisonStrategy } from '@food-tracker/shared';
+import { AppText } from '@/components/app-text';
 import { linePath } from '@/lib/analytics/chart-geometry';
 import {
   selectedIndexForScrubX,
@@ -29,6 +30,8 @@ export function ComparisonChart({
   strategy,
   primaryAxis,
   comparisonAxis,
+  primaryAxisLabel,
+  comparisonAxisLabel,
   width,
   height = 180,
   accessibilityLabel,
@@ -38,6 +41,8 @@ export function ComparisonChart({
   strategy: AnalyticsComparisonStrategy;
   primaryAxis: { minimum: number; maximum: number };
   comparisonAxis: { minimum: number; maximum: number };
+  primaryAxisLabel: string;
+  comparisonAxisLabel: string;
   width: number;
   height?: number;
   accessibilityLabel: string;
@@ -46,22 +51,7 @@ export function ComparisonChart({
   const selectedIndexRef = useRef<number | null>(null);
   const primaryDomain = chartDomainFromAxis(primaryAxis);
   const comparisonDomain = chartDomainFromAxis(comparisonAxis);
-  const primaryPath = useMemo(
-    () =>
-      linePath(comparisonValues(primary, strategy), primaryDomain, {
-        width,
-        height,
-      }),
-    [height, primary, primaryDomain, strategy, width],
-  );
-  const comparisonPath = useMemo(
-    () =>
-      linePath(comparisonValues(comparison, strategy), comparisonDomain, {
-        width,
-        height,
-      }),
-    [comparison, comparisonDomain, height, strategy, width],
-  );
+  const plotWidth = Math.max(220, width - 52);
   const selected =
     selectedIndex === null ? null : (primary[selectedIndex] ?? null);
   const selectedValues =
@@ -85,37 +75,133 @@ export function ComparisonChart({
       }
     >
       <View>
-        <CartesianPlot
-          width={width}
-          height={height}
-          pointCount={primary.length}
-          selectedIndex={selectedIndex}
-        >
-          <Path d={primaryPath} fill="none" stroke="#C9242D" strokeWidth={3} />
-          <Path
-            d={comparisonPath}
-            fill="none"
-            stroke="#7A9B76"
-            strokeWidth={3}
+        <View className="flex-row items-stretch gap-2">
+          <AxisLabels
+            axis={primaryAxis}
+            color="#C9242D"
+            normalized={strategy === 'reference_normalized'}
           />
-        </CartesianPlot>
-        <ChartSelectionOverlay
-          width={width}
-          height={height}
-          onScrub={(x) => {
-            const index = selectedIndexForScrubX(x, primary.length, width);
-            if (index !== null) selectIndex(index);
-          }}
-          onAccessibilityStep={(direction) => {
-            if (primary.length === 0) return;
-            const currentIndex = selectedIndexRef.current ?? 0;
-            const delta = direction === 'increment' ? 1 : -1;
-            selectIndex(
-              Math.max(0, Math.min(primary.length - 1, currentIndex + delta)),
-            );
-          }}
-        />
+          <View className="relative flex-1 gap-1">
+            <View className="flex-row justify-between gap-2">
+              <AppText variant="caption" className="text-[#C9242D]">
+                {primaryAxisLabel}
+              </AppText>
+              {strategy === 'dual_axis' ? (
+                <AppText variant="caption" className="text-[#7A9B76]">
+                  {comparisonAxisLabel}
+                </AppText>
+              ) : null}
+            </View>
+            <CartesianPlot
+              width={plotWidth}
+              height={height}
+              pointCount={primary.length}
+              selectedIndex={selectedIndex}
+            >
+              <Path
+                d={linePath(
+                  comparisonValues(primary, strategy),
+                  primaryDomain,
+                  {
+                    width: plotWidth,
+                    height,
+                  },
+                )}
+                fill="none"
+                stroke="#C9242D"
+                strokeWidth={3}
+              />
+              <Path
+                d={linePath(
+                  comparisonValues(comparison, strategy),
+                  comparisonDomain,
+                  { width: plotWidth, height },
+                )}
+                fill="none"
+                stroke="#7A9B76"
+                strokeWidth={3}
+              />
+            </CartesianPlot>
+            <ChartSelectionOverlay
+              width={plotWidth}
+              height={height}
+              onScrub={(x) => {
+                const index = selectedIndexForScrubX(
+                  x,
+                  primary.length,
+                  plotWidth,
+                );
+                if (index !== null) selectIndex(index);
+              }}
+              onAccessibilityStep={(direction) => {
+                if (primary.length === 0) return;
+                const currentIndex = selectedIndexRef.current ?? 0;
+                const delta = direction === 'increment' ? 1 : -1;
+                selectIndex(
+                  Math.max(
+                    0,
+                    Math.min(primary.length - 1, currentIndex + delta),
+                  ),
+                );
+              }}
+            />
+          </View>
+          {strategy === 'dual_axis' ? (
+            <AxisLabels axis={comparisonAxis} color="#7A9B76" />
+          ) : null}
+        </View>
+        {selectedValues === null ? null : (
+          <View className="rounded-[12px] bg-ink px-3 py-2">
+            <AppText variant="caption" className="text-white">
+              {selectedValues.date}
+            </AppText>
+            <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+              <AppText variant="caption" className="text-white">
+                {primaryAxisLabel}:{' '}
+                {formatSelectedValue(selectedValues.primaryValue)}
+              </AppText>
+              <AppText variant="caption" className="text-white">
+                {comparisonAxisLabel}:{' '}
+                {formatSelectedValue(selectedValues.comparisonValue)}
+              </AppText>
+            </View>
+          </View>
+        )}
       </View>
     </ChartFrame>
   );
+}
+
+function AxisLabels({
+  axis,
+  color,
+  normalized = false,
+}: {
+  axis: { minimum: number; maximum: number };
+  color: string;
+  normalized?: boolean;
+}) {
+  const midpoint = (axis.minimum + axis.maximum) / 2;
+  return (
+    <View className="w-9 justify-between py-1">
+      {[axis.maximum, midpoint, axis.minimum].map((value) => (
+        <AppText
+          key={`${value}`}
+          variant="caption"
+          className="text-right text-[9px]"
+          style={{ color }}
+        >
+          {normalized ? `${Math.round(value * 100)}%` : formatAxisValue(value)}
+        </AppText>
+      ))}
+    </View>
+  );
+}
+
+function formatAxisValue(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+function formatSelectedValue(value: number | null): string {
+  return value === null ? 'No recorded value' : value.toLocaleString('en-US');
 }

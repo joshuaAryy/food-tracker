@@ -168,7 +168,7 @@ describe('analytics saved views API', () => {
       .post('/api/v1/analytics/saved-views')
       .send({
         ...savedViewInput,
-        comparisonMetric: 'vitaminC',
+        comparisonMetric: 'macroComposition',
         visualization: 'dual_axis',
       })
       .expect(400);
@@ -185,6 +185,35 @@ describe('analytics saved views API', () => {
       .send({ comparisonMetric: 'carbs' })
       .expect(400);
     expectErrorEnvelope(invalidUpdate.body, 'VALIDATION_ERROR');
+  });
+
+  it('accepts Weight and Hydration saved views without food-logging coverage filters', async () => {
+    await seedPreferences({ mode: 'complex' });
+
+    for (const [primaryMetric, name] of [
+      ['weight', 'Weight · 30D'],
+      ['hydration', 'Hydration · 30D'],
+    ] as const) {
+      const response = await api
+        .post('/api/v1/analytics/saved-views')
+        .send({
+          ...savedViewInput,
+          name,
+          primaryMetric,
+          comparisonMetric: null,
+          visualization: 'automatic',
+          coverageFilter: 'all_logged_days',
+        })
+        .expect(201);
+
+      expect(response.body.data.savedView).toMatchObject({
+        name,
+        primaryMetric,
+        comparisonMetric: null,
+        coverageFilter: 'all_logged_days',
+        unavailableMetrics: [],
+      });
+    }
   });
 
   it('rejects a visualization the selected metric cannot render', async () => {

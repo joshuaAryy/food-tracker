@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type {
   AnalyticsMetricDefinition,
   AnalyticsMetricKey,
+  CanonicalTrendResponse,
   ReportingNutrientGroup,
   ReportsResponse,
 } from '@food-tracker/shared';
@@ -21,6 +22,7 @@ import {
   nutrientPresentation,
   nutrientPresentationAccessibilityLabel,
 } from '@/lib/reporting-ui';
+import { AminoAcidProfile } from './amino-acid-profile';
 
 const groupOrder: ReportingNutrientGroup[] = [
   'general',
@@ -184,6 +186,7 @@ function AttentionRow({
 export function NutrientLibrary({
   report,
   category,
+  aminoAcidProfile,
   initialQuery = '',
   loading,
   error,
@@ -194,6 +197,7 @@ export function NutrientLibrary({
 }: {
   report: ReportsResponse | null;
   category: ReportingNutrientGroup | null;
+  aminoAcidProfile?: CanonicalTrendResponse['aminoAcidProfile'] | null;
   initialQuery?: string;
   loading: boolean;
   error: string | null;
@@ -207,6 +211,7 @@ export function NutrientLibrary({
   const definitions = useMemo(() => nutrientDefinitions(), []);
   const details = report?.current.nutrientDetails ?? {};
   const setupComplete = report !== null && report.goalDirection !== null;
+  const profile = aminoAcidProfile ?? null;
   const visibleDefinitions = useMemo(() => {
     if (category !== null) {
       return definitions.filter(
@@ -395,45 +400,49 @@ export function NutrientLibrary({
           </AppCard>
         </View>
       ) : null}
-      <View className="gap-2">
-        <AppText variant="caption" className="font-bold text-muted">
-          {category === null ? 'CATEGORIES' : 'ALL NUTRIENTS'}
-        </AppText>
-        <AppCard elevated className="gap-0 p-3">
-          {category === null
-            ? groupOrder.map((group) => {
-                const groupDefinitions = definitions.filter(
-                  (definition) =>
-                    grouped
-                      .get(group)
-                      ?.some((item) => item.key === definition.key) ||
-                    reportingNutrientGroupForCategory(
-                      NUTRIENT_CATALOG[
-                        definition.key as keyof typeof NUTRIENT_CATALOG
-                      ].category,
-                    ) === group,
-                );
-                return (
-                  <CategoryCard
-                    key={group}
-                    group={group}
-                    definitions={groupDefinitions}
-                    details={details}
-                    onPress={() => onOpenCategory(group)}
+      {category === 'protein_amino_acid' && profile !== null ? (
+        <AminoAcidProfile profile={profile} onOpenMetric={onOpenMetric} />
+      ) : (
+        <View className="gap-2">
+          <AppText variant="caption" className="font-bold text-muted">
+            {category === null ? 'CATEGORIES' : 'ALL NUTRIENTS'}
+          </AppText>
+          <AppCard elevated className="gap-0 p-3">
+            {category === null
+              ? groupOrder.map((group) => {
+                  const groupDefinitions = definitions.filter(
+                    (definition) =>
+                      grouped
+                        .get(group)
+                        ?.some((item) => item.key === definition.key) ||
+                      reportingNutrientGroupForCategory(
+                        NUTRIENT_CATALOG[
+                          definition.key as keyof typeof NUTRIENT_CATALOG
+                        ].category,
+                      ) === group,
+                  );
+                  return (
+                    <CategoryCard
+                      key={group}
+                      group={group}
+                      definitions={groupDefinitions}
+                      details={details}
+                      onPress={() => onOpenCategory(group)}
+                    />
+                  );
+                })
+              : visibleDefinitions.map((definition) => (
+                  <NutrientRow
+                    key={definition.key}
+                    definition={definition}
+                    detail={details[definition.key]}
+                    setupComplete={setupComplete}
+                    onPress={() => onOpenMetric(definition.key)}
                   />
-                );
-              })
-            : visibleDefinitions.map((definition) => (
-                <NutrientRow
-                  key={definition.key}
-                  definition={definition}
-                  detail={details[definition.key]}
-                  setupComplete={setupComplete}
-                  onPress={() => onOpenMetric(definition.key)}
-                />
-              ))}
-        </AppCard>
-      </View>
+                ))}
+          </AppCard>
+        </View>
+      )}
       <AppText variant="caption" className="text-muted">
         {category === null
           ? 'Near-goal and within-range states remain visually quiet until a nutrient is opened.'

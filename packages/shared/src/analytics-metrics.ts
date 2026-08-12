@@ -166,7 +166,9 @@ export const ANALYTICS_METRIC_REGISTRY: Record<
     searchableTerms: ['weight', 'body weight'],
     supportedVisualizations: ['automatic', 'smoothed_line', 'linked_trends'],
     supportedAggregations: ALL_AGGREGATIONS,
-    supportedCoverageFilters: ALL_COVERAGE_FILTERS,
+    // Weight is not a food-log completeness metric. The backend still accepts
+    // the transport field for compatibility, but Configure must not expose it.
+    supportedCoverageFilters: [],
     referenceSupport: 'target',
   },
   loggingConsistency: {
@@ -196,7 +198,8 @@ export const ANALYTICS_METRIC_REGISTRY: Record<
     searchableTerms: ['hydration', 'water'],
     supportedVisualizations: ['automatic', 'bars_with_trend', 'smoothed_line'],
     supportedAggregations: ALL_AGGREGATIONS,
-    supportedCoverageFilters: ALL_COVERAGE_FILTERS,
+    // Hydration is sourced from explicit WaterLogs, not food-log coverage.
+    supportedCoverageFilters: [],
     referenceSupport: 'target',
   },
 };

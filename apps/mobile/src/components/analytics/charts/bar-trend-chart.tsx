@@ -2,10 +2,12 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Line, Path, Rect } from 'react-native-svg';
+import { AppText } from '@/components/app-text';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
   barRects,
   linePath,
+  pointX,
   referenceLineY,
 } from '@/lib/analytics/chart-geometry';
 import {
@@ -57,6 +59,8 @@ export function BarTrendChart({
   );
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
+  const selectedX =
+    selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
   const trendPath = useMemo(
     () =>
       domain === null || trendValues === undefined
@@ -80,7 +84,7 @@ export function BarTrendChart({
           : `${selected.date}: ${selected.value === null ? 'No recorded value' : selected.value}`
       }
     >
-      <View>
+      <View className="relative">
         <CartesianPlot
           width={width}
           height={height}
@@ -99,7 +103,15 @@ export function BarTrendChart({
             />
           ) : null}
           {bars.map((bar) => (
-            <Rect key={bar.index} {...bar} fill={color} rx={3} />
+            <Rect
+              key={bar.index}
+              {...bar}
+              fill={color}
+              opacity={
+                selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
+              }
+              rx={3}
+            />
           ))}
           {trendPath === '' ? null : (
             <Path d={trendPath} fill="none" stroke={color} strokeWidth={2.5} />
@@ -121,6 +133,23 @@ export function BarTrendChart({
             );
           }}
         />
+        {selected === null || selectedX === null ? null : (
+          <View
+            pointerEvents="none"
+            className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"
+            style={{
+              left: Math.max(0, Math.min(width - 96, selectedX - 48)),
+            }}
+          >
+            <AppText variant="caption" className="text-white">
+              {selected.date}
+              {'\n'}
+              {selected.value === null
+                ? 'No recorded value'
+                : selected.value.toLocaleString('en-US')}
+            </AppText>
+          </View>
+        )}
       </View>
     </ChartFrame>
   );

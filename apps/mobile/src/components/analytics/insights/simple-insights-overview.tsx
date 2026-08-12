@@ -10,6 +10,7 @@ import { LoggingConsistencyCard } from './logging-consistency-card';
 import { MacroBalanceCard } from './macro-balance-card';
 import { NutrientHighlightsCard } from './nutrient-highlights-card';
 import { WeightDirectionCard } from './weight-direction-card';
+import { AnalyticsFirstUse } from '../states/analytics-first-use';
 
 export function SimpleInsightsOverview({
   resource,
@@ -31,6 +32,13 @@ export function SimpleInsightsOverview({
           hour: 'numeric',
           minute: '2-digit',
         });
+  const periodSummary = resource.overview.periodSummary;
+  const firstUseData =
+    periodSummary?.status === 'available' &&
+    periodSummary.data !== null &&
+    periodSummary.data.interpretation === 'first_use'
+      ? periodSummary.data
+      : null;
   return (
     <View testID="simple-insights-overview" className="gap-7">
       {refreshing ? (
@@ -52,59 +60,82 @@ export function SimpleInsightsOverview({
           </AppText>
         </View>
       ) : null}
-      <InsightsPeriodSummary
-        period={resource.period ?? 'week'}
-        summary={resource.overview.periodSummary}
-        onRetry={() => onOverviewRetry('periodSummary')}
-      />
-      <EnergyBalanceCard
-        overview={resource.overview.energy}
-        trend={resource.sections.calories}
-        onOpenTrend={onExploreTrends}
-        onRetry={() => onOverviewRetry('energy')}
-      />
-      <MacroBalanceCard
-        overview={resource.overview.macros}
-        proteinTrend={resource.sections.protein}
-        onOpenTrend={onExploreTrends}
-        onRetry={() => onOverviewRetry('macros')}
-      />
-      <NutrientHighlightsCard
-        overview={resource.overview.nutrientHighlights}
-        onRetry={() => onOverviewRetry('nutrientHighlights')}
-      />
-      <HydrationInsightsCard
-        overview={resource.overview.hydration}
-        trend={resource.sections.hydration}
-        onLogWater={onLogWater}
-        onOpenTrend={onExploreTrends}
-        onRetry={() => onOverviewRetry('hydration')}
-      />
-      <WeightDirectionCard
-        overview={resource.overview.weight}
-        trend={resource.sections.weight}
-        onOpenTrend={onExploreTrends}
-        onRetry={() => onOverviewRetry('weight')}
-      />
-      <LoggingConsistencyCard
-        overview={resource.overview.loggingConsistency}
-        onRetry={() => onOverviewRetry('loggingConsistency')}
-      />
-      <View className="gap-2 rounded-[18px] bg-module p-4">
-        <AppText variant="label">Explore every trend</AppText>
-        <AppText variant="caption" className="text-muted">
-          Simple mode keeps trend controls curated. Advanced micronutrient
-          drill-down, comparisons, and saved analysis stay in Complex mode.
-        </AppText>
-        <AppButton
-          accessibilityLabel="Explore all trends"
-          variant="secondary"
-          className="min-h-11 self-start rounded-[14px] py-2"
-          onPress={onExploreTrends}
-        >
-          Explore all trends
-        </AppButton>
-      </View>
+      {firstUseData !== null ? (
+        <AnalyticsFirstUse
+          mealCount={firstUseData.todaySoFar.mealCount}
+          calories={
+            firstUseData.todaySoFar.calories.state === 'unknown'
+              ? null
+              : firstUseData.todaySoFar.calories.value
+          }
+          proteinGrams={
+            firstUseData.todaySoFar.protein.state === 'unknown'
+              ? null
+              : firstUseData.todaySoFar.protein.value
+          }
+          loggedDays={firstUseData.eligibleLoggedDayCount}
+          requiredDays={firstUseData.eligibleTotalDayCount}
+          currentDayPhase={firstUseData.currentDayPhase}
+          onExplore={onExploreTrends}
+        />
+      ) : null}
+      {firstUseData === null ? (
+        <>
+          <InsightsPeriodSummary
+            period={resource.period ?? 'week'}
+            summary={resource.overview.periodSummary}
+            onRetry={() => onOverviewRetry('periodSummary')}
+          />
+          <EnergyBalanceCard
+            overview={resource.overview.energy}
+            trend={resource.sections.calories}
+            onOpenTrend={onExploreTrends}
+            onRetry={() => onOverviewRetry('energy')}
+          />
+          <MacroBalanceCard
+            overview={resource.overview.macros}
+            proteinTrend={resource.sections.protein}
+            onOpenTrend={onExploreTrends}
+            onRetry={() => onOverviewRetry('macros')}
+          />
+          <NutrientHighlightsCard
+            overview={resource.overview.nutrientHighlights}
+            onRetry={() => onOverviewRetry('nutrientHighlights')}
+          />
+          <HydrationInsightsCard
+            overview={resource.overview.hydration}
+            trend={resource.sections.hydration}
+            onLogWater={onLogWater}
+            onOpenTrend={onExploreTrends}
+            onRetry={() => onOverviewRetry('hydration')}
+          />
+          <WeightDirectionCard
+            overview={resource.overview.weight}
+            trend={resource.sections.weight}
+            onOpenTrend={onExploreTrends}
+            onRetry={() => onOverviewRetry('weight')}
+          />
+          <LoggingConsistencyCard
+            overview={resource.overview.loggingConsistency}
+            onRetry={() => onOverviewRetry('loggingConsistency')}
+          />
+          <View className="gap-2 rounded-[18px] bg-module p-4">
+            <AppText variant="label">Explore every trend</AppText>
+            <AppText variant="caption" className="text-muted">
+              Simple mode keeps trend controls curated. Advanced micronutrient
+              drill-down, comparisons, and saved analysis stay in Complex mode.
+            </AppText>
+            <AppButton
+              accessibilityLabel="Explore all trends"
+              variant="secondary"
+              className="min-h-11 self-start rounded-[14px] py-2"
+              onPress={onExploreTrends}
+            >
+              Explore all trends
+            </AppButton>
+          </View>
+        </>
+      ) : null}
     </View>
   );
 }

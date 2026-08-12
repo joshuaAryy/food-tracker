@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type {
+  CanonicalTrendResponse,
   ReportingNutrientGroup,
   ReportsResponse,
 } from '@food-tracker/shared';
@@ -33,6 +34,10 @@ export default function NutrientLibraryScreen() {
   const [mode, setMode] = useState<'simple' | 'complex' | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aminoAcidProfile, setAminoAcidProfile] = useState<
+    CanonicalTrendResponse['aminoAcidProfile'] | null
+  >(null);
+  const category = groupFromParam(params.category);
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -40,16 +45,31 @@ export default function NutrientLibraryScreen() {
       const catalog = await api.analytics.trendCatalog();
       setMode(catalog.mode);
       if (catalog.mode === 'complex') {
-        setReport(await api.analytics.reports({ period: 'month' }));
+        const [nextReport, leucineTrend] = await Promise.all([
+          api.analytics.reports({ period: 'month' }),
+          category === 'protein_amino_acid'
+            ? api.analytics.trend({
+                primaryMetric: 'leucine',
+                period: { kind: 'relative', days: 30 },
+                aggregation: 'automatic',
+                visualization: 'automatic',
+                showReference: true,
+                coverageFilter: 'all_logged_days',
+              })
+            : Promise.resolve(null),
+        ]);
+        setReport(nextReport);
+        setAminoAcidProfile(leucineTrend?.aminoAcidProfile ?? null);
       } else {
         setReport(null);
+        setAminoAcidProfile(null);
       }
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     void load();
@@ -76,7 +96,8 @@ export default function NutrientLibraryScreen() {
     >
       <NutrientLibrary
         report={report}
-        category={groupFromParam(params.category)}
+        category={category}
+        aminoAcidProfile={aminoAcidProfile}
         initialQuery={typeof params.query === 'string' ? params.query : ''}
         loading={loading}
         error={error}

@@ -13,18 +13,30 @@ import {
   analyticsMetricKeySchema,
   canonicalTrendResponseSchema,
   type AnalyticsMetricKey,
+  type AnalyticsContributorsResponse,
   type CanonicalTrendResponse,
+  type WaterLog,
 } from '@food-tracker/shared';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
-import { ComparisonChart } from '@/components/analytics/charts/comparison-chart';
 import { ForecastChart } from '@/components/analytics/charts/forecast-chart';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { MacroChart } from '@/components/analytics/charts/macro-chart';
+import { CaloriesReport } from '@/components/analytics/trends/calories-report';
+import { HydrationReport } from '@/components/analytics/trends/hydration-report';
+import { LoggingConsistencyReport } from '@/components/analytics/trends/logging-consistency-report';
+import { MacrosReport } from '@/components/analytics/trends/macros-report';
+import { TrendReportHeader } from '@/components/analytics/trends/trend-report-header';
+import { ComparisonTrendReport } from '@/components/analytics/trends/comparison-trend-report';
+import { WeightReport } from '@/components/analytics/trends/weight-report';
+import { NutrientGoalDepthCard } from '@/components/analytics/nutrients/nutrient-goal-depth-card';
+import { NutrientPairReport } from '@/components/analytics/nutrients/nutrient-pair-report';
+import { LeucineDetail } from '@/components/analytics/nutrients/leucine-detail';
+import { NutrientDataState } from '@/components/analytics/nutrients/nutrient-data-state';
+import { NutrientSparseState } from '@/components/analytics/nutrients/nutrient-sparse-state';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
-import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import {
@@ -45,6 +57,7 @@ import {
   trendQueryFromRouteParam,
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
+import { quickAddWater, undoQuickAddWater } from '@/lib/water-actions';
 
 const periods = [7, 30, 90] as const;
 
@@ -81,9 +94,14 @@ function loggingHeatmapColor(state: string): string {
 export default function TrendDetailScreen() {
   const router = useRouter();
   const { userId } = useAuthRuntime();
-  const { metric: rawMetric, query: rawQuery } = useLocalSearchParams<{
+  const {
+    metric: rawMetric,
+    query: rawQuery,
+    savedViewId,
+  } = useLocalSearchParams<{
     metric?: string;
     query?: string;
+    savedViewId?: string;
   }>();
   const restoredQuery = useMemo(
     () => trendQueryFromRouteParam(rawQuery),
@@ -95,6 +113,13 @@ export default function TrendDetailScreen() {
   const metric: AnalyticsMetricKey = metricResult.success
     ? metricResult.data
     : 'calories';
+  const isNutrientDetail = ![
+    'calories',
+    'macroComposition',
+    'weight',
+    'hydration',
+    'loggingConsistency',
+  ].includes(metric);
   const definition = analyticsMetricForKey(metric);
   const { width } = useWindowDimensions();
   const [selectedRelativePeriod, setSelectedRelativePeriod] = useState<
@@ -114,15 +139,37 @@ export default function TrendDetailScreen() {
   );
   const trend = trendResource.value;
   const trendRequestId = useRef(0);
-  const activeQuery = useMemo(
-    () =>
-      resolveTrendQuery({
-        metric,
-        restoredQuery,
-        selectedRelativePeriod,
-      }),
-    [metric, restoredQuery, selectedRelativePeriod],
+  const [proteinTrend, setProteinTrend] =
+    useState<CanonicalTrendResponse | null>(null);
+  const [proteinTrendLoading, setProteinTrendLoading] = useState(false);
+  const proteinTrendRequestId = useRef(0);
+  const [relatedTrend, setRelatedTrend] =
+    useState<CanonicalTrendResponse | null>(null);
+  const [nutrientComparisonTrend, setNutrientComparisonTrend] =
+    useState<CanonicalTrendResponse | null>(null);
+  const [relatedTrendError, setRelatedTrendError] = useState<string | null>(
+    null,
   );
+  const relatedTrendRequestId = useRef(0);
+  const nutrientComparisonRequestId = useRef(0);
+  const [calorieContributors, setCalorieContributors] =
+    useState<AnalyticsContributorsResponse | null>(null);
+  const [recentWaterLogs, setRecentWaterLogs] = useState<WaterLog[]>([]);
+  const [quickAddWaterLog, setQuickAddWaterLog] = useState<WaterLog | null>(
+    null,
+  );
+  const [quickAddPending, setQuickAddPending] = useState(false);
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
+  const activeQuery = useMemo(() => {
+    const resolved = resolveTrendQuery({
+      metric,
+      restoredQuery,
+      selectedRelativePeriod,
+    });
+    return metric === 'calories' || metric === 'weight'
+      ? { ...resolved, includeForecast: false }
+      : resolved;
+  }, [metric, restoredQuery, selectedRelativePeriod]);
   const cacheKey = useMemo(
     () => ANALYTICS_CACHE_KEYS.trend(JSON.stringify(activeQuery)),
     [activeQuery],
@@ -131,6 +178,16 @@ export default function TrendDetailScreen() {
   const load = useCallback(
     async (asRefresh = false) => {
       const requestId = ++trendRequestId.current;
+      const proteinRequestId = ++proteinTrendRequestId.current;
+      if (metric === 'calories') setCalorieContributors(null);
+      if (metric === 'macroComposition') {
+        setProteinTrendLoading(true);
+        setProteinTrend(null);
+      } else {
+        setProteinTrend(null);
+        setProteinTrendLoading(false);
+      }
+      if (isNutrientDetail) setNutrientComparisonTrend(null);
       dispatchTrend({ type: asRefresh ? 'refresh' : 'load', requestId });
       if (!asRefresh && userId !== null) {
         try {
@@ -155,7 +212,20 @@ export default function TrendDetailScreen() {
         }
       }
       try {
-        const replacement = await api.analytics.trend({ ...activeQuery });
+        let replacement = await api.analytics.trend({ ...activeQuery });
+        if (
+          (metric === 'calories' || metric === 'weight') &&
+          replacement.trackingMode === 'complex'
+        ) {
+          try {
+            replacement = await api.analytics.trend({
+              ...activeQuery,
+              includeForecast: true,
+            });
+          } catch {
+            // Forecast eligibility is independent; retain the healthy base trend.
+          }
+        }
         dispatchTrend({
           type: 'commit',
           requestId,
@@ -167,7 +237,110 @@ export default function TrendDetailScreen() {
             .write(userId, cacheKey, replacement)
             .catch(() => undefined);
         }
+        if (metric === 'macroComposition') {
+          try {
+            const { comparisonMetric: _comparisonMetric, ...proteinQuery } =
+              activeQuery;
+            void _comparisonMetric;
+            const protein = await api.analytics.trend({
+              ...proteinQuery,
+              primaryMetric: 'protein',
+            });
+            if (proteinRequestId === proteinTrendRequestId.current) {
+              setProteinTrend(protein);
+            }
+          } catch {
+            if (proteinRequestId === proteinTrendRequestId.current) {
+              setProteinTrend(null);
+            }
+          } finally {
+            if (proteinRequestId === proteinTrendRequestId.current) {
+              setProteinTrendLoading(false);
+            }
+          }
+        } else {
+          // The request generation and cleared sibling state were established
+          // before the primary replacement request began.
+        }
+        if (isNutrientDetail) {
+          const relatedMetric = replacement.relatedMetrics[0];
+          const requestId = ++relatedTrendRequestId.current;
+          const comparisonRequestId = ++nutrientComparisonRequestId.current;
+          setRelatedTrend(null);
+          setRelatedTrendError(null);
+          if (relatedMetric !== undefined) {
+            try {
+              const { comparisonMetric: _comparisonMetric, ...relatedQuery } =
+                activeQuery;
+              void _comparisonMetric;
+              const related = await api.analytics.trend({
+                ...relatedQuery,
+                primaryMetric: relatedMetric,
+              });
+              if (requestId === relatedTrendRequestId.current) {
+                setRelatedTrend(related);
+              }
+            } catch (cause) {
+              if (requestId === relatedTrendRequestId.current) {
+                setRelatedTrendError(errorMessage(cause));
+              }
+            }
+            try {
+              const { comparisonMetric: _comparisonMetric, ...nutrientQuery } =
+                activeQuery;
+              void _comparisonMetric;
+              const comparison = await api.analytics.trend({
+                ...nutrientQuery,
+                comparisonMetric: relatedMetric,
+              });
+              if (comparisonRequestId === nutrientComparisonRequestId.current) {
+                setNutrientComparisonTrend(comparison);
+              }
+            } catch {
+              if (comparisonRequestId === nutrientComparisonRequestId.current) {
+                setNutrientComparisonTrend(null);
+              }
+            }
+          }
+        } else {
+          relatedTrendRequestId.current += 1;
+          nutrientComparisonRequestId.current += 1;
+          setRelatedTrend(null);
+          setRelatedTrendError(null);
+          setNutrientComparisonTrend(null);
+        }
+        if (metric === 'hydration') {
+          try {
+            setRecentWaterLogs(
+              await api.waterLogs.list({
+                startDate: replacement.resolvedRange.startDate,
+                endDate: replacement.resolvedRange.endDate,
+              }),
+            );
+          } catch {
+            setRecentWaterLogs([]);
+          }
+        } else {
+          setRecentWaterLogs([]);
+        }
+        if (metric === 'calories' && replacement.trackingMode === 'complex') {
+          try {
+            setCalorieContributors(
+              await api.analytics.contributors(activeQuery, true),
+            );
+          } catch {
+            setCalorieContributors(null);
+          }
+        } else {
+          setCalorieContributors(null);
+        }
       } catch (cause) {
+        if (
+          metric === 'macroComposition' &&
+          proteinRequestId === proteinTrendRequestId.current
+        ) {
+          setProteinTrendLoading(false);
+        }
         dispatchTrend({
           type: 'failure',
           requestId,
@@ -175,12 +348,41 @@ export default function TrendDetailScreen() {
         });
       }
     },
-    [activeQuery, cacheKey, userId],
+    [activeQuery, cacheKey, isNutrientDetail, metric, userId],
   );
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const quickAdd = useCallback(async () => {
+    setQuickAddPending(true);
+    setQuickAddError(null);
+    try {
+      const created = await quickAddWater(api.waterLogs, new Date());
+      setQuickAddWaterLog(created);
+      await load(true);
+    } catch (cause) {
+      setQuickAddError(errorMessage(cause));
+    } finally {
+      setQuickAddPending(false);
+    }
+  }, [load]);
+
+  const undoQuickAdd = useCallback(async () => {
+    if (quickAddWaterLog === null) return;
+    setQuickAddPending(true);
+    setQuickAddError(null);
+    try {
+      await undoQuickAddWater(api.waterLogs, quickAddWaterLog.id);
+      setQuickAddWaterLog(null);
+      await load(true);
+    } catch (cause) {
+      setQuickAddError(errorMessage(cause));
+    } finally {
+      setQuickAddPending(false);
+    }
+  }, [load, quickAddWaterLog]);
 
   const dailyPoints = useMemo(
     () =>
@@ -195,6 +397,8 @@ export default function TrendDetailScreen() {
   );
   const presentation =
     trend === null ? null : coreTrendPresentation(metric, trend.aggregation);
+  const reportPeriods =
+    metric === 'loggingConsistency' ? ([30, 90] as const) : periods;
   const loggingHeatmapPoints = useMemo(
     () =>
       trend?.points.flatMap((point) => {
@@ -229,7 +433,8 @@ export default function TrendDetailScreen() {
     if (
       comparison === undefined ||
       comparison.primaryAxisDomain === null ||
-      comparison.comparisonAxisDomain === null
+      comparison.comparisonAxisDomain === null ||
+      comparison.strategy === 'incompatible'
     ) {
       return null;
     }
@@ -250,74 +455,58 @@ export default function TrendDetailScreen() {
 
   return (
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
-      <ScreenHeader title={definition.displayName} subtitle="Trends" />
-      {trend?.trackingMode === 'complex' ? (
-        <View className="flex-row gap-4">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Configure this Trend"
-            className="min-h-11 justify-center"
-            onPress={() =>
-              router.push({
-                pathname: '/trends/configure',
-                params: { query: trendQueryRouteParam(activeQuery) },
-              } as never)
-            }
-          >
-            <AppText variant="caption">Configure</AppText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Save this Trend as a view"
-            className="min-h-11 justify-center"
-            onPress={() =>
-              router.push({
-                pathname: '/trends/save-view',
-                params: { query: trendQueryRouteParam(activeQuery) },
-              } as never)
-            }
-          >
-            <AppText variant="caption">Save view</AppText>
-          </Pressable>
-          {metric !== 'weight' &&
-          metric !== 'hydration' &&
-          metric !== 'loggingConsistency' &&
-          metric !== 'macroComposition' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="View food contributors"
-              className="min-h-11 justify-center"
-              onPress={() =>
+      <TrendReportHeader
+        metricName={definition.displayName}
+        subtitle={
+          metric === 'calories'
+            ? 'Daily intake'
+            : metric === 'hydration'
+              ? 'Explicitly logged drinks only'
+              : undefined
+        }
+        trackingMode={trend?.trackingMode ?? 'simple'}
+        selectedPeriod={selectedRelativePeriod}
+        onSelectPeriod={setSelectedRelativePeriod}
+        periods={reportPeriods}
+        showPeriodControls={metric !== 'hydration'}
+        onOpenCustomRange={() =>
+          router.push({
+            pathname: '/trends/custom-range',
+            params: {
+              query: trendQueryRouteParam(activeQuery),
+              ...(savedViewId === undefined ? {} : { savedViewId }),
+            },
+          } as never)
+        }
+        onConfigure={
+          activeQuery.comparisonMetric === undefined
+            ? () =>
                 router.push({
-                  pathname: '/trends/contributors',
-                  params: { query: trendQueryRouteParam(activeQuery) },
+                  pathname: '/trends/configure',
+                  params: {
+                    query: trendQueryRouteParam(activeQuery),
+                    ...(savedViewId === undefined ? {} : { savedViewId }),
+                  },
                 } as never)
-              }
-            >
-              <AppText variant="caption">Food contributors</AppText>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-      <View className="flex-row gap-2">
-        {periods.map((period) => (
-          <Pressable
-            key={period}
-            accessibilityRole="button"
-            accessibilityState={{ selected: period === selectedRelativePeriod }}
-            className={`min-h-11 rounded-full px-4 py-3 ${period === selectedRelativePeriod ? 'bg-ink' : 'bg-module'}`}
-            onPress={() => setSelectedRelativePeriod(period)}
-          >
-            <AppText
-              className={
-                period === selectedRelativePeriod ? 'text-white' : 'text-ink'
-              }
-            >
-              {period}D
-            </AppText>
-          </Pressable>
-        ))}
-      </View>
+            : undefined
+        }
+        onSave={() =>
+          router.push({
+            pathname: '/trends/save-view',
+            params: {
+              query: trendQueryRouteParam(activeQuery),
+              ...(savedViewId === undefined ? {} : { savedViewId }),
+            },
+          } as never)
+        }
+        onBack={() => router.back()}
+        title={
+          activeQuery.comparisonMetric === undefined ? 'Trends' : 'Compare'
+        }
+        backLabel={
+          activeQuery.comparisonMetric === undefined ? '‹ Insights' : '‹ Trends'
+        }
+      />
       {trendResource.error === null ? null : (
         <ErrorState
           {...(trend === null ? {} : { title: 'Showing earlier analytics' })}
@@ -334,145 +523,307 @@ export default function TrendDetailScreen() {
         </AppText>
       ) : null}
       {trend !== null && trendResource.status !== 'loading' ? (
-        <View className="gap-3">
-          {trend.summary.numericDayCount === 0 &&
-          presentation !== 'macro' &&
-          presentation !== 'logging_heatmap' ? (
-            <View className="gap-1 rounded-app bg-module p-4">
-              <AppText variant="label">No numeric trend to chart</AppText>
-              <AppText variant="caption" muted>
-                Logged foods may still be present, but this metric has no
-                recorded values in the selected range. Missing values remain
-                gaps rather than zero.
-              </AppText>
-            </View>
-          ) : comparisonChart !== null ? (
-            <ComparisonChart
-              primary={dailyPoints}
-              comparison={comparisonChart.comparisonPoints}
-              strategy={comparisonChart.strategy}
-              primaryAxis={comparisonChart.primaryAxis}
-              comparisonAxis={comparisonChart.comparisonAxis}
-              width={Math.max(280, width - 40)}
-              accessibilityLabel={`${definition.displayName} and ${analyticsMetricForKey(comparisonChart.metric).displayName} comparison for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
-            />
-          ) : trend.forecast?.kind === 'available' ? (
-            <ForecastChart
-              historical={dailyPoints.map((point) => point.value)}
-              forecast={trend.forecast.points}
-              width={Math.max(280, width - 40)}
-              accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${trend.forecast.todayDate}`}
-            />
-          ) : presentation === 'macro' &&
-            trend.macroComposition !== undefined ? (
-            <View
-              accessible
-              accessibilityLabel="Macro composition from recorded food snapshots"
-              className="gap-2 rounded-app bg-module p-4"
-            >
-              <AppText variant="label">Recorded macro composition</AppText>
-              <MacroChart
-                values={trend.macroComposition}
-                accessibilityLabel="Macro composition from recorded food snapshots"
+        metric === 'calories' ? (
+          <CaloriesReport
+            trend={trend}
+            width={width}
+            simple={trend.trackingMode === 'simple'}
+            selectedPeriod={selectedRelativePeriod}
+            onSelectPeriod={setSelectedRelativePeriod}
+            onOpenCustomRange={() =>
+              router.push({
+                pathname: '/trends/custom-range',
+                params: {
+                  query: trendQueryRouteParam(activeQuery),
+                  ...(savedViewId === undefined ? {} : { savedViewId }),
+                },
+              } as never)
+            }
+            onOpenContributors={() =>
+              router.push({
+                pathname: '/trends/contributors',
+                params: { query: trendQueryRouteParam(activeQuery) },
+              } as never)
+            }
+            contributors={calorieContributors}
+            showPeriodControls={false}
+          />
+        ) : metric === 'weight' ? (
+          <WeightReport
+            trend={trend}
+            width={width}
+            simple={trend.trackingMode === 'simple'}
+            selectedPeriod={selectedRelativePeriod}
+            onSelectPeriod={setSelectedRelativePeriod}
+            onOpenCustomRange={() =>
+              router.push({
+                pathname: '/trends/custom-range',
+                params: {
+                  query: trendQueryRouteParam(activeQuery),
+                  ...(savedViewId === undefined ? {} : { savedViewId }),
+                },
+              } as never)
+            }
+            showPeriodControls={false}
+          />
+        ) : metric === 'macroComposition' ? (
+          <MacrosReport
+            trend={trend}
+            width={width}
+            simple={trend.trackingMode === 'simple'}
+            proteinTrend={proteinTrend}
+            proteinTrendLoading={proteinTrendLoading}
+            selectedPeriod={selectedRelativePeriod}
+            onSelectPeriod={setSelectedRelativePeriod}
+            onOpenCustomRange={() =>
+              router.push({
+                pathname: '/trends/custom-range',
+                params: {
+                  query: trendQueryRouteParam(activeQuery),
+                  ...(savedViewId === undefined ? {} : { savedViewId }),
+                },
+              } as never)
+            }
+            onOpenProtein={() => router.push('/trends/protein' as never)}
+            showPeriodControls={false}
+          />
+        ) : metric === 'loggingConsistency' ? (
+          <LoggingConsistencyReport
+            trend={trend}
+            simple={trend.trackingMode === 'simple'}
+            selectedPeriod={selectedRelativePeriod}
+            onSelectPeriod={setSelectedRelativePeriod}
+            onOpenCustomRange={() =>
+              router.push({
+                pathname: '/trends/custom-range',
+                params: {
+                  query: trendQueryRouteParam(activeQuery),
+                  ...(savedViewId === undefined ? {} : { savedViewId }),
+                },
+              } as never)
+            }
+            showPeriodControls={false}
+          />
+        ) : metric === 'hydration' ? (
+          <HydrationReport
+            trend={trend}
+            width={width}
+            onLogWater={() => void quickAdd()}
+            onOpenWaterLogger={() => router.push('/water-log' as never)}
+            quickAddPending={quickAddPending}
+            quickAddError={quickAddError}
+            quickAddUndo={
+              quickAddWaterLog === null ? undefined : () => void undoQuickAdd()
+            }
+            recentWaterLogs={recentWaterLogs}
+          />
+        ) : (
+          <View className="gap-3">
+            {trend.summary.numericDayCount === 0 &&
+            presentation !== 'macro' &&
+            presentation !== 'logging_heatmap' ? (
+              <View className="gap-1 rounded-app bg-module p-4">
+                <AppText variant="label">No numeric trend to chart</AppText>
+                <AppText variant="caption" muted>
+                  Logged foods may still be present, but this metric has no
+                  recorded values in the selected range. Missing values remain
+                  gaps rather than zero.
+                </AppText>
+              </View>
+            ) : comparisonChart !== null ? (
+              <ComparisonTrendReport
+                primaryMetric={metric}
+                comparisonMetric={comparisonChart.metric}
+                strategy={comparisonChart.strategy}
+                primary={dailyPoints}
+                comparison={comparisonChart.comparisonPoints}
+                primaryAxis={comparisonChart.primaryAxis}
+                comparisonAxis={comparisonChart.comparisonAxis}
+                primaryAverage={trend.summary.average}
+                width={width}
               />
-              <AppText>
-                Protein: {trend.macroComposition.protein ?? 'Unknown'} g
-              </AppText>
-              <AppText>
-                Carbohydrates: {trend.macroComposition.carbs ?? 'Unknown'} g
-              </AppText>
-              <AppText>
-                Fat: {trend.macroComposition.fat ?? 'Unknown'} g
-              </AppText>
-            </View>
-          ) : presentation === 'logging_heatmap' ? (
-            <HeatmapChart
-              points={loggingHeatmapPoints}
-              colorForState={loggingHeatmapColor}
-              accessibilityLabel="Logging consistency by day"
-            />
-          ) : presentation === 'bars_with_trend' ? (
-            <BarTrendChart
-              data={dailyPoints}
-              width={Math.max(280, width - 40)}
-              color={metric === 'hydration' ? '#2F80ED' : '#C9242D'}
-              trendValues={trend.rollingTrend?.values}
-              reference={referenceValue(trend)}
-              accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
-            />
-          ) : (
-            <LineTrendChart
-              data={dailyPoints}
-              width={Math.max(280, width - 40)}
-              color="#C9242D"
-              trendValues={trend.rollingTrend?.values}
-              reference={referenceValue(trend)}
-              referenceRange={referenceRange(trend)}
-              showRawPoints={presentation === 'weight_line'}
-              accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
-            />
-          )}
-          <AppText variant="caption" muted>
-            {trend.summary.average === null
-              ? 'No recorded values in this period.'
-              : `Average ${trend.summary.average.toFixed(1)} ${definition.unit}`}
-          </AppText>
-          {trend.forecast?.kind === 'available' ? (
+            ) : trend.forecast?.kind === 'available' ? (
+              <ForecastChart
+                historical={dailyPoints.map((point) => point.value)}
+                forecast={trend.forecast.points}
+                width={Math.max(280, width - 40)}
+                accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${trend.forecast.todayDate}`}
+              />
+            ) : presentation === 'macro' &&
+              trend.macroComposition !== undefined ? (
+              <View
+                accessible
+                accessibilityLabel="Macro composition from recorded food snapshots"
+                className="gap-2 rounded-app bg-module p-4"
+              >
+                <AppText variant="label">Recorded macro composition</AppText>
+                <MacroChart
+                  values={trend.macroComposition}
+                  accessibilityLabel="Macro composition from recorded food snapshots"
+                />
+                <AppText>
+                  Protein: {trend.macroComposition.protein ?? 'Unknown'} g
+                </AppText>
+                <AppText>
+                  Carbohydrates: {trend.macroComposition.carbs ?? 'Unknown'} g
+                </AppText>
+                <AppText>
+                  Fat: {trend.macroComposition.fat ?? 'Unknown'} g
+                </AppText>
+              </View>
+            ) : presentation === 'logging_heatmap' ? (
+              <HeatmapChart
+                points={loggingHeatmapPoints}
+                colorForState={loggingHeatmapColor}
+                accessibilityLabel="Logging consistency by day"
+              />
+            ) : presentation === 'bars_with_trend' ? (
+              <BarTrendChart
+                data={dailyPoints}
+                width={Math.max(280, width - 40)}
+                color="#C9242D"
+                trendValues={trend.rollingTrend?.values}
+                reference={referenceValue(trend)}
+                accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+              />
+            ) : (
+              <LineTrendChart
+                data={dailyPoints}
+                width={Math.max(280, width - 40)}
+                color="#C9242D"
+                trendValues={trend.rollingTrend?.values}
+                reference={referenceValue(trend)}
+                referenceRange={referenceRange(trend)}
+                showRawPoints={presentation === 'weight_line'}
+                accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+              />
+            )}
             <AppText variant="caption" muted>
-              Seven-day estimate based on stable recorded history. The shaded
-              range shows increasing uncertainty.
+              {trend.summary.average === null
+                ? 'No recorded values in this period.'
+                : `Average ${trend.summary.average.toFixed(1)} ${definition.unit}`}
             </AppText>
-          ) : trend.forecast?.kind === 'unavailable' &&
-            activeQuery.includeForecast === true ? (
-            <AppText variant="caption" muted>
-              A seven-day estimate is unavailable until enough stable history is
-              recorded.
-            </AppText>
-          ) : null}
-          {trend.trackingMode === 'complex' ? (
-            <View className="gap-1">
-              {referenceMessage(trend.reference) === null ? null : (
-                <AppText variant="caption" muted>
-                  {referenceMessage(trend.reference)}
-                </AppText>
-              )}
-              {trend.interpretation === null ? null : (
-                <AppText variant="caption" muted>
-                  {trend.interpretation.message}
-                </AppText>
-              )}
-              {metricCoverageMessage(metricCoverage) === null ? null : (
-                <AppText variant="caption" muted>
-                  {metricCoverageMessage(metricCoverage)}
-                </AppText>
-              )}
-              {trend.relatedMetrics.length === 0 ? null : (
-                <View className="gap-2 pt-2">
+            {trend.forecast?.kind === 'available' ? (
+              <AppText variant="caption" muted>
+                Seven-day estimate based on stable recorded history. The shaded
+                range shows increasing uncertainty.
+              </AppText>
+            ) : trend.forecast?.kind === 'unavailable' &&
+              activeQuery.includeForecast === true ? (
+              <AppText variant="caption" muted>
+                A seven-day estimate is unavailable until enough stable history
+                is recorded.
+              </AppText>
+            ) : null}
+            {isNutrientDetail ? (
+              <>
+                <NutrientGoalDepthCard
+                  metricName={definition.displayName}
+                  unit={definition.unit}
+                  average={trend.summary.average}
+                  reference={trend.reference}
+                  metricCoverage={metricCoverage}
+                />
+                {trend.metricDataSummary?.state === 'sparse' ? (
+                  <NutrientSparseState
+                    metricName={definition.displayName}
+                    recorded={trend.metricDataSummary.recorded}
+                    total={
+                      trend.metricDataSummary.recorded +
+                      trend.metricDataSummary.partial +
+                      trend.metricDataSummary.unknown
+                    }
+                  />
+                ) : trend.metricDataSummary === undefined ? null : (
+                  <NutrientDataState
+                    metricName={definition.displayName}
+                    unit={definition.unit}
+                    state={trend.metricDataSummary.state}
+                    recorded={trend.metricDataSummary.recorded}
+                    total={
+                      trend.metricDataSummary.recorded +
+                      trend.metricDataSummary.partial +
+                      trend.metricDataSummary.unknown
+                    }
+                  />
+                )}
+                {trend.relatedMetrics[0] === undefined ? null : (
+                  <NutrientPairReport
+                    primaryName={definition.displayName}
+                    primaryReference={trend.reference}
+                    relatedName={
+                      analyticsMetricForKey(trend.relatedMetrics[0]).displayName
+                    }
+                    relatedMetric={trend.relatedMetrics[0]}
+                    relatedTrend={relatedTrend}
+                    comparisonTrend={nutrientComparisonTrend}
+                    relatedError={relatedTrendError}
+                    onOpenRelated={(relatedMetric) => {
+                      const {
+                        comparisonMetric: _comparisonMetric,
+                        ...relatedQuery
+                      } = activeQuery;
+                      void _comparisonMetric;
+                      router.push({
+                        pathname: `/trends/${relatedMetric}`,
+                        params: {
+                          query: trendQueryRouteParam({
+                            ...relatedQuery,
+                            primaryMetric: relatedMetric,
+                          }),
+                        },
+                      } as never);
+                    }}
+                  />
+                )}
+                {metric === 'leucine' ? <LeucineDetail trend={trend} /> : null}
+              </>
+            ) : null}
+            {trend.trackingMode === 'complex' ? (
+              <View className="gap-1">
+                {referenceMessage(trend.reference) === null ? null : (
                   <AppText variant="caption" muted>
-                    Related metrics
+                    {referenceMessage(trend.reference)}
                   </AppText>
-                  <View className="flex-row flex-wrap gap-2">
-                    {trend.relatedMetrics.map((relatedMetric) => (
-                      <Pressable
-                        key={relatedMetric}
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ${analyticsMetricForKey(relatedMetric).displayName} trend`}
-                        className="min-h-11 rounded-full bg-module px-4 py-3"
-                        onPress={() =>
-                          router.push(`/trends/${relatedMetric}` as never)
-                        }
-                      >
-                        <AppText variant="caption">
-                          {analyticsMetricForKey(relatedMetric).displayName}
-                        </AppText>
-                      </Pressable>
-                    ))}
+                )}
+                {trend.interpretation === null ? null : (
+                  <AppText variant="caption" muted>
+                    {trend.interpretation.message}
+                  </AppText>
+                )}
+                {metricCoverageMessage(metricCoverage) === null ? null : (
+                  <AppText variant="caption" muted>
+                    {metricCoverageMessage(metricCoverage)}
+                  </AppText>
+                )}
+                {trend.relatedMetrics.length === 0 ? null : (
+                  <View className="gap-2 pt-2">
+                    <AppText variant="caption" muted>
+                      Related metrics
+                    </AppText>
+                    <View className="flex-row flex-wrap gap-2">
+                      {trend.relatedMetrics.map((relatedMetric) => (
+                        <Pressable
+                          key={relatedMetric}
+                          accessibilityRole="button"
+                          accessibilityLabel={`View ${analyticsMetricForKey(relatedMetric).displayName} trend`}
+                          className="min-h-11 rounded-full bg-module px-4 py-3"
+                          onPress={() =>
+                            router.push(`/trends/${relatedMetric}` as never)
+                          }
+                        >
+                          <AppText variant="caption">
+                            {analyticsMetricForKey(relatedMetric).displayName}
+                          </AppText>
+                        </Pressable>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              )}
-            </View>
-          ) : null}
-        </View>
+                )}
+              </View>
+            ) : null}
+          </View>
+        )
       ) : null}
     </AppScreen>
   );

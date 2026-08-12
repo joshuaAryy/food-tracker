@@ -25,9 +25,10 @@ export function validateSavedViewConfiguration(
     !primaryDefinition.supportedAggregations.includes(
       configuration.aggregation,
     ) ||
-    !primaryDefinition.supportedCoverageFilters.includes(
-      configuration.coverageFilter,
-    )
+    (primaryDefinition.supportedCoverageFilters.length > 0 &&
+      !primaryDefinition.supportedCoverageFilters.includes(
+        configuration.coverageFilter,
+      ))
   ) {
     throw new AppError(
       400,

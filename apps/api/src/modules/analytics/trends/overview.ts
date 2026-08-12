@@ -212,8 +212,17 @@ function periodSummary(
   const loggedDayCount = days.filter((day) => day.logged).length;
   const streak = calculateStreak(historicalStreakDays(context), context.today);
   const currentDay = days.find((day) => day.date === context.today);
+  const todayLogs = context.logs.filter(
+    (log) => localDate(log.loggedAt, context.timezone) === context.today,
+  );
+  const todayCalories = classifyMetricData(
+    todayLogs.map((log) => asNumber(log.calories)),
+  );
+  const todayProtein = classifyMetricData(
+    todayLogs.map((log) => asNumber(log.protein)),
+  );
   const interpretation =
-    eligible.total === 0
+    eligible.total < 7
       ? 'first_use'
       : consistency === 100
         ? 'consistent'
@@ -222,6 +231,18 @@ function periodSummary(
           : 'needs_attention';
   return {
     resolvedRange: { startDate: context.startDate, endDate: context.endDate },
+    todaySoFar: {
+      date: context.today,
+      mealCount: todayLogs.length,
+      calories: {
+        value: todayCalories.value,
+        state: todayCalories.state,
+      },
+      protein: {
+        value: todayProtein.value,
+        state: todayProtein.state,
+      },
+    },
     loggedDayCount,
     eligibleLoggedDayCount: eligible.logged,
     eligibleTotalDayCount: eligible.total,
@@ -457,6 +478,7 @@ function hydration(
   const goal = context.base[1]?.dailyWaterGoalMl ?? 2000;
   return {
     today: context.today,
+    timezone: context.timezone,
     total: resolvedTotal,
     goal,
     status:

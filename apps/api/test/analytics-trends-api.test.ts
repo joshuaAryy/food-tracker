@@ -331,6 +331,114 @@ describe('canonical analytics trends API', () => {
         }),
       ]),
     );
+    expect(response.body.data.weightFacts).toMatchObject({
+      current: 174.2,
+      change: null,
+      direction: 'unknown',
+      target: null,
+      goalPath: 'no_goal',
+      recordedDayCount: 1,
+      eligibleDayCount: 7,
+    });
+  });
+
+  it('returns an authoritative amino-acid profile for Leucine detail', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Amino acid snapshot one',
+        mealType: 'breakfast',
+        calories: 200,
+        protein: 20,
+        loggedAt: new Date(recentLocalDateTime(2)),
+        nutrients: {
+          create: [
+            { nutrientKey: 'leucine', amount: 2.8, unit: 'g' },
+            { nutrientKey: 'histidine', amount: 1.2, unit: 'g' },
+          ],
+        },
+      },
+    });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Amino acid snapshot two',
+        mealType: 'lunch',
+        calories: 200,
+        protein: 20,
+        loggedAt: new Date(recentLocalDateTime(1)),
+        nutrients: {
+          create: [{ nutrientKey: 'leucine', amount: 2.4, unit: 'g' }],
+        },
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'leucine' })
+      .expect(200);
+
+    expect(response.body.data.aminoAcidProfile).toMatchObject({
+      recordedDayCount: 2,
+      entries: expect.arrayContaining([
+        expect.objectContaining({
+          metric: 'leucine',
+          average: 2.6,
+          reference: {
+            kind: 'minimum',
+            value: 2.6,
+            unit: 'g',
+            source: 'default',
+          },
+          percentage: 100,
+          status: 'meets_minimum',
+        }),
+        expect.objectContaining({
+          metric: 'histidine',
+          average: 1.2,
+          status: 'meets_minimum',
+        }),
+      ]),
+    });
+  });
+
+  it('sums amino-acid snapshots by tracking day before averaging the profile', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    for (const [foodName, amount] of [
+      ['Amino breakfast', 2.8],
+      ['Amino lunch', 1.2],
+      ['Amino next day', 2.4],
+    ] as const) {
+      await prisma.foodLog.create({
+        data: {
+          userId: MOCK_USER_ID,
+          foodName,
+          mealType: 'breakfast',
+          calories: 200,
+          protein: 20,
+          loggedAt: new Date(
+            recentLocalDateTime(foodName === 'Amino next day' ? 1 : 2),
+          ),
+          nutrients: {
+            create: [{ nutrientKey: 'leucine', amount, unit: 'g' }],
+          },
+        },
+      });
+    }
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({ ...caloriesQuery, primaryMetric: 'leucine' })
+      .expect(200);
+
+    expect(
+      response.body.data.aminoAcidProfile.entries.find(
+        (entry: { metric: string }) => entry.metric === 'leucine',
+      ).average,
+    ).toBe(3.2);
   });
 
   it('returns logging consistency from meal behavior, not nutrient availability', async () => {
@@ -376,6 +484,13 @@ describe('canonical analytics trends API', () => {
         }),
       ]),
     );
+    expect(response.body.data.loggingSummary).toMatchObject({
+      complete: 1,
+      partial: 1,
+      unlogged: 5,
+      inProgress: 1,
+      currentDayPhase: 'in_progress',
+    });
   });
 
   it('returns allowlisted dual-axis comparison data with fixed full-period domains', async () => {
@@ -417,6 +532,47 @@ describe('canonical analytics trends API', () => {
     expect(response.body.data.comparison.points).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ date: recentLocalDate(6), value: 174.2 }),
+      ]),
+    );
+  });
+
+  it('keeps the approved Calories and Weight comparison reachable through the API', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'complex' });
+    await prisma.foodLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        foodName: 'Calories comparison snapshot',
+        mealType: 'breakfast',
+        calories: 1846,
+        protein: 0,
+        loggedAt: new Date(recentLocalDateTime(3)),
+      },
+    });
+    await prisma.weightLog.create({
+      data: {
+        userId: MOCK_USER_ID,
+        weightLb: 129.4,
+        loggedAt: new Date(recentLocalDateTime(3)),
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/analytics/trends/query')
+      .send({
+        ...caloriesQuery,
+        primaryMetric: 'calories',
+        comparisonMetric: 'weight',
+      })
+      .expect(200);
+
+    expect(response.body.data.comparison).toMatchObject({
+      strategy: 'dual_axis',
+      metric: 'weight',
+    });
+    expect(response.body.data.comparison.points).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ date: recentLocalDate(3), value: 129.4 }),
       ]),
     );
   });
@@ -552,6 +708,11 @@ describe('canonical analytics trends API', () => {
 
     expect(response.body.data.macroComposition).toEqual({
       protein: 30,
+      carbs: null,
+      fat: null,
+    });
+    expect(response.body.data.macroPercentages).toEqual({
+      protein: null,
       carbs: null,
       fat: null,
     });

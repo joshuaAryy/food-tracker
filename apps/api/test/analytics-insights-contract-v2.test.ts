@@ -42,6 +42,12 @@ function overview() {
       fetchedAt: '2026-08-11T12:00:00.000Z',
       data: {
         resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
+        todaySoFar: {
+          date: '2026-08-07',
+          mealCount: 2,
+          calories: { value: 1846, state: 'recorded' as const },
+          protein: { value: 149, state: 'recorded' as const },
+        },
         loggedDayCount: 2,
         eligibleLoggedDayCount: 2,
         eligibleTotalDayCount: 7,
@@ -131,6 +137,7 @@ function overview() {
       fetchedAt: '2026-08-11T12:00:00.000Z',
       data: {
         today: '2026-08-07',
+        timezone: 'America/New_York',
         total: 1630,
         goal: 2000,
         status: 'below_goal' as const,

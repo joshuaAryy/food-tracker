@@ -5,25 +5,35 @@ import {
   type AnalyticsContributorsResponse,
 } from '@food-tracker/shared';
 import { AppScreen } from '@/components/app-screen';
-import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { ContributorsSheet } from '@/components/analytics/nutrients/contributors-sheet';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  commitAnalyticsOptionalResource,
+  failAnalyticsOptionalResource,
+  initialAnalyticsOptionalResource,
+  startAnalyticsOptionalResource,
+  type AnalyticsOptionalResource,
+} from '@/lib/analytics/analytics-optional-resource';
 import { trendQueryFromRouteParam } from '@/lib/analytics/saved-view-configuration';
 
 export default function ContributorsScreen() {
   const { query: rawQuery } = useLocalSearchParams<{ query?: string }>();
   const query = useMemo(() => trendQueryFromRouteParam(rawQuery), [rawQuery]);
-  const [contributors, setContributors] =
-    useState<AnalyticsContributorsResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [resource, setResource] = useState<
+    AnalyticsOptionalResource<AnalyticsContributorsResponse>
+  >(initialAnalyticsOptionalResource);
   const load = useCallback(async () => {
     if (query === null) return;
-    setError(null);
+    setResource((current) => startAnalyticsOptionalResource(current));
     try {
-      setContributors(await api.analytics.contributors(query, true));
+      const next = await api.analytics.contributors(query, true);
+      setResource(commitAnalyticsOptionalResource(next));
     } catch (cause) {
-      setError(errorMessage(cause));
+      setResource((current) =>
+        failAnalyticsOptionalResource(current, errorMessage(cause)),
+      );
     }
   }, [query]);
   useEffect(() => {
@@ -43,30 +53,14 @@ export default function ContributorsScreen() {
         title="Food contributors"
         subtitle={definition.displayName}
       />
-      {error === null ? null : (
-        <ErrorState message={error} onRetry={() => void load()} />
-      )}
-      {contributors === null ? (
-        <AppText muted>Loading contributors…</AppText>
-      ) : (
-        <>
-          <AppText muted>
-            Percentages use recorded {definition.displayName} only.
-          </AppText>
-          {contributors.contributors.map((contributor) => (
-            <AppText key={contributor.foodName}>
-              {contributor.foodName}: {contributor.value.toFixed(1)}{' '}
-              {definition.unit} ({Math.round(contributor.percentage * 100)}%)
-            </AppText>
-          ))}
-          {contributors.remainder === null ? null : (
-            <AppText muted>
-              Other recorded foods: {contributors.remainder.value.toFixed(1)}{' '}
-              {definition.unit}
-            </AppText>
-          )}
-        </>
-      )}
+      <ContributorsSheet
+        metricName={definition.displayName}
+        unit={definition.unit}
+        data={resource.data}
+        loading={resource.status === 'loading'}
+        error={resource.error}
+        onRetry={() => void load()}
+      />
     </AppScreen>
   );
 }

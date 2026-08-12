@@ -98,7 +98,51 @@ describe('canonical Insights transport and overview fault boundaries', () => {
     });
   });
 
-  it('keeps core trend failures report-level for every metric until R10 route integration', async () => {
+  it('isolates a failed core section in the v2 transport contract', async () => {
+    const context = {} as ReturnType<
+      NonNullable<InsightsRouteDependencies['createTrendRequestContext']>
+    >;
+    const app = express();
+    app.use(
+      requestContext({ createRequestId: () => 'req_v2_section_failure' }),
+    );
+    app.use((_request, response, next) => {
+      response.locals.userId = '00000000-0000-0000-0000-000000000001';
+      next();
+    });
+    app.use(
+      '/api/v1/analytics/insights',
+      createInsightsRouter({
+        currentTrackingMode: async () => 'simple',
+        createTrendRequestContext: () => context,
+        computeCanonicalTrend: async (_userId, query) => {
+          if (query.primaryMetric === 'hydration') {
+            throw new Error('hydration calculator failed');
+          }
+          return trend(query.primaryMetric);
+        },
+        computeOverview: async () => failedOverview(),
+      }),
+    );
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .get('/api/v1/analytics/insights?period=week&contractVersion=2')
+      .expect(200);
+
+    expect(response.body.data.contractVersion).toBe(2);
+    expect(response.body.data.sections.hydration).toEqual({
+      status: 'failed',
+      code: 'section_unavailable',
+      retryable: true,
+    });
+    expect(response.body.data.sections.calories).toMatchObject({
+      status: 'available',
+      data: { primaryMetric: 'calories' },
+    });
+  });
+
+  it('isolates every core section failure in the v2 response while healthy siblings survive', async () => {
     for (const failingMetric of ANALYTICS_INSIGHTS_SECTION_KEYS) {
       const context = {} as ReturnType<
         NonNullable<InsightsRouteDependencies['createTrendRequestContext']>
@@ -128,16 +172,19 @@ describe('canonical Insights transport and overview fault boundaries', () => {
       app.use(errorHandler);
 
       const response = await request(app)
-        .get('/api/v1/analytics/insights?period=week')
-        .expect(500);
+        .get('/api/v1/analytics/insights?period=week&contractVersion=2')
+        .expect(200);
 
-      expect(response.body).toEqual({
-        success: false,
-        error: {
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'The request could not be completed.',
-          details: {},
-        },
+      expect(response.body.data.sections[failingMetric]).toEqual({
+        status: 'failed',
+        code: 'section_unavailable',
+        retryable: true,
+      });
+      const healthyMetric =
+        failingMetric === 'calories' ? 'protein' : 'calories';
+      expect(response.body.data.sections[healthyMetric]).toMatchObject({
+        status: 'available',
+        data: { primaryMetric: healthyMetric },
       });
     }
   });

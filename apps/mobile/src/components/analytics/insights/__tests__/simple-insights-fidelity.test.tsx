@@ -28,6 +28,12 @@ function overview(): AnalyticsOverviewResultMap {
       fetchedAt,
       data: {
         resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
+        todaySoFar: {
+          date: '2026-08-07',
+          mealCount: 2,
+          calories: { value: 1846, state: 'recorded' },
+          protein: { value: 149, state: 'recorded' },
+        },
         loggedDayCount: 2,
         eligibleLoggedDayCount: 2,
         eligibleTotalDayCount: 5,
@@ -117,6 +123,7 @@ function overview(): AnalyticsOverviewResultMap {
       fetchedAt,
       data: {
         today: '2026-08-07',
+        timezone: 'America/New_York',
         total: 1630,
         goal: 2000,
         status: 'below_goal',

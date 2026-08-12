@@ -1,4 +1,3 @@
-import type { AnalyticsOverviewMacros } from '@food-tracker/shared';
 import { Pressable, useWindowDimensions, View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';

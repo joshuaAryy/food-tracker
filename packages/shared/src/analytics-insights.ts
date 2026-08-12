@@ -85,6 +85,12 @@ const overviewReferenceNoneReasonSchema = z.enum([
 
 export type AnalyticsOverviewPeriodSummary = {
   resolvedRange: { startDate: string; endDate: string };
+  todaySoFar: {
+    date: string;
+    mealCount: number;
+    calories: { value: number | null; state: MetricDataState };
+    protein: { value: number | null; state: MetricDataState };
+  };
   loggedDayCount: number;
   eligibleLoggedDayCount: number;
   eligibleTotalDayCount: number;
@@ -205,6 +211,7 @@ export type AnalyticsOverviewNutrientHighlights = {
 
 export type AnalyticsOverviewHydration = {
   today: string;
+  timezone: string;
   total: number | null;
   goal: number;
   status: 'below_goal' | 'goal_met' | 'unknown';
@@ -293,11 +300,39 @@ const overviewStreakSchema = z.strictObject({
   longestDays: z.number().int().nonnegative(),
 });
 
+const overviewTodayMetricSchema = z
+  .strictObject({
+    value: analyticsNumberSchema.nullable(),
+    state: metricDataStateSchema,
+  })
+  .superRefine((metric, context) => {
+    if (metric.state === 'unknown' && metric.value !== null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Unknown today metrics cannot include a value.',
+        path: ['value'],
+      });
+    }
+    if (metric.state === 'recorded' && metric.value === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Recorded today metrics require a value.',
+        path: ['value'],
+      });
+    }
+  });
+
 export const analyticsOverviewPeriodSummarySchema = z
   .strictObject({
     resolvedRange: z.strictObject({
       startDate: analyticsDateSchema,
       endDate: analyticsDateSchema,
+    }),
+    todaySoFar: z.strictObject({
+      date: analyticsDateSchema,
+      mealCount: z.number().int().nonnegative(),
+      calories: overviewTodayMetricSchema,
+      protein: overviewTodayMetricSchema,
     }),
     loggedDayCount: z.number().int().nonnegative(),
     eligibleLoggedDayCount: z.number().int().nonnegative(),
@@ -660,6 +695,7 @@ export const analyticsOverviewNutrientHighlightsSchema = z.strictObject({
 export const analyticsOverviewHydrationSchema = z
   .strictObject({
     today: analyticsDateSchema,
+    timezone: z.string().min(1),
     total: analyticsNumberSchema.nonnegative().nullable(),
     goal: analyticsNumberSchema.positive(),
     status: z.enum(['below_goal', 'goal_met', 'unknown']),

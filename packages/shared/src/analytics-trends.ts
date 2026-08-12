@@ -21,6 +21,15 @@ export const METRIC_DATA_STATES = ['recorded', 'partial', 'unknown'] as const;
 export type LoggingDayState = (typeof LOGGING_DAY_STATES)[number];
 export type LoggingDayPhase = (typeof LOGGING_DAY_PHASES)[number];
 export type MetricDataState = (typeof METRIC_DATA_STATES)[number];
+export const ANALYTICS_METRIC_DATA_SUMMARY_STATES = [
+  'no_food_logs',
+  'not_recorded',
+  'recorded_zero',
+  'sparse',
+  'available',
+] as const;
+export type AnalyticsMetricDataSummaryState =
+  (typeof ANALYTICS_METRIC_DATA_SUMMARY_STATES)[number];
 
 export const loggingDayStateSchema = z.enum(LOGGING_DAY_STATES);
 export const loggingDayPhaseSchema = z.enum(LOGGING_DAY_PHASES);
@@ -185,6 +194,68 @@ export interface CanonicalTrendResponse {
     protein: number | null;
     carbs: number | null;
     fat: number | null;
+  };
+  macroPercentages?: {
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
+  };
+  macroAverageEnergy?: number | null;
+  macroDailyMix?: {
+    date: string;
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
+  }[];
+  weightFacts?: {
+    current: number | null;
+    change: number | null;
+    direction: 'up' | 'down' | 'unchanged' | 'unknown';
+    target: number | null;
+    goalPath:
+      | 'moving_toward'
+      | 'moving_away'
+      | 'at_goal'
+      | 'no_goal'
+      | 'unknown';
+    recordedDayCount?: number;
+    eligibleDayCount?: number;
+  };
+  loggingSummary?: {
+    complete: number;
+    partial: number;
+    unlogged: number;
+    inProgress: number;
+    consistency: number | null;
+    currentDayPhase: LoggingDayPhase;
+    mealCoverage: {
+      date: string;
+      breakfast: boolean;
+      lunch: boolean;
+      dinner: boolean;
+      snack: boolean;
+    }[];
+  };
+  aminoAcidProfile?: {
+    recordedDayCount: number;
+    entries: {
+      metric: AnalyticsMetricKey;
+      average: number | null;
+      reference: AnalyticsReference;
+      percentage: number | null;
+      status: 'below_minimum' | 'meets_minimum' | 'unknown';
+    }[];
+  };
+  metricDataSummary?: {
+    recorded: number;
+    partial: number;
+    unknown: number;
+    state: AnalyticsMetricDataSummaryState;
+  };
+  calorieRangeSummary?: {
+    insideRangeDayCount: number;
+    eligibleDayCount: number;
+    status: 'inside_usual_range' | 'outside_usual_range' | 'insufficient_data';
   };
 }
 
@@ -362,6 +433,99 @@ export const canonicalTrendResponseSchema = z.object({
       protein: analyticsNumberSchema.nullable(),
       carbs: analyticsNumberSchema.nullable(),
       fat: analyticsNumberSchema.nullable(),
+    })
+    .optional(),
+  macroPercentages: z
+    .object({
+      protein: analyticsNumberSchema.nullable(),
+      carbs: analyticsNumberSchema.nullable(),
+      fat: analyticsNumberSchema.nullable(),
+    })
+    .optional(),
+  macroAverageEnergy: analyticsNumberSchema.nullable().optional(),
+  macroDailyMix: z
+    .array(
+      z.object({
+        date: analyticsDateSchema,
+        protein: analyticsNumberSchema.nullable(),
+        carbs: analyticsNumberSchema.nullable(),
+        fat: analyticsNumberSchema.nullable(),
+      }),
+    )
+    .optional(),
+  weightFacts: z
+    .object({
+      current: analyticsNumberSchema.nullable(),
+      change: analyticsNumberSchema.nullable(),
+      direction: z.enum(['up', 'down', 'unchanged', 'unknown']),
+      target: analyticsNumberSchema.nullable(),
+      goalPath: z.enum([
+        'moving_toward',
+        'moving_away',
+        'at_goal',
+        'no_goal',
+        'unknown',
+      ]),
+      recordedDayCount: z.number().int().nonnegative().optional(),
+      eligibleDayCount: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+  loggingSummary: z
+    .object({
+      complete: z.number().int().nonnegative(),
+      partial: z.number().int().nonnegative(),
+      unlogged: z.number().int().nonnegative(),
+      inProgress: z.number().int().nonnegative(),
+      consistency: analyticsNumberSchema.min(0).max(100).nullable(),
+      currentDayPhase: loggingDayPhaseSchema,
+      mealCoverage: z.array(
+        z.object({
+          date: analyticsDateSchema,
+          breakfast: z.boolean(),
+          lunch: z.boolean(),
+          dinner: z.boolean(),
+          snack: z.boolean(),
+        }),
+      ),
+    })
+    .optional(),
+  aminoAcidProfile: z
+    .object({
+      recordedDayCount: z.number().int().nonnegative(),
+      entries: z.array(
+        z.object({
+          metric: analyticsMetricKeySchema,
+          average: analyticsNumberSchema.nullable(),
+          reference: analyticsReferenceSchema,
+          percentage: analyticsNumberSchema.nullable(),
+          status: z.enum(['below_minimum', 'meets_minimum', 'unknown']),
+        }),
+      ),
+    })
+    .optional(),
+  metricDataSummary: z
+    .object({
+      recorded: z.number().int().nonnegative(),
+      partial: z.number().int().nonnegative(),
+      unknown: z.number().int().nonnegative(),
+      state: z.enum([
+        'no_food_logs',
+        'not_recorded',
+        'recorded_zero',
+        'sparse',
+        'available',
+      ]),
+    })
+    .optional(),
+  calorieRangeSummary: z
+    .object({
+      insideRangeDayCount: z.number().int().nonnegative(),
+      eligibleDayCount: z.number().int().nonnegative(),
+      status: z.enum([
+        'inside_usual_range',
+        'outside_usual_range',
+        'insufficient_data',
+      ]),
     })
     .optional(),
 });

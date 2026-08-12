@@ -10,13 +10,10 @@ describe('analytics comparison strategies', () => {
     );
   });
 
-  it('does not normalize unrelated different-unit metrics', () => {
-    expect(resolveComparisonStrategy('calories', 'weight')).toBe(
-      'incompatible',
-    );
-    expect(resolveComparisonStrategy('protein', 'vitaminC')).toBe(
-      'incompatible',
-    );
+  it('keeps linked different-unit comparisons on separate axes', () => {
+    expect(resolveComparisonStrategy('calories', 'weight')).toBe('dual_axis');
+    expect(resolveComparisonStrategy('calories', 'protein')).toBe('dual_axis');
+    expect(resolveComparisonStrategy('protein', 'vitaminC')).toBe('dual_axis');
   });
 
   it('rejects self comparison through the shared allowlist', () => {
