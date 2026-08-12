@@ -104,11 +104,19 @@ describe('Configure Trend screen', () => {
     const user = userEvent.setup();
     const screen = await render(<ConfigureTrendScreen />);
 
-    await screen.findByText('Configure Trend');
+    await screen.findByText('Configure trend');
+    await user.press(
+      screen.getByRole('button', { name: 'Open Primary metric' }),
+    );
     await user.press(
       screen.getByRole('button', { name: 'Use Weight as primary metric' }),
     );
-    await user.press(screen.getByRole('button', { name: '90D' }));
+    await user.press(
+      screen.getByRole('button', { name: 'Open Default range' }),
+    );
+    await user.press(
+      screen.getByRole('button', { name: 'Use 90 day default range' }),
+    );
 
     expect(mockRouter.replace).not.toHaveBeenCalled();
     await user.press(screen.getByRole('button', { name: 'Apply changes' }));

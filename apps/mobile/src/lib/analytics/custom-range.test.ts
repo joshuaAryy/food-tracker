@@ -5,12 +5,14 @@ import {
   dateForRailPosition,
   moveCustomRangeHandle,
   normalizeCustomRange,
+  panSelectedRange,
   panRailViewport,
   railPositionForDate,
   rangeShortcut,
   selectCustomRangeEndpoint,
   shouldEmitRangeHandleHaptic,
   zoomRailViewport,
+  zoomSelectedRange,
 } from './custom-range';
 
 describe('Custom Range', () => {
@@ -118,6 +120,59 @@ describe('Custom Range', () => {
       startDate: '2026-08-05',
       endDate: '2026-08-05',
     });
+  });
+
+  it('pans the selected range as one unit without changing its inclusive span', () => {
+    const selection = {
+      startDate: '2026-08-03',
+      endDate: '2026-08-08',
+      days: 6,
+    };
+    expect(
+      panSelectedRange({
+        selection,
+        deltaDays: -10,
+        firstEligibleDate: '2026-08-01',
+        today: '2026-08-20',
+      }),
+    ).toEqual({ startDate: '2026-08-01', endDate: '2026-08-06', days: 6 });
+    expect(
+      panSelectedRange({
+        selection,
+        deltaDays: 20,
+        firstEligibleDate: '2026-08-01',
+        today: '2026-08-20',
+      }),
+    ).toEqual({ startDate: '2026-08-15', endDate: '2026-08-20', days: 6 });
+  });
+
+  it('zooms the selected range around a focal day while preserving bounds', () => {
+    expect(
+      zoomSelectedRange({
+        selection: {
+          startDate: '2026-08-01',
+          endDate: '2026-08-20',
+          days: 20,
+        },
+        factor: 0.5,
+        focalDate: '2026-08-10',
+        firstEligibleDate: '2026-08-01',
+        today: '2026-08-20',
+      }),
+    ).toEqual({ startDate: '2026-08-05', endDate: '2026-08-14', days: 10 });
+    expect(
+      zoomSelectedRange({
+        selection: {
+          startDate: '2026-08-10',
+          endDate: '2026-08-10',
+          days: 1,
+        },
+        factor: 0.5,
+        focalDate: '2026-08-10',
+        firstEligibleDate: '2026-08-01',
+        today: '2026-08-20',
+      }),
+    ).toEqual({ startDate: '2026-08-10', endDate: '2026-08-10', days: 1 });
   });
 
   it('requests handle haptics only when the snapped selected day changes', () => {

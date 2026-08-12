@@ -1,11 +1,13 @@
-import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { PanResponder, Pressable, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
   AnalyticsMetricDefinition,
   AnalyticsSavedView,
 } from '@food-tracker/shared';
+import { AppCard } from '@/components/app-card';
+import { AppButton } from '@/components/app-button';
 import { AppScreen } from '@/components/app-screen';
 import { AppInput } from '@/components/app-input';
 import { AppText } from '@/components/app-text';
@@ -24,6 +26,8 @@ export default function SavedViewsScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
   const [replacingId, setReplacingId] = useState<string | null>(null);
+  const [actionViewId, setActionViewId] = useState<string | null>(null);
+  const [deleteViewId, setDeleteViewId] = useState<string | null>(null);
   const [replacementMetrics, setReplacementMetrics] = useState<
     AnalyticsMetricDefinition[]
   >([]);
@@ -161,166 +165,335 @@ export default function SavedViewsScreen() {
     }
   };
   const confirmDelete = (view: AnalyticsSavedView) => {
-    const proceed = () => void remove(view.id);
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm(`Delete ${view.name}?`)) proceed();
-      return;
-    }
-    Alert.alert('Delete saved view?', view.name, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: proceed },
-    ]);
+    setActionViewId(null);
+    setDeleteViewId(view.id);
   };
-  if (error !== null)
-    return <ErrorState message={error} onRetry={() => void load()} />;
-  return (
-    <AppScreen contentClassName="gap-2">
-      <AppText variant="title">Saved Views</AppText>
-      {views.map((view, index) => (
-        <View key={view.id} className="border-t border-line py-4 gap-2">
-          {editingId === view.id ? (
-            <View className="gap-2">
-              <AppInput
-                label="View name"
-                value={editingName}
-                onChangeText={setEditingName}
-                maxLength={80}
-                accessibilityLabel={`Rename ${view.name}`}
-              />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Save name for ${view.name}`}
-                className="min-h-11 justify-center"
-                onPress={() => void rename(view.id)}
-              >
-                <AppText variant="caption">Save name</AppText>
-              </Pressable>
-            </View>
-          ) : (
-            <AppText variant="label" numberOfLines={2}>
+  const actionView = views.find((view) => view.id === actionViewId) ?? null;
+  const deleteView = views.find((view) => view.id === deleteViewId) ?? null;
+  const pinnedViews = useMemo(
+    () => views.filter((view) => view.id === pinnedId),
+    [pinnedId, views],
+  );
+  const otherViews = useMemo(
+    () => views.filter((view) => view.id !== pinnedId),
+    [pinnedId, views],
+  );
+  const openView = (view: AnalyticsSavedView) => {
+    const query = trendQueryFromSavedView(view);
+    if (query === null) return;
+    router.push({
+      pathname: '/trends/[metric]',
+      params: {
+        metric: query.primaryMetric,
+        query: trendQueryRouteParam(query),
+        savedViewId: view.id,
+      },
+    } as never);
+  };
+  const viewSubtitle = (view: AnalyticsSavedView) =>
+    view.unavailableMetrics.length > 0
+      ? `Needs replacement: ${view.unavailableMetrics.join(', ')}`
+      : `${view.aggregation.replaceAll('_', ' ')} · ${view.visualization.replaceAll('_', ' ')}`;
+  const renderView = (view: AnalyticsSavedView) => (
+    <AppCard key={view.id} className="gap-3 p-4">
+      <View className="flex-row items-start gap-3">
+        <SavedViewDragHandle
+          viewName={view.name}
+          onMove={(direction) => void reorder(view.id, direction)}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${view.name}`}
+          className="min-w-0 flex-1 gap-1"
+          onPress={() => openView(view)}
+        >
+          <View className="flex-row items-start gap-2">
+            <View className="mt-1 h-2 w-2 rounded-full bg-primary" />
+            <AppText
+              variant="label"
+              className="min-w-0 flex-1"
+              numberOfLines={3}
+            >
               {view.name}
             </AppText>
-          )}
-          <AppText muted>
-            {view.unavailableMetrics.length === 0
-              ? `${view.periodDays}D`
-              : `Needs replacement: ${view.unavailableMetrics.join(', ')}`}
-          </AppText>
-          {view.unavailableMetrics.length === 0 ? null : (
-            <View className="gap-2">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Replace unavailable metric for ${view.name}`}
-                className="min-h-11 justify-center"
-                onPress={() => void beginReplacement(view)}
-              >
-                <AppText variant="caption">Replace metric</AppText>
-              </Pressable>
-              {replacingId !== view.id ? null : replacementMetrics.length ===
-                0 ? (
-                <AppText muted>
-                  No current metric supports this saved configuration.
-                </AppText>
-              ) : (
-                replacementMetrics.map((metric) => (
-                  <Pressable
-                    key={metric.key}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Use ${metric.displayName}`}
-                    className="min-h-11 justify-center"
-                    onPress={() => void replaceMetric(view, metric.key)}
-                  >
-                    <AppText variant="caption">
-                      Use {metric.displayName}
-                    </AppText>
-                  </Pressable>
-                ))
-              )}
-            </View>
-          )}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${view.name}`}
-            className="min-h-11 justify-center"
-            disabled={trendQueryFromSavedView(view) === null}
-            onPress={() => {
-              const query = trendQueryFromSavedView(view);
-              if (query === null) return;
-              router.push({
-                pathname: '/trends/[metric]',
-                params: {
-                  metric: query.primaryMetric,
-                  query: trendQueryRouteParam(query),
-                  savedViewId: view.id,
-                },
-              } as never);
-            }}
-          >
-            <AppText variant="caption">Open</AppText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Duplicate ${view.name}`}
-            className="min-h-11 justify-center"
-            onPress={() => void duplicate(view.id)}
-          >
-            <AppText variant="caption">Duplicate</AppText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Rename ${view.name}`}
-            className="min-h-11 justify-center"
-            onPress={() => {
-              setEditingId(view.id);
-              setEditingName(view.name);
-            }}
-          >
-            <AppText variant="caption">Rename</AppText>
-          </Pressable>
-          <View className="flex-row gap-4">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Move ${view.name} earlier`}
-              className="min-h-11 justify-center"
-              disabled={index === 0}
-              onPress={() => void reorder(view.id, -1)}
-            >
-              <AppText variant="caption">Move earlier</AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Move ${view.name} later`}
-              className="min-h-11 justify-center"
-              disabled={index === views.length - 1}
-              onPress={() => void reorder(view.id, 1)}
-            >
-              <AppText variant="caption">Move later</AppText>
-            </Pressable>
           </View>
+          <AppText variant="caption" muted>
+            {viewSubtitle(view)}
+          </AppText>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`More actions for ${view.name}`}
+          className="min-h-11 min-w-11 items-center justify-center"
+          onPress={() => setActionViewId(view.id)}
+        >
+          <AppText variant="label">•••</AppText>
+        </Pressable>
+      </View>
+      {editingId === view.id ? (
+        <View className="gap-2">
+          <AppInput
+            label="View name"
+            value={editingName}
+            onChangeText={setEditingName}
+            maxLength={80}
+            accessibilityLabel={`Rename ${view.name}`}
+          />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={
-              pinnedId === view.id ? `Unpin ${view.name}` : `Pin ${view.name}`
-            }
-            onPress={() => void togglePin(view.id)}
+            accessibilityLabel={`Save name for ${view.name}`}
             className="min-h-11 justify-center"
+            onPress={() => void rename(view.id)}
           >
-            <AppText variant="caption">
-              {pinnedId === view.id ? 'Unpin' : 'Pin'}
-            </AppText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Delete ${view.name}`}
-            className="min-h-11 justify-center"
-            onPress={() => confirmDelete(view)}
-          >
-            <AppText variant="caption" className="text-error">
-              Delete
-            </AppText>
+            <AppText variant="caption">Save name</AppText>
           </Pressable>
         </View>
-      ))}
+      ) : null}
+      {view.unavailableMetrics.length === 0 ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Replace unavailable metric for ${view.name}`}
+          className="min-h-11 justify-center"
+          onPress={() => void beginReplacement(view)}
+        >
+          <AppText variant="caption">Replace metric</AppText>
+        </Pressable>
+      )}
+      {replacingId !== view.id ? null : replacementMetrics.length === 0 ? (
+        <AppText muted>
+          No current metric supports this saved configuration.
+        </AppText>
+      ) : (
+        replacementMetrics.map((metric) => (
+          <Pressable
+            key={metric.key}
+            accessibilityRole="button"
+            accessibilityLabel={`Use ${metric.displayName}`}
+            className="min-h-11 justify-center"
+            onPress={() => void replaceMetric(view, metric.key)}
+          >
+            <AppText variant="caption">Use {metric.displayName}</AppText>
+          </Pressable>
+        ))
+      )}
+    </AppCard>
+  );
+  if (error !== null)
+    return <ErrorState message={error} onRetry={() => void load()} />;
+  if (deleteView !== null) {
+    return (
+      <AppScreen
+        backgroundColor="#EDEDEB"
+        contentClassName="mt-36 gap-5 rounded-t-[28px] bg-white pt-4"
+      >
+        <View className="h-1 w-[58px] self-center rounded-full bg-[#C7C7BF]" />
+        <AppText variant="heading" className="text-[24px] leading-8">
+          Delete saved view?
+        </AppText>
+        <AppText muted>
+          {deleteView.name} will be removed from Saved Views. This does not
+          delete nutrition or weight data.
+        </AppText>
+        <AppButton variant="secondary" onPress={() => setDeleteViewId(null)}>
+          Cancel
+        </AppButton>
+        <AppButton
+          onPress={() => {
+            setDeleteViewId(null);
+            void remove(deleteView.id);
+          }}
+        >
+          Delete saved view
+        </AppButton>
+      </AppScreen>
+    );
+  }
+  if (actionView !== null) {
+    const actionIndex = views.findIndex((view) => view.id === actionView.id);
+    return (
+      <AppScreen
+        backgroundColor="#EDEDEB"
+        contentClassName="mt-24 gap-4 rounded-t-[28px] bg-white pt-4"
+      >
+        <View className="h-1 w-[58px] self-center rounded-full bg-[#C7C7BF]" />
+        <AppText variant="heading" className="text-[21px] leading-7">
+          {actionView.name}
+        </AppText>
+        <AppText variant="caption" muted>
+          Saved view actions
+        </AppText>
+        <View className="overflow-hidden rounded-[16px] border border-border">
+          <SheetAction
+            label="Open view"
+            onPress={() => {
+              setActionViewId(null);
+              openView(actionView);
+            }}
+          />
+          <SheetAction
+            label="Rename"
+            onPress={() => {
+              setActionViewId(null);
+              setEditingId(actionView.id);
+              setEditingName(actionView.name);
+            }}
+          />
+          <SheetAction
+            label="Duplicate"
+            onPress={() => {
+              setActionViewId(null);
+              void duplicate(actionView.id);
+            }}
+          />
+          <SheetAction
+            label={
+              pinnedId === actionView.id
+                ? 'Unpin from Insights'
+                : 'Pin to Insights'
+            }
+            onPress={() => {
+              setActionViewId(null);
+              void togglePin(actionView.id);
+            }}
+          />
+          <SheetAction
+            label="Move earlier"
+            disabled={actionIndex === 0}
+            onPress={() => {
+              setActionViewId(null);
+              void reorder(actionView.id, -1);
+            }}
+          />
+          <SheetAction
+            label="Move later"
+            disabled={actionIndex === views.length - 1}
+            onPress={() => {
+              setActionViewId(null);
+              void reorder(actionView.id, 1);
+            }}
+          />
+          <SheetAction
+            label="Delete saved view"
+            destructive
+            onPress={() => confirmDelete(actionView)}
+          />
+        </View>
+        <AppText variant="caption" muted>
+          Pinning replaces the current primary pinned view; it does not create
+          another Insights card.
+        </AppText>
+      </AppScreen>
+    );
+  }
+  return (
+    <AppScreen contentClassName="gap-4">
+      <View className="flex-row items-start justify-between gap-4">
+        <View className="gap-1">
+          <AppText variant="caption" muted>
+            ‹ Explore trends
+          </AppText>
+          <AppText variant="title">Saved views</AppText>
+        </View>
+        <AppText variant="label">Edit</AppText>
+      </View>
+      <AppText variant="caption" muted>
+        One primary pinned view can appear in Complex Insights. Reorder only
+        affects this library.
+      </AppText>
+      {pinnedViews.length === 0 ? null : (
+        <AppText variant="caption" className="font-bold uppercase text-muted">
+          Pinned
+        </AppText>
+      )}
+      {pinnedViews.map((view) => renderView(view))}
+      {otherViews.length === 0 ? null : (
+        <AppText variant="caption" className="font-bold uppercase text-muted">
+          Other saved views
+        </AppText>
+      )}
+      {otherViews.map((view) => renderView(view))}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Create a saved view"
+        className="min-h-11 items-center justify-center rounded-[16px] bg-module"
+        onPress={() => router.push('/trends/save-view' as never)}
+      >
+        <AppText variant="label">+ Create a saved view</AppText>
+      </Pressable>
+      <AppText variant="caption" muted>
+        Drag a handle up or down to reorder. Reordering never changes the
+        report order in Insights.
+      </AppText>
     </AppScreen>
+  );
+}
+
+function SheetAction({
+  label,
+  onPress,
+  disabled = false,
+  destructive = false,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      className="min-h-[58px] flex-row items-center justify-between border-b border-border px-4 py-3 last:border-b-0"
+      disabled={disabled}
+      onPress={onPress}
+    >
+      <AppText className={destructive ? 'text-error' : 'text-ink'}>
+        {label}
+      </AppText>
+      {destructive ? null : <AppText variant="caption">›</AppText>}
+    </Pressable>
+  );
+}
+
+function SavedViewDragHandle({
+  viewName,
+  onMove,
+}: {
+  viewName: string;
+  onMove: (direction: -1 | 1) => void;
+}) {
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderRelease: (_, gestureState) => {
+          if (Math.abs(gestureState.dy) < 24) return;
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onMove(gestureState.dy < 0 ? -1 : 1);
+        },
+      }),
+    [onMove],
+  );
+  return (
+    <View
+      testID={`saved-view-drag-handle-${viewName}`}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={`Reorder ${viewName}`}
+      accessibilityHint="Drag up or down to change the saved-view order."
+      accessibilityActions={[
+        { name: 'increment', label: 'Move later' },
+        { name: 'decrement', label: 'Move earlier' },
+      ]}
+      onAccessibilityAction={(event) => {
+        onMove(event.nativeEvent.actionName === 'decrement' ? -1 : 1);
+      }}
+      {...panResponder.panHandlers}
+      className="min-h-11 min-w-11 items-center justify-center"
+    >
+      <AppText muted>≡</AppText>
+    </View>
   );
 }

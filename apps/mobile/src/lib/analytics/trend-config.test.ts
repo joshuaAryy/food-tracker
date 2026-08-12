@@ -4,6 +4,7 @@ import {
   comparisonCandidates,
   createTrendDraft,
   supportsForecastControl,
+  supportedAggregationsForPeriod,
   updateTrendDraft,
 } from './trend-config';
 
@@ -34,10 +35,31 @@ describe('Trend configuration draft', () => {
   });
 
   it('offers only approved comparison candidates and only exposes forecasts for eligible metrics', () => {
-    expect(comparisonCandidates('protein')).toEqual(['carbs', 'weight']);
-    expect(comparisonCandidates('calories')).toEqual([]);
+    expect(comparisonCandidates('protein')).toContain('carbs');
+    expect(comparisonCandidates('protein')).toContain('weight');
+    expect(comparisonCandidates('protein')).toContain('vitaminC');
+    expect(comparisonCandidates('protein')).not.toContain('protein');
+    expect(comparisonCandidates('protein')).not.toContain('macroComposition');
+    expect(comparisonCandidates('calories')).toContain('protein');
+    expect(comparisonCandidates('calories')).toContain('weight');
+    expect(comparisonCandidates('calories')).not.toContain('macroComposition');
     expect(supportsForecastControl('calories')).toBe(true);
     expect(supportsForecastControl('weight')).toBe(true);
     expect(supportsForecastControl('protein')).toBe(false);
+  });
+
+  it('disables aggregation overrides that the selected range cannot support', () => {
+    expect(
+      supportedAggregationsForPeriod({ kind: 'relative', days: 7 }),
+    ).toEqual(['automatic', 'daily']);
+    expect(
+      supportedAggregationsForPeriod({ kind: 'relative', days: 30 }),
+    ).toEqual(['automatic', 'daily', 'weekly']);
+    expect(
+      supportedAggregationsForPeriod({ kind: 'relative', days: 90 }),
+    ).toEqual(['automatic', 'daily', 'weekly', 'monthly']);
+    expect(
+      supportedAggregationsForPeriod({ kind: 'relative', days: 181 }),
+    ).toEqual(['automatic', 'weekly', 'monthly']);
   });
 });

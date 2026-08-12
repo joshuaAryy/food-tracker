@@ -11,6 +11,10 @@ export interface RailViewport {
   endDate: string;
 }
 
+export type RailInteraction =
+  | { kind: 'handle'; handle: 'start' | 'end' }
+  | { kind: 'range' };
+
 export function shouldEmitRangeHandleHaptic(
   previousDate: string | undefined,
   nextDate: string,
@@ -143,6 +147,84 @@ export function moveCustomRangeHandle({
   });
 }
 
+/** Moves both selected endpoints together without changing the selected span. */
+export function panSelectedRange({
+  selection,
+  deltaDays,
+  firstEligibleDate,
+  today,
+}: {
+  selection: CustomRangeSelection;
+  deltaDays: number;
+  firstEligibleDate: string;
+  today: string;
+}): CustomRangeSelection {
+  const current = normalizeCustomRange({
+    ...selection,
+    firstEligibleDate,
+    today,
+  });
+  const span = utcDay(current.endDate) - utcDay(current.startDate);
+  const lower = utcDay(firstEligibleDate);
+  const upper = utcDay(today);
+  const proposedStart =
+    utcDay(current.startDate) + Math.round(deltaDays) * MS_PER_DAY;
+  const boundedStart = Math.min(Math.max(proposedStart, lower), upper - span);
+  return normalizeCustomRange({
+    startDate: dateFromUtcDay(boundedStart),
+    endDate: dateFromUtcDay(boundedStart + span),
+    firstEligibleDate,
+    today,
+  });
+}
+
+/** Zooms the selected range around a focal day while preserving valid bounds. */
+export function zoomSelectedRange({
+  selection,
+  factor,
+  focalDate,
+  firstEligibleDate,
+  today,
+}: {
+  selection: CustomRangeSelection;
+  factor: number;
+  focalDate: string;
+  firstEligibleDate: string;
+  today: string;
+}): CustomRangeSelection {
+  const current = normalizeCustomRange({
+    ...selection,
+    firstEligibleDate,
+    today,
+  });
+  const lower = utcDay(firstEligibleDate);
+  const upper = utcDay(today);
+  const currentSpanDays = Math.max(
+    1,
+    Math.round(
+      (utcDay(current.endDate) - utcDay(current.startDate)) / MS_PER_DAY,
+    ),
+  );
+  const totalSpanDays = Math.max(1, Math.round((upper - lower) / MS_PER_DAY));
+  const nextSpanDays = Math.min(
+    totalSpanDays,
+    Math.max(1, Math.round(currentSpanDays * Math.max(factor, 0.1))),
+  );
+  const nextSpan = (nextSpanDays - 1) * MS_PER_DAY;
+  const focal = clampedUtcDay({ date: focalDate, firstEligibleDate, today });
+  const proposedStart = focal - Math.round(nextSpan / 2);
+  const boundedStart = Math.min(
+    Math.max(proposedStart, lower),
+    upper - nextSpan,
+  );
+  return normalizeCustomRange({
+    startDate: dateFromUtcDay(boundedStart),
+    endDate: dateFromUtcDay(boundedStart + nextSpan),
+    firstEligibleDate,
+    today,
+  });
+}
+
 /** Exact calendar selection uses the same no-crossing semantics as rail handles. */
 export function selectCustomRangeEndpoint({
   endpoint,
@@ -192,6 +274,51 @@ export function clampRailViewport({
     today,
   });
   return { startDate: selection.startDate, endDate: selection.endDate };
+}
+
+export function fullHistoryRailViewport({
+  firstEligibleDate,
+  today,
+}: {
+  firstEligibleDate: string;
+  today: string;
+}): RailViewport {
+  return { startDate: firstEligibleDate, endDate: today };
+}
+
+/** Chooses endpoint handles before the selected-range pan target. */
+export function railInteractionForPosition({
+  position,
+  selection,
+  viewport,
+  handleHitSlop = 0.06,
+}: {
+  position: number;
+  selection: CustomRangeSelection;
+  viewport: RailViewport;
+  handleHitSlop?: number;
+}): RailInteraction {
+  const start = railPositionInViewport(selection.startDate, viewport);
+  const end = railPositionInViewport(selection.endDate, viewport);
+  if (Math.abs(position - start) <= handleHitSlop) {
+    return { kind: 'handle', handle: 'start' };
+  }
+  if (Math.abs(position - end) <= handleHitSlop) {
+    return { kind: 'handle', handle: 'end' };
+  }
+  if (position >= start && position <= end) return { kind: 'range' };
+  return {
+    kind: 'handle',
+    handle:
+      Math.abs(position - start) <= Math.abs(position - end) ? 'start' : 'end',
+  };
+}
+
+function railPositionInViewport(date: string, viewport: RailViewport): number {
+  const start = utcDay(viewport.startDate);
+  const end = utcDay(viewport.endDate);
+  if (end <= start) return 0;
+  return (utcDay(date) - start) / (end - start);
 }
 
 export function panRailViewport({

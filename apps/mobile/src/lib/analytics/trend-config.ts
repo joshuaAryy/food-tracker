@@ -2,8 +2,11 @@ import {
   analyticsMetricsForMode,
   resolveAnalyticsComparisonStrategy,
   type AnalyticsMetricKey,
+  type AnalyticsAggregation,
+  type AnalyticsPeriod,
   type TrendQueryInput,
 } from '@food-tracker/shared';
+import { inclusivePeriodDays } from './saved-view-configuration';
 
 export type TrendDraft = TrendQueryInput;
 export type TrendDraftChanges = Omit<
@@ -60,4 +63,21 @@ export function comparisonCandidates(
 
 export function supportsForecastControl(metric: AnalyticsMetricKey): boolean {
   return metric === 'calories' || metric === 'weight';
+}
+
+/**
+ * Mirrors the backend's readability guards so unsupported overrides are
+ * disabled before a draft can be applied. Automatic remains available for
+ * every period and resolves to the approved 1–45/46–180/181+ defaults.
+ */
+export function supportedAggregationsForPeriod(
+  period: AnalyticsPeriod,
+): AnalyticsAggregation[] {
+  const days = inclusivePeriodDays(period);
+  return [
+    'automatic',
+    ...(days <= 180 ? (['daily'] as const) : []),
+    ...(days >= 14 ? (['weekly'] as const) : []),
+    ...(days >= 90 ? (['monthly'] as const) : []),
+  ];
 }

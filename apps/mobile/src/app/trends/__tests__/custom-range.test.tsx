@@ -1,4 +1,5 @@
 import { act, render, userEvent } from '../../../test/render';
+import { View } from 'react-native';
 import { api } from '../../../lib/api-client';
 import CustomRangeScreen from '../custom-range';
 
@@ -52,15 +53,15 @@ describe('Custom Range screen', () => {
 
   it('uses server bounds and returns an inclusive custom period to Configure', async () => {
     const user = userEvent.setup();
-    const screen = await render(<CustomRangeScreen />);
+    const screen = await render(
+      <View style={{ width: 320 }}>
+        <CustomRangeScreen />
+      </View>,
+    );
 
-    expect(
-      await screen.findByText(
-        'Available from 2026-07-10 through 2026-08-08. Dates are inclusive.',
-      ),
-    ).toBeTruthy();
-    await user.press(screen.getByRole('button', { name: '7D' }));
-    await user.press(screen.getByRole('button', { name: 'Use this range' }));
+    expect(await screen.findByText('Range selector')).toBeTruthy();
+    await user.press(screen.getByRole('button', { name: '14D' }));
+    await user.press(screen.getByRole('button', { name: 'Apply range' }));
 
     expect(mockReplace).toHaveBeenCalledWith(
       expect.objectContaining({

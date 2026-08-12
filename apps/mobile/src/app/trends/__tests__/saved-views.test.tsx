@@ -1,6 +1,6 @@
-import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { render, userEvent, waitFor } from '../../../test/render';
+import { View } from 'react-native';
+import { act, render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
 import SavedViewsScreen from '../saved-views';
 
@@ -103,7 +103,14 @@ describe('Saved Views screen', () => {
         unavailableMetrics: [],
       });
     const user = userEvent.setup();
-    const screen = await render(<SavedViewsScreen />);
+    const screen = await render(
+      <View testID="compact-320-saved-views" style={{ width: 320 }}>
+        <SavedViewsScreen />
+      </View>,
+    );
+    expect(screen.getByTestId('compact-320-saved-views').props.style).toEqual({
+      width: 320,
+    });
 
     await user.press(
       await screen.findByRole('button', {
@@ -126,21 +133,20 @@ describe('Saved Views screen', () => {
       id: '1',
       deleted: true,
     });
-    jest
-      .spyOn(Alert, 'alert')
-      .mockImplementation((_title, _message, buttons) => {
-        const deleteAction = buttons?.find(
-          (button) => button.text === 'Delete',
-        );
-        deleteAction?.onPress?.();
-      });
     const screen = await render(<SavedViewsScreen />);
 
     await userEvent.setup().press(
       await screen.findByRole('button', {
-        name: 'Delete Historical unavailable nutrient',
+        name: 'More actions for Historical unavailable nutrient',
       }),
     );
+    await userEvent
+      .setup()
+      .press(screen.getByRole('button', { name: 'Delete saved view' }));
+    const deleteButtons = screen.getAllByRole('button', {
+      name: 'Delete saved view',
+    });
+    await userEvent.setup().press(deleteButtons[deleteButtons.length - 1]!);
 
     await waitFor(() =>
       expect(api.analytics.deleteSavedView).toHaveBeenCalledWith('1'),
@@ -154,15 +160,66 @@ describe('Saved Views screen', () => {
 
     await user.press(
       await screen.findByRole('button', {
-        name: 'Rename Historical unavailable nutrient',
+        name: 'More actions for Historical unavailable nutrient',
       }),
     );
+    await user.press(screen.getByRole('button', { name: 'Rename' }));
 
     expect(
       screen.getByRole('button', {
         name: 'Save name for Historical unavailable nutrient',
       }).props.className,
     ).toContain('min-h-11');
+  });
+
+  it('reorders a saved view from its drag handle and persists the new order', async () => {
+    jest.spyOn(api.analytics, 'savedViews').mockResolvedValueOnce([
+      {
+        id: '1',
+        name: 'First view',
+        primaryMetric: 'calories',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:00:00.000Z',
+        unavailableMetrics: [],
+      },
+      {
+        id: '2',
+        name: 'Second view',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 1,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:00:00.000Z',
+        unavailableMetrics: [],
+      },
+    ]);
+    const reorder = jest
+      .spyOn(api.analytics, 'reorderSavedViews')
+      .mockResolvedValue([]);
+    const screen = await render(<SavedViewsScreen />);
+    const handle = await screen.findByLabelText('Reorder First view');
+
+    await act(async () => {
+      handle.props.onAccessibilityAction({
+        nativeEvent: { actionName: 'increment' },
+      });
+    });
+
+    await waitFor(() =>
+      expect(reorder).toHaveBeenCalledWith({ ids: ['2', '1'] }),
+    );
   });
 
   it('shows a recoverable error when pinning a saved view fails', async () => {
@@ -190,8 +247,11 @@ describe('Saved Views screen', () => {
     const screen = await render(<SavedViewsScreen />);
 
     await user.press(
-      await screen.findByRole('button', { name: 'Pin Protein · 30D' }),
+      await screen.findByRole('button', {
+        name: 'More actions for Protein · 30D',
+      }),
     );
+    await user.press(screen.getByRole('button', { name: 'Pin to Insights' }));
 
     expect(
       await screen.findByText(
@@ -226,12 +286,56 @@ describe('Saved Views screen', () => {
     const screen = await render(<SavedViewsScreen />);
 
     await user.press(
-      await screen.findByRole('button', { name: 'Pin Protein · 30D' }),
+      await screen.findByRole('button', {
+        name: 'More actions for Protein · 30D',
+      }),
     );
+    await user.press(screen.getByRole('button', { name: 'Pin to Insights' }));
 
     expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
     expect(
-      screen.getByRole('button', { name: 'Unpin Protein · 30D' }),
+      screen.getByRole('button', { name: 'More actions for Protein · 30D' }),
     ).toBeTruthy();
+  });
+
+  it('wraps long saved-view names while preserving a compact action target', async () => {
+    const longName = 'Protein + Weight + nutrition consistency · last 90 days';
+    jest.spyOn(api.analytics, 'savedViews').mockResolvedValueOnce([
+      {
+        id: 'long-name',
+        name: longName,
+        primaryMetric: 'protein',
+        comparisonMetric: 'weight',
+        periodDays: 90,
+        aggregation: 'weekly',
+        visualization: 'dual_axis',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:00:00.000Z',
+        unavailableMetrics: [],
+      },
+    ]);
+    const screen = await render(
+      <View testID="compact-320-saved-view-long-name" style={{ width: 320 }}>
+        <SavedViewsScreen />
+      </View>,
+    );
+    expect(
+      screen.getByTestId('compact-320-saved-view-long-name').props.style,
+    ).toEqual({ width: 320 });
+
+    expect(screen.getByText(longName).props.numberOfLines).toBe(3);
+    expect(
+      screen.getByRole('button', { name: `More actions for ${longName}` }).props
+        .className,
+    ).toContain('min-h-11');
+    await userEvent
+      .setup()
+      .press(screen.getByRole('button', { name: `Open ${longName}` }));
+    expect(mockRouter.push).toHaveBeenCalledWith(
+      expect.objectContaining({ pathname: '/trends/[metric]' }),
+    );
   });
 });

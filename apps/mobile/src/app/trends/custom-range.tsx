@@ -9,21 +9,25 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppButton } from '@/components/app-button';
+import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 import {
-  clampRailViewport,
   customRangeAggregationLabel,
   dateForRailPosition,
+  fullHistoryRailViewport,
   moveCustomRangeHandle,
   panRailViewport,
+  panSelectedRange,
   rangeShortcut,
+  railInteractionForPosition,
   selectCustomRangeEndpoint,
   shouldEmitRangeHandleHaptic,
   zoomRailViewport,
+  zoomSelectedRange,
   type CustomRangeSelection,
   type RailViewport,
 } from '@/lib/analytics/custom-range';
@@ -32,7 +36,7 @@ import {
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
 
-const shortcuts = [7, 30, 90] as const;
+const shortcuts = [3, 14, 30] as const;
 
 function sameSelection(
   first: CustomRangeSelection,
@@ -43,9 +47,26 @@ function sameSelection(
   );
 }
 
+interface RailTouch {
+  locationX?: number;
+  pageX?: number;
+}
+
+function touchX(touch: RailTouch): number {
+  return touch.locationX ?? touch.pageX ?? 0;
+}
+
+function touchDistance(touches: readonly RailTouch[]): number {
+  if (touches.length < 2) return 0;
+  return Math.abs(touchX(touches[1]!) - touchX(touches[0]!));
+}
+
 export default function CustomRangeScreen() {
   const router = useRouter();
-  const { query: rawQuery } = useLocalSearchParams<{ query?: string }>();
+  const { query: rawQuery, savedViewId } = useLocalSearchParams<{
+    query?: string;
+    savedViewId?: string;
+  }>();
   const draft = useMemo(() => trendQueryFromRouteParam(rawQuery), [rawQuery]);
   const [bounds, setBounds] = useState<{
     firstEligibleDate: string;
@@ -55,12 +76,29 @@ export default function CustomRangeScreen() {
   const [viewport, setViewport] = useState<RailViewport | null>(null);
   const [railWidth, setRailWidth] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const activeHandle = useRef<'start' | 'end'>('start');
+  const activeInteraction = useRef<
+    | { kind: 'handle'; handle: 'start' | 'end' }
+    | { kind: 'range'; startX: number; selection: CustomRangeSelection }
+    | {
+        kind: 'zoom';
+        initialDistance: number;
+        focalX: number;
+        selection: CustomRangeSelection;
+        viewport: RailViewport;
+      }
+  >({ kind: 'handle', handle: 'start' });
   const lastHapticDate = useRef<{ start?: string; end?: string }>({});
 
   const close = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/trends/configure' as never);
+    else
+      router.replace({
+        pathname: '/trends/configure',
+        params: {
+          ...(rawQuery === undefined ? {} : { query: rawQuery }),
+          ...(savedViewId === undefined ? {} : { savedViewId }),
+        },
+      } as never);
   };
 
   const loadBounds = useCallback(async () => {
@@ -87,13 +125,7 @@ export default function CustomRangeScreen() {
           : rangeShortcut({ days: 30, ...nextBounds });
       setBounds(nextBounds);
       setSelection(nextSelection);
-      setViewport(
-        clampRailViewport({
-          startDate: nextSelection.startDate,
-          endDate: nextSelection.endDate,
-          ...nextBounds,
-        }),
-      );
+      setViewport(fullHistoryRailViewport(nextBounds));
     } catch (cause) {
       setError(errorMessage(cause));
     }
@@ -133,19 +165,119 @@ export default function CustomRangeScreen() {
         onMoveShouldSetPanResponder: () =>
           selection !== null && bounds !== null,
         onPanResponderGrant: (event) => {
-          if (selection === null || bounds === null) return;
-          const startPosition = datePosition(selection.startDate, viewport);
-          const endPosition = datePosition(selection.endDate, viewport);
-          activeHandle.current =
-            Math.abs(event.nativeEvent.locationX / railWidth - startPosition) <=
-            Math.abs(event.nativeEvent.locationX / railWidth - endPosition)
-              ? 'start'
-              : 'end';
+          if (selection === null || bounds === null || viewport === null)
+            return;
+          const touches = (event.nativeEvent.touches ?? []) as RailTouch[];
+          if (touches.length >= 2) {
+            const initialDistance = touchDistance(touches);
+            activeInteraction.current = {
+              kind: 'zoom',
+              initialDistance,
+              focalX:
+                (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
+              selection,
+              viewport,
+            };
+            return;
+          }
+          const position = event.nativeEvent.locationX / railWidth;
+          const interaction = railInteractionForPosition({
+            position,
+            selection,
+            viewport,
+            handleHitSlop: Math.max(0.06, 18 / Math.max(1, railWidth)),
+          });
+          if (interaction.kind === 'range') {
+            activeInteraction.current = {
+              kind: 'range',
+              startX: event.nativeEvent.locationX,
+              selection,
+            };
+          } else {
+            activeInteraction.current = interaction;
+          }
         },
         onPanResponderMove: (event) => {
-          if (bounds === null || viewport === null) return;
+          if (bounds === null || viewport === null || selection === null) return;
+          const touches = (event.nativeEvent.touches ?? []) as RailTouch[];
+          if (
+            touches.length >= 2 &&
+            activeInteraction.current.kind !== 'zoom'
+          ) {
+            const initialDistance = touchDistance(touches);
+            activeInteraction.current = {
+              kind: 'zoom',
+              initialDistance,
+              focalX:
+                (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
+              selection,
+              viewport,
+            };
+            return;
+          }
+          if (activeInteraction.current.kind === 'zoom') {
+            const currentDistance = touchDistance(touches);
+            if (touches.length < 2 || currentDistance <= 0) return;
+            const interaction = activeInteraction.current;
+            const factor = interaction.initialDistance / currentDistance;
+            const focalDate = dateAtPosition(
+              interaction.focalX / railWidth,
+              bounds,
+              interaction.viewport,
+            );
+            const nextSelection = zoomSelectedRange({
+              selection: interaction.selection,
+              factor,
+              focalDate,
+              ...bounds,
+            });
+            const nextViewport = zoomRailViewport({
+              viewport: interaction.viewport,
+              factor,
+              focalDate,
+              ...bounds,
+            });
+            if (!sameSelection(nextSelection, selection)) {
+              setSelection(nextSelection);
+            }
+            setViewport(nextViewport);
+            return;
+          }
+          if (activeInteraction.current.kind === 'range') {
+            const viewportStart = new Date(
+              `${viewport.startDate}T00:00:00.000Z`,
+            ).getTime();
+            const viewportEnd = new Date(
+              `${viewport.endDate}T00:00:00.000Z`,
+            ).getTime();
+            const viewportDays = Math.max(
+              1,
+              Math.round((viewportEnd - viewportStart) / (24 * 60 * 60 * 1000)),
+            );
+            const deltaDays =
+              ((event.nativeEvent.locationX -
+                activeInteraction.current.startX) /
+                Math.max(1, railWidth)) *
+              viewportDays;
+            const next = panSelectedRange({
+              selection: activeInteraction.current.selection,
+              deltaDays,
+              ...bounds,
+            });
+            if (selection !== null && !sameSelection(next, selection)) {
+              setSelection(next);
+              setViewport(
+                panRailViewport({
+                  viewport,
+                  deltaDays,
+                  ...bounds,
+                }),
+              );
+            }
+            return;
+          }
           updateSelection(
-            activeHandle.current,
+            activeInteraction.current.handle,
             dateAtPosition(
               event.nativeEvent.locationX / railWidth,
               bounds,
@@ -186,22 +318,25 @@ export default function CustomRangeScreen() {
             endDate: selection.endDate,
           },
         }),
+        ...(savedViewId === undefined ? {} : { savedViewId }),
       },
     } as never);
   };
 
   return (
     <AppScreen
-      contentClassName="gap-5 pb-8"
+      backgroundColor="#F0F0ED"
+      contentClassName="gap-5 rounded-t-[28px] bg-white pb-8 pt-4"
       footer={
         <AppButton onPress={apply} disabled={selection === null}>
-          Use this range
+          Apply range
         </AppButton>
       }
     >
+      <View className="h-1 w-[58px] self-center rounded-full bg-[#C7C7BF]" />
       <ScreenHeader
-        title="Custom Range"
-        subtitle="Select any eligible logged day through today."
+        title="Custom range"
+        subtitle="Choose exact dates or move through your logged history with a zoomed range rail."
         action={
           <Pressable
             accessibilityRole="button"
@@ -209,7 +344,7 @@ export default function CustomRangeScreen() {
             className="min-h-11 justify-center"
             onPress={close}
           >
-            <AppText variant="label">Close</AppText>
+            <AppText variant="label">Done</AppText>
           </Pressable>
         }
       />
@@ -221,7 +356,12 @@ export default function CustomRangeScreen() {
       ) : (
         <>
           <View className="gap-2">
-            <AppText variant="label">Quick ranges</AppText>
+            <AppText
+              variant="caption"
+              className="font-bold uppercase text-muted"
+            >
+              Shortcuts
+            </AppText>
             <View className="flex-row flex-wrap gap-2">
               {shortcuts.map((days) => (
                 <Pressable
@@ -231,23 +371,44 @@ export default function CustomRangeScreen() {
                   onPress={() => {
                     const next = rangeShortcut({ days, ...bounds });
                     setSelection(next);
-                    setViewport(clampRailViewport({ ...next, ...bounds }));
+                    setViewport(fullHistoryRailViewport(bounds));
                   }}
                 >
-                  <AppText>{days}D</AppText>
+                  <AppText>{days === 30 ? '1M' : `${days}D`}</AppText>
                 </Pressable>
               ))}
             </View>
           </View>
           <View className="gap-2">
-            <AppText variant="label">History rail</AppText>
+            <AppText
+              variant="caption"
+              className="font-bold uppercase text-muted"
+            >
+              Range selector
+            </AppText>
+            <View className="flex-row justify-between">
+              <AppText variant="caption" className="font-bold text-muted">
+                FIRST LOG
+              </AppText>
+              <AppText variant="caption" className="font-bold text-muted">
+                TODAY
+              </AppText>
+            </View>
+            <View className="flex-row justify-between">
+              <AppText variant="heading" className="text-[18px] leading-6">
+                {formatShortDate(selection.startDate)}
+              </AppText>
+              <AppText variant="heading" className="text-[18px] leading-6">
+                {formatShortDate(selection.endDate)}
+              </AppText>
+            </View>
             <View
               accessibilityRole="adjustable"
               accessibilityLabel="Custom date range history rail"
               accessibilityValue={{
                 text: `${selection.startDate} through ${selection.endDate}`,
               }}
-              className="h-16 justify-center rounded-app bg-module px-3"
+              className="h-[68px] justify-center rounded-app bg-module px-3"
               onLayout={onRailLayout}
               {...panResponder.panHandlers}
             >
@@ -260,92 +421,94 @@ export default function CustomRangeScreen() {
                   right: `${(1 - datePosition(selection.endDate, viewport)) * 100}%`,
                 }}
               />
-            </View>
-            <View className="flex-row justify-between gap-2">
-              <AppButton
-                variant="secondary"
-                onPress={() =>
-                  setViewport(
-                    panRailViewport({ viewport, deltaDays: -7, ...bounds }),
-                  )
-                }
-              >
-                Earlier
-              </AppButton>
-              <AppButton
-                variant="secondary"
-                onPress={() =>
-                  setViewport(
-                    zoomRailViewport({
-                      viewport,
-                      factor: 0.5,
-                      focalDate: selection.startDate,
-                      ...bounds,
-                    }),
-                  )
-                }
-              >
-                Zoom in
-              </AppButton>
-              <AppButton
-                variant="secondary"
-                onPress={() =>
-                  setViewport(
-                    panRailViewport({ viewport, deltaDays: 7, ...bounds }),
-                  )
-                }
-              >
-                Later
-              </AppButton>
+              <View
+                pointerEvents="none"
+                className="absolute h-5 w-5 rounded-full border-2 border-white bg-ink"
+                style={{
+                  left: `${datePosition(selection.startDate, viewport) * 100}%`,
+                  marginLeft: -10,
+                }}
+              />
+              <View
+                pointerEvents="none"
+                className="absolute h-5 w-5 rounded-full border-2 border-white bg-ink"
+                style={{
+                  left: `${datePosition(selection.endDate, viewport) * 100}%`,
+                  marginLeft: -10,
+                }}
+              />
             </View>
           </View>
-          <View className="gap-2">
-            <AppText variant="label">Exact dates</AppText>
-            <RangeDateInput
-              label="START"
-              value={selection.startDate}
-              firstEligibleDate={bounds.firstEligibleDate}
-              today={bounds.today}
-              onSubmit={(proposedDate) =>
-                setSelection(
-                  selectCustomRangeEndpoint({
-                    endpoint: 'start',
-                    proposedDate,
-                    ...selection,
-                    ...bounds,
-                  }),
-                )
-              }
-            />
-            <RangeDateInput
-              label="END"
-              value={selection.endDate}
-              firstEligibleDate={bounds.firstEligibleDate}
-              today={bounds.today}
-              onSubmit={(proposedDate) =>
-                setSelection(
-                  selectCustomRangeEndpoint({
-                    endpoint: 'end',
-                    proposedDate,
-                    ...selection,
-                    ...bounds,
-                  }),
-                )
-              }
-            />
-          </View>
-          <AppText muted>
-            {selection.days} days ·{' '}
-            {customRangeAggregationLabel(selection.days)} by default
-          </AppText>
+          <AppCard className="gap-3 p-4">
+            <View className="flex-row gap-4">
+              <View className="min-w-0 flex-1">
+                <RangeDateInput
+                  label="START"
+                  value={selection.startDate}
+                  firstEligibleDate={bounds.firstEligibleDate}
+                  today={bounds.today}
+                  onSubmit={(proposedDate) =>
+                    setSelection(
+                      selectCustomRangeEndpoint({
+                        endpoint: 'start',
+                        proposedDate,
+                        ...selection,
+                        ...bounds,
+                      }),
+                    )
+                  }
+                />
+              </View>
+              <View className="min-w-0 flex-1">
+                <RangeDateInput
+                  label="END"
+                  value={selection.endDate}
+                  firstEligibleDate={bounds.firstEligibleDate}
+                  today={bounds.today}
+                  onSubmit={(proposedDate) =>
+                    setSelection(
+                      selectCustomRangeEndpoint({
+                        endpoint: 'end',
+                        proposedDate,
+                        ...selection,
+                        ...bounds,
+                      }),
+                    )
+                  }
+                />
+              </View>
+            </View>
+            <AppText variant="caption" muted>
+              {selection.days} days ·{' '}
+              {customRangeAggregationLabel(selection.days)} aggregation
+            </AppText>
+          </AppCard>
+          <AppCard compact className="gap-1 bg-module">
+            <View className="flex-row justify-between gap-4">
+              <AppText muted>Aggregation</AppText>
+              <AppText variant="label">
+                Automatic · {customRangeAggregationLabel(selection.days)}
+              </AppText>
+            </View>
+          </AppCard>
           <AppText variant="caption" muted>
-            Available from {bounds.firstEligibleDate} through {bounds.today}.
-            Dates are inclusive.
+            Drag handles to select or pan the selected range through history. It
+            stops at your first eligible log and today. Tap START or END for
+            exact calendar selection. Future dates are disabled.
           </AppText>
         </>
       )}
     </AppScreen>
   );
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 function RangeDateInput({
