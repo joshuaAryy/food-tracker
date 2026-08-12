@@ -4,6 +4,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
 import type { AnalyticsReportOverviewState } from '@/lib/analytics/analytics-report-resource';
+import { nutrientGauge } from '@/lib/analytics/overview-visuals';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function label(metric: AnalyticsOverviewNutrientHighlight['metric']): string {
@@ -31,6 +32,33 @@ function statusCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
   return 'Near goal';
 }
 
+function statusColor(highlight: AnalyticsOverviewNutrientHighlight): string {
+  if (
+    highlight.status === 'above_limit' ||
+    highlight.status === 'above_range'
+  ) {
+    return '#C9242D';
+  }
+  if (
+    highlight.status === 'below_target' ||
+    highlight.status === 'below_minimum' ||
+    highlight.status === 'below_range'
+  ) {
+    return '#D99000';
+  }
+  if (highlight.status === 'unknown') return '#6D7C6B';
+  return '#00B86B';
+}
+
+function referenceCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
+  const reference = highlight.reference;
+  if (reference.kind === 'none') return 'Reference unavailable';
+  if (reference.kind === 'range') {
+    return `${reference.lower.toLocaleString('en-US')}–${reference.upper.toLocaleString('en-US')} ${highlight.unit}`;
+  }
+  return `${reference.value.toLocaleString('en-US')} ${highlight.unit} ${reference.kind === 'limit' ? 'limit' : 'target'}`;
+}
+
 export function NutrientHighlightsCard({
   overview,
   onRetry,
@@ -56,31 +84,69 @@ export function NutrientHighlightsCard({
             <View
               key={highlight.metric}
               className={
-                index === 0
-                  ? 'flex-row items-center justify-between gap-3 pb-3'
-                  : 'flex-row items-center justify-between gap-3 border-t border-line py-3'
+                index === 0 ? 'gap-2 pb-3' : 'gap-2 border-t border-line py-3'
               }
             >
-              <View className="gap-0.5">
+              <View className="flex-row items-center justify-between gap-3">
                 <AppText variant="label">{label(highlight.metric)}</AppText>
+                <AppText
+                  variant="caption"
+                  style={{ color: statusColor(highlight) }}
+                >
+                  {statusCopy(highlight)}
+                </AppText>
+              </View>
+              <View className="flex-row items-end justify-between gap-3">
                 <AppText variant="caption" className="text-muted">
                   {valueCopy(highlight)}
                 </AppText>
+                <AppText variant="caption" className="text-muted">
+                  {referenceCopy(highlight)}
+                </AppText>
               </View>
-              <AppText
-                variant="caption"
-                className={
-                  highlight.status === 'above_limit' ||
-                  highlight.status === 'above_range'
-                    ? 'text-[#eb1226]'
-                    : 'text-primary-dark'
-                }
-              >
-                {statusCopy(highlight)}
-              </AppText>
+              <NutrientGauge highlight={highlight} />
             </View>
           ))}
         </AppCard>
+      )}
+    </View>
+  );
+}
+
+function NutrientGauge({
+  highlight,
+}: {
+  highlight: AnalyticsOverviewNutrientHighlight;
+}) {
+  const gauge = nutrientGauge(highlight);
+  const color = statusColor(highlight);
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${label(highlight.metric)} ${statusCopy(highlight)}; ${valueCopy(highlight)}; ${referenceCopy(highlight)}`}
+      className="h-3 justify-center"
+    >
+      <View className="h-1.5 overflow-hidden rounded-full bg-module">
+        {gauge.fillPercent === null ? null : (
+          <View
+            className="h-full rounded-full"
+            style={{ backgroundColor: color, width: `${gauge.fillPercent}%` }}
+          />
+        )}
+      </View>
+      {gauge.primaryMarkerPercent === null ? null : (
+        <View
+          pointerEvents="none"
+          className="absolute h-3 w-0.5 rounded-full bg-ink"
+          style={{ left: `${gauge.primaryMarkerPercent}%` }}
+        />
+      )}
+      {gauge.secondaryMarkerPercent === null ? null : (
+        <View
+          pointerEvents="none"
+          className="absolute h-3 w-0.5 rounded-full bg-ink"
+          style={{ left: `${gauge.secondaryMarkerPercent}%` }}
+        />
       )}
     </View>
   );

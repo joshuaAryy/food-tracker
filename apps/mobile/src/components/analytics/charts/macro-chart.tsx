@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Rect } from 'react-native-svg';
+import { AppText } from '@/components/app-text';
 import {
   macroSegments,
   stackedMacroSegments,
@@ -18,11 +19,15 @@ export function MacroChart({
   values,
   size = 180,
   variant = 'donut',
+  centerValue,
+  centerLabel,
   accessibilityLabel,
 }: {
   values: Record<MacroKey, number | null>;
   size?: number;
   variant?: 'donut' | 'stacked_bar';
+  centerValue?: string | undefined;
+  centerLabel?: string | undefined;
   accessibilityLabel: string;
 }) {
   const segments = useMemo(() => macroSegments(values), [values]);
@@ -63,7 +68,7 @@ export function MacroChart({
   let offset = 0;
   return (
     <ChartFrame accessibilityLabel={accessibilityLabel}>
-      <View>
+      <View className="relative">
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {segments.map((segment) => {
             const length = circumference * segment.fraction;
@@ -87,6 +92,26 @@ export function MacroChart({
             return circle;
           })}
         </Svg>
+        {centerValue === undefined && centerLabel === undefined ? null : (
+          <View
+            pointerEvents="none"
+            className="absolute inset-0 items-center justify-center"
+          >
+            {centerValue === undefined ? null : (
+              <AppText
+                variant="number"
+                className="text-center text-[16px] leading-5"
+              >
+                {centerValue}
+              </AppText>
+            )}
+            {centerLabel === undefined ? null : (
+              <AppText variant="caption" className="text-center text-muted">
+                {centerLabel}
+              </AppText>
+            )}
+          </View>
+        )}
       </View>
     </ChartFrame>
   );

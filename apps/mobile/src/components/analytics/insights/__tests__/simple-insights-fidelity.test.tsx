@@ -315,6 +315,36 @@ describe('Simple Insights overview fidelity', () => {
     }
   });
 
+  it('places Explore all trends before the report cards', async () => {
+    const screen = await render(
+      <SimpleInsightsOverview
+        resource={readySimpleResource()}
+        onExploreTrends={jest.fn()}
+        onLogWater={jest.fn()}
+        onOverviewRetry={jest.fn()}
+      />,
+    );
+    const rendered = screen.toJSON();
+    const testIDs: string[] = [];
+    const collectTestIDs = (node: unknown): void => {
+      if (node === null || typeof node !== 'object') return;
+      const value = node as {
+        props?: { testID?: string };
+        children?: readonly unknown[];
+      };
+      if (value.props?.testID !== undefined) testIDs.push(value.props.testID);
+      value.children?.forEach(collectTestIDs);
+    };
+    collectTestIDs(rendered);
+
+    expect(testIDs.indexOf('simple-insights-explore')).toBeGreaterThanOrEqual(
+      0,
+    );
+    expect(testIDs.indexOf('simple-insights-explore')).toBeLessThan(
+      testIDs.indexOf('simple-insights-section-period-summary'),
+    );
+  });
+
   it('isolates a failed overview group and keeps healthy overview siblings visible', async () => {
     const resource = resourceWithUnavailableWeight();
     const onOverviewRetry = jest.fn();

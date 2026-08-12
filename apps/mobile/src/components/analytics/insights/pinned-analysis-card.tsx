@@ -86,7 +86,7 @@ export function PinnedAnalysisCard({
         className="min-h-11"
         onPress={() => onOpen(query.primaryMetric, queryKey)}
       >
-        <AppCard elevated className="gap-2 p-[18px]">
+        <AppCard elevated className="gap-3 p-[18px]">
           <AppText variant="caption" className="text-muted">
             PRIMARY VIEW · {query.primaryMetric}
           </AppText>
@@ -113,7 +113,7 @@ export function PinnedAnalysisCard({
             <LineTrendChart
               data={points}
               width={Math.max(220, width - 76)}
-              height={60}
+              height={104}
               color="#C9242D"
               accessibilityLabel={`${name} primary view preview`}
             />

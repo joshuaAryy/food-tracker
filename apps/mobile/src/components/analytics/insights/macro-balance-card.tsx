@@ -25,11 +25,13 @@ function trendData(section: AnalyticsReportSectionState | undefined) {
 
 export function MacroBalanceCard({
   overview,
+  energyAverage,
   proteinTrend,
   onOpenTrend,
   onRetry,
 }: {
   overview: AnalyticsReportOverviewState<'macros'> | undefined;
+  energyAverage: number | null;
   proteinTrend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
@@ -62,22 +64,39 @@ export function MacroBalanceCard({
                   carbs: data.carbs.grams,
                   fat: data.fat.grams,
                 }}
-                size={112}
+                size={104}
+                centerValue={
+                  energyAverage === null
+                    ? undefined
+                    : Math.round(energyAverage).toLocaleString('en-US')
+                }
+                centerLabel="kcal avg"
                 accessibilityLabel="Macro balance composition"
               />
               <View className="min-w-0 flex-1 gap-2">
                 {[
-                  ['Protein', data.protein.grams, data.protein.percentage],
-                  ['Carbs', data.carbs.grams, data.carbs.percentage],
-                  ['Fat', data.fat.grams, data.fat.percentage],
-                ].map(([label, value, percentage]) => (
+                  [
+                    'Protein',
+                    data.protein.grams,
+                    data.protein.percentage,
+                    '#C9242D',
+                  ],
+                  ['Carbs', data.carbs.grams, data.carbs.percentage, '#33B866'],
+                  ['Fat', data.fat.grams, data.fat.percentage, '#FFAD8F'],
+                ].map(([label, value, percentage, color]) => (
                   <View
                     key={label as string}
-                    className="flex-row justify-between gap-2"
+                    className="flex-row items-center justify-between gap-2"
                   >
-                    <AppText variant="label">
-                      {label as string} · {grams(value as number | null)}
-                    </AppText>
+                    <View className="min-w-0 flex-1 flex-row items-center gap-1.5">
+                      <View
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: color as string }}
+                      />
+                      <AppText variant="caption" numberOfLines={1}>
+                        {label as string} · {grams(value as number | null)}
+                      </AppText>
+                    </View>
                     <AppText variant="caption" className="text-ink">
                       {percentage === null ? '—' : `${percentage}%`}
                     </AppText>
@@ -85,10 +104,15 @@ export function MacroBalanceCard({
                 ))}
               </View>
             </View>
-            <View className="flex-row items-center justify-between border-t border-line pt-3">
-              <AppText variant="caption" className="text-muted">
-                TREND · Protein
-              </AppText>
+            <View className="gap-1 border-t border-line pt-3">
+              <View className="flex-row items-center justify-between">
+                <AppText variant="caption" className="text-muted">
+                  TREND · Protein
+                </AppText>
+                <AppText variant="caption" className="text-muted">
+                  g · 14 days
+                </AppText>
+              </View>
               {proteinTrend?.data === null ||
               proteinTrend?.data === undefined ? (
                 <AppText variant="caption" className="text-muted">
@@ -97,8 +121,8 @@ export function MacroBalanceCard({
               ) : (
                 <LineTrendChart
                   data={trendData(proteinTrend)}
-                  width={Math.max(150, width - 210)}
-                  height={50}
+                  width={Math.max(180, width - 76)}
+                  height={58}
                   color="#C9242D"
                   accessibilityLabel="Protein trend"
                 />

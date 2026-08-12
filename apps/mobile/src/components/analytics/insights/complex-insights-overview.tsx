@@ -37,6 +37,23 @@ export function ComplexInsightsOverview({
 }) {
   return (
     <View testID="complex-insights-overview" className="gap-7">
+      <View
+        testID="complex-insights-explore"
+        className="gap-2 rounded-[18px] bg-module p-4"
+      >
+        <AppText variant="label">Explore every trend</AppText>
+        <AppText variant="caption" className="text-muted">
+          Open the full Complex catalog for nutrient details, comparisons, and
+          saved analysis.
+        </AppText>
+        <AppButton
+          variant="secondary"
+          className="min-h-11 self-start rounded-[14px] py-2"
+          onPress={onExploreTrends}
+        >
+          Explore trends
+        </AppButton>
+      </View>
       <InsightsPeriodSummary
         period={resource.period ?? 'month'}
         summary={resource.overview.periodSummary}
@@ -56,6 +73,7 @@ export function ComplexInsightsOverview({
       />
       <MacroBalanceCard
         overview={resource.overview.macros}
+        energyAverage={resource.overview.energy?.data?.average ?? null}
         proteinTrend={resource.sections.protein}
         onOpenTrend={onExploreTrends}
         onRetry={() => onOverviewRetry('macros')}
@@ -81,20 +99,6 @@ export function ComplexInsightsOverview({
         overview={resource.overview.loggingConsistency}
         onRetry={() => onOverviewRetry('loggingConsistency')}
       />
-      <View className="gap-2 rounded-[18px] bg-module p-4">
-        <AppText variant="label">Explore every trend</AppText>
-        <AppText variant="caption" className="text-muted">
-          Open the full Complex catalog for nutrient details, comparisons, and
-          saved analysis.
-        </AppText>
-        <AppButton
-          variant="secondary"
-          className="min-h-11 self-start rounded-[14px] py-2"
-          onPress={onExploreTrends}
-        >
-          Explore trends
-        </AppButton>
-      </View>
     </View>
   );
 }

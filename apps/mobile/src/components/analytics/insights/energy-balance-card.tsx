@@ -26,6 +26,21 @@ function statusCopy(data: AnalyticsOverviewEnergy): string {
   return 'Energy data is unavailable';
 }
 
+function referenceCopy(data: AnalyticsOverviewEnergy): string {
+  if (data.reference.kind === 'none') return 'Target unavailable';
+  return `${Math.round(data.reference.lower).toLocaleString('en-US')}–${Math.round(data.reference.upper).toLocaleString('en-US')} kcal`;
+}
+
+function statusColor(data: AnalyticsOverviewEnergy): string {
+  if (data.status === 'below_range' || data.status === 'above_range') {
+    return '#C9242D';
+  }
+  if (data.status === 'unknown' || data.status === 'no_reference') {
+    return '#6D7C6B';
+  }
+  return '#00B86B';
+}
+
 function trendData(section: AnalyticsReportSectionState | undefined) {
   return (
     section?.data?.points.map((point) => ({
@@ -64,16 +79,31 @@ export function EnergyBalanceCard({
           onPress={onOpenTrend}
         >
           <AppCard elevated className="gap-3 p-[18px]">
-            <AppText variant="caption" className="text-muted">
-              REPORT · Daily average
-            </AppText>
-            <AppText variant="display" className="text-[38px] leading-[42px]">
-              {energyLabel(data.average)}
-            </AppText>
-            <AppText variant="caption" className="text-primary-dark">
+            <View className="flex-row items-start justify-between gap-3">
+              <View className="gap-1">
+                <AppText variant="caption" className="text-muted">
+                  REPORT · Daily average
+                </AppText>
+                <AppText
+                  variant="display"
+                  className="text-[38px] leading-[42px]"
+                >
+                  {energyLabel(data.average)}
+                </AppText>
+              </View>
+              <View className="items-end gap-1 pt-1">
+                <AppText variant="caption" className="text-muted">
+                  Daily target
+                </AppText>
+                <AppText variant="caption" className="text-ink">
+                  {referenceCopy(data)}
+                </AppText>
+              </View>
+            </View>
+            <AppText variant="caption" style={{ color: statusColor(data) }}>
               {statusCopy(data)}
             </AppText>
-            <View className="rounded-[12px] bg-module p-2">
+            <View className="gap-1 rounded-[12px] bg-module p-2">
               {trend?.data === null || trend?.data === undefined ? (
                 <AppText variant="caption" className="text-muted">
                   Trend preview unavailable
@@ -95,6 +125,14 @@ export function EnergyBalanceCard({
                   accessibilityLabel="Energy balance trend"
                 />
               )}
+              <View className="flex-row items-center justify-between">
+                <AppText variant="caption" className="text-muted">
+                  kcal
+                </AppText>
+                <AppText variant="caption" className="text-muted">
+                  14D
+                </AppText>
+              </View>
             </View>
             <View className="flex-row items-center justify-between">
               <AppText variant="caption" className="text-muted">

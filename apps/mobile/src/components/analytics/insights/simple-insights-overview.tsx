@@ -81,6 +81,24 @@ export function SimpleInsightsOverview({
       ) : null}
       {firstUseData === null ? (
         <>
+          <View
+            testID="simple-insights-explore"
+            className="gap-2 rounded-[18px] bg-module p-4"
+          >
+            <AppText variant="label">Explore every trend</AppText>
+            <AppText variant="caption" className="text-muted">
+              Simple mode keeps trend controls curated. Advanced micronutrient
+              drill-down, comparisons, and saved analysis stay in Complex mode.
+            </AppText>
+            <AppButton
+              accessibilityLabel="Explore all trends"
+              variant="secondary"
+              className="min-h-11 self-start rounded-[14px] py-2"
+              onPress={onExploreTrends}
+            >
+              Explore all trends
+            </AppButton>
+          </View>
           <InsightsPeriodSummary
             period={resource.period ?? 'week'}
             summary={resource.overview.periodSummary}
@@ -94,6 +112,7 @@ export function SimpleInsightsOverview({
           />
           <MacroBalanceCard
             overview={resource.overview.macros}
+            energyAverage={resource.overview.energy?.data?.average ?? null}
             proteinTrend={resource.sections.protein}
             onOpenTrend={onExploreTrends}
             onRetry={() => onOverviewRetry('macros')}
@@ -119,21 +138,6 @@ export function SimpleInsightsOverview({
             overview={resource.overview.loggingConsistency}
             onRetry={() => onOverviewRetry('loggingConsistency')}
           />
-          <View className="gap-2 rounded-[18px] bg-module p-4">
-            <AppText variant="label">Explore every trend</AppText>
-            <AppText variant="caption" className="text-muted">
-              Simple mode keeps trend controls curated. Advanced micronutrient
-              drill-down, comparisons, and saved analysis stay in Complex mode.
-            </AppText>
-            <AppButton
-              accessibilityLabel="Explore all trends"
-              variant="secondary"
-              className="min-h-11 self-start rounded-[14px] py-2"
-              onPress={onExploreTrends}
-            >
-              Explore all trends
-            </AppButton>
-          </View>
         </>
       ) : null}
     </View>

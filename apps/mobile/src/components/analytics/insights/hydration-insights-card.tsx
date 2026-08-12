@@ -7,6 +7,7 @@ import type {
   AnalyticsReportOverviewState,
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
+import { hydrationVesselFillLevels } from '@/lib/analytics/overview-visuals';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function liters(value: number | null): string {
@@ -27,10 +28,13 @@ export function HydrationInsightsCard({
   onRetry: () => void;
 }) {
   const data = overview?.data ?? null;
-  const progress =
-    data === null || data.total === null || data.goal <= 0
-      ? 0
-      : Math.min(100, (data.total / data.goal) * 100);
+  const vesselFills =
+    data === null ? [] : hydrationVesselFillLevels(data.total, data.goal);
+  const fullVesselCount = vesselFills.filter((fill) => fill === 1).length;
+  const vesselSummary =
+    data === null || data.total === null
+      ? 'Water data unavailable'
+      : `${fullVesselCount} of 8 glasses`;
   return (
     <View testID="simple-insights-section-hydration" className="gap-3">
       <ReportingSectionHeading icon="detail" title="Hydration" />
@@ -53,18 +57,27 @@ export function HydrationInsightsCard({
               of {(data.goal / 1000).toFixed(1)} L goal
             </AppText>
           </View>
-          <View className="h-2 overflow-hidden rounded-full bg-module">
-            <View
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${progress}%` }}
-            />
+          <View
+            accessible
+            accessibilityLabel={`Hydration vessel progress: ${vesselSummary}`}
+            className="flex-row items-end justify-between px-1 pt-1"
+          >
+            {vesselFills.map((fill, index) => (
+              <View
+                key={`vessel-${index}`}
+                className="h-8 w-4 overflow-hidden rounded-b-[6px] rounded-t-[3px] border-2 border-primary"
+              >
+                {fill === null ? null : (
+                  <View
+                    className="absolute bottom-0 left-0 right-0 bg-primary"
+                    style={{ height: `${fill * 100}%` }}
+                  />
+                )}
+              </View>
+            ))}
           </View>
           <View className="flex-row items-center justify-between gap-3">
-            <AppText variant="label">
-              {data.total === null
-                ? 'No water logged today'
-                : 'Explicit water total'}
-            </AppText>
+            <AppText variant="label">{vesselSummary}</AppText>
             <AppButton
               accessibilityLabel="Log water"
               className="min-h-10 rounded-[19px] px-4 py-1"
