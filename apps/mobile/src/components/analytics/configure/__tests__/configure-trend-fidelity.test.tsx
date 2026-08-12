@@ -138,7 +138,9 @@ describe('Configure Trend fidelity', () => {
     const screen = await render(<ConfigureTrendScreen />);
     const user = userEvent.setup();
 
-    await user.press(screen.getByRole('button', { name: 'Open Visualization' }));
+    await user.press(
+      screen.getByRole('button', { name: 'Open Visualization' }),
+    );
     expect(
       screen.getByRole('button', { name: 'Use Smoothed Line' }),
     ).toBeTruthy();

@@ -113,17 +113,19 @@ describe('Insights pinned view', () => {
     mockCacheWrite.mockReset();
     mockCacheWrite.mockResolvedValue(undefined);
     mockDataVersion = 0;
-    jest.spyOn(api.analytics, 'insights').mockResolvedValue(v2Report({
-      ...complexInsightsFixture,
-      sections: {
-        ...complexInsightsFixture.sections,
-        calories: {
-          ...complexInsightsFixture.sections.calories,
-          primaryMetric: 'calories',
-          summary: { average: 2000, numericDayCount: 7 },
+    jest.spyOn(api.analytics, 'insights').mockResolvedValue(
+      v2Report({
+        ...complexInsightsFixture,
+        sections: {
+          ...complexInsightsFixture.sections,
+          calories: {
+            ...complexInsightsFixture.sections.calories,
+            primaryMetric: 'calories',
+            summary: { average: 2000, numericDayCount: 7 },
+          },
         },
-      },
-    }) as never);
+      }) as never,
+    );
     jest.spyOn(api.analytics, 'preferences').mockResolvedValue({
       preferredSimpleMetric: 'calories',
       pinnedSavedViewId: 'saved-view-1',
@@ -182,28 +184,33 @@ describe('Insights pinned view', () => {
   });
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {
-    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(v2Report({
-      ...simpleInsightsFixture,
-      sections: {
-        ...simpleInsightsFixture.sections,
-        protein: {
-          ...simpleInsightsFixture.sections.protein,
-          primaryMetric: 'protein',
-          summary: { average: null, numericDayCount: 1 },
-        },
-      },
-    }, overviewWith({
-        macros: {
-          status: 'available',
-          fetchedAt,
-          data: {
-            protein: { grams: null, percentage: null },
-            carbs: { grams: null, percentage: null },
-            fat: { grams: null, percentage: null },
-            status: 'unknown',
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(
+      v2Report(
+        {
+          ...simpleInsightsFixture,
+          sections: {
+            ...simpleInsightsFixture.sections,
+            protein: {
+              ...simpleInsightsFixture.sections.protein,
+              primaryMetric: 'protein',
+              summary: { average: null, numericDayCount: 1 },
+            },
           },
         },
-      })) as never);
+        overviewWith({
+          macros: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              protein: { grams: null, percentage: null },
+              carbs: { grams: null, percentage: null },
+              fat: { grams: null, percentage: null },
+              status: 'unknown',
+            },
+          },
+        }),
+      ) as never,
+    );
 
     const screen = await render(<InsightsScreen />);
 
@@ -212,60 +219,62 @@ describe('Insights pinned view', () => {
   });
 
   it('renders first-use canonical totals through the existing flat section path', async () => {
-    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(v2Report(
-      analyticsStateFixtures.firstUse.report,
-      overviewWith({
-        periodSummary: {
-          status: 'available',
-          fetchedAt,
-          data: {
-            resolvedRange: {
-              startDate: '2026-07-30',
-              endDate: '2026-08-05',
+    jest.spyOn(api.analytics, 'insights').mockResolvedValueOnce(
+      v2Report(
+        analyticsStateFixtures.firstUse.report,
+        overviewWith({
+          periodSummary: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              resolvedRange: {
+                startDate: '2026-07-30',
+                endDate: '2026-08-05',
+              },
+              todaySoFar: {
+                date: '2026-08-05',
+                mealCount: 1,
+                calories: { value: 612, state: 'recorded' },
+                protein: { value: 38, state: 'recorded' },
+              },
+              loggedDayCount: 1,
+              eligibleLoggedDayCount: 1,
+              eligibleTotalDayCount: 7,
+              streak: { currentDays: 1, longestDays: 1 },
+              currentDayPhase: 'in_progress',
+              consistency: 14,
+              interpretation: 'first_use',
             },
-            todaySoFar: {
-              date: '2026-08-05',
-              mealCount: 1,
-              calories: { value: 612, state: 'recorded' },
-              protein: { value: 38, state: 'recorded' },
+          },
+          energy: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              average: 612,
+              numericDayCount: 1,
+              reference: {
+                kind: 'none',
+                unit: 'kcal',
+                reason: 'not_configured',
+              },
+              withinRangeDayCount: 0,
+              comparison: { direction: 'unknown', percentage: null },
+              status: 'no_reference',
             },
-            loggedDayCount: 1,
-            eligibleLoggedDayCount: 1,
-            eligibleTotalDayCount: 7,
-            streak: { currentDays: 1, longestDays: 1 },
-            currentDayPhase: 'in_progress',
-            consistency: 14,
-            interpretation: 'first_use',
           },
-        },
-        energy: {
-          status: 'available',
-          fetchedAt,
-          data: {
-            average: 612,
-            numericDayCount: 1,
-            reference: {
-              kind: 'none',
-              unit: 'kcal',
-              reason: 'not_configured',
+          macros: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              protein: { grams: 38, percentage: null },
+              carbs: { grams: null, percentage: null },
+              fat: { grams: null, percentage: null },
+              status: 'partial',
             },
-            withinRangeDayCount: 0,
-            comparison: { direction: 'unknown', percentage: null },
-            status: 'no_reference',
           },
-        },
-        macros: {
-          status: 'available',
-          fetchedAt,
-          data: {
-            protein: { grams: 38, percentage: null },
-            carbs: { grams: null, percentage: null },
-            fat: { grams: null, percentage: null },
-            status: 'partial',
-          },
-        },
-      }),
-    ) as never);
+        }),
+      ) as never,
+    );
 
     const screen = await render(<InsightsScreen />);
 

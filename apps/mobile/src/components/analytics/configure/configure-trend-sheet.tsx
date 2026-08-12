@@ -47,12 +47,7 @@ export function ConfigureTrendSheet({
   savedViewPeriodLabel?: string | undefined;
 }) {
   const [selector, setSelector] = useState<
-    | 'metric'
-    | 'period'
-    | 'coverage'
-    | 'aggregation'
-    | 'visualization'
-    | null
+    'metric' | 'period' | 'coverage' | 'aggregation' | 'visualization' | null
   >(null);
   const coverage =
     definition.supportedCoverageFilters as AnalyticsCoverageFilter[];
@@ -130,7 +125,9 @@ export function ConfigureTrendSheet({
           <SelectorRow
             key={days}
             label={`${days} days`}
-            description={days === 90 ? 'Weekly by default.' : 'Daily by default.'}
+            description={
+              days === 90 ? 'Weekly by default.' : 'Daily by default.'
+            }
             accessibilityLabel={`Use ${days} day default range`}
             selected={
               draft.period.kind === 'relative' && draft.period.days === days

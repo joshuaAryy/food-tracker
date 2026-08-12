@@ -64,7 +64,11 @@ describe('optional analytics failure isolation', () => {
       MOCK_USER_ID,
       'week',
       context,
-      { computeNutrientHighlights: async () => { throw new Error('nutrient detail unavailable'); } },
+      {
+        computeNutrientHighlights: async () => {
+          throw new Error('nutrient detail unavailable');
+        },
+      },
     );
 
     expect(result.nutrientHighlights.status).toBe('failed');

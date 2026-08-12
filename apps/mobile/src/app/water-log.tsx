@@ -280,10 +280,7 @@ export default function WaterLogScreen() {
           message={submitError}
         />
       )}
-      <WaterProgressVisual
-        totalMl={todayTotalMl}
-        goalMl={dailyWaterGoalMl}
-      />
+      <WaterProgressVisual totalMl={todayTotalMl} goalMl={dailyWaterGoalMl} />
       <View className="gap-3">
         <AppText variant="caption" className="font-bold uppercase text-muted">
           Amount
@@ -419,7 +416,10 @@ export default function WaterLogScreen() {
         {historyLoading ? (
           <AppText muted>Loading water history…</AppText>
         ) : historyError !== null ? (
-          <ErrorState message={historyError} onRetry={() => void loadTodayWater()} />
+          <ErrorState
+            message={historyError}
+            onRetry={() => void loadTodayWater()}
+          />
         ) : timezone === null ? (
           <AppText muted>
             Hydration context is temporarily unavailable. Try again to view or
@@ -429,7 +429,10 @@ export default function WaterLogScreen() {
           <AppText muted>No water logged today.</AppText>
         ) : (
           todayWaterLogs.map((waterLog) => {
-            const time = dateTimeFieldsInTimezone(waterLog.loggedAt, timezone).time;
+            const time = dateTimeFieldsInTimezone(
+              waterLog.loggedAt,
+              timezone,
+            ).time;
             return (
               <Pressable
                 key={waterLog.id}
@@ -437,7 +440,9 @@ export default function WaterLogScreen() {
                 accessibilityLabel={`Edit ${waterLog.amountMl} mL water at ${time}`}
                 className="min-h-[58px] flex-row items-center justify-between rounded-[16px] bg-module px-4"
                 onPress={() =>
-                  router.push(`/water-log?id=${encodeURIComponent(waterLog.id)}` as never)
+                  router.push(
+                    `/water-log?id=${encodeURIComponent(waterLog.id)}` as never,
+                  )
                 }
               >
                 <AppText>{time}</AppText>
@@ -496,7 +501,10 @@ function WaterProgressVisual({
         }
         className="h-3 overflow-hidden rounded-full bg-white"
       >
-        <View className="h-full rounded-full bg-[#1C6E8C]" style={{ width: `${ratio * 100}%` }} />
+        <View
+          className="h-full rounded-full bg-[#1C6E8C]"
+          style={{ width: `${ratio * 100}%` }}
+        />
       </View>
       <AppText variant="caption" muted>
         Only explicitly logged drinks count toward this total.

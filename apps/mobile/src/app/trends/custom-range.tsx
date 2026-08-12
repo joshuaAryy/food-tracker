@@ -173,8 +173,7 @@ export default function CustomRangeScreen() {
             activeInteraction.current = {
               kind: 'zoom',
               initialDistance,
-              focalX:
-                (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
+              focalX: (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
               selection,
               viewport,
             };
@@ -198,7 +197,8 @@ export default function CustomRangeScreen() {
           }
         },
         onPanResponderMove: (event) => {
-          if (bounds === null || viewport === null || selection === null) return;
+          if (bounds === null || viewport === null || selection === null)
+            return;
           const touches = (event.nativeEvent.touches ?? []) as RailTouch[];
           if (
             touches.length >= 2 &&
@@ -208,8 +208,7 @@ export default function CustomRangeScreen() {
             activeInteraction.current = {
               kind: 'zoom',
               initialDistance,
-              focalX:
-                (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
+              focalX: (touchX(touches[0]!) + touchX(touches[1]!)) / 2,
               selection,
               viewport,
             };

@@ -101,9 +101,9 @@ describe('Custom Range sheet fidelity', () => {
     expect(rail.props.accessibilityValue.text).not.toBe(
       '2026-07-03 through 2026-08-01',
     );
-    await userEvent.setup().press(
-      screen.getByRole('button', { name: 'Apply range' }),
-    );
+    await userEvent
+      .setup()
+      .press(screen.getByRole('button', { name: 'Apply range' }));
     expect(mockReplace).toHaveBeenCalledWith(
       expect.objectContaining({
         pathname: '/trends/configure',

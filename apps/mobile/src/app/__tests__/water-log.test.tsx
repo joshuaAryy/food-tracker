@@ -57,7 +57,9 @@ describe('Water Log screen', () => {
     });
 
     expect(
-      await screen.findByText('Today’s water history is temporarily unavailable.'),
+      await screen.findByText(
+        'Today’s water history is temporarily unavailable.',
+      ),
     ).toBeTruthy();
     expect(addButton.props.accessibilityState?.disabled).toBe(true);
     expect(screen.getByText('Hydration today')).toBeTruthy();

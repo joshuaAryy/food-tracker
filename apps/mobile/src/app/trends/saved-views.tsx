@@ -421,8 +421,8 @@ export default function SavedViewsScreen() {
         <AppText variant="label">+ Create a saved view</AppText>
       </Pressable>
       <AppText variant="caption" muted>
-        Drag a handle up or down to reorder. Reordering never changes the
-        report order in Insights.
+        Drag a handle up or down to reorder. Reordering never changes the report
+        order in Insights.
       </AppText>
     </AppScreen>
   );

@@ -144,7 +144,9 @@ export default function SaveViewScreen() {
             accessibilityLabel="Close"
             onPress={close}
           >
-            <AppText variant="label">{isModified ? '‹ Saved views' : 'Cancel'}</AppText>
+            <AppText variant="label">
+              {isModified ? '‹ Saved views' : 'Cancel'}
+            </AppText>
           </Pressable>
         }
       />
@@ -167,15 +169,23 @@ export default function SaveViewScreen() {
             </View>
           </View>
           <View className="gap-3 rounded-[20px] border border-border bg-surface p-[18px]">
-            <AppText variant="caption" className="font-bold uppercase text-muted">
-              {trend.period.kind === 'relative' ? `${trend.period.days}-day preview` : 'Custom-range preview'}
+            <AppText
+              variant="caption"
+              className="font-bold uppercase text-muted"
+            >
+              {trend.period.kind === 'relative'
+                ? `${trend.period.days}-day preview`
+                : 'Custom-range preview'}
             </AppText>
             {preview === null ? (
-              <AppText muted>Preview unavailable. Your saved configuration remains editable.</AppText>
+              <AppText muted>
+                Preview unavailable. Your saved configuration remains editable.
+              </AppText>
             ) : (
               <LineTrendChart
                 data={preview.points.map((point) => ({
-                  date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+                  date:
+                    point.kind === 'daily' ? point.date : point.bucketStartDate,
                   value: point.value,
                 }))}
                 width={320}
@@ -185,7 +195,8 @@ export default function SaveViewScreen() {
             )}
           </View>
           <AppText muted>
-            Your changes are temporary until you choose what to do with this saved view.
+            Your changes are temporary until you choose what to do with this
+            saved view.
           </AppText>
         </>
       ) : (
@@ -199,7 +210,11 @@ export default function SaveViewScreen() {
           />
           <AppCard className="gap-2 bg-module">
             <AppText variant="label">Saved range</AppText>
-            <AppText>{trend.period.kind === 'relative' ? `Last ${trend.period.days} days` : 'Custom range'}</AppText>
+            <AppText>
+              {trend.period.kind === 'relative'
+                ? `Last ${trend.period.days} days`
+                : 'Custom range'}
+            </AppText>
             <AppText variant="caption" muted>
               Keeps moving forward with time
             </AppText>
@@ -207,7 +222,9 @@ export default function SaveViewScreen() {
           <AppCard className="gap-2 bg-module">
             <AppText variant="label">This view remembers</AppText>
             <AppText variant="caption" muted>
-              {name} · {trend.aggregation} · {trend.visualization} · {trend.showReference ? 'Targets shown' : 'No target'} · {trend.coverageFilter.replaceAll('_', ' ')}
+              {name} · {trend.aggregation} · {trend.visualization} ·{' '}
+              {trend.showReference ? 'Targets shown' : 'No target'} ·{' '}
+              {trend.coverageFilter.replaceAll('_', ' ')}
             </AppText>
           </AppCard>
           <Pressable

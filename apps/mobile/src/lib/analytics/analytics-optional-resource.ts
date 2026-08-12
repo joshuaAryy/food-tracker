@@ -10,7 +10,9 @@ export interface AnalyticsOptionalResource<T> {
   error: string | null;
 }
 
-export function initialAnalyticsOptionalResource<T>(): AnalyticsOptionalResource<T> {
+export function initialAnalyticsOptionalResource<
+  T,
+>(): AnalyticsOptionalResource<T> {
   return { status: 'idle', data: null, error: null };
 }
 
