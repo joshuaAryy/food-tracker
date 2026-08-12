@@ -1,15 +1,13 @@
 import { Router } from 'express';
 import {
   ANALYTICS_OVERVIEW_KEYS,
-  canonicalInsightsResponseV2WithOverviewSchema,
+  canonicalInsightsResponseWithOverviewSchema,
   analyticsMetricCatalogSchema,
   analyticsMetricIsAvailableInMode,
   analyticsMetricsForMode,
   analyticsContributorsQueryInputSchema,
   trendQueryInputSchema,
   type TrendQueryInput,
-  type AnalyticsSectionFailure,
-  type AnalyticsSectionResult,
   type AnalyticsOverviewResultMap,
 } from '@food-tracker/shared';
 import { currentUserId } from '../../../lib/auth.js';
@@ -238,12 +236,6 @@ export function createInsightsRouter(
       await context.base;
     }
 
-    const failedSection: AnalyticsSectionFailure = {
-      status: 'failed',
-      code: 'section_unavailable',
-      retryable: true,
-    };
-    const fetchedAt = new Date().toISOString();
     const trends = await Promise.all(
       keys.map(async (primaryMetric) => {
         report('insights_metric_started', {
@@ -262,14 +254,7 @@ export function createInsightsRouter(
             trackingMode: mode,
             metric: primaryMetric,
           });
-          return [
-            primaryMetric,
-            {
-              status: 'available' as const,
-              data: trend,
-              fetchedAt,
-            } satisfies AnalyticsSectionResult,
-          ] as const;
+          return [primaryMetric, trend] as const;
         } catch (error) {
           report('insights_metric_failed', {
             ...baseDetails,
@@ -277,21 +262,39 @@ export function createInsightsRouter(
             metric: primaryMetric,
             ...insightsDiagnosticErrorDetails(error),
           });
-          return [primaryMetric, failedSection] as const;
+          throw error;
         }
       }),
     );
     const overview: AnalyticsOverviewResultMap =
       context.base === undefined && dependencies.computeOverview === undefined
         ? (Object.fromEntries(
-            ANALYTICS_OVERVIEW_KEYS.map((key) => [key, failedSection]),
+            ANALYTICS_OVERVIEW_KEYS.map((key) => [
+              key,
+              {
+                status: 'failed' as const,
+                code: 'section_unavailable' as const,
+                retryable: true as const,
+              },
+            ]),
           ) as AnalyticsOverviewResultMap)
         : await computeOverview(
             userId,
             period,
             context,
             dependencies.overviewDependencies,
-          );
+          ).catch((error: unknown) => {
+            return Object.fromEntries(
+              ANALYTICS_OVERVIEW_KEYS.map((key) => [
+                key,
+                {
+                  status: 'failed' as const,
+                  code: 'section_unavailable' as const,
+                  retryable: true as const,
+                },
+              ]),
+            ) as AnalyticsOverviewResultMap;
+          });
     report('insights_computation_succeeded', {
       ...baseDetails,
       trackingMode: mode,
@@ -304,8 +307,7 @@ export function createInsightsRouter(
     try {
       sendSuccess(
         response,
-        canonicalInsightsResponseV2WithOverviewSchema.parse({
-          contractVersion: 2,
+        canonicalInsightsResponseWithOverviewSchema.parse({
           mode,
           period,
           sections: Object.fromEntries(trends),

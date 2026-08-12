@@ -6,6 +6,7 @@ import {
   loggingDayStateSchema,
   metricDataStateSchema,
   type CanonicalTrendResponse,
+  type CanonicalInsightsResponse,
   type LoggingDayPhase,
   type LoggingDayState,
   type MetricDataState,
@@ -135,6 +136,38 @@ type AnalyticsOverviewNoReference = {
   kind: 'none';
   reason: 'not_configured' | 'not_applicable';
 };
+type AnalyticsOverviewNutrientReference<Unit extends 'g' | 'mg'> =
+  | {
+      kind: 'target' | 'minimum' | 'limit';
+      value: number;
+      unit: Unit;
+      source: AnalyticsOverviewReferenceSource;
+    }
+  | {
+      kind: 'range';
+      lower: number;
+      upper: number;
+      unit: Unit;
+      source: AnalyticsOverviewReferenceSource;
+    }
+  | {
+      kind: 'none';
+      unit: Unit;
+      reason: 'not_configured' | 'not_applicable';
+    };
+
+type AnalyticsOverviewNutrientStatus =
+  | 'below_target'
+  | 'meets_target'
+  | 'above_target'
+  | 'below_minimum'
+  | 'meets_minimum'
+  | 'within_limit'
+  | 'above_limit'
+  | 'below_range'
+  | 'within_range'
+  | 'above_range'
+  | 'unknown';
 
 export type AnalyticsOverviewNutrientHighlight =
   | {
@@ -142,45 +175,24 @@ export type AnalyticsOverviewNutrientHighlight =
       value: number | null;
       unit: 'g';
       availability: AnalyticsOverviewNutrientAvailability;
-      reference:
-        | {
-            kind: 'minimum';
-            value: number;
-            unit: 'g';
-            source: AnalyticsOverviewReferenceSource;
-          }
-        | (AnalyticsOverviewNoReference & { unit: 'g' });
-      status: 'below_minimum' | 'meets_minimum' | 'unknown';
+      reference: AnalyticsOverviewNutrientReference<'g'>;
+      status: AnalyticsOverviewNutrientStatus;
     }
   | {
       metric: 'sodium';
       value: number | null;
       unit: 'mg';
       availability: AnalyticsOverviewNutrientAvailability;
-      reference:
-        | {
-            kind: 'limit';
-            value: number;
-            unit: 'mg';
-            source: AnalyticsOverviewReferenceSource;
-          }
-        | (AnalyticsOverviewNoReference & { unit: 'mg' });
-      status: 'within_limit' | 'above_limit' | 'unknown';
+      reference: AnalyticsOverviewNutrientReference<'mg'>;
+      status: AnalyticsOverviewNutrientStatus;
     }
   | {
       metric: 'vitaminC';
       value: number | null;
       unit: 'mg';
       availability: AnalyticsOverviewNutrientAvailability;
-      reference:
-        | {
-            kind: 'minimum';
-            value: number;
-            unit: 'mg';
-            source: AnalyticsOverviewReferenceSource;
-          }
-        | (AnalyticsOverviewNoReference & { unit: 'mg' });
-      status: 'below_minimum' | 'meets_minimum' | 'unknown';
+      reference: AnalyticsOverviewNutrientReference<'mg'>;
+      status: AnalyticsOverviewNutrientStatus;
     };
 
 export type AnalyticsOverviewNutrientHighlights = {
@@ -502,22 +514,23 @@ export const analyticsOverviewMacrosSchema = z
   });
 
 const nutrientAvailabilitySchema = metricDataStateSchema;
-const nutrientReferenceNoneSchema = (unit: 'g' | 'mg') =>
-  z.strictObject({
-    kind: z.literal('none'),
-    unit: z.literal(unit),
-    reason: overviewReferenceNoneReasonSchema,
-  });
-
 function overviewNutrientHighlightSchema(
   metric: 'fiber' | 'sodium' | 'vitaminC',
 ) {
   const unit = metric === 'fiber' ? 'g' : 'mg';
-  const referenceKind = metric === 'sodium' ? 'limit' : 'minimum';
-  const statuses =
-    metric === 'sodium'
-      ? ['within_limit', 'above_limit', 'unknown']
-      : ['below_minimum', 'meets_minimum', 'unknown'];
+  const statuses = [
+    'below_target',
+    'meets_target',
+    'above_target',
+    'below_minimum',
+    'meets_minimum',
+    'within_limit',
+    'above_limit',
+    'below_range',
+    'within_range',
+    'above_range',
+    'unknown',
+  ] as const;
   return z
     .strictObject({
       metric: z.literal(metric),
@@ -526,14 +539,37 @@ function overviewNutrientHighlightSchema(
       availability: nutrientAvailabilitySchema,
       reference: z.discriminatedUnion('kind', [
         z.strictObject({
-          kind: z.literal(referenceKind),
+          kind: z.literal('target'),
           value: analyticsNumberSchema,
           unit: z.literal(unit),
           source: overviewReferenceSourceSchema,
         }),
-        nutrientReferenceNoneSchema(unit),
+        z.strictObject({
+          kind: z.literal('minimum'),
+          value: analyticsNumberSchema,
+          unit: z.literal(unit),
+          source: overviewReferenceSourceSchema,
+        }),
+        z.strictObject({
+          kind: z.literal('limit'),
+          value: analyticsNumberSchema,
+          unit: z.literal(unit),
+          source: overviewReferenceSourceSchema,
+        }),
+        z.strictObject({
+          kind: z.literal('range'),
+          lower: analyticsNumberSchema,
+          upper: analyticsNumberSchema,
+          unit: z.literal(unit),
+          source: overviewReferenceSourceSchema,
+        }),
+        z.strictObject({
+          kind: z.literal('none'),
+          unit: z.literal(unit),
+          reason: overviewReferenceNoneReasonSchema,
+        }),
       ]),
-      status: z.enum(statuses as [string, ...string[]]),
+      status: z.enum(statuses),
     })
     .superRefine((highlight, context) => {
       if (highlight.availability === 'recorded' && highlight.value === null) {
@@ -576,9 +612,21 @@ function overviewNutrientHighlightSchema(
             ? highlight.value <= highlight.reference.value
               ? 'within_limit'
               : 'above_limit'
-            : highlight.value < highlight.reference.value
-              ? 'below_minimum'
-              : 'meets_minimum';
+            : highlight.reference.kind === 'minimum'
+              ? highlight.value < highlight.reference.value
+                ? 'below_minimum'
+                : 'meets_minimum'
+              : highlight.reference.kind === 'target'
+                ? highlight.value < highlight.reference.value
+                  ? 'below_target'
+                  : highlight.value > highlight.reference.value
+                    ? 'above_target'
+                    : 'meets_target'
+                : highlight.value < highlight.reference.lower
+                  ? 'below_range'
+                  : highlight.value > highlight.reference.upper
+                    ? 'above_range'
+                    : 'within_range';
         if (highlight.status !== expectedStatus) {
           context.addIssue({
             code: 'custom',
@@ -587,6 +635,16 @@ function overviewNutrientHighlightSchema(
             path: ['status'],
           });
         }
+      }
+      if (
+        highlight.reference.kind === 'range' &&
+        highlight.reference.lower >= highlight.reference.upper
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Nutrient reference ranges must be ordered.',
+          path: ['reference'],
+        });
       }
     });
 }
@@ -852,6 +910,17 @@ export type CanonicalInsightsResponseV2WithOverview = Omit<
   overview: AnalyticsOverviewResultMap;
 };
 
+/**
+ * Temporary live-route bridge. The established Insights endpoint keeps its
+ * flat section envelope until R10.5 wires the v2 route/resource/cache
+ * boundary. Overview outcomes are already authoritative and independently
+ * typed, so the bridge carries them without changing the core section shape.
+ */
+export type CanonicalInsightsResponseWithOverview =
+  CanonicalInsightsResponse & {
+    overview: AnalyticsOverviewResultMap;
+  };
+
 export const canonicalInsightsResponseV2Schema = z
   .strictObject({
     contractVersion: z.literal(2),
@@ -901,6 +970,11 @@ export const canonicalInsightsResponseV2WithOverviewSchema = z.intersection(
   canonicalInsightsResponseV2Schema,
   z.strictObject({ overview: analyticsOverviewMapSchema }),
 );
+
+export const canonicalInsightsResponseWithOverviewSchema =
+  canonicalInsightsResponseSchema.extend({
+    overview: analyticsOverviewMapSchema,
+  });
 
 /** Validates legacy reports before a caller can normalize them into v2. */
 export function parseCanonicalInsightsResponseV1(value: unknown) {

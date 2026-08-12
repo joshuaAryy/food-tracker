@@ -1,6 +1,7 @@
 import {
   canonicalInsightsResponseV2Schema,
   canonicalInsightsResponseV2WithOverviewSchema,
+  canonicalInsightsResponseWithOverviewSchema,
   type AnalyticsMetricKey,
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
@@ -211,6 +212,88 @@ function overview() {
 }
 
 describe('canonical Insights response v2 contract', () => {
+  it('accepts the temporary flat transport bridge with required overview outcomes', () => {
+    const result = canonicalInsightsResponseWithOverviewSchema.safeParse({
+      mode: 'simple',
+      period: 'week',
+      sections: { calories: trend('calories') },
+      overview: overview(),
+    });
+
+    expect(result.success).toBe(true);
+    expect(
+      canonicalInsightsResponseWithOverviewSchema.safeParse({
+        mode: 'simple',
+        period: 'week',
+        sections: {
+          calories: {
+            status: 'available',
+            data: trend('calories'),
+            fetchedAt: '2026-08-11T12:00:00.000Z',
+          },
+        },
+        overview: overview(),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts every authoritative nutrient reference variant in the flat bridge', () => {
+    const valid = overview();
+    const candidate = {
+      ...valid,
+      nutrientHighlights: {
+        ...valid.nutrientHighlights,
+        data: {
+          highlights: [
+            {
+              ...valid.nutrientHighlights.data.highlights[0],
+              value: 30,
+              reference: {
+                kind: 'target' as const,
+                value: 30,
+                unit: 'g' as const,
+                source: 'user' as const,
+              },
+              status: 'meets_target' as const,
+            },
+            {
+              ...valid.nutrientHighlights.data.highlights[1],
+              value: 2300,
+              reference: {
+                kind: 'range' as const,
+                lower: 2000,
+                upper: 2400,
+                unit: 'mg' as const,
+                source: 'derived' as const,
+              },
+              status: 'within_range' as const,
+            },
+            {
+              ...valid.nutrientHighlights.data.highlights[2],
+              value: null,
+              availability: 'unknown' as const,
+              reference: {
+                kind: 'none' as const,
+                unit: 'mg' as const,
+                reason: 'not_configured' as const,
+              },
+              status: 'unknown' as const,
+            },
+          ],
+        },
+      },
+    };
+
+    expect(
+      canonicalInsightsResponseWithOverviewSchema.safeParse({
+        mode: 'simple',
+        period: 'week',
+        sections: { calories: trend('calories') },
+        overview: candidate,
+      }).success,
+    ).toBe(true);
+  });
+
   it('strictly accepts available, failed, and mixed section results', () => {
     const result = canonicalInsightsResponseV2Schema.safeParse({
       contractVersion: 2,

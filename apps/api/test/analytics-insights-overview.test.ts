@@ -1,6 +1,6 @@
 import {
   ANALYTICS_OVERVIEW_KEYS,
-  canonicalInsightsResponseV2Schema,
+  canonicalInsightsResponseWithOverviewSchema,
   MOCK_USER_ID,
 } from '@food-tracker/shared';
 import type { AnalyticsOverviewKey } from '@food-tracker/shared';
@@ -105,9 +105,9 @@ describe('canonical Insights v2 overview facts', () => {
       .query({ period: 'week' })
       .expect(200);
 
-    expect(response.body.data.contractVersion).toBe(2);
     expect(
-      canonicalInsightsResponseV2Schema.safeParse(response.body.data).success,
+      canonicalInsightsResponseWithOverviewSchema.safeParse(response.body.data)
+        .success,
     ).toBe(true);
     expect(Object.keys(response.body.data.sections)).toEqual([
       'calories',

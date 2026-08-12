@@ -2,11 +2,15 @@ import {
   analyticsSectionKeySchema,
   ANALYTICS_OVERVIEW_KEYS,
   canonicalInsightsResponseV2Schema,
+  canonicalInsightsResponseV2WithOverviewSchema,
+  canonicalInsightsResponseWithOverviewSchema,
   parseCanonicalInsightsResponseV1,
   type AnalyticsSectionKey,
   type AnalyticsSectionResult,
   type CanonicalInsightsResponse,
+  type CanonicalInsightsResponseWithOverview,
   type CanonicalInsightsResponseV2,
+  type CanonicalInsightsResponseV2WithOverview,
   type CanonicalTrendResponse,
 } from '@food-tracker/shared';
 
@@ -59,5 +63,46 @@ export function adaptCanonicalInsightsResponseV1(
   const parsedV2 = canonicalInsightsResponseV2Schema.safeParse(candidate);
   return parsedV2.success
     ? (parsedV2.data as CanonicalInsightsResponseV2)
+    : null;
+}
+
+/**
+ * Normalizes the temporary live-route bridge into the section-aware v2
+ * presentation contract. The bridge owns real overview facts; this adapter
+ * only wraps its already-validated flat trend sections with resource state.
+ */
+export function adaptCanonicalInsightsResponseWithOverview(
+  value: unknown,
+  fetchedAt: string,
+): CanonicalInsightsResponseV2WithOverview | null {
+  const parsedBridge =
+    canonicalInsightsResponseWithOverviewSchema.safeParse(value);
+  if (!parsedBridge.success) return null;
+  const bridge = parsedBridge.data as CanonicalInsightsResponseWithOverview;
+
+  const sections: Partial<
+    Record<AnalyticsSectionKey, AnalyticsSectionResult<CanonicalTrendResponse>>
+  > = {};
+  for (const [key, data] of Object.entries(bridge.sections)) {
+    const sectionKey = analyticsSectionKeySchema.safeParse(key);
+    if (!sectionKey.success) return null;
+    sections[sectionKey.data] = {
+      status: 'available',
+      data,
+      fetchedAt,
+    };
+  }
+
+  const candidate = {
+    contractVersion: 2 as const,
+    mode: bridge.mode,
+    period: bridge.period,
+    sections,
+    overview: bridge.overview,
+  };
+  const parsedV2 =
+    canonicalInsightsResponseV2WithOverviewSchema.safeParse(candidate);
+  return parsedV2.success
+    ? (parsedV2.data as CanonicalInsightsResponseV2WithOverview)
     : null;
 }

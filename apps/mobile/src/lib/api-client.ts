@@ -56,7 +56,7 @@ import type {
   ReportsResponse,
   StreakCalendarResponse,
   CanonicalTrendResponse,
-  CanonicalInsightsResponseV2WithOverview,
+  CanonicalInsightsResponseWithOverview,
   TrendQueryInput,
   AnalyticsPreferenceUpdateInput,
   AnalyticsPreferenceValue,
@@ -77,7 +77,7 @@ import {
   photoAnalysisResultSchema,
   photoAnalysisConfirmationResponseSchema,
   canonicalTrendResponseSchema,
-  canonicalInsightsResponseV2WithOverviewSchema,
+  canonicalInsightsResponseWithOverviewSchema,
 } from '@food-tracker/shared';
 import { File } from 'expo-file-system';
 import Constants from 'expo-constants';
@@ -98,6 +98,7 @@ import { reportDiagnostic } from './safe-diagnostics';
 import { resolveApiRuntimeConfig } from './api-target';
 import { toUserFacingError } from './user-facing-errors';
 import type { ApiAuthSession } from './api-auth-session';
+import { adaptCanonicalInsightsResponseWithOverview } from './analytics/analytics-v1-adapter';
 
 const runtimeExtra = Constants.expoConfig?.extra;
 const resolvedApiRuntime = resolveApiRuntimeConfig(
@@ -562,12 +563,25 @@ export const api = {
       period: 'week' | 'month',
       onDiagnostic?: InsightsRequestDiagnostic,
     ) =>
-      request<CanonicalInsightsResponseV2WithOverview>(
+      request<CanonicalInsightsResponseWithOverview>(
         `/analytics/insights?period=${period}`,
         {},
-        canonicalInsightsResponseV2WithOverviewSchema as unknown as ResponseSchema<CanonicalInsightsResponseV2WithOverview>,
+        canonicalInsightsResponseWithOverviewSchema as unknown as ResponseSchema<CanonicalInsightsResponseWithOverview>,
         onDiagnostic,
-      ),
+      ).then((bridge) => {
+        const adapted = adaptCanonicalInsightsResponseWithOverview(
+          bridge,
+          new Date().toISOString(),
+        );
+        if (adapted === null) {
+          throw new ApiClientError(
+            'The API returned an unreadable or unexpected response.',
+            'INVALID_RESPONSE',
+            200,
+          );
+        }
+        return adapted;
+      }),
     preferences: () =>
       request<{ preferences: AnalyticsPreferenceValue }>(
         '/analytics/preferences',

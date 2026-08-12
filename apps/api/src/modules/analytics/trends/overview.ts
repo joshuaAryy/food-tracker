@@ -373,29 +373,59 @@ function highlight(
   );
   const reference = metricReference(metric, referenceInputs(context.base[2]));
   const unit = metric === 'fiber' ? 'g' : 'mg';
-  const typedReference =
-    reference.kind === 'none'
-      ? { kind: 'none' as const, unit, reason: reference.reason }
-      : reference.kind === 'minimum' || reference.kind === 'limit'
-        ? {
-            kind: reference.kind,
-            value: reference.value,
-            unit,
-            source: reference.source,
-          }
-        : { kind: 'none' as const, unit, reason: 'not_configured' as const };
-  const status =
+  let typedReference: AnalyticsOverviewNutrientHighlight['reference'];
+  if (reference.kind === 'none') {
+    typedReference = { kind: 'none', unit, reason: reference.reason };
+  } else if (reference.kind === 'range') {
+    typedReference = {
+      kind: 'range',
+      lower: reference.lower,
+      upper: reference.upper,
+      unit,
+      source: reference.source,
+    };
+  } else {
+    typedReference = {
+      kind: reference.kind,
+      value: reference.value,
+      unit,
+      source: reference.source,
+    };
+  }
+  let status: AnalyticsOverviewNutrientHighlight['status'];
+  if (
     classification.state !== 'recorded' ||
     typedReference.kind === 'none' ||
     classification.value === null
-      ? 'unknown'
-      : metric === 'sodium'
-        ? classification.value <= typedReference.value
-          ? 'within_limit'
-          : 'above_limit'
-        : classification.value >= typedReference.value
-          ? 'meets_minimum'
-          : 'below_minimum';
+  ) {
+    status = 'unknown';
+  } else if (typedReference.kind === 'limit') {
+    status =
+      classification.value <= typedReference.value
+        ? 'within_limit'
+        : 'above_limit';
+  } else if (typedReference.kind === 'minimum') {
+    status =
+      classification.value >= typedReference.value
+        ? 'meets_minimum'
+        : 'below_minimum';
+  } else if (typedReference.kind === 'target') {
+    status =
+      classification.value < typedReference.value
+        ? 'below_target'
+        : classification.value > typedReference.value
+          ? 'above_target'
+          : 'meets_target';
+  } else if (typedReference.kind === 'range') {
+    status =
+      classification.value < typedReference.lower
+        ? 'below_range'
+        : classification.value > typedReference.upper
+          ? 'above_range'
+          : 'within_range';
+  } else {
+    status = 'unknown';
+  }
   return {
     metric,
     value: classification.value,

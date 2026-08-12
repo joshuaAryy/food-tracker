@@ -53,8 +53,8 @@ function failedOverview(): AnalyticsOverviewResultMap {
   ) as AnalyticsOverviewResultMap;
 }
 
-describe('canonical Insights v2 fault isolation', () => {
-  it('returns healthy core sections when one canonical trend computation fails', async () => {
+describe('canonical Insights transport and overview fault boundaries', () => {
+  it('keeps a core trend failure at the report-level until the v2 route is live', async () => {
     const context = {} as ReturnType<
       NonNullable<InsightsRouteDependencies['createTrendRequestContext']>
     >;
@@ -86,24 +86,19 @@ describe('canonical Insights v2 fault isolation', () => {
 
     const response = await request(app)
       .get('/api/v1/analytics/insights?period=week')
-      .expect(200);
+      .expect(500);
 
-    expect(response.body.data.contractVersion).toBe(2);
-    expect(Object.keys(response.body.data.sections)).toEqual([
-      ...ANALYTICS_INSIGHTS_SECTION_KEYS,
-    ]);
-    expect(response.body.data.sections.hydration).toMatchObject({
-      status: 'failed',
-      code: 'section_unavailable',
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'The request could not be completed.',
+        details: {},
+      },
     });
-    expect(response.body.data.sections.calories).toMatchObject({
-      status: 'available',
-      data: { primaryMetric: 'calories' },
-    });
-    expect(response.body.data.overview.periodSummary.status).toBe('failed');
   });
 
-  it('keeps every healthy core trend sibling when any one calculator fails', async () => {
+  it('keeps core trend failures report-level for every metric until R10 route integration', async () => {
     for (const failingMetric of ANALYTICS_INSIGHTS_SECTION_KEYS) {
       const context = {} as ReturnType<
         NonNullable<InsightsRouteDependencies['createTrendRequestContext']>
@@ -134,16 +129,56 @@ describe('canonical Insights v2 fault isolation', () => {
 
       const response = await request(app)
         .get('/api/v1/analytics/insights?period=week')
-        .expect(200);
+        .expect(500);
 
-      expect(response.body.data.sections[failingMetric]).toMatchObject({
+      expect(response.body).toEqual({
+        success: false,
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'The request could not be completed.',
+          details: {},
+        },
+      });
+    }
+  });
+
+  it('keeps the flat core report when overview context computation fails', async () => {
+    const context = {} as ReturnType<
+      NonNullable<InsightsRouteDependencies['createTrendRequestContext']>
+    >;
+    const app = express();
+    app.use(requestContext({ createRequestId: () => 'req_overview_failure' }));
+    app.use((_request, response, next) => {
+      response.locals.userId = '00000000-0000-0000-0000-000000000001';
+      next();
+    });
+    app.use(
+      '/api/v1/analytics/insights',
+      createInsightsRouter({
+        currentTrackingMode: async () => 'simple',
+        createTrendRequestContext: () => context,
+        computeCanonicalTrend: async (_userId, query) =>
+          trend(query.primaryMetric),
+        computeOverview: async () => {
+          throw new Error('overview source query failed');
+        },
+      }),
+    );
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .get('/api/v1/analytics/insights?period=week')
+      .expect(200);
+
+    expect(Object.keys(response.body.data.sections)).toEqual([
+      ...ANALYTICS_INSIGHTS_SECTION_KEYS,
+    ]);
+    for (const key of ANALYTICS_OVERVIEW_KEYS) {
+      expect(response.body.data.overview[key]).toEqual({
         status: 'failed',
         code: 'section_unavailable',
+        retryable: true,
       });
-      for (const sibling of ANALYTICS_INSIGHTS_SECTION_KEYS) {
-        if (sibling === failingMetric) continue;
-        expect(response.body.data.sections[sibling].status).toBe('available');
-      }
     }
   });
 

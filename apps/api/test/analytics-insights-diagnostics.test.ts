@@ -184,13 +184,15 @@ describe('staging Insights route diagnostics', () => {
       testApp(events, { computeCanonicalTrend }),
     ).get('/api/v1/analytics/insights?period=week');
 
-    expect(response.status).toBe(200);
-    expect(response.body.data.sections.hydration).toEqual({
-      status: 'failed',
-      code: 'section_unavailable',
-      retryable: true,
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'The request could not be completed.',
+        details: {},
+      },
     });
-    expect(response.body.data.sections.calories.status).toBe('available');
     const failure = events.find(
       (event) => event.category === 'insights_metric_failed',
     );

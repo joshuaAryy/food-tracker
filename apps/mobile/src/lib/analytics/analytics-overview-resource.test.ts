@@ -9,7 +9,10 @@ import {
   analyticsReportResourceReducer,
   initialAnalyticsReportResource,
 } from './analytics-report-resource';
-import { adaptCanonicalInsightsResponseV1 } from './analytics-v1-adapter';
+import {
+  adaptCanonicalInsightsResponseV1,
+  adaptCanonicalInsightsResponseWithOverview,
+} from './analytics-v1-adapter';
 
 const fetchedAt = '2026-08-11T12:00:00.000Z';
 
@@ -190,6 +193,37 @@ describe('analytics overview resource state', () => {
       hydration: failedOverview(),
       weight: failedOverview(),
       loggingConsistency: failedOverview(),
+    });
+  });
+
+  it('normalizes the flat live bridge without deriving overview facts on mobile', () => {
+    const source = report({ periodSummary: availablePeriodSummary(2) });
+    const calories = source.sections.calories;
+    if (calories?.status !== 'available') {
+      throw new Error('Expected a valid Calories fixture.');
+    }
+
+    const adapted = adaptCanonicalInsightsResponseWithOverview(
+      {
+        mode: source.mode,
+        period: source.period,
+        sections: { calories: calories.data },
+        overview: source.overview,
+      },
+      fetchedAt,
+    );
+
+    expect(adapted).toMatchObject({
+      contractVersion: 2,
+      sections: {
+        calories: { status: 'available', data: calories.data, fetchedAt },
+      },
+      overview: {
+        periodSummary: {
+          status: 'available',
+          data: { loggedDayCount: 2 },
+        },
+      },
     });
   });
 });
