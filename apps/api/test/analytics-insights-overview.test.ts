@@ -40,6 +40,38 @@ async function seedCompleteDay(dayOffset: number, fiber = 10, sodium = 400) {
 }
 
 describe('canonical Insights v2 overview facts', () => {
+  it('uses the canonical daily-period statistic for macros and nutrient highlights', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await seedGoals({
+      goalType: 'maintain',
+      targetCalories: 2100,
+      targetProteinGrams: 90,
+      targetFiberGrams: 30,
+      limitSodiumMg: 2300,
+    });
+    await seedCompleteDay(1, 10, 100);
+    await seedCompleteDay(2, 20, 300);
+
+    const response = await api
+      .get('/api/v1/analytics/insights')
+      .query({ period: 'week' })
+      .expect(200);
+
+    expect(response.body.data.overview.macros.data).toMatchObject({
+      protein: { grams: 90 },
+      status: 'recorded',
+    });
+    expect(
+      response.body.data.overview.nutrientHighlights.data.highlights,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ metric: 'fiber', value: 45 }),
+        expect.objectContaining({ metric: 'sodium', value: 600 }),
+      ]),
+    );
+  });
+
   it('returns all core sections and independent overview outcomes with authoritative period facts', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });
@@ -160,12 +192,12 @@ describe('canonical Insights v2 overview facts', () => {
       expect.arrayContaining([
         expect.objectContaining({
           metric: 'fiber',
-          value: 54,
+          value: 18,
           availability: 'recorded',
         }),
         expect.objectContaining({
           metric: 'sodium',
-          value: 2750,
+          value: expect.closeTo(916.6667, 3),
           reference: expect.objectContaining({ kind: 'limit' }),
         }),
         expect.objectContaining({

@@ -265,6 +265,48 @@ function dailyCalories(logs: readonly FoodLog[], timezone: string) {
   }));
 }
 
+/**
+ * Matches the canonical trend summary: calculate each logged day's metric
+ * first, then average those daily values. Missing snapshots remain unknown,
+ * and a period with mixed daily coverage remains partial.
+ */
+function dailyPeriodMetric(
+  logs: readonly FoodLog[],
+  timezone: string,
+  valueForLog: (log: FoodLog) => number | null,
+): ReturnType<typeof classifyMetricData> {
+  const dailyClassifications = [...byLocalDate(logs, timezone).values()].map(
+    (dailyLogs) => classifyMetricData(dailyLogs.map((log) => valueForLog(log))),
+  );
+  const numericDailyValues = dailyClassifications.flatMap((daily) =>
+    daily.value === null ? [] : [daily.value],
+  );
+  const recordedLogCount = dailyClassifications.reduce(
+    (sum, daily) => sum + daily.recordedLogCount,
+    0,
+  );
+  const unknownLogCount = dailyClassifications.reduce(
+    (sum, daily) => sum + daily.unknownLogCount,
+    0,
+  );
+  const state: MetricDataState =
+    numericDailyValues.length === 0
+      ? 'unknown'
+      : dailyClassifications.every((daily) => daily.state === 'recorded')
+        ? 'recorded'
+        : 'partial';
+  return {
+    state,
+    recordedLogCount,
+    unknownLogCount,
+    value:
+      numericDailyValues.length === 0
+        ? null
+        : numericDailyValues.reduce((sum, value) => sum + value, 0) /
+          numericDailyValues.length,
+  };
+}
+
 function energy(
   context: InsightsOverviewComputationContext,
 ): AnalyticsOverviewEnergy {
@@ -341,17 +383,18 @@ function energy(
 
 function macroValues(
   logs: readonly FoodLog[],
+  timezone: string,
   key: 'protein' | 'carbs' | 'fat',
 ) {
-  return classifyMetricData(logs.map((log) => asNumber(log[key])));
+  return dailyPeriodMetric(logs, timezone, (log) => asNumber(log[key]));
 }
 
 function macros(
   context: InsightsOverviewComputationContext,
 ): AnalyticsOverviewMacros {
-  const protein = macroValues(context.logs, 'protein');
-  const carbs = macroValues(context.logs, 'carbs');
-  const fat = macroValues(context.logs, 'fat');
+  const protein = macroValues(context.logs, context.timezone, 'protein');
+  const carbs = macroValues(context.logs, context.timezone, 'carbs');
+  const fat = macroValues(context.logs, context.timezone, 'fat');
   const values = [protein, carbs, fat];
   const totalEnergy =
     protein.value === null || carbs.value === null || fat.value === null
@@ -389,8 +432,10 @@ function highlight(
   context: InsightsOverviewComputationContext,
   metric: 'fiber' | 'sodium' | 'vitaminC',
 ): AnalyticsOverviewNutrientHighlight {
-  const classification = classifyMetricData(
-    context.logs.map((log) => nutrientValue(log, metric)),
+  const classification = dailyPeriodMetric(
+    context.logs,
+    context.timezone,
+    (log) => nutrientValue(log, metric),
   );
   const reference = metricReference(metric, referenceInputs(context.base[2]));
   const unit = metric === 'fiber' ? 'g' : 'mg';
