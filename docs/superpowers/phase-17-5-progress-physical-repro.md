@@ -51,3 +51,19 @@ with the API and Metro disconnected where the release checklist requires it:
 Record the device/build, exact observed behavior, and whether the result was
 performed by the user. Do not mark this physical retest complete from Jest,
 source inspection, or simulator output.
+
+## R12.2 physical handoff status — 2026-08-12
+
+The automated recovery gate is complete under Node `v22.23.0` and pnpm
+`10.34.3`, including the PostgreSQL-backed API suite against
+`food_tracker_test`, mobile Vitest and Jest suites, typechecks, lints, builds,
+owned formatting, source diagnostics scan, and `git diff --check`.
+
+Physical standalone iPhone acceptance remains **PENDING USER VALIDATION**.
+The next device evidence must use a newly prepared staging Release because the
+mobile implementation changed substantially. The user, not Codex, must select
+Personal Team signing in Xcode, build/install Release, run the artifact
+verifier, and execute the ordered Phase 17.5 physical checklist. Do not run
+the generated-iOS cleanup until that user validation is finished.
+
+Phase merge is **NOT AUTHORIZED** pending that user-operated acceptance.

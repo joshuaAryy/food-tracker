@@ -111,3 +111,42 @@ new presentation work or copy the illustrated values into product data.
 The overview map must therefore support independent `available` and `failed`
 outcomes for its seven groups, while malformed envelopes and global request
 failures remain report-level. Unknown values remain gaps, not zeroes.
+
+## R12.2 automated recovery gate — 2026-08-12
+
+**Automated recovery: COMPLETE.** The final recovery gate ran under Node
+`v22.23.0` and pnpm `10.34.3`. Docker Desktop was available, the existing
+`food-tracker-postgres` container was accepting connections, and the dedicated
+`food_tracker_test` database existed before validation. The explicit test
+database migration deployment found all 14 committed migrations applied and no
+pending migration; no Prisma schema or migration was created by this recovery.
+
+The final automated evidence is:
+
+- Prisma generate and validate: passed.
+- Shared build and typecheck: passed.
+- API typecheck, lint, build, and test: passed; API Vitest ran 93 files and
+  1,169 tests against `food_tracker_test`, with no failures or skips.
+- Mobile Vitest: passed; 49 files and 354 tests.
+- Mobile Jest/RNTL: passed; 47 suites and 130 tests.
+- Root typecheck, lint, build, and test: passed; root test reran the API
+  suite with 93 files and 1,169 tests against `food_tracker_test`.
+- `git diff --check`: passed.
+- The scoped Release/mobile source scan found no `Diagnostic:` formatter,
+  `api_insights_resolved`, `report_commit_dispatched`, or
+  `cache_write_failed` client path. Existing request-generation fields are
+  reducer state only; safe diagnostics are development-only console output;
+  and internal server codes map to generic user copy.
+- Prettier passed for all tracked Phase 17.5 source and documentation files.
+  Repository-wide `format:check` remains intentionally red only for 20
+  pre-existing untracked agent-workflow artifacts under `.agents/` and
+  ignored `.superpowers/sdd/`; those artifacts were preserved.
+
+The section-isolation and contract coverage ran in the API suite, including
+Calories, Protein, Carbs, Fat, Macro Composition, Weight, Hydration, Logging
+Consistency, overview outcomes, optional-resource outcomes, v1/v2 contract
+validation, and malformed/global report failures.
+
+**Physical standalone iPhone acceptance: PENDING USER VALIDATION.** This
+automated record is not a claim of a standalone build, signing, installation,
+or iPhone operation. **Phase merge: NOT AUTHORIZED.**
