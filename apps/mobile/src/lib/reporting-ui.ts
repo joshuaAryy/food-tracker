@@ -12,6 +12,10 @@ import type {
   TrackingMode,
 } from '@food-tracker/shared';
 import { reportingNutrientGroupForCategory } from '@food-tracker/shared';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from './date-time';
 
 export function availableValue<T>(
   metric: { available: true; value: T } | { available: false },
@@ -485,20 +489,12 @@ export function energyStatusLabel(status: AverageCalorieStatus): string {
 type ReportWindowKind = 'current' | 'previous' | 'equivalent';
 type ReportBoundary = ReportsResponse['current']['boundaries'];
 
-function shortDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${value}T12:00:00.000Z`));
-}
-
 function shortRange(startDate: string, endDate: string): string {
-  return `${shortDate(startDate)} – ${shortDate(endDate)}`;
+  return formatPresentationDateRange(startDate, endDate);
 }
 
 function compactShortRange(startDate: string, endDate: string): string {
-  return `${shortDate(startDate)}–${shortDate(endDate)}`;
+  return `${formatPresentationDate(startDate)}–${formatPresentationDate(endDate)}`;
 }
 
 export function reportWindowTitle(

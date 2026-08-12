@@ -3,12 +3,13 @@ import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Circle, Line, Path, Rect } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDate } from '@/lib/date-time';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
-  linePath,
   pointX,
   pointY,
   referenceLineY,
+  smoothLinePath,
 } from '@/lib/analytics/chart-geometry';
 import {
   selectedIndexForScrubX,
@@ -62,10 +63,11 @@ export function LineTrendChart({
     () =>
       domain === null
         ? ''
-        : linePath(trendValues ?? data.map((point) => point.value), domain, {
-            width,
-            height,
-          }),
+        : smoothLinePath(
+            trendValues ?? data.map((point) => point.value),
+            domain,
+            { width, height },
+          ),
     [data, domain, height, trendValues, width],
   );
 
@@ -88,7 +90,7 @@ export function LineTrendChart({
       selectedDescription={
         selected === null
           ? undefined
-          : `${selected.date}: ${selected.value === null ? 'No recorded value' : selected.value}`
+          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : selected.value}`
       }
     >
       <View className="relative">
@@ -180,7 +182,7 @@ export function LineTrendChart({
             }}
           >
             <AppText variant="caption" className="text-white">
-              {selected.date}
+              {formatPresentationDate(selected.date)}
               {'\n'}
               {selected.value === null
                 ? 'No recorded value'

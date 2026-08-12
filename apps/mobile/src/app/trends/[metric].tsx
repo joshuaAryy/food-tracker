@@ -36,6 +36,7 @@ import { NutrientDataState } from '@/components/analytics/nutrients/nutrient-dat
 import { NutrientSparseState } from '@/components/analytics/nutrients/nutrient-sparse-state';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { ErrorState } from '@/components/error-state';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
@@ -684,7 +685,7 @@ export default function TrendDetailScreen() {
                 color="#C9242D"
                 trendValues={trend.rollingTrend?.values}
                 reference={referenceValue(trend)}
-                accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+                accessibilityLabel={`${definition.displayName} trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
               />
             ) : (
               <LineTrendChart
@@ -695,7 +696,7 @@ export default function TrendDetailScreen() {
                 reference={referenceValue(trend)}
                 referenceRange={referenceRange(trend)}
                 showRawPoints={presentation === 'weight_line'}
-                accessibilityLabel={`${definition.displayName} trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+                accessibilityLabel={`${definition.displayName} trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
               />
             )}
             <AppText variant="caption" muted>

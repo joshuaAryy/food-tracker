@@ -127,9 +127,7 @@ describe('shared trend report shell', () => {
         nativeEvent: { actionName: 'increment' },
       });
     });
-    expect(
-      await screen.findByText('2026-07-29: No recorded value'),
-    ).toBeTruthy();
+    expect(await screen.findByText('Jul 29: No recorded value')).toBeTruthy();
     expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
   });
 });

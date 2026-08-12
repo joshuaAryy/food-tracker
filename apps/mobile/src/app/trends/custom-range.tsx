@@ -12,6 +12,7 @@ import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDate } from '@/lib/date-time';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
@@ -502,12 +503,7 @@ export default function CustomRangeScreen() {
 }
 
 function formatShortDate(value: string): string {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
+  return formatPresentationDate(value);
 }
 
 function RangeDateInput({

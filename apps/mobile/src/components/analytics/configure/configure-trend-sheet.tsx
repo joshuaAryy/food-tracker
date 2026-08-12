@@ -13,6 +13,7 @@ import type {
 import { AppButton } from '@/components/app-button';
 import { AppText } from '@/components/app-text';
 import { ScreenHeader } from '@/components/screen-header';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { supportedAggregationsForPeriod } from '@/lib/analytics/trend-config';
 import { AggregationSelector } from './aggregation-selector';
 import { CoverageSelector } from './coverage-selector';
@@ -373,5 +374,5 @@ function descriptionsForAggregation(value: AnalyticsAggregation): string {
 function periodLabel(period: TrendDraft['period']): string {
   return period.kind === 'relative'
     ? `${period.days} days`
-    : `${period.startDate} – ${period.endDate}`;
+    : formatPresentationDateRange(period.startDate, period.endDate);
 }

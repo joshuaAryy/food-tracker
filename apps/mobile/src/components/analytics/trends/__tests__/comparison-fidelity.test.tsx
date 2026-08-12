@@ -69,7 +69,7 @@ describe('comparison report fidelity', () => {
       });
     });
 
-    expect(screen.getByText('2026-08-02')).toBeTruthy();
+    expect(screen.getByText('Aug 2')).toBeTruthy();
     expect(screen.getByText('Protein · g: 90')).toBeTruthy();
     expect(screen.getByText('Weight · lb: 129.4')).toBeTruthy();
   });

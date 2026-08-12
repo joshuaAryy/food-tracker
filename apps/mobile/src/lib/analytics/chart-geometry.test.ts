@@ -3,6 +3,7 @@ import {
   clampScrubX,
   decimateLabelIndexes,
   linePath,
+  smoothLinePath,
   referenceLineY,
   uncertaintyPolygon,
   barRects,
@@ -39,6 +40,30 @@ describe('analytics chart geometry', () => {
         { width: 100, height: 100 },
       ),
     ).toBe('M 0 50 M 100 0');
+  });
+
+  it('smooths contiguous numeric segments without bridging missing values', () => {
+    const path = smoothLinePath(
+      [10, 20, 15, null, 30, 35],
+      { min: 0, max: 40 },
+      { width: 100, height: 100 },
+    );
+
+    expect(path).toContain('M 0 75 C');
+    expect(path).toContain('M 80 25 C');
+    expect(path).not.toContain('L 75');
+  });
+
+  it('uses bounded tangent controls for monotone derived trends', () => {
+    const path = smoothLinePath(
+      [0, 10, 20, 30],
+      { min: 0, max: 30 },
+      { width: 120, height: 120 },
+    );
+
+    expect(path).toBe(
+      'M 0 120 C 13.333 106.667 26.667 93.333 40 80 C 53.333 66.667 66.667 53.333 80 40 C 93.333 26.667 106.667 13.333 120 0',
+    );
   });
 
   it('clamps scrub interaction to the plot bounds', () => {

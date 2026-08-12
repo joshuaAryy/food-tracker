@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { WeightDirectionCard } from './weight-direction-card';
 import { TrendPeriodPills } from './trend-period-pills';
 import { ForecastUnavailableCard } from './forecast-unavailable-card';
@@ -72,7 +73,10 @@ export function WeightReport({
       ) : null}
       <AppCard elevated className="gap-3 p-3">
         <AppText variant="caption" className="text-muted">
-          {trend.resolvedRange.startDate} — {trend.resolvedRange.endDate}
+          {formatPresentationDateRange(
+            trend.resolvedRange.startDate,
+            trend.resolvedRange.endDate,
+          )}
         </AppText>
         <LineTrendChart
           data={points}
@@ -81,7 +85,7 @@ export function WeightReport({
           showRawPoints
           trendValues={trend.rollingTrend?.values}
           reference={target}
-          accessibilityLabel={`Weight trend from ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+          accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
       </AppCard>
       <WeightDirectionCard facts={facts} />

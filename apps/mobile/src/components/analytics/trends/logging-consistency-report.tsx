@@ -4,6 +4,7 @@ import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDate } from '@/lib/date-time';
 import { LoggingDayStateLegend } from './logging-day-state-legend';
 import { TrendPeriodPills } from './trend-period-pills';
 
@@ -111,7 +112,7 @@ export function LoggingConsistencyReport({
                 <View
                   key={`${mealType}-${day.date}`}
                   accessible
-                  accessibilityLabel={`${day.date} ${mealType}: ${day[mealType] ? 'logged' : 'not logged'}`}
+                  accessibilityLabel={`${formatPresentationDate(day.date)} ${mealType}: ${day[mealType] ? 'logged' : 'not logged'}`}
                   className="h-5 w-5 rounded-[5px]"
                   style={{
                     backgroundColor: day[mealType] ? '#00B86B' : '#E5E7E4',

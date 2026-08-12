@@ -3,12 +3,13 @@ import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Line, Path, Rect } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDate } from '@/lib/date-time';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
   barRects,
-  linePath,
   pointX,
   referenceLineY,
+  smoothLinePath,
 } from '@/lib/analytics/chart-geometry';
 import {
   selectedIndexForScrubX,
@@ -65,7 +66,7 @@ export function BarTrendChart({
     () =>
       domain === null || trendValues === undefined
         ? ''
-        : linePath(trendValues, domain, { width, height }),
+        : smoothLinePath(trendValues, domain, { width, height }),
     [domain, height, trendValues, width],
   );
   const selectIndex = useCallback((nextIndex: number) => {
@@ -81,7 +82,7 @@ export function BarTrendChart({
       selectedDescription={
         selected === null
           ? undefined
-          : `${selected.date}: ${selected.value === null ? 'No recorded value' : selected.value}`
+          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : selected.value}`
       }
     >
       <View className="relative">
@@ -142,7 +143,7 @@ export function BarTrendChart({
             }}
           >
             <AppText variant="caption" className="text-white">
-              {selected.date}
+              {formatPresentationDate(selected.date)}
               {'\n'}
               {selected.value === null
                 ? 'No recorded value'

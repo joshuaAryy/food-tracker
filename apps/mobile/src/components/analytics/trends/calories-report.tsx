@@ -6,6 +6,7 @@ import { Pressable, View } from 'react-native';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { CaloriesForecastCard } from './calories-forecast-card';
 import { CaloriesSummaryCard } from './calories-summary-card';
 import { TrendContributorsCard } from './trend-contributors-card';
@@ -75,7 +76,10 @@ export function CaloriesReport({
       <AppCard elevated className="gap-3 p-3">
         <View className="flex-row justify-between px-1">
           <AppText variant="caption" className="text-muted">
-            {trend.resolvedRange.startDate} — {trend.resolvedRange.endDate}
+            {formatPresentationDateRange(
+              trend.resolvedRange.startDate,
+              trend.resolvedRange.endDate,
+            )}
           </AppText>
           <AppText variant="caption" className="text-muted">
             {trend.aggregation}
@@ -87,7 +91,7 @@ export function CaloriesReport({
           height={170}
           color="#111111"
           trendValues={trend.rollingTrend?.values}
-          accessibilityLabel={`Calories trend for ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+          accessibilityLabel={`Calories trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
         <AppText variant="caption" className="text-muted">
           Selected values remain gaps when no authoritative calorie value was

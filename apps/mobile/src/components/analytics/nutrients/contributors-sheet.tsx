@@ -2,6 +2,7 @@ import type { AnalyticsContributorsResponse } from '@food-tracker/shared';
 import { View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { ContributorsProgress } from './contributors-progress';
 
 export function ContributorsSheet({
@@ -27,7 +28,7 @@ export function ContributorsSheet({
           Share of recorded {metricName} intake
           {data === null
             ? ''
-            : ` · ${data.resolvedRange.startDate} – ${data.resolvedRange.endDate}`}
+            : ` · ${formatPresentationDateRange(data.resolvedRange.startDate, data.resolvedRange.endDate)}`}
         </AppText>
       </View>
       {loading ? (

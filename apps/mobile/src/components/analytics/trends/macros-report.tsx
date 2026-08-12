@@ -3,6 +3,10 @@ import { Pressable, View } from 'react-native';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
 import { MacroBalanceSummary } from './macro-balance-summary';
 import { TrendPeriodPills } from './trend-period-pills';
 
@@ -106,7 +110,7 @@ export function MacrosReport({
                   ? proteinTrend.reference.value
                   : null
               }
-              accessibilityLabel={`Protein trend from ${proteinTrend.resolvedRange.startDate} through ${proteinTrend.resolvedRange.endDate}`}
+              accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
             />
             {onOpenProtein === undefined ? null : (
               <Pressable
@@ -132,7 +136,9 @@ export function MacrosReport({
           {trend.macroDailyMix.slice(-7).map((day) => (
             <View key={day.date} className="gap-1">
               <View className="flex-row items-center justify-between">
-                <AppText variant="caption">{day.date}</AppText>
+                <AppText variant="caption">
+                  {formatPresentationDate(day.date)}
+                </AppText>
                 <AppText variant="caption" className="text-muted">
                   P {day.protein ?? '—'}% · C {day.carbs ?? '—'}% · F{' '}
                   {day.fat ?? '—'}%
@@ -140,7 +146,7 @@ export function MacrosReport({
               </View>
               <View
                 accessible
-                accessibilityLabel={`${day.date} macro composition`}
+                accessibilityLabel={`${formatPresentationDate(day.date)} macro composition`}
                 className="h-2 flex-row overflow-hidden rounded-full bg-line"
               >
                 <View

@@ -56,9 +56,7 @@ describe('Trend detail screen', () => {
     const screen = await render(<TrendDetailScreen />);
 
     expect(
-      await screen.findByLabelText(
-        'Calories trend for 2026-07-06 through 2026-08-04',
-      ),
+      await screen.findByLabelText('Calories trend for Jul 6 – Aug 4'),
     ).toBeTruthy();
     expect(screen.queryByLabelText('Configure this Trend')).toBeNull();
     expect(screen.queryByLabelText('Save this Trend as a view')).toBeNull();
@@ -91,9 +89,7 @@ describe('Trend detail screen', () => {
     const screen = await render(<TrendDetailScreen />);
 
     expect(
-      await screen.findByLabelText(
-        'Protein trend for 2026-07-06 through 2026-08-04',
-      ),
+      await screen.findByLabelText('Protein trend for Jul 6 – Aug 4'),
     ).toBeTruthy();
     expect(api.analytics.trend).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -119,9 +115,7 @@ describe('Trend detail screen', () => {
     const screen = await render(<TrendDetailScreen />);
 
     expect(
-      await screen.findByLabelText(
-        'Calories trend for 2026-07-06 through 2026-08-04',
-      ),
+      await screen.findByLabelText('Calories trend for Jul 6 – Aug 4'),
     ).toBeTruthy();
     expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
       expect.objectContaining({ width: 280 }),
@@ -139,7 +133,7 @@ describe('Trend detail screen', () => {
     const screen = await render(<TrendDetailScreen />);
 
     const trend = await screen.findByLabelText(
-      'Calories trend for 2026-07-06 through 2026-08-04',
+      'Calories trend for Jul 6 – Aug 4',
     );
     const average = screen.getByText('Average 1846.0 kcal');
     let ancestor = average.parent;

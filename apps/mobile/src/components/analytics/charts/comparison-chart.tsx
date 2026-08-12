@@ -4,7 +4,8 @@ import * as Haptics from 'expo-haptics';
 import { Path } from 'react-native-svg';
 import type { AnalyticsComparisonStrategy } from '@food-tracker/shared';
 import { AppText } from '@/components/app-text';
-import { linePath } from '@/lib/analytics/chart-geometry';
+import { formatPresentationDate } from '@/lib/date-time';
+import { smoothLinePath } from '@/lib/analytics/chart-geometry';
 import {
   selectedIndexForScrubX,
   selectionForSharedDate,
@@ -71,7 +72,7 @@ export function ComparisonChart({
       selectedDescription={
         selectedValues === null
           ? undefined
-          : `${selectedValues.date}: ${selectedValues.primaryValue ?? 'No recorded primary value'}; ${selectedValues.comparisonValue ?? 'No recorded comparison value'}`
+          : `${formatPresentationDate(selectedValues.date)}: ${selectedValues.primaryValue ?? 'No recorded primary value'}; ${selectedValues.comparisonValue ?? 'No recorded comparison value'}`
       }
     >
       <View>
@@ -99,7 +100,7 @@ export function ComparisonChart({
               selectedIndex={selectedIndex}
             >
               <Path
-                d={linePath(
+                d={smoothLinePath(
                   comparisonValues(primary, strategy),
                   primaryDomain,
                   {
@@ -112,7 +113,7 @@ export function ComparisonChart({
                 strokeWidth={3}
               />
               <Path
-                d={linePath(
+                d={smoothLinePath(
                   comparisonValues(comparison, strategy),
                   comparisonDomain,
                   { width: plotWidth, height },
@@ -153,7 +154,7 @@ export function ComparisonChart({
         {selectedValues === null ? null : (
           <View className="rounded-[12px] bg-ink px-3 py-2">
             <AppText variant="caption" className="text-white">
-              {selectedValues.date}
+              {formatPresentationDate(selectedValues.date)}
             </AppText>
             <View className="flex-row flex-wrap gap-x-4 gap-y-1">
               <AppText variant="caption" className="text-white">

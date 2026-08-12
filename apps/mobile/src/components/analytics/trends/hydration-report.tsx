@@ -3,6 +3,10 @@ import { View } from 'react-native';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
 import { HydrationTargetCard } from './hydration-target-card';
 
 export function HydrationReport({
@@ -43,14 +47,17 @@ export function HydrationReport({
       />
       <AppCard elevated className="gap-3 p-3">
         <AppText variant="caption" className="text-muted">
-          {trend.resolvedRange.startDate} — {trend.resolvedRange.endDate}
+          {formatPresentationDateRange(
+            trend.resolvedRange.startDate,
+            trend.resolvedRange.endDate,
+          )}
         </AppText>
         <BarTrendChart
           data={points}
           width={Math.max(260, width - 76)}
           color="#2F80ED"
           reference={goal}
-          accessibilityLabel={`Hydration trend from ${trend.resolvedRange.startDate} through ${trend.resolvedRange.endDate}`}
+          accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
       </AppCard>
       <AppCard className="gap-1 bg-module p-4">
@@ -76,9 +83,8 @@ export function HydrationReport({
                 className="flex-row items-center justify-between border-b border-border py-2 last:border-b-0"
               >
                 <AppText variant="caption">
-                  {new Date(waterLog.loggedAt).toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
+                  {formatPresentationDate(waterLog.loggedAt.slice(0, 10))}{' '}
+                  {new Date(waterLog.loggedAt).toLocaleTimeString('en-US', {
                     hour: 'numeric',
                     minute: '2-digit',
                   })}
