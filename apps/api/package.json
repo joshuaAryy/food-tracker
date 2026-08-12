@@ -13,7 +13,8 @@
     "test:watch": "corepack pnpm --filter @food-tracker/shared build && vitest",
     "test:coverage": "corepack pnpm --filter @food-tracker/shared build && vitest run --coverage",
     "prisma:generate": "prisma generate",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "seed:staging-analytics-qa": "tsx src/scripts/seed-staging-analytics-qa.ts"
   },
   "dependencies": {
     "@food-tracker/shared": "workspace:*",
