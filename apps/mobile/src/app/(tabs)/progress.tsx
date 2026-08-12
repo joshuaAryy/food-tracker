@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
@@ -184,8 +184,11 @@ export default function ProgressScreen() {
   const [dailyNutrientsError, setDailyNutrientsError] = useState<string | null>(
     null,
   );
+  const loadGeneration = useRef(0);
 
   const loadSummary = useCallback(async (asRefresh = false) => {
+    const generation = ++loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current;
     if (asRefresh) {
       setRefreshing(true);
     } else {
@@ -204,6 +207,7 @@ export default function ProgressScreen() {
         api.profile.get(),
         api.trackingPreferences.get(),
       ]);
+      if (!isCurrent()) return;
       setSummary(nextSummary);
       loadedSummary = nextSummary;
       setProfile(nextProfile);
@@ -214,11 +218,13 @@ export default function ProgressScreen() {
         }),
       );
     } catch (loadError) {
+      if (!isCurrent()) return;
       setError(errorMessage(loadError));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
 
+    if (!isCurrent()) return;
     if (loadedSummary === null) {
       setReportingLoading(false);
       setRefreshing(false);
@@ -231,6 +237,7 @@ export default function ProgressScreen() {
         api.analytics.reports({ period: 'week' }),
         api.analytics.dailyNutrients({ date: loadedSummary.date }),
       ]);
+    if (!isCurrent()) return;
 
     if (progressResult.status === 'fulfilled') {
       setReporting(progressResult.value);
@@ -291,8 +298,10 @@ export default function ProgressScreen() {
     setSummary({ ...summary, trackingMode: nextMode });
 
     try {
-      const savedPreferences =
-        await api.trackingPreferences.update(nextPreferences);
+      const savedPreferences = await api.trackingPreferences.update({
+        mode: nextMode,
+        waterTrackingEnabled: preferences.waterTrackingEnabled,
+      });
       setPreferences(savedPreferences);
       setSummary((current) =>
         current === null
@@ -301,15 +310,15 @@ export default function ProgressScreen() {
       );
       markDataChanged();
 
-      try {
-        await syncLauncherIconToMode(savedPreferences.mode);
-      } catch (iconSyncError) {
-        setError(
-          `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
-            iconSyncError,
-          )}`,
-        );
-      }
+      void syncLauncherIconToMode(savedPreferences.mode).catch(
+        (iconSyncError) => {
+          setError(
+            `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
+              iconSyncError,
+            )}`,
+          );
+        },
+      );
     } catch (switchError) {
       setPreferences(previousPreferences);
       setSummary(previousSummary);
@@ -332,6 +341,7 @@ export default function ProgressScreen() {
   return (
     <AppScreen
       refreshing={refreshing}
+      testID="progress-scroll"
       contentClassName="gap-8"
       onRefresh={() => void loadSummary(true)}
     >

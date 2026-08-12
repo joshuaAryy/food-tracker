@@ -7,7 +7,7 @@ export interface AnalyticsCacheStorage {
 }
 
 interface AnalyticsCacheEntry {
-  version: 1;
+  version: 1 | 2;
   userId: string;
   key: string;
   updatedAt: number;
@@ -24,10 +24,13 @@ export interface AnalyticsCache {
   purge(userId: string): Promise<void>;
 }
 
-function cacheEntry(value: unknown): AnalyticsCacheEntry | null {
+function cacheEntry(
+  value: unknown,
+  expectedVersion: 1 | 2,
+): AnalyticsCacheEntry | null {
   if (typeof value !== 'object' || value === null) return null;
   const entry = value as Partial<AnalyticsCacheEntry>;
-  return entry.version === 1 &&
+  return entry.version === expectedVersion &&
     typeof entry.userId === 'string' &&
     typeof entry.key === 'string' &&
     typeof entry.updatedAt === 'number' &&
@@ -92,10 +95,11 @@ export function createAnalyticsCache(input: {
       isValue: (value: unknown) => value is T,
     ): Promise<{ value: T; updatedAt: number; stale: boolean } | null> {
       const path = pathFor(userId, key);
+      const expectedVersion = key.startsWith('insights-v2-') ? 2 : 1;
       const raw = await input.storage.read(path);
       if (raw === null) return null;
       try {
-        const entry = cacheEntry(JSON.parse(raw));
+        const entry = cacheEntry(JSON.parse(raw), expectedVersion);
         if (
           entry === null ||
           entry.userId !== userId ||
@@ -121,7 +125,7 @@ export function createAnalyticsCache(input: {
       const path = pathFor(userId, key);
       const stagedPath = `${path}.staged`;
       const entry: AnalyticsCacheEntry = {
-        version: 1,
+        version: key.startsWith('insights-v2-') ? 2 : 1,
         userId,
         key,
         updatedAt: input.now(),

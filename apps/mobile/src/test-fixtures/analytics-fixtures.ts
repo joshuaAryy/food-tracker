@@ -193,6 +193,21 @@ function trendFixture(
       numericDayCount: options.numericDayCount ?? 24,
       average: options.average ?? 1846,
     },
+    loggingSummary: {
+      complete: 21,
+      partial: 3,
+      unlogged: 3,
+      inProgress: 1,
+      consistency: 89,
+      currentDayPhase: 'in_progress',
+      mealCoverage: canonicalCoverageDays.map(([date]) => ({
+        date,
+        breakfast: true,
+        lunch: true,
+        dinner: true,
+        snack: false,
+      })),
+    },
     ...(options.forecast === undefined ? {} : { forecast: options.forecast }),
   };
 }

@@ -76,6 +76,50 @@ describe('analytics cache', () => {
     ]);
   });
 
+  it('writes v2 Insights entries under versioned keys without accepting v1 payloads in place', async () => {
+    const storage = memoryStorage();
+    const cache = createAnalyticsCache({
+      storage,
+      pathFor: (userId, key) => `${userId}/${key}.json`,
+      now: () => 1_000,
+      staleAfterMs: 500,
+    });
+
+    await cache.write('user-a', 'insights-v2-week', { contractVersion: 2 });
+    expect(
+      JSON.parse(storage.files.get('user-a/insights-v2-week.json') ?? '{}'),
+    ).toMatchObject({ version: 2, key: 'insights-v2-week' });
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-v2-week',
+        (value): value is { contractVersion: number } =>
+          typeof value === 'object' &&
+          value !== null &&
+          (value as { contractVersion?: unknown }).contractVersion === 2,
+      ),
+    ).resolves.toMatchObject({ value: { contractVersion: 2 } });
+
+    storage.files.set(
+      'user-a/insights-v2-month.json',
+      JSON.stringify({
+        version: 1,
+        userId: 'user-a',
+        key: 'insights-v2-month',
+        updatedAt: 1_000,
+        value: { contractVersion: 1 },
+      }),
+    );
+    await expect(
+      cache.read(
+        'user-a',
+        'insights-v2-month',
+        (value): value is unknown => value !== undefined,
+      ),
+    ).resolves.toBeNull();
+    expect(storage.files.has('user-a/insights-v2-month.json')).toBe(false);
+  });
+
   it('rejects schema-mismatched cache data and purges only the requested user', async () => {
     const storage = memoryStorage();
     const cache = createAnalyticsCache({

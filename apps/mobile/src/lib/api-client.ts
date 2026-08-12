@@ -56,7 +56,6 @@ import type {
   ReportsResponse,
   StreakCalendarResponse,
   CanonicalTrendResponse,
-  CanonicalInsightsResponseWithOverview,
   TrendQueryInput,
   AnalyticsPreferenceUpdateInput,
   AnalyticsPreferenceValue,
@@ -66,6 +65,7 @@ import type {
   AnalyticsSavedViewUpdateInput,
   AnalyticsMetricDefinition,
   AnalyticsContributorsResponse,
+  CanonicalInsightsResponseWithOverview,
 } from '@food-tracker/shared';
 import {
   goalsSchema,
@@ -91,7 +91,6 @@ import {
   parseApiResponse as parseStandardApiResponse,
   sanitizePublicErrorDetails,
   type ResponseParseDiagnostic,
-  type ResponseParseDiagnosticStage,
   type ResponseSchema,
 } from './api-response';
 import { reportDiagnostic } from './safe-diagnostics';
@@ -112,21 +111,6 @@ reportDiagnostic('api_target_resolved', {
 });
 
 export const API_URL = resolvedApiRuntime.apiUrl;
-export const API_RUNTIME_ENVIRONMENT = resolvedApiRuntime.environment;
-
-export type InsightsRequestDiagnosticStage =
-  | 'fetch_response_received'
-  | 'http_status_class'
-  | ResponseParseDiagnosticStage;
-
-export interface InsightsRequestDiagnosticEvent {
-  stage: InsightsRequestDiagnosticStage;
-  status?: number;
-}
-
-export type InsightsRequestDiagnostic = (
-  event: InsightsRequestDiagnosticEvent,
-) => void;
 
 let apiAuthSession: ApiAuthSession | null = null;
 
@@ -258,7 +242,6 @@ async function request<T>(
   path: string,
   options: RequestOptions = {},
   schema?: ResponseSchema<T>,
-  onInsightsDiagnostic?: InsightsRequestDiagnostic,
 ): Promise<T> {
   const { body, headers: providedHeaders, ...requestOptions } = options;
   const headers = new Headers(providedHeaders);
@@ -277,18 +260,7 @@ async function request<T>(
     withAuthorization(requestInit, token),
   );
 
-  onInsightsDiagnostic?.({
-    stage: 'fetch_response_received',
-    status: response.status,
-  });
-  onInsightsDiagnostic?.({
-    stage: 'http_status_class',
-    status: response.status,
-  });
-
-  return parseApiResponse(response, schema, (stage, status) =>
-    onInsightsDiagnostic?.({ stage, status }),
-  );
+  return parseApiResponse(response, schema);
 }
 
 async function requestRaw<T>(
@@ -559,23 +531,19 @@ export const api = {
         method: 'POST',
         body: { ...input, ...(includeAll ? { includeAll: true } : {}) },
       }),
-    insights: (
-      period: 'week' | 'month',
-      onDiagnostic?: InsightsRequestDiagnostic,
-    ) =>
+    insights: (period: 'week' | 'month') =>
       request<CanonicalInsightsResponseWithOverview>(
         `/analytics/insights?period=${period}`,
         {},
         canonicalInsightsResponseWithOverviewSchema as unknown as ResponseSchema<CanonicalInsightsResponseWithOverview>,
-        onDiagnostic,
-      ).then((bridge) => {
+      ).then((response) => {
         const adapted = adaptCanonicalInsightsResponseWithOverview(
-          bridge,
+          response,
           new Date().toISOString(),
         );
         if (adapted === null) {
           throw new ApiClientError(
-            'The API returned an unreadable or unexpected response.',
+            'Analytics response could not be read.',
             'INVALID_RESPONSE',
             200,
           );

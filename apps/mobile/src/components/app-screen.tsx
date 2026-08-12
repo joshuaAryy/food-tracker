@@ -20,6 +20,7 @@ interface AppScreenProps extends PropsWithChildren {
   contentStyle?: StyleProp<ViewStyle>;
   backgroundColor?: string;
   keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
+  testID?: string;
 }
 
 export function AppScreen({
@@ -32,6 +33,7 @@ export function AppScreen({
   contentStyle,
   backgroundColor = colors.light.canvas,
   keyboardShouldPersistTaps = 'handled',
+  testID,
 }: AppScreenProps) {
   const content = (
     <View
@@ -54,6 +56,7 @@ export function AppScreen({
       >
         {scroll ? (
           <ScrollView
+            testID={testID}
             className="flex-1"
             style={{ backgroundColor }}
             contentContainerStyle={{ backgroundColor }}

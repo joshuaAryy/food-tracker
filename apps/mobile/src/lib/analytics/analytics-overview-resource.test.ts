@@ -22,6 +22,12 @@ function availablePeriodSummary(loggedDayCount: number) {
     fetchedAt,
     data: {
       resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
+      todaySoFar: {
+        date: '2026-08-07',
+        mealCount: loggedDayCount,
+        calories: { value: null, state: 'unknown' as const },
+        protein: { value: null, state: 'unknown' as const },
+      },
       loggedDayCount,
       eligibleLoggedDayCount: loggedDayCount,
       eligibleTotalDayCount: 7,
@@ -92,6 +98,7 @@ describe('analytics overview resource state', () => {
             fetchedAt,
             data: {
               today: '2026-08-07',
+              timezone: 'America/New_York',
               total: 1630,
               goal: 2000,
               status: 'below_goal',
@@ -212,7 +219,6 @@ describe('analytics overview resource state', () => {
       },
       fetchedAt,
     );
-
     expect(adapted).toMatchObject({
       contractVersion: 2,
       sections: {
