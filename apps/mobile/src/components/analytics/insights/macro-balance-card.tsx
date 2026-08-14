@@ -29,18 +29,27 @@ export function MacroBalanceCard({
   proteinTrend,
   onOpenTrend,
   onRetry,
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'macros'> | undefined;
   energyAverage: number | null;
   proteinTrend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
   return (
-    <View testID="simple-insights-section-macro-balance" className="gap-3">
-      <ReportingSectionHeading icon="macros" title="Macro balance" />
+    <View
+      testID="simple-insights-section-macro-balance"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="macros"
+        title="Macro balance"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Macro balance"
@@ -53,7 +62,11 @@ export function MacroBalanceCard({
           accessibilityRole="button"
           onPress={onOpenTrend}
         >
-          <AppCard elevated className="gap-3 p-[18px]">
+          <AppCard
+            elevated
+            compact={compact}
+            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+          >
             <AppText variant="caption" className="text-muted">
               REPORT · Period composition
             </AppText>
@@ -64,7 +77,7 @@ export function MacroBalanceCard({
                   carbs: data.carbs.grams,
                   fat: data.fat.grams,
                 }}
-                size={104}
+                size={compact ? 78 : 104}
                 centerValue={
                   energyAverage === null
                     ? undefined
@@ -122,7 +135,7 @@ export function MacroBalanceCard({
                 <LineTrendChart
                   data={trendData(proteinTrend)}
                   width={Math.max(180, width - 76)}
-                  height={58}
+                  height={compact ? 42 : 58}
                   color="#C9242D"
                   accessibilityLabel="Protein trend"
                 />

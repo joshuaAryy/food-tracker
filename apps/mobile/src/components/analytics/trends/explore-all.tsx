@@ -163,16 +163,26 @@ export function ExploreAll({
                   <View className="h-2.5 w-2.5 rounded-full bg-primary" />
                   <AppText
                     variant="caption"
-                    className="font-semibold"
+                    className="min-w-0 flex-1 font-semibold"
                     numberOfLines={1}
                   >
                     {view.name}
                   </AppText>
                 </View>
-                <AppText variant="caption" className="text-muted">
-                  {view.id === pinnedSavedViewId ? 'PINNED · ' : ''}
-                  {view.periodDays}D · {view.visualization.replaceAll('_', ' ')}
-                </AppText>
+                <View
+                  testID={`saved-view-meta-${view.id}`}
+                  className="ml-2 w-[40%]"
+                >
+                  <AppText
+                    variant="caption"
+                    className="text-right text-muted"
+                    numberOfLines={1}
+                  >
+                    {view.id === pinnedSavedViewId ? 'PINNED · ' : ''}
+                    {view.periodDays}D ·{' '}
+                    {view.visualization.replaceAll('_', ' ')}
+                  </AppText>
+                </View>
               </Pressable>
             ))
           )}

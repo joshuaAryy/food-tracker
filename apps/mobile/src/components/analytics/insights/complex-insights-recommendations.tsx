@@ -6,11 +6,13 @@ export function ComplexInsightsRecommendations({
   dismissedRecommendations,
   error,
   onDismiss,
+  compact = false,
 }: {
   recommendations: readonly Recommendation[];
   dismissedRecommendations: readonly Recommendation[];
   error: string | null;
   onDismiss: (id: string) => void;
+  compact?: boolean;
 }) {
   return (
     <RecommendationsCard
@@ -18,6 +20,7 @@ export function ComplexInsightsRecommendations({
       dismissedRecommendations={dismissedRecommendations}
       error={error}
       onDismiss={onDismiss}
+      compact={compact}
     />
   );
 }

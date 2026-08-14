@@ -128,6 +128,30 @@ describe('Saved Views screen', () => {
     expect(screen.queryByText('Needs replacement: retiredNutrient')).toBeNull();
   });
 
+  it('opens the Save View flow with a valid default Trend query', async () => {
+    const screen = await render(<SavedViewsScreen />);
+
+    await userEvent
+      .setup()
+      .press(
+        await screen.findByRole('button', { name: 'Create a saved view' }),
+      );
+
+    expect(mockRouter.push).toHaveBeenCalledWith({
+      pathname: '/trends/save-view',
+      params: {
+        query: JSON.stringify({
+          primaryMetric: 'calories',
+          period: { kind: 'relative', days: 30 },
+          aggregation: 'automatic',
+          visualization: 'automatic',
+          showReference: true,
+          coverageFilter: 'all_logged_days',
+        }),
+      },
+    });
+  });
+
   it('confirms destructive deletion with feedback after the request succeeds', async () => {
     jest.spyOn(api.analytics, 'deleteSavedView').mockResolvedValue({
       id: '1',

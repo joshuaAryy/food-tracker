@@ -18,6 +18,15 @@ import {
   trendQueryRouteParam,
 } from '@/lib/analytics/saved-view-configuration';
 
+const defaultSavedViewTrendQuery = {
+  primaryMetric: 'calories' as const,
+  period: { kind: 'relative' as const, days: 30 },
+  aggregation: 'automatic' as const,
+  visualization: 'automatic' as const,
+  showReference: true,
+  coverageFilter: 'all_logged_days' as const,
+};
+
 export default function SavedViewsScreen() {
   const router = useRouter();
   const [views, setViews] = useState<AnalyticsSavedView[]>([]);
@@ -416,7 +425,14 @@ export default function SavedViewsScreen() {
         accessibilityRole="button"
         accessibilityLabel="Create a saved view"
         className="min-h-11 items-center justify-center rounded-[16px] bg-module"
-        onPress={() => router.push('/trends/save-view' as never)}
+        onPress={() =>
+          router.push({
+            pathname: '/trends/save-view',
+            params: {
+              query: trendQueryRouteParam(defaultSavedViewTrendQuery),
+            },
+          } as never)
+        }
       >
         <AppText variant="label">+ Create a saved view</AppText>
       </Pressable>

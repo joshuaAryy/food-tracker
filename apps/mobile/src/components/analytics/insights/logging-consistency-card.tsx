@@ -23,17 +23,23 @@ function colorForState(state: HeatmapState): string {
 export function LoggingConsistencyCard({
   overview,
   onRetry,
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'loggingConsistency'> | undefined;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const data = overview?.data ?? null;
   return (
     <View
       testID="simple-insights-section-logging-consistency"
-      className="gap-3"
+      className={compact ? 'gap-2' : 'gap-3'}
     >
-      <ReportingSectionHeading icon="momentum" title="Logging consistency" />
+      <ReportingSectionHeading
+        icon="momentum"
+        title="Logging consistency"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Logging consistency"
@@ -41,7 +47,11 @@ export function LoggingConsistencyCard({
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-3 p-[18px]">
+        <AppCard
+          elevated
+          compact={compact}
+          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+        >
           <AppText variant="caption" className="text-muted">
             REPORT · {data.completeDayCount} complete · {data.partialDayCount}{' '}
             partial · {data.unloggedDayCount} unlogged

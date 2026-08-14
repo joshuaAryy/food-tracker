@@ -16,11 +16,13 @@ export function SimpleInsightsOverview({
   onExploreTrends,
   onLogWater,
   onOverviewRetry,
+  compact = false,
 }: {
   resource: AnalyticsReportResourceState;
   onExploreTrends: () => void;
   onLogWater: () => void;
   onOverviewRetry: (overview: AnalyticsOverviewKey) => void;
+  compact?: boolean;
 }) {
   const stale = resource.staleSource === 'refresh_failed';
   const refreshing = resource.status === 'refreshing';
@@ -39,7 +41,10 @@ export function SimpleInsightsOverview({
       ? periodSummary.data
       : null;
   return (
-    <View testID="simple-insights-overview" className="gap-7">
+    <View
+      testID="simple-insights-overview"
+      className={compact ? 'gap-4' : 'gap-7'}
+    >
       {refreshing ? (
         <View className="gap-1 rounded-[18px] border border-border bg-module p-4">
           <AppText variant="label">Refreshing…</AppText>
@@ -84,10 +89,12 @@ export function SimpleInsightsOverview({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Explore all trends"
-              className="min-h-[52px] flex-row items-center justify-between rounded-[14px] bg-module px-4 active:opacity-70"
+              className={`flex-row items-center justify-between rounded-[12px] bg-module-muted px-4 active:opacity-70 ${compact ? 'min-h-10' : 'min-h-[52px]'}`}
               onPress={onExploreTrends}
             >
-              <AppText variant="label">Explore all trends</AppText>
+              <AppText variant={compact ? 'caption' : 'label'}>
+                Explore all trends
+              </AppText>
               <AppText variant="label" className="text-muted">
                 ›
               </AppText>
@@ -97,12 +104,14 @@ export function SimpleInsightsOverview({
             period={resource.period ?? 'week'}
             summary={resource.overview.periodSummary}
             onRetry={() => onOverviewRetry('periodSummary')}
+            compact={compact}
           />
           <EnergyBalanceCard
             overview={resource.overview.energy}
             trend={resource.sections.calories}
             onOpenTrend={onExploreTrends}
             onRetry={() => onOverviewRetry('energy')}
+            compact={compact}
           />
           <MacroBalanceCard
             overview={resource.overview.macros}
@@ -110,10 +119,12 @@ export function SimpleInsightsOverview({
             proteinTrend={resource.sections.protein}
             onOpenTrend={onExploreTrends}
             onRetry={() => onOverviewRetry('macros')}
+            compact={compact}
           />
           <NutrientHighlightsCard
             overview={resource.overview.nutrientHighlights}
             onRetry={() => onOverviewRetry('nutrientHighlights')}
+            compact={compact}
           />
           <HydrationInsightsCard
             overview={resource.overview.hydration}
@@ -121,16 +132,19 @@ export function SimpleInsightsOverview({
             onLogWater={onLogWater}
             onOpenTrend={onExploreTrends}
             onRetry={() => onOverviewRetry('hydration')}
+            compact={compact}
           />
           <WeightDirectionCard
             overview={resource.overview.weight}
             trend={resource.sections.weight}
             onOpenTrend={onExploreTrends}
             onRetry={() => onOverviewRetry('weight')}
+            compact={compact}
           />
           <LoggingConsistencyCard
             overview={resource.overview.loggingConsistency}
             onRetry={() => onOverviewRetry('loggingConsistency')}
+            compact={compact}
           />
         </>
       ) : null}

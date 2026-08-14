@@ -20,11 +20,13 @@ export function PinnedAnalysisCard({
   views,
   onManage,
   onOpen,
+  compact = false,
 }: {
   preferences: AnalyticsPreferenceValue;
   views: readonly AnalyticsSavedView[];
   onManage: () => void;
   onOpen: (metric: string, query: string) => void;
+  compact?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const pinned = useMemo(
@@ -65,9 +67,17 @@ export function PinnedAnalysisCard({
       value: point.value,
     })) ?? [];
   return (
-    <View testID="complex-insights-pinned-analysis" className="gap-2">
+    <View
+      testID="complex-insights-pinned-analysis"
+      className={compact ? 'gap-1.5' : 'gap-2'}
+    >
       <View className="flex-row items-center justify-between">
-        <AppText variant="heading" className="text-[22px] leading-7">
+        <AppText
+          variant="heading"
+          className={
+            compact ? 'text-[16px] leading-5' : 'text-[22px] leading-7'
+          }
+        >
           Pinned analysis
         </AppText>
         <Pressable
@@ -86,7 +96,11 @@ export function PinnedAnalysisCard({
         className="min-h-11"
         onPress={() => onOpen(query.primaryMetric, queryKey)}
       >
-        <AppCard elevated className="gap-3 p-[18px]">
+        <AppCard
+          elevated
+          compact={compact}
+          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+        >
           <AppText variant="caption" className="text-muted">
             PRIMARY VIEW · {query.primaryMetric}
           </AppText>

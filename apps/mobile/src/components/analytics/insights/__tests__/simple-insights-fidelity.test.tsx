@@ -280,6 +280,10 @@ describe('Simple Insights overview fidelity', () => {
     expect(
       screen.getByRole('button', { name: 'Explore all trends' }),
     ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Explore all trends' }).props
+        .className,
+    ).toContain('bg-module-muted');
     expect(screen.queryByText('Explore every trend')).toBeNull();
     expect(screen.getByRole('button', { name: 'Log water' })).toBeTruthy();
   });

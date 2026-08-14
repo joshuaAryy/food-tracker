@@ -8,16 +8,26 @@ export function RecommendationsCard({
   dismissedRecommendations,
   error,
   onDismiss,
+  compact = false,
 }: {
   recommendations: readonly Recommendation[];
   dismissedRecommendations: readonly Recommendation[];
   error: string | null;
   onDismiss: (id: string) => void;
+  compact?: boolean;
 }) {
   return (
-    <View testID="complex-insights-recommendations-card" className="gap-3">
+    <View
+      testID="complex-insights-recommendations-card"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
       <View className="gap-1">
-        <AppText variant="heading" className="text-[25px] leading-8">
+        <AppText
+          variant="heading"
+          className={
+            compact ? 'text-[16px] leading-5' : 'text-[25px] leading-8'
+          }
+        >
           Recommendations
         </AppText>
         <AppText variant="caption" className="text-muted">
@@ -26,14 +36,14 @@ export function RecommendationsCard({
         </AppText>
       </View>
       {error !== null ? (
-        <AppCard className="gap-2 bg-module p-4">
+        <AppCard compact={compact} className="gap-2 bg-module p-3">
           <AppText variant="label">Recommendations unavailable</AppText>
           <AppText variant="caption" className="text-muted">
             Insights remain available while recommendations retry.
           </AppText>
         </AppCard>
       ) : recommendations.length === 0 ? (
-        <AppCard className="bg-module p-4">
+        <AppCard compact={compact} className="bg-module p-3">
           <AppText variant="caption" className="text-muted">
             No active recommendations right now.
           </AppText>
@@ -43,7 +53,8 @@ export function RecommendationsCard({
           <AppCard
             key={recommendation.id}
             elevated
-            className="gap-3 border-l-[6px] border-l-ink p-[18px]"
+            compact={compact}
+            className={`gap-2 border-l-[6px] border-l-ink ${compact ? 'rounded-[12px] p-3' : 'p-[18px]'}`}
           >
             <AppText variant="caption" className="text-muted">
               PRIORITY

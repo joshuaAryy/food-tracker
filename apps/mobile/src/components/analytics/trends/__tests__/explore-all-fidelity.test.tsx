@@ -42,6 +42,15 @@ describe('Complex Explore fidelity', () => {
     );
 
     expect(screen.getByText('Protein + Weight')).toBeTruthy();
+    expect(screen.getByText('Protein + Weight').props.className).toContain(
+      'flex-1',
+    );
+    expect(
+      screen.getByTestId('saved-view-meta-saved-view-1').props.className,
+    ).toContain('w-[40%]');
+    expect(
+      screen.getByText('PINNED · 90D · dual axis').props.className,
+    ).toContain('text-right');
     expect(screen.getByText('Nutrients')).toBeTruthy();
     expect(screen.getByText('Complete nutrient library')).toBeTruthy();
     expect(screen.getByText('Vitamin C')).toBeTruthy();

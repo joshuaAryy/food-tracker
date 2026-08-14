@@ -37,11 +37,13 @@ export function WeightDirectionCard({
   trend,
   onOpenTrend,
   onRetry,
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'weight'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
@@ -51,8 +53,15 @@ export function WeightDirectionCard({
       value: point.value,
     })) ?? [];
   return (
-    <View testID="simple-insights-section-weight-direction" className="gap-3">
-      <ReportingSectionHeading icon="weight" title="Weight direction" />
+    <View
+      testID="simple-insights-section-weight-direction"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="weight"
+        title="Weight direction"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Weight"
@@ -65,19 +74,28 @@ export function WeightDirectionCard({
           accessibilityLabel="Open Weight trend"
           onPress={onOpenTrend}
         >
-          <AppCard elevated className="gap-3 p-[18px]">
+          <AppCard
+            elevated
+            compact={compact}
+            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+          >
             <AppText variant="caption" className="text-muted">
               REPORT · Current weight
             </AppText>
             <View className="flex-row items-end justify-between gap-3">
-              <AppText variant="number" className="text-[30px] leading-9">
+              <AppText
+                variant="number"
+                className={
+                  compact ? 'text-[24px] leading-7' : 'text-[30px] leading-9'
+                }
+              >
                 {data.current === null ? '—' : `${data.current.toFixed(1)} lb`}
               </AppText>
               <AppText variant="caption" className="text-primary-dark">
                 {changeCopy(data.change)}
               </AppText>
             </View>
-            <View className="rounded-[12px] bg-module p-2">
+            <View className="rounded-[10px] bg-module-muted p-1.5">
               {chartData.length === 0 ? (
                 <AppText variant="caption" className="text-muted">
                   Weight trend unavailable
@@ -86,7 +104,7 @@ export function WeightDirectionCard({
                 <LineTrendChart
                   data={chartData}
                   width={Math.max(220, width - 76)}
-                  height={74}
+                  height={compact ? 48 : 74}
                   color="#337AC7"
                   reference={
                     data.reference.kind === 'target'

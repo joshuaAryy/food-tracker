@@ -63,15 +63,21 @@ export function NutrientHighlightsCard({
   overview,
   onRetry,
   testID = 'simple-insights-section-nutrient-highlights',
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'nutrientHighlights'> | undefined;
   onRetry: () => void;
   testID?: string;
+  compact?: boolean;
 }) {
   const data = overview?.data ?? null;
   return (
-    <View testID={testID} className="gap-3">
-      <ReportingSectionHeading icon="nutrients" title="Nutrient highlights" />
+    <View testID={testID} className={compact ? 'gap-2' : 'gap-3'}>
+      <ReportingSectionHeading
+        icon="nutrients"
+        title="Nutrient highlights"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Nutrient highlights"
@@ -79,7 +85,11 @@ export function NutrientHighlightsCard({
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-0 p-[18px]">
+        <AppCard
+          elevated
+          compact={compact}
+          className={compact ? 'gap-0 rounded-[12px] p-3' : 'gap-0 p-[18px]'}
+        >
           {data.highlights.map((highlight, index) => (
             <View
               key={highlight.metric}

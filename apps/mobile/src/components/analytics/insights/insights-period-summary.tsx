@@ -14,16 +14,25 @@ export function InsightsPeriodSummary({
   period,
   summary,
   onRetry,
+  compact = false,
 }: {
   period: 'week' | 'month';
   summary: AnalyticsReportOverviewState<'periodSummary'> | undefined;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const title = period === 'week' ? 'This week' : 'This month';
   const data = summary?.data ?? null;
   return (
-    <View testID="simple-insights-section-period-summary" className="gap-3">
-      <ReportingSectionHeading icon="momentum" title={title} />
+    <View
+      testID="simple-insights-section-period-summary"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="momentum"
+        title={title}
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Period summary"
@@ -31,13 +40,22 @@ export function InsightsPeriodSummary({
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-4 p-[18px]">
-          <View className="flex-row gap-4">
+        <AppCard
+          elevated
+          compact={compact}
+          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-4 p-[18px]'}
+        >
+          <View className={compact ? 'flex-row gap-3' : 'flex-row gap-4'}>
             <View className="min-w-0 flex-1 gap-1">
               <AppText variant="caption" className="text-muted">
                 Logging streak
               </AppText>
-              <AppText variant="number" className="text-[34px] leading-10">
+              <AppText
+                variant="number"
+                className={
+                  compact ? 'text-[24px] leading-7' : 'text-[34px] leading-10'
+                }
+              >
                 {data.streak.currentDays}{' '}
                 {data.streak.currentDays === 1 ? 'day' : 'days'}
               </AppText>
@@ -46,7 +64,12 @@ export function InsightsPeriodSummary({
               <AppText variant="caption" className="text-muted">
                 Consistency
               </AppText>
-              <AppText variant="number" className="text-[34px] leading-10">
+              <AppText
+                variant="number"
+                className={
+                  compact ? 'text-[24px] leading-7' : 'text-[34px] leading-10'
+                }
+              >
                 {data.consistency === null ? '—' : `${data.consistency}%`}
               </AppText>
             </View>
@@ -55,7 +78,7 @@ export function InsightsPeriodSummary({
             {data.eligibleLoggedDayCount} of {data.eligibleTotalDayCount}{' '}
             eligible days logged
           </AppText>
-          <View className="h-2 overflow-hidden rounded-full bg-module">
+          <View className="h-1.5 overflow-hidden rounded-full bg-module-muted">
             <View
               className="h-full rounded-full bg-primary"
               style={{

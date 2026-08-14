@@ -36,6 +36,7 @@ import {
   insightsCacheKey,
   isInsightsV2CachePayload,
 } from '@/lib/analytics/analytics-report-cache';
+import { formatPresentationDateRange } from '@/lib/date-time';
 
 function ReportEmptyState({
   title,
@@ -242,6 +243,16 @@ export default function InsightsScreen() {
   );
 
   const isSimpleOverview = sectionReportResource.mode === 'simple';
+  const periodSummary = sectionReportResource.overview.periodSummary;
+  const periodMeta =
+    periodSummary?.status === 'available' && periodSummary.data !== null
+      ? `${formatPresentationDateRange(
+          periodSummary.data.resolvedRange.startDate,
+          periodSummary.data.resolvedRange.endDate,
+        )} · ${periodSummary.data.eligibleLoggedDayCount} logged day${
+          periodSummary.data.eligibleLoggedDayCount === 1 ? '' : 's'
+        }`
+      : null;
 
   const dismissRecommendation = useCallback(async (id: string) => {
     setRecommendationsError(null);
@@ -294,7 +305,7 @@ export default function InsightsScreen() {
   return (
     <AppScreen
       refreshing={sectionReportResource.status === 'refreshing'}
-      contentClassName="gap-7"
+      contentClassName="gap-4"
       backgroundColor="#FFFFFF"
       onRefresh={() => void loadInsights(true)}
     >
@@ -302,10 +313,7 @@ export default function InsightsScreen() {
         <AnalyticsOfflineBanner cachedAt={sectionReportResource.updatedAt} />
       ) : null}
       <View className="gap-3">
-        <AppText
-          variant="title"
-          className="text-[38px] leading-[46px] text-ink"
-        >
+        <AppText variant="title" className="text-[30px] leading-9 text-ink">
           Insights
         </AppText>
         <ReportPeriodSelector
@@ -316,9 +324,9 @@ export default function InsightsScreen() {
             sectionReportResource.status === 'refreshing'
           }
         />
-        {hasCommittedReport ? (
+        {periodMeta !== null ? (
           <AppText variant="caption" className="text-muted">
-            Last {period === 'week' ? 7 : 30} days
+            {periodMeta}
           </AppText>
         ) : null}
       </View>
@@ -338,6 +346,7 @@ export default function InsightsScreen() {
           onExploreTrends={() => router.push('/trends' as never)}
           onLogWater={() => router.push('/water-log' as never)}
           onOverviewRetry={retrySimpleOverview}
+          compact
         />
       ) : !hasCommittedReport ? (
         sectionReportResource.error === null ? (
@@ -370,6 +379,7 @@ export default function InsightsScreen() {
               onOverviewRetry={(overview) =>
                 void loadReporting(period, false, null, overview)
               }
+              compact
               onManagePinned={() => router.push('/trends/saved-views' as never)}
               onOpenPinned={(metric, query) =>
                 router.push({
@@ -396,6 +406,7 @@ export default function InsightsScreen() {
               dismissedRecommendations={dismissedRecommendations}
               error={recommendationsError}
               onDismiss={(id) => void dismissRecommendation(id)}
+              compact
             />
           )}
         </>
@@ -407,6 +418,7 @@ export default function InsightsScreen() {
           dismissedRecommendations={dismissedRecommendations}
           error={recommendationsError}
           onDismiss={(id) => void dismissRecommendation(id)}
+          compact
         />
       ) : null}
 

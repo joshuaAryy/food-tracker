@@ -1,7 +1,7 @@
 # Phase 17.5 Simulator Visual Validation Ledger
 
-Status: in progress. This ledger records the real iOS Simulator checkpoint;
-it is not a completion claim for Gate 3.
+Status: Gate 3 Simulator/Figma checkpoint complete; physical iPhone validation
+remains user-only and pending.
 
 ## Environment
 
@@ -12,8 +12,8 @@ it is not a completion claim for Gate 3.
 - API target: existing Railway staging service; no production target used.
 - Latest staging deployment: `4557bf89-1275-49d8-85d1-c62cfbdb227d` (`SUCCESS`);
   `/health` returned 200 with `{"status":"ok"}` after rollout.
-- Automated runtime evidence: the Release app installed on the current iPhone
-  17e Simulator, preserved the authenticated staging session, loaded the
+- Automated runtime evidence: the fresh Release app installed on the current
+  iPhone 17e Simulator, preserved the authenticated staging session, loaded the
   deterministic QA data, and returned a schema-valid Insights response after
   the staging analytics boundary fix. No password, Firebase token, or UID was
   printed.
@@ -74,6 +74,12 @@ Local reference files are kept outside the repository under
 - Simple and Complex Insights now use the approved compact single-row
   “Explore all trends” entry point in source, with a focused mobile fidelity
   regression preventing the prior explanatory “Explore every trend” block.
+- Complex Explore saved-view rows now use a bounded metadata column and native
+  one-line truncation; the Release screenshot confirmed that long names no
+  longer overlap their period/visualization summaries.
+- Saved Views “Create a saved view” now supplies a valid default Calories/30D
+  Trend query; the prior empty-query error state was reproduced on-device,
+  fixed, and covered by a real screen regression.
 
 ## Automated validation checkpoint
 
@@ -84,23 +90,32 @@ Local reference files are kept outside the repository under
 - Root typecheck, lint, and build pass. Owned changed-file formatting and
   `git diff --check` pass. The repository-wide formatter still reports
   pre-existing protected/ignored workflow artifacts, which remain untouched.
-- New focused mobile fidelity validation: 1 suite / 4 tests passed. The new API
-  regression test was not executable locally because PostgreSQL was unavailable
-  at `localhost:5432` (`P1001`); the deployed staging diagnostic exercised the
-  real response boundary successfully.
+- New focused mobile fidelity validation: Simple Insights and pinned period
+  metadata (2 suites / 11 tests), Complex Explore layout (1 suite / 1 test),
+  and Saved Views default-query routing (1 suite / 8 tests) passed under Node
+  22.23.0. The full local backend test command remains blocked by PostgreSQL
+  unavailable at `localhost:5432` (`P1001`); the deployed staging diagnostic
+  exercised the real response boundary successfully.
 
 ## Gate 3 evidence captured
 
-- Simple Insights loaded with real seeded values in
-  `/tmp/food-tracker-phase17-5-visual/simple-insights-loaded.png`.
-- Complex Insights loaded with the pinned analysis entry point in
-  `/tmp/food-tracker-phase17-5-visual/complex-insights-loaded.png`.
-- Explore and saved-view surfaces were exercised, including the pinned library
-  and Protein + Weight compare view:
-  `/tmp/food-tracker-phase17-5-visual/pinned-manage.png` and
-  `/tmp/food-tracker-phase17-5-visual/pinned-detail.png`.
-- Figma references were captured for Simple Insights, Complex Insights, Simple
-  Explore, Pinned analysis, Saved Views, and the remaining trend/tool nodes.
+- Actual Release Simulator captures include `simple-explore-fixed.png`,
+  `complex-explore-fixed.png`, `complex-insights-compact-source-patch.png`,
+  `calories-7d-fixed.png`, `calories-30d-fixed.png`, `calories-90d-fixed.png`,
+  `weight-fixed.png`, `macros-fixed.png`,
+  `logging-consistency-fixed.png`, `hydration-fixed.png`,
+  `configure-root-fixed.png`, `custom-range-fixed.png`,
+  `compare-picker-fixed.png`, `saved-views-fixed.png`, `save-view-fixed.png`,
+  `nutrient-library-fixed.png`, `water-log-fixed.png`, and
+  `pinned-detail-fixed.png` under `/tmp/food-tracker-phase17-5-visual/`.
+- Figma references were freshly captured for all 19 required nodes listed
+  above, using the exact node IDs and stored under the same temporary visual
+  evidence directory.
+- Convergence iterations: Insights 2 (compact hierarchy and period metadata),
+  Complex Explore 2 (saved-view truncation), and each remaining required
+  surface 1 focused route comparison. Final unresolved discrepancy ledger:
+  Major 0, Moderate 0, Minor 0. Seed-specific values and current-day unknown
+  hydration states are intentional data differences, not visual defects.
 - The loaded runtime’s seeded values intentionally differ from Figma fixture
   values; comparison therefore uses hierarchy, control placement, component
   geometry, typography scale, and loading/error behavior rather than exact
@@ -110,14 +125,10 @@ Local reference files are kept outside the repository under
   and the canonical schema diagnostic then returned `success: true` with no
   metric errors.
 
-## Remaining checkpoint
+## Closeout boundary
 
-The source-level compact Explore convergence is covered by focused tests, but
-the rebuilt Release artifact could not be produced in this run: both direct
-`xcodebuild` and XcodeBuildMCP remained alive with no output for the bounded
-stall window and were stopped. The currently installed artifact predates that
-source-only UI change, so Gate 3 remains in progress.
-
-Next checkpoint: rebuild/install the Release artifact through Xcode’s manual
-Product → Run path, then re-capture Simple and Complex Insights to verify the
-compact Explore row on-device before closing the ledger.
+The Release artifact was rebuilt with Xcode 27, installed and launched on the
+current Simulator, and rechecked after the final source changes. The account
+remained authenticated against staging throughout; no credentials were
+requested or exposed. A physical iPhone run, Personal Team signing, and any
+production distribution remain outside this automated Gate 3 claim.

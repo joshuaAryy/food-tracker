@@ -20,12 +20,14 @@ export function HydrationInsightsCard({
   onLogWater,
   onOpenTrend,
   onRetry,
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'hydration'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
   onLogWater: () => void;
   onOpenTrend: () => void;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const data = overview?.data ?? null;
   const vesselFills =
@@ -36,8 +38,15 @@ export function HydrationInsightsCard({
       ? 'Water data unavailable'
       : `${fullVesselCount} of 8 glasses`;
   return (
-    <View testID="simple-insights-section-hydration" className="gap-3">
-      <ReportingSectionHeading icon="detail" title="Hydration" />
+    <View
+      testID="simple-insights-section-hydration"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="detail"
+        title="Hydration"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Hydration"
@@ -45,12 +54,21 @@ export function HydrationInsightsCard({
           onRetry={onRetry}
         />
       ) : (
-        <AppCard elevated className="gap-3 p-[18px]">
+        <AppCard
+          elevated
+          compact={compact}
+          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+        >
           <AppText variant="caption" className="text-muted">
             TODAY · Logged drinks only
           </AppText>
           <View className="flex-row items-end justify-between gap-3">
-            <AppText variant="number" className="text-[32px] leading-10">
+            <AppText
+              variant="number"
+              className={
+                compact ? 'text-[24px] leading-7' : 'text-[32px] leading-10'
+              }
+            >
               {liters(data.total)}
             </AppText>
             <AppText variant="caption" className="text-muted">
@@ -65,7 +83,11 @@ export function HydrationInsightsCard({
             {vesselFills.map((fill, index) => (
               <View
                 key={`vessel-${index}`}
-                className="h-8 w-4 overflow-hidden rounded-b-[6px] rounded-t-[3px] border-2 border-primary"
+                className={
+                  compact
+                    ? 'h-6 w-3 overflow-hidden rounded-b-[5px] rounded-t-[3px] border-2 border-primary'
+                    : 'h-8 w-4 overflow-hidden rounded-b-[6px] rounded-t-[3px] border-2 border-primary'
+                }
               >
                 {fill === null ? null : (
                   <View
@@ -80,7 +102,11 @@ export function HydrationInsightsCard({
             <AppText variant="label">{vesselSummary}</AppText>
             <AppButton
               accessibilityLabel="Log water"
-              className="min-h-10 rounded-[19px] px-4 py-1"
+              className={
+                compact
+                  ? 'min-h-8 rounded-[16px] px-3 py-1'
+                  : 'min-h-10 rounded-[19px] px-4 py-1'
+              }
               onPress={onLogWater}
             >
               + 250 mL

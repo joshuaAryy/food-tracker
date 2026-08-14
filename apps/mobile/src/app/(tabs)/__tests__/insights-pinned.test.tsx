@@ -285,6 +285,43 @@ describe('Insights pinned view', () => {
     expect(screen.queryByText('0 kcal')).toBeNull();
   });
 
+  it('renders the authoritative Insights period range and logged-day count', async () => {
+    (api.analytics.insights as jest.Mock).mockResolvedValueOnce(
+      v2Report(
+        simpleInsightsFixture,
+        overviewWith({
+          periodSummary: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              resolvedRange: { startDate: '2026-08-01', endDate: '2026-08-07' },
+              todaySoFar: {
+                date: '2026-08-07',
+                mealCount: 2,
+                calories: { value: 1846, state: 'recorded' },
+                protein: { value: 149, state: 'recorded' },
+              },
+              loggedDayCount: 2,
+              eligibleLoggedDayCount: 2,
+              eligibleTotalDayCount: 5,
+              streak: { currentDays: 1, longestDays: 3 },
+              currentDayPhase: 'in_progress',
+              consistency: 40,
+              interpretation: 'building',
+            },
+          },
+        }),
+      ) as never,
+    );
+
+    const screen = await render(<InsightsScreen />);
+
+    expect(
+      await screen.findByText('Aug 1 – Aug 7 · 2 logged days'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Last 7 days')).toBeNull();
+  });
+
   it('loads each selected period once in both directions and writes each response once', async () => {
     const screen = await render(<InsightsScreen />);
     await waitFor(() => expect(api.analytics.insights).toHaveBeenCalled());

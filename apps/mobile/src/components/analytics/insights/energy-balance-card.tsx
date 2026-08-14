@@ -55,17 +55,26 @@ export function EnergyBalanceCard({
   trend,
   onOpenTrend,
   onRetry,
+  compact = false,
 }: {
   overview: AnalyticsReportOverviewState<'energy'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
+  compact?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
   return (
-    <View testID="simple-insights-section-energy-balance" className="gap-3">
-      <ReportingSectionHeading icon="energy" title="Energy balance" />
+    <View
+      testID="simple-insights-section-energy-balance"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="energy"
+        title="Energy balance"
+        compact={compact}
+      />
       {data === null ? (
         <AnalyticsSectionError
           title="Energy balance"
@@ -78,7 +87,11 @@ export function EnergyBalanceCard({
           accessibilityRole="button"
           onPress={onOpenTrend}
         >
-          <AppCard elevated className="gap-3 p-[18px]">
+          <AppCard
+            elevated
+            compact={compact}
+            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+          >
             <View className="flex-row items-start justify-between gap-3">
               <View className="gap-1">
                 <AppText variant="caption" className="text-muted">
@@ -86,7 +99,11 @@ export function EnergyBalanceCard({
                 </AppText>
                 <AppText
                   variant="display"
-                  className="text-[38px] leading-[42px]"
+                  className={
+                    compact
+                      ? 'text-[25px] leading-7'
+                      : 'text-[38px] leading-[42px]'
+                  }
                 >
                   {energyLabel(data.average)}
                 </AppText>
@@ -103,7 +120,7 @@ export function EnergyBalanceCard({
             <AppText variant="caption" style={{ color: statusColor(data) }}>
               {statusCopy(data)}
             </AppText>
-            <View className="gap-1 rounded-[12px] bg-module p-2">
+            <View className="gap-1 rounded-[10px] bg-module-muted p-1.5">
               {trend?.data === null || trend?.data === undefined ? (
                 <AppText variant="caption" className="text-muted">
                   Trend preview unavailable
@@ -112,7 +129,7 @@ export function EnergyBalanceCard({
                 <LineTrendChart
                   data={trendData(trend)}
                   width={Math.max(220, width - 76)}
-                  height={72}
+                  height={compact ? 48 : 72}
                   color="#33B866"
                   referenceRange={
                     data.reference.kind === 'range'
