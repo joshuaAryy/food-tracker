@@ -3,8 +3,7 @@ import type {
   AnalyticsPreferenceValue,
   AnalyticsSavedView,
 } from '@food-tracker/shared';
-import { View } from 'react-native';
-import { AppButton } from '@/components/app-button';
+import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import { EnergyBalanceCard } from './energy-balance-card';
 import { HydrationInsightsCard } from './hydration-insights-card';
@@ -37,22 +36,18 @@ export function ComplexInsightsOverview({
 }) {
   return (
     <View testID="complex-insights-overview" className="gap-7">
-      <View
-        testID="complex-insights-explore"
-        className="gap-2 rounded-[18px] bg-module p-4"
-      >
-        <AppText variant="label">Explore every trend</AppText>
-        <AppText variant="caption" className="text-muted">
-          Open the full Complex catalog for nutrient details, comparisons, and
-          saved analysis.
-        </AppText>
-        <AppButton
-          variant="secondary"
-          className="min-h-11 self-start rounded-[14px] py-2"
+      <View testID="complex-insights-explore" className="gap-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Explore trends"
+          className="min-h-[52px] flex-row items-center justify-between rounded-[14px] bg-module px-4 active:opacity-70"
           onPress={onExploreTrends}
         >
-          Explore trends
-        </AppButton>
+          <AppText variant="label">Explore all trends</AppText>
+          <AppText variant="label" className="text-muted">
+            ›
+          </AppText>
+        </Pressable>
       </View>
       <InsightsPeriodSummary
         period={resource.period ?? 'month'}

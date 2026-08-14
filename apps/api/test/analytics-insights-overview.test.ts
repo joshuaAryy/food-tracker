@@ -40,6 +40,32 @@ async function seedCompleteDay(dayOffset: number, fiber = 10, sodium = 400) {
 }
 
 describe('canonical Insights v2 overview facts', () => {
+  it('bounds the logging-consistency streak to its represented period', async () => {
+    await seedProfile();
+    await seedPreferences({ mode: 'simple' });
+    await seedGoals({
+      goalType: 'maintain',
+      targetCalories: 2100,
+      targetProteinGrams: 90,
+      targetCarbsGrams: 210,
+      targetFatGrams: 70,
+    });
+    for (let dayOffset = 1; dayOffset <= 8; dayOffset += 1) {
+      await seedCompleteDay(dayOffset);
+    }
+
+    const response = await api
+      .get('/api/v1/analytics/insights')
+      .query({ period: 'week' })
+      .expect(200);
+
+    const consistency = response.body.data.overview.loggingConsistency;
+    expect(consistency.status).toBe('available');
+    expect(consistency.data.days).toHaveLength(7);
+    expect(consistency.data.streak.currentDays).toBeLessThanOrEqual(7);
+    expect(consistency.data.streak.longestDays).toBeLessThanOrEqual(7);
+  });
+
   it('uses the canonical daily-period statistic for macros and nutrient highlights', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'simple' });

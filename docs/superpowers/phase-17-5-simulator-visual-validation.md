@@ -7,12 +7,16 @@ it is not a completion claim for Gate 3.
 
 - Device: iPhone 17e, iOS 27.0, 390-point logical-width class.
 - Native project: `apps/mobile/ios/FoodTracker.xcworkspace`.
-- Runtime: staging Debug development client connected to LAN Metro.
+- Runtime: authenticated standalone Release Simulator bundle; no Metro dependency
+  was used for the seeded-data checkpoint.
 - API target: existing Railway staging service; no production target used.
-- Latest staging deployment: `33679989-79f2-4569-8441-cc4ef75bbc2c` (`SUCCESS`);
+- Latest staging deployment: `4557bf89-1275-49d8-85d1-c62cfbdb227d` (`SUCCESS`);
   `/health` returned 200 with `{"status":"ok"}` after rollout.
-- Automated runtime evidence: the app bundle built successfully, installed, and
-  loaded the authenticated sign-in screen.
+- Automated runtime evidence: the Release app installed on the current iPhone
+  17e Simulator, preserved the authenticated staging session, loaded the
+  deterministic QA data, and returned a schema-valid Insights response after
+  the staging analytics boundary fix. No password, Firebase token, or UID was
+  printed.
 - Physical iPhone validation: intentionally not performed.
 
 ## Reference captures
@@ -63,6 +67,13 @@ Local reference files are kept outside the repository under
   totals rather than a generic progress bar.
 - Logging Consistency overview cells use compact rounded-square geometry.
 - Pinned analysis preview height is aligned to the approved chart emphasis.
+- The Insights `loggingConsistency` response now bounds period-local streak
+  facts to the represented period; the historical streak remains owned by the
+  period summary. A remote staging diagnostic now passes the canonical shared
+  response schema with no metric errors.
+- Simple and Complex Insights now use the approved compact single-row
+  “Explore all trends” entry point in source, with a focused mobile fidelity
+  regression preventing the prior explanatory “Explore every trend” block.
 
 ## Automated validation checkpoint
 
@@ -73,16 +84,40 @@ Local reference files are kept outside the repository under
 - Root typecheck, lint, and build pass. Owned changed-file formatting and
   `git diff --check` pass. The repository-wide formatter still reports
   pre-existing protected/ignored workflow artifacts, which remain untouched.
+- New focused mobile fidelity validation: 1 suite / 4 tests passed. The new API
+  regression test was not executable locally because PostgreSQL was unavailable
+  at `localhost:5432` (`P1001`); the deployed staging diagnostic exercised the
+  real response boundary successfully.
+
+## Gate 3 evidence captured
+
+- Simple Insights loaded with real seeded values in
+  `/tmp/food-tracker-phase17-5-visual/simple-insights-loaded.png`.
+- Complex Insights loaded with the pinned analysis entry point in
+  `/tmp/food-tracker-phase17-5-visual/complex-insights-loaded.png`.
+- Explore and saved-view surfaces were exercised, including the pinned library
+  and Protein + Weight compare view:
+  `/tmp/food-tracker-phase17-5-visual/pinned-manage.png` and
+  `/tmp/food-tracker-phase17-5-visual/pinned-detail.png`.
+- Figma references were captured for Simple Insights, Complex Insights, Simple
+  Explore, Pinned analysis, Saved Views, and the remaining trend/tool nodes.
+- The loaded runtime’s seeded values intentionally differ from Figma fixture
+  values; comparison therefore uses hierarchy, control placement, component
+  geometry, typography scale, and loading/error behavior rather than exact
+  numbers.
+- The first real seeded Insights request exposed a server-side schema mismatch
+  in period-local logging streak facts. The minimal backend fix was deployed
+  and the canonical schema diagnostic then returned `success: true` with no
+  metric errors.
 
 ## Remaining checkpoint
 
-The Simulator currently shows the normal Firebase sign-in screen. Gate 1
-requires an explicitly chosen existing staging Firebase-linked QA account and
-the user must sign into that account in the Simulator before the deterministic
-fixture can be seeded. No auth bypass, production account, or guessed identity
-will be used.
+The source-level compact Explore convergence is covered by focused tests, but
+the rebuilt Release artifact could not be produced in this run: both direct
+`xcodebuild` and XcodeBuildMCP remained alive with no output for the bounded
+stall window and were stopped. The currently installed artifact predates that
+source-only UI change, so Gate 3 remains in progress.
 
-After authentication, capture the seeded Simple/Complex Insights, pinned,
-Explore, chart, and tools surfaces; compare each against the reference nodes;
-record every major or moderate discrepancy and its fix here; and leave only
-minor intentional differences before declaring Gate 3 complete.
+Next checkpoint: rebuild/install the Release artifact through Xcode’s manual
+Product → Run path, then re-capture Simple and Complex Insights to verify the
+compact Explore row on-device before closing the ledger.

@@ -1,6 +1,5 @@
 import type { AnalyticsOverviewKey } from '@food-tracker/shared';
-import { View } from 'react-native';
-import { AppButton } from '@/components/app-button';
+import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import type { AnalyticsReportResourceState } from '@/lib/analytics/analytics-report-resource';
 import { EnergyBalanceCard } from './energy-balance-card';
@@ -81,23 +80,18 @@ export function SimpleInsightsOverview({
       ) : null}
       {firstUseData === null ? (
         <>
-          <View
-            testID="simple-insights-explore"
-            className="gap-2 rounded-[18px] bg-module p-4"
-          >
-            <AppText variant="label">Explore every trend</AppText>
-            <AppText variant="caption" className="text-muted">
-              Simple mode keeps trend controls curated. Advanced micronutrient
-              drill-down, comparisons, and saved analysis stay in Complex mode.
-            </AppText>
-            <AppButton
+          <View testID="simple-insights-explore" className="gap-2">
+            <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Explore all trends"
-              variant="secondary"
-              className="min-h-11 self-start rounded-[14px] py-2"
+              className="min-h-[52px] flex-row items-center justify-between rounded-[14px] bg-module px-4 active:opacity-70"
               onPress={onExploreTrends}
             >
-              Explore all trends
-            </AppButton>
+              <AppText variant="label">Explore all trends</AppText>
+              <AppText variant="label" className="text-muted">
+                ›
+              </AppText>
+            </Pressable>
           </View>
           <InsightsPeriodSummary
             period={resource.period ?? 'week'}

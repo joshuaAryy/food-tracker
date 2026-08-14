@@ -650,7 +650,13 @@ function loggingConsistency(
       ? null
       : localDate(context.base[3].loggedAt, context.timezone),
   );
-  const streak = calculateStreak(historicalStreakDays(context), context.today);
+  // This section exposes a period-bounded day-state array, so its streak
+  // facts must use the same period. The period summary separately owns the
+  // historical streak used for the headline card.
+  const streak = calculateStreak(
+    days.map(({ date, logged }) => ({ date, logged })),
+    context.today,
+  );
   return {
     completeDayCount: days.filter(
       (day) => day.classification.state === 'complete',
