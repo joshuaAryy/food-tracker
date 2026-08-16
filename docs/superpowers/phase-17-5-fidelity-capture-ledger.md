@@ -1,5 +1,11 @@
 # Phase 17.5 fidelity capture ledger
 
+> **Superseded:** The previous Gate 3 zero-discrepancy visual conclusion is
+> superseded by the physical-device findings recorded in
+> [phase-17-5-physical-fidelity-recovery.md](./phase-17-5-physical-fidelity-recovery.md).
+> This historical ledger is retained as evidence of the earlier simulator
+> checkpoint and must not be used as current physical-fidelity approval.
+
 ## Capture basis
 
 All nodes below were inspected with `get_design_context` from Figma file
