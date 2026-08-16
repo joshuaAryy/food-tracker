@@ -222,11 +222,17 @@ export async function seedStagingAnalyticsQa(
   };
   const fixture = buildStagingAnalyticsFixture(fixtureOptions);
 
-  return database.$transaction(async (transaction) => {
-    const user = await targetUser(transaction, input);
-    await resetTargetUser(transaction, user.id);
-    return persistFixture(transaction, user.id, fixture);
-  });
+  return database.$transaction(
+    async (transaction) => {
+      const user = await targetUser(transaction, input);
+      await resetTargetUser(transaction, user.id);
+      return persistFixture(transaction, user.id, fixture);
+    },
+    {
+      maxWait: 30_000,
+      timeout: 120_000,
+    },
+  );
 }
 
 interface CliArguments {

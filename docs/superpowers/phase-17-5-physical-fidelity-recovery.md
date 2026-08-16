@@ -2,8 +2,9 @@
 
 Status: presentation implementation complete; regenerated native state now
 builds, installs, and reaches the real sign-in screen through staging Metro.
-Target-screen evidence and review remain incomplete because no seeded staging
-QA sign-in/session is available in this run. Physical iPhone validation:
+Target-screen evidence and review remain incomplete because the rebuilt
+simulator has not yet been authenticated into the seeded staging QA account.
+Physical iPhone validation:
 **PENDING USER RE-VALIDATION**.
 
 This ledger supersedes the prior zero-discrepancy conclusion in
@@ -84,13 +85,13 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights-338-276.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros-338-720.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight-338-605.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/consistency-338-928.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration-426-159.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log-440-28.png` | blocked: seeded QA session unavailable | not captured | 0 |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c-425-21.png` | blocked: seeded QA session unavailable | not captured | 0 |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights-338-276.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros-338-720.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight-338-605.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/consistency-338-928.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration-426-159.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log-440-28.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c-425-21.png` | blocked: simulator auth session unavailable | not captured | 0 |
 
 ## Implementation evidence before simulator capture
 
@@ -119,14 +120,22 @@ the result is close.
   boundary are materially closer. The review also records that runtime target
   screenshots, geometry measurements, and the required second high-risk pass
   remain unavailable without a seeded staging session.
+- The existing Firebase-linked staging QA target was verified read-only and
+  reseeded through a Railway PostgreSQL SSH tunnel after extending only the
+  seed transaction timeout for tunnel latency. The guarded seed completed with
+  560 food logs, 4,514 nutrient snapshots, 106 weight logs, 485 water logs,
+  four saved views, and one pinned view. A custom-token check also reached the
+  staging API setup-status endpoint with HTTP 200. This proves staging data and
+  API authorization, but does not substitute for the app's persisted Firebase
+  Auth state or simulator target screenshots.
 - Regenerated only the disposable `apps/mobile/ios/` native state, ran
   CocoaPods, and completed a Debug `xcodebuild -jobs 2` against
   `FoodTracker.xcworkspace`, scheme `FoodTracker`, and the booted iPhone 17
   simulator after exact cache/device-support cleanup. Install and launch
   succeeded; staging Metro bundled the app to the sign-in screen. Runtime
   logs no longer show the prior `ExpoCamera` or `FileSystem` missing-module
-  errors. No target-screen or geometry evidence was captured because this run
-  lacks a seeded staging QA session.
+  errors. No target-screen or geometry evidence was captured because the
+  simulator has not yet been authenticated into the seeded staging QA account.
 - API tests remain blocked at setup by `P1001`: PostgreSQL is unavailable at
   `localhost:5432`; the test selector correctly resolved to `food_tracker_test`.
 
@@ -149,7 +158,7 @@ the result is close.
 This ledger is not complete until every target has exact screenshots, measured
 geometry, two independent review passes for high-risk screens, focused and
 full automated validation, and a pushed branch. The native simulator runtime
-issue is resolved through the sign-in boundary; a seeded staging QA session is
-required before target-screen evidence can be collected. Physical
+issue is resolved through the sign-in boundary; an authenticated simulator
+session is required before target-screen evidence can be collected. Physical
 iPhone operation, standalone signing, installation, and acceptance remain
 user-only.
