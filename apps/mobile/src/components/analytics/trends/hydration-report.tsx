@@ -45,7 +45,7 @@ export function HydrationReport({
         quickAddError={quickAddError}
         quickAddUndo={quickAddUndo}
       />
-      <AppCard elevated className="gap-3 p-3">
+      <AppCard elevated className="gap-3 p-[18px]">
         <AppText variant="caption" className="text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,
@@ -55,7 +55,7 @@ export function HydrationReport({
         <BarTrendChart
           data={points}
           width={Math.max(260, width - 76)}
-          color="#2F80ED"
+          color="#72A8FF"
           reference={goal}
           accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />

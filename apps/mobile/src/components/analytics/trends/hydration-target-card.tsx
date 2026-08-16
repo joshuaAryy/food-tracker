@@ -1,6 +1,7 @@
 import { Pressable } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function HydrationTargetCard({
   goal,
@@ -31,7 +32,9 @@ export function HydrationTargetCard({
         {goal === null ? 'Goal unavailable' : `Goal ${goal} mL/day`}
       </AppText>
       <AppText variant="heading" className="text-[30px] leading-9 tabular-nums">
-        {average === null ? 'Unknown' : `${(average / 1000).toFixed(1)} L`}
+        {formatMetricWithUnit(average === null ? null : average / 1000, 'L', {
+          maximumFractionDigits: 1,
+        })}
       </AppText>
       <AppText variant="caption" className="text-primary-dark">
         {average === null

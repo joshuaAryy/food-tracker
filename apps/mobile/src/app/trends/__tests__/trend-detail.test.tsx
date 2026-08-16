@@ -120,7 +120,7 @@ describe('Trend detail screen', () => {
     expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
       expect.objectContaining({ width: 280 }),
     );
-    expect(screen.getByText('Average 1846.0 kcal')).toBeTruthy();
+    expect(screen.getByText('Average 1,846 kcal')).toBeTruthy();
   });
 
   it('keeps the rendered accessibility path reachable with a Large Type input', async () => {
@@ -135,7 +135,7 @@ describe('Trend detail screen', () => {
     const trend = await screen.findByLabelText(
       'Calories trend for Jul 6 – Aug 4',
     );
-    const average = screen.getByText('Average 1846.0 kcal');
+    const average = screen.getByText('Average 1,846 kcal');
     let ancestor = average.parent;
     while (
       ancestor !== null &&

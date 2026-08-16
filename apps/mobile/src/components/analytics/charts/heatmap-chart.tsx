@@ -10,26 +10,41 @@ export function HeatmapChart({
   colorForState,
   accessibilityLabel,
   columns = 14,
+  cellSize = 14,
+  cellGap = 4,
+  testID,
 }: {
   points: readonly { date: string; state: HeatmapState }[];
   colorForState: (state: HeatmapState) => string;
   accessibilityLabel: string;
   columns?: number;
+  cellSize?: number;
+  cellGap?: number;
+  testID?: string;
 }) {
   const cells = heatmapCells(points, columns);
   return (
     <ChartFrame accessibilityLabel={accessibilityLabel}>
       <View
-        className="flex-row flex-wrap gap-1"
-        style={{ width: columns * 14 + (columns - 1) * 4 }}
+        testID={testID === undefined ? undefined : `${testID}-grid`}
+        className="flex-row flex-wrap"
+        style={{
+          width: columns * cellSize + (columns - 1) * cellGap,
+          gap: cellGap,
+        }}
       >
         {cells.map((cell) => (
           <View
             key={cell.date}
             accessible
             accessibilityLabel={`${cell.date}: ${cell.state}`}
-            className="h-3.5 w-3.5 rounded-[3px]"
-            style={{ backgroundColor: colorForState(cell.state) }}
+            className="rounded-[6px]"
+            style={{
+              width: cellSize,
+              height: cellSize,
+              borderRadius: Math.min(6, cellSize / 4),
+              backgroundColor: colorForState(cell.state),
+            }}
           />
         ))}
       </View>

@@ -1,16 +1,17 @@
 import type { AnalyticsReference } from '@food-tracker/shared';
 import { AppText } from '@/components/app-text';
+import { formatMetricValue } from '@/lib/reporting-ui';
 
 function referenceText(reference: AnalyticsReference): string {
   switch (reference.kind) {
     case 'target':
-      return `Target · ${reference.value} ${reference.unit}`;
+      return `Target · ${formatMetricValue(reference.value)} ${reference.unit}`;
     case 'minimum':
-      return `Minimum · at least ${reference.value} ${reference.unit}`;
+      return `Minimum · at least ${formatMetricValue(reference.value)} ${reference.unit}`;
     case 'limit':
-      return `Limit · no more than ${reference.value} ${reference.unit}`;
+      return `Limit · no more than ${formatMetricValue(reference.value)} ${reference.unit}`;
     case 'range':
-      return `Range · ${reference.lower}–${reference.upper} ${reference.unit}`;
+      return `Range · ${formatMetricValue(reference.lower)}–${formatMetricValue(reference.upper)} ${reference.unit}`;
     case 'none':
       return 'Reference unavailable';
   }

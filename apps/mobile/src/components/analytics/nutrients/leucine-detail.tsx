@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { NutrientReferenceSummary } from './nutrient-reference-summary';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function LeucineDetail({ trend }: { trend: CanonicalTrendResponse }) {
   const entry = trend.aminoAcidProfile?.entries.find(
@@ -21,7 +22,7 @@ export function LeucineDetail({ trend }: { trend: CanonicalTrendResponse }) {
         <AppText variant="caption" className="text-muted">
           {entry?.average === null || entry === undefined
             ? 'No recorded Leucine data in this period.'
-            : `${entry.average} g average`}
+            : `${formatMetricWithUnit(entry.average, 'g')} average`}
         </AppText>
         <NutrientReferenceSummary
           reference={entry?.reference ?? trend.reference}

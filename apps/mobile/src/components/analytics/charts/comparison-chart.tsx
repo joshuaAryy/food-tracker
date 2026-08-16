@@ -5,6 +5,7 @@ import { Path } from 'react-native-svg';
 import type { AnalyticsComparisonStrategy } from '@food-tracker/shared';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
+import { formatMetricValue } from '@/lib/reporting-ui';
 import { smoothLinePath } from '@/lib/analytics/chart-geometry';
 import {
   selectedIndexForScrubX,
@@ -200,9 +201,9 @@ function AxisLabels({
 }
 
 function formatAxisValue(value: number): string {
-  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+  return formatMetricValue(value);
 }
 
 function formatSelectedValue(value: number | null): string {
-  return value === null ? 'No recorded value' : value.toLocaleString('en-US');
+  return value === null ? 'No recorded value' : formatMetricValue(value);
 }

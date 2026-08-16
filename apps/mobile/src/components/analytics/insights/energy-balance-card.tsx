@@ -9,11 +9,12 @@ import type {
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
 import { AnalyticsSectionError } from './analytics-section-error';
+import { formatMetricWithUnit, formatMetricValue } from '@/lib/reporting-ui';
 
 function energyLabel(value: number | null): string {
   return value === null
     ? '—'
-    : `${Math.round(value).toLocaleString('en-US')} kcal`;
+    : formatMetricWithUnit(value, 'kcal', { maximumFractionDigits: 0 });
 }
 
 function statusCopy(data: AnalyticsOverviewEnergy): string {
@@ -28,7 +29,7 @@ function statusCopy(data: AnalyticsOverviewEnergy): string {
 
 function referenceCopy(data: AnalyticsOverviewEnergy): string {
   if (data.reference.kind === 'none') return 'Target unavailable';
-  return `${Math.round(data.reference.lower).toLocaleString('en-US')}–${Math.round(data.reference.upper).toLocaleString('en-US')} kcal`;
+  return `${formatMetricValue(data.reference.lower, { maximumFractionDigits: 0 })}–${formatMetricValue(data.reference.upper, { maximumFractionDigits: 0 })} kcal`;
 }
 
 function statusColor(data: AnalyticsOverviewEnergy): string {

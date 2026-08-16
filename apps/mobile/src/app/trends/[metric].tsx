@@ -34,9 +34,14 @@ import { NutrientPairReport } from '@/components/analytics/nutrients/nutrient-pa
 import { LeucineDetail } from '@/components/analytics/nutrients/leucine-detail';
 import { NutrientDataState } from '@/components/analytics/nutrients/nutrient-data-state';
 import { NutrientSparseState } from '@/components/analytics/nutrients/nutrient-sparse-state';
+import { VitaminCDetailReport } from '@/components/analytics/nutrients/vitamin-c-detail-report';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
-import { formatPresentationDateRange } from '@/lib/date-time';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import { ErrorState } from '@/components/error-state';
 import { api, errorMessage } from '@/lib/api-client';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
@@ -155,6 +160,8 @@ export default function TrendDetailScreen() {
   const nutrientComparisonRequestId = useRef(0);
   const [calorieContributors, setCalorieContributors] =
     useState<AnalyticsContributorsResponse | null>(null);
+  const [nutrientContributors, setNutrientContributors] =
+    useState<AnalyticsContributorsResponse | null>(null);
   const [recentWaterLogs, setRecentWaterLogs] = useState<WaterLog[]>([]);
   const [quickAddWaterLog, setQuickAddWaterLog] = useState<WaterLog | null>(
     null,
@@ -181,6 +188,7 @@ export default function TrendDetailScreen() {
       const requestId = ++trendRequestId.current;
       const proteinRequestId = ++proteinTrendRequestId.current;
       if (metric === 'calories') setCalorieContributors(null);
+      if (isNutrientDetail) setNutrientContributors(null);
       if (metric === 'macroComposition') {
         setProteinTrendLoading(true);
         setProteinTrend(null);
@@ -335,6 +343,17 @@ export default function TrendDetailScreen() {
         } else {
           setCalorieContributors(null);
         }
+        if (isNutrientDetail && replacement.trackingMode === 'complex') {
+          try {
+            setNutrientContributors(
+              await api.analytics.contributors(activeQuery, true),
+            );
+          } catch {
+            setNutrientContributors(null);
+          }
+        } else {
+          setNutrientContributors(null);
+        }
       } catch (cause) {
         if (
           metric === 'macroComposition' &&
@@ -463,7 +482,9 @@ export default function TrendDetailScreen() {
             ? 'Daily intake'
             : metric === 'hydration'
               ? 'Explicitly logged drinks only'
-              : undefined
+              : metric === 'vitaminC'
+                ? 'Daily intake within your configured range'
+                : undefined
         }
         trackingMode={trend?.trackingMode ?? 'simple'}
         selectedPeriod={selectedRelativePeriod}
@@ -618,6 +639,41 @@ export default function TrendDetailScreen() {
             }
             recentWaterLogs={recentWaterLogs}
           />
+        ) : metric === 'vitaminC' ? (
+          <VitaminCDetailReport
+            trend={trend}
+            relatedName={
+              trend.relatedMetrics[0] === undefined
+                ? 'Related metric'
+                : analyticsMetricForKey(trend.relatedMetrics[0]).displayName
+            }
+            relatedTrend={relatedTrend}
+            relatedError={relatedTrendError}
+            contributors={nutrientContributors}
+            width={width}
+            onOpenRelated={() => {
+              const relatedMetric = trend.relatedMetrics[0];
+              if (relatedMetric === undefined) return;
+              const { comparisonMetric: _comparisonMetric, ...relatedQuery } =
+                activeQuery;
+              void _comparisonMetric;
+              router.push({
+                pathname: `/trends/${relatedMetric}`,
+                params: {
+                  query: trendQueryRouteParam({
+                    ...relatedQuery,
+                    primaryMetric: relatedMetric,
+                  }),
+                },
+              } as never);
+            }}
+            onOpenContributors={() =>
+              router.push({
+                pathname: '/trends/contributors',
+                params: { query: trendQueryRouteParam(activeQuery) },
+              } as never)
+            }
+          />
         ) : (
           <View className="gap-3">
             {trend.summary.numericDayCount === 0 &&
@@ -648,7 +704,7 @@ export default function TrendDetailScreen() {
                 historical={dailyPoints.map((point) => point.value)}
                 forecast={trend.forecast.points}
                 width={Math.max(280, width - 40)}
-                accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${trend.forecast.todayDate}`}
+                accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${formatPresentationDate(trend.forecast.todayDate, { includeYear: true })}`}
               />
             ) : presentation === 'macro' &&
               trend.macroComposition !== undefined ? (
@@ -702,7 +758,7 @@ export default function TrendDetailScreen() {
             <AppText variant="caption" muted>
               {trend.summary.average === null
                 ? 'No recorded values in this period.'
-                : `Average ${trend.summary.average.toFixed(1)} ${definition.unit}`}
+                : `Average ${formatMetricWithUnit(trend.summary.average, definition.unit)}`}
             </AppText>
             {trend.forecast?.kind === 'available' ? (
               <AppText variant="caption" muted>

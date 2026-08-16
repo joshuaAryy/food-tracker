@@ -6,6 +6,7 @@ import { ReportingSectionHeading } from '@/components/reporting-section-heading'
 import type { AnalyticsReportOverviewState } from '@/lib/analytics/analytics-report-resource';
 import { nutrientGauge } from '@/lib/analytics/overview-visuals';
 import { AnalyticsSectionError } from './analytics-section-error';
+import { formatMetricWithUnit, formatMetricValue } from '@/lib/reporting-ui';
 
 function label(metric: AnalyticsOverviewNutrientHighlight['metric']): string {
   if (metric === 'vitaminC') return 'Vitamin C';
@@ -15,7 +16,7 @@ function label(metric: AnalyticsOverviewNutrientHighlight['metric']): string {
 function valueCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
   return highlight.value === null
     ? 'Unknown'
-    : `${highlight.value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${highlight.unit}`;
+    : formatMetricWithUnit(highlight.value, highlight.unit);
 }
 
 function statusCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
@@ -54,9 +55,9 @@ function referenceCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
   const reference = highlight.reference;
   if (reference.kind === 'none') return 'Reference unavailable';
   if (reference.kind === 'range') {
-    return `${reference.lower.toLocaleString('en-US')}–${reference.upper.toLocaleString('en-US')} ${highlight.unit}`;
+    return `${formatMetricValue(reference.lower)}–${formatMetricValue(reference.upper)} ${highlight.unit}`;
   }
-  return `${reference.value.toLocaleString('en-US')} ${highlight.unit} ${reference.kind === 'limit' ? 'limit' : 'target'}`;
+  return `${formatMetricValue(reference.value)} ${highlight.unit} ${reference.kind === 'limit' ? 'limit' : 'target'}`;
 }
 
 export function NutrientHighlightsCard({

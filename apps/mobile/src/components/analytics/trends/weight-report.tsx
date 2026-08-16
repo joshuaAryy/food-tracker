@@ -4,6 +4,7 @@ import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDateRange } from '@/lib/date-time';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import { WeightDirectionCard } from './weight-direction-card';
 import { TrendPeriodPills } from './trend-period-pills';
 import { ForecastUnavailableCard } from './forecast-unavailable-card';
@@ -51,15 +52,15 @@ export function WeightReport({
           {facts?.current === null || facts?.current === undefined
             ? latest === null
               ? 'Unknown'
-              : `${latest.toFixed(1)} lb`
-            : `${facts.current.toFixed(1)} lb`}
+              : formatMetricWithUnit(latest, 'lb')
+            : formatMetricWithUnit(facts.current, 'lb')}
         </AppText>
         <AppText variant="caption" className="text-muted">
           Latest authoritative weight
         </AppText>
         {target === null ? null : (
           <AppText variant="caption" className="text-primary-dark">
-            Goal reference {target.toFixed(1)} lb
+            Goal reference {formatMetricWithUnit(target, 'lb')}
           </AppText>
         )}
       </AppCard>
@@ -71,22 +72,25 @@ export function WeightReport({
           onOpenCustomRange={onOpenCustomRange}
         />
       ) : null}
-      <AppCard elevated className="gap-3 p-3">
+      <AppCard elevated className="gap-3 p-[18px]">
         <AppText variant="caption" className="text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,
             trend.resolvedRange.endDate,
           )}
         </AppText>
-        <LineTrendChart
-          data={points}
-          width={Math.max(260, width - 76)}
-          color="#111111"
-          showRawPoints
-          trendValues={trend.rollingTrend?.values}
-          reference={target}
-          accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
-        />
+        <View testID="weight-trend-chart" style={{ height: 190 }}>
+          <LineTrendChart
+            data={points}
+            width={Math.max(260, width - 76)}
+            height={190}
+            color="#7A9B76"
+            showRawPoints
+            trendValues={trend.rollingTrend?.values}
+            reference={target}
+            accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+          />
+        </View>
       </AppCard>
       <WeightDirectionCard facts={facts} />
       {facts?.recordedDayCount === undefined ||

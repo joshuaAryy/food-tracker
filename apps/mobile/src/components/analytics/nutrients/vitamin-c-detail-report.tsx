@@ -1,0 +1,125 @@
+import type {
+  AnalyticsContributorsResponse,
+  CanonicalTrendResponse,
+} from '@food-tracker/shared';
+import { View } from 'react-native';
+import { AppCard } from '@/components/app-card';
+import { AppText } from '@/components/app-text';
+import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
+import { TrendContributorsCard } from '@/components/analytics/trends/trend-contributors-card';
+import { formatPresentationDateRange } from '@/lib/date-time';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
+import { RelatedMetricCard } from './related-metric-card';
+
+function rangeLabel(trend: CanonicalTrendResponse): string {
+  if (trend.reference.kind !== 'range') return 'Reference unavailable';
+  return `${formatMetricValue(trend.reference.lower)}–${formatMetricValue(trend.reference.upper)} ${trend.reference.unit}`;
+}
+
+function averageStatus(trend: CanonicalTrendResponse): string {
+  if (trend.interpretation?.kind === 'within_range') {
+    return 'average · inside your range';
+  }
+  if (
+    trend.interpretation?.kind === 'below_range' ||
+    trend.interpretation?.kind === 'above_range'
+  ) {
+    return 'average · outside your range';
+  }
+  return 'average · reference unavailable';
+}
+
+export function VitaminCDetailReport({
+  trend,
+  relatedTrend,
+  relatedError,
+  relatedName,
+  contributors,
+  width,
+  onOpenRelated,
+  onOpenContributors,
+}: {
+  trend: CanonicalTrendResponse;
+  relatedTrend: CanonicalTrendResponse | null;
+  relatedError: string | null;
+  relatedName: string;
+  contributors: AnalyticsContributorsResponse | null;
+  width: number;
+  onOpenRelated: () => void;
+  onOpenContributors: () => void;
+}) {
+  const points = trend.points.map((point) => ({
+    date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+    value: point.value,
+  }));
+  const recordedDays = trend.metricDataSummary?.recorded ?? 0;
+  return (
+    <View testID="vitamin-c-detail-report" className="gap-4">
+      <AppCard elevated className="gap-3 p-[18px]">
+        <View className="flex-row items-end justify-between gap-4">
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="display" className="text-[38px] leading-[42px]">
+              {formatMetricWithUnit(
+                trend.summary.average,
+                trend.reference.unit,
+              )}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              {averageStatus(trend)}
+            </AppText>
+          </View>
+          <View className="items-end gap-1">
+            <AppText variant="caption" className="text-muted">
+              {trend.reference.kind === 'range' &&
+              trend.reference.source === 'user'
+                ? 'Custom range'
+                : 'Configured range'}
+            </AppText>
+            <AppText variant="label">{rangeLabel(trend)}</AppText>
+          </View>
+        </View>
+        <AppText variant="caption" className="text-muted">
+          {recordedDays} recorded days ·{' '}
+          {formatPresentationDateRange(
+            trend.resolvedRange.startDate,
+            trend.resolvedRange.endDate,
+          )}
+        </AppText>
+      </AppCard>
+      <AppCard elevated className="gap-3 p-[18px]">
+        <AppText variant="label">Vitamin C trend</AppText>
+        <LineTrendChart
+          data={points}
+          width={Math.max(260, width - 76)}
+          height={190}
+          color="#5E8FBF"
+          trendValues={trend.rollingTrend?.values}
+          referenceRange={
+            trend.reference.kind === 'range'
+              ? {
+                  lower: trend.reference.lower,
+                  upper: trend.reference.upper,
+                }
+              : null
+          }
+          showRawPoints
+          accessibilityLabel={`Vitamin C trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+        />
+        <AppText variant="caption" className="text-muted">
+          {recordedDays} recorded days are available for this configured range.
+          Unknown nutrient values remain gaps.
+        </AppText>
+      </AppCard>
+      <RelatedMetricCard
+        name={relatedName}
+        trend={relatedTrend}
+        error={relatedError}
+        onOpen={onOpenRelated}
+      />
+      <TrendContributorsCard
+        contributors={contributors?.contributors ?? []}
+        onOpenAll={onOpenContributors}
+      />
+    </View>
+  );
+}

@@ -8,11 +8,18 @@ import type {
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
 import { hydrationVesselFillLevels } from '@/lib/analytics/overview-visuals';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function liters(value: number | null): string {
-  return value === null ? '—' : `${(value / 1000).toFixed(2)} L`;
+  return formatMetricWithUnit(value === null ? null : value / 1000, 'L', {
+    maximumFractionDigits: 1,
+  });
 }
+
+const HYDRATION_STROKE = '#72A8FF';
+const HYDRATION_FILL = '#DCEBFF';
+const HYDRATION_TRACK = '#F4F8FF';
 
 export function HydrationInsightsCard({
   overview,
@@ -72,7 +79,11 @@ export function HydrationInsightsCard({
               {liters(data.total)}
             </AppText>
             <AppText variant="caption" className="text-muted">
-              of {(data.goal / 1000).toFixed(1)} L goal
+              of{' '}
+              {formatMetricValue(data.goal / 1000, {
+                maximumFractionDigits: 1,
+              })}{' '}
+              L goal
             </AppText>
           </View>
           <View
@@ -83,16 +94,24 @@ export function HydrationInsightsCard({
             {vesselFills.map((fill, index) => (
               <View
                 key={`vessel-${index}`}
+                testID={`hydration-vessel-${index}`}
                 className={
                   compact
-                    ? 'h-6 w-3 overflow-hidden rounded-b-[5px] rounded-t-[3px] border-2 border-primary'
-                    : 'h-8 w-4 overflow-hidden rounded-b-[6px] rounded-t-[3px] border-2 border-primary'
+                    ? 'h-9 w-4 overflow-hidden rounded-b-[6px] rounded-t-[4px] border-2'
+                    : 'h-10 w-5 overflow-hidden rounded-b-[7px] rounded-t-[4px] border-2'
                 }
+                style={{
+                  borderColor: HYDRATION_STROKE,
+                  backgroundColor: HYDRATION_TRACK,
+                }}
               >
                 {fill === null ? null : (
                   <View
-                    className="absolute bottom-0 left-0 right-0 bg-primary"
-                    style={{ height: `${fill * 100}%` }}
+                    className="absolute bottom-0 left-0 right-0"
+                    style={{
+                      height: `${fill * 100}%`,
+                      backgroundColor: HYDRATION_FILL,
+                    }}
                   />
                 )}
               </View>

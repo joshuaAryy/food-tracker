@@ -66,7 +66,7 @@ describe('Custom Range sheet fidelity', () => {
     expect(screen.getByText('TODAY')).toBeTruthy();
     expect(screen.getByText(/Drag handles to select/)).toBeTruthy();
     expect(rail.props.accessibilityRole).toBe('adjustable');
-    expect(rail.props.accessibilityValue.text).toContain('2026-07-03');
+    expect(rail.props.accessibilityValue.text).toContain('Jul 3, 2026');
 
     await act(async () => {
       rail.props.onLayout({ nativeEvent: { layout: { width: 280 } } });
@@ -171,7 +171,7 @@ describe('Custom Range sheet fidelity', () => {
 
     rail = screen.getByLabelText('Custom date range history rail');
     expect(rail.props.accessibilityValue.text).toBe(
-      '2026-06-24 through 2026-07-08',
+      'Jun 24, 2026 through Jul 8, 2026',
     );
   });
 });

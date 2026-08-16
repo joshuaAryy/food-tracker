@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Circle, Line, Path, Rect } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
+import { formatMetricValue } from '@/lib/reporting-ui';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
   pointX,
@@ -90,7 +91,7 @@ export function LineTrendChart({
       selectedDescription={
         selected === null
           ? undefined
-          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : selected.value}`
+          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : formatMetricValue(selected.value)}`
       }
     >
       <View className="relative">
@@ -101,14 +102,24 @@ export function LineTrendChart({
           selectedIndex={selectedIndex}
         >
           {rangeBand === null ? null : (
-            <Rect
-              x={0}
-              y={rangeBand.y}
-              width={width}
-              height={rangeBand.height}
-              fill={color}
-              opacity={0.12}
-            />
+            <>
+              <Rect
+                x={0}
+                y={Math.max(0, rangeBand.y - 10)}
+                width={width}
+                height={Math.min(height, rangeBand.height + 20)}
+                fill={color}
+                opacity={0.035}
+              />
+              <Rect
+                x={0}
+                y={rangeBand.y}
+                width={width}
+                height={rangeBand.height}
+                fill={color}
+                opacity={0.12}
+              />
+            </>
           )}
           {domain !== null && reference !== null ? (
             <Line
@@ -186,7 +197,7 @@ export function LineTrendChart({
               {'\n'}
               {selected.value === null
                 ? 'No recorded value'
-                : selected.value.toLocaleString('en-US')}
+                : formatMetricValue(selected.value)}
             </AppText>
           </View>
         )}

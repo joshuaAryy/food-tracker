@@ -1,0 +1,82 @@
+import type {
+  AnalyticsContributorsResponse,
+  CanonicalTrendResponse,
+} from '@food-tracker/shared';
+import { render } from '@/test/render';
+import { VitaminCDetailReport } from '../vitamin-c-detail-report';
+
+const trend: CanonicalTrendResponse = {
+  timezone: 'America/Toronto',
+  trackingMode: 'complex',
+  primaryMetric: 'vitaminC',
+  aggregation: 'daily',
+  resolvedRange: { startDate: '2026-07-06', endDate: '2026-08-04' },
+  firstEligibleDate: '2026-07-01',
+  today: '2026-08-04',
+  reference: {
+    kind: 'range',
+    lower: 75,
+    upper: 120,
+    unit: 'mg',
+    source: 'user',
+  },
+  interpretation: {
+    kind: 'within_range',
+    message: 'Recorded average is within the configured range.',
+  },
+  relatedMetrics: ['iron'],
+  points: [
+    {
+      kind: 'daily',
+      date: '2026-08-04',
+      loggingDayState: 'complete',
+      loggingDayPhase: 'closed',
+      metricDataState: 'recorded',
+      value: 96,
+      foodLogCount: 2,
+      metricRecordedLogCount: 2,
+      metricUnknownLogCount: 0,
+    },
+  ],
+  summary: { numericDayCount: 24, average: 96 },
+  metricDataSummary: {
+    recorded: 24,
+    partial: 1,
+    unknown: 5,
+    state: 'available',
+  },
+};
+
+const contributors: AnalyticsContributorsResponse = {
+  metric: 'vitaminC',
+  resolvedRange: trend.resolvedRange,
+  recordedTotal: 2592,
+  contributors: [{ foodName: 'Orange', value: 544, percentage: 0.21 }],
+  remainder: null,
+  hasMore: false,
+};
+
+describe('Vitamin C detail report fidelity', () => {
+  it('uses the configured-range composition and presentation-only formatting', async () => {
+    const screen = await render(
+      <VitaminCDetailReport
+        trend={trend}
+        relatedName="Iron"
+        relatedTrend={null}
+        relatedError={null}
+        contributors={contributors}
+        width={390}
+        onOpenRelated={jest.fn()}
+        onOpenContributors={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('vitamin-c-detail-report')).toBeTruthy();
+    expect(screen.getByText('96 mg')).toBeTruthy();
+    expect(screen.getByText('average · inside your range')).toBeTruthy();
+    expect(screen.getByText('Custom range')).toBeTruthy();
+    expect(screen.getByText('75–120 mg')).toBeTruthy();
+    expect(screen.getAllByText(/24 recorded days/)).toHaveLength(2);
+    expect(screen.getByText('Top contributors')).toBeTruthy();
+  });
+});

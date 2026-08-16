@@ -275,7 +275,11 @@ describe('Simple Insights overview fidelity', () => {
     expect(screen.getByText('1,846 kcal')).toBeTruthy();
     expect(screen.getByText('Protein · 149 g')).toBeTruthy();
     expect(screen.getByText('2 of 5 eligible days logged')).toBeTruthy();
-    expect(screen.getByText('1.63 L')).toBeTruthy();
+    expect(screen.getByText('1.6 L')).toBeTruthy();
+    expect(screen.getAllByTestId(/hydration-vessel-/).length).toBe(8);
+    expect(screen.getAllByTestId(/hydration-vessel-/)[0]?.props.style).toEqual(
+      expect.objectContaining({ borderColor: '#72A8FF' }),
+    );
     expect(screen.getByText('129.4 lb')).toBeTruthy();
     expect(
       screen.getByRole('button', { name: 'Explore all trends' }),

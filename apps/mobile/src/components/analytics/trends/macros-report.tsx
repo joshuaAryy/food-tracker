@@ -7,6 +7,7 @@ import {
   formatPresentationDate,
   formatPresentationDateRange,
 } from '@/lib/date-time';
+import { formatMetricValue } from '@/lib/reporting-ui';
 import { MacroBalanceSummary } from './macro-balance-summary';
 import { TrendPeriodPills } from './trend-period-pills';
 
@@ -54,24 +55,11 @@ export function MacrosReport({
             Macro composition is unavailable for this period.
           </AppText>
         ) : (
-          <>
-            <AppText
-              variant="heading"
-              className="text-[26px] leading-8 tabular-nums"
-            >
-              {trend.macroAverageEnergy === null ||
-              trend.macroAverageEnergy === undefined
-                ? 'Unknown'
-                : `${Math.round(trend.macroAverageEnergy).toLocaleString('en-US')} kcal`}
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              Average energy across recorded macro days
-            </AppText>
-            <MacroBalanceSummary
-              percentages={percentages}
-              size={Math.min(190, Math.max(150, width - 190))}
-            />
-          </>
+          <MacroBalanceSummary
+            percentages={percentages}
+            averageEnergy={trend.macroAverageEnergy ?? null}
+            size={Math.min(140, Math.max(124, width - 246))}
+          />
         )}
       </AppCard>
       <AppCard className="gap-1 bg-module p-4">
@@ -140,8 +128,9 @@ export function MacrosReport({
                   {formatPresentationDate(day.date)}
                 </AppText>
                 <AppText variant="caption" className="text-muted">
-                  P {day.protein ?? '—'}% · C {day.carbs ?? '—'}% · F{' '}
-                  {day.fat ?? '—'}%
+                  P {formatMetricValue(day.protein)}% · C{' '}
+                  {formatMetricValue(day.carbs)}% · F{' '}
+                  {formatMetricValue(day.fat)}%
                 </AppText>
               </View>
               <View

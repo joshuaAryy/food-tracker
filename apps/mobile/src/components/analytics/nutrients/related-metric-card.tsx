@@ -3,6 +3,7 @@ import type { CanonicalTrendResponse } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { NutrientReferenceSummary } from './nutrient-reference-summary';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function RelatedMetricCard({
   name,
@@ -26,7 +27,7 @@ export function RelatedMetricCard({
           <AppText variant="caption" className="text-muted">
             {trend.summary.average === null
               ? 'Unknown'
-              : `${trend.summary.average.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${trend.reference.unit} average`}
+              : `${formatMetricWithUnit(trend.summary.average, trend.reference.unit)} average`}
           </AppText>
         )}
       </View>

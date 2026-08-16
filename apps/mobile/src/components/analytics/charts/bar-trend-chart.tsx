@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import { Line, Path, Rect } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
+import { formatMetricValue } from '@/lib/reporting-ui';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
   barRects,
@@ -82,7 +83,7 @@ export function BarTrendChart({
       selectedDescription={
         selected === null
           ? undefined
-          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : selected.value}`
+          : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : formatMetricValue(selected.value)}`
       }
     >
       <View className="relative">
@@ -147,7 +148,7 @@ export function BarTrendChart({
               {'\n'}
               {selected.value === null
                 ? 'No recorded value'
-                : selected.value.toLocaleString('en-US')}
+                : formatMetricValue(selected.value)}
             </AppText>
           </View>
         )}

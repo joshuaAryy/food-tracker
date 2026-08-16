@@ -4,6 +4,7 @@ import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { formatPresentationDateRange } from '@/lib/date-time';
 import { ContributorsProgress } from './contributors-progress';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function ContributorsSheet({
   metricName,
@@ -45,7 +46,9 @@ export function ContributorsSheet({
               variant="heading"
               className="text-[30px] leading-9 tabular-nums"
             >
-              {data.recordedTotal.toLocaleString('en-US')} {unit}
+              {formatMetricWithUnit(data.recordedTotal, unit, {
+                maximumFractionDigits: 0,
+              })}
             </AppText>
           </View>
           <ContributorsProgress contributors={data.contributors} />

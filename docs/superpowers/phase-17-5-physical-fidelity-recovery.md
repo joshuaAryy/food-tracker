@@ -1,7 +1,7 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
-Status: implementation in progress. Physical iPhone validation: **PENDING USER
-RE-VALIDATION**.
+Status: presentation implementation complete; simulator evidence blocked by a
+full root volume. Physical iPhone validation: **PENDING USER RE-VALIDATION**.
 
 This ledger supersedes the prior zero-discrepancy conclusion in
 `phase-17-5-fidelity-capture-ledger.md` based on physical-device evidence. The
@@ -71,13 +71,29 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | pending app capture | pending | pending | 0 |
-| Macro Balance | `338:720` | Trends / Macros | pending app capture | pending | pending | 0 |
-| Weight | `338:605` | Trends / Weight | pending app capture | pending | pending | 0 |
-| Logging Consistency 30D/90D | `338:928`, `363:177` | Trends / Logging consistency | pending app capture | pending | pending | 0 |
-| Hydration | `426:159` | Trends / Hydration | pending app capture | pending | pending | 0 |
-| Water Log | `440:28` | Log Water | pending app capture | pending | pending | 0 |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | pending app capture | pending | pending | 0 |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights-338-276.png` | blocked: disk full | blocked: disk full | 0 |
+| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros-338-720.png` | blocked: disk full | blocked: disk full | 0 |
+| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight-338-605.png` | blocked: disk full | blocked: disk full | 0 |
+| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/consistency-338-928.png` | blocked: disk full | blocked: disk full | 0 |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration-426-159.png` | blocked: disk full | blocked: disk full | 0 |
+| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log-440-28.png` | blocked: disk full | blocked: disk full | 0 |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c-425-21.png` | blocked: disk full | blocked: disk full | 0 |
+
+## Implementation evidence before simulator capture
+
+- Presentation-only mobile changes are confined to analytics routes, chart
+  primitives, nutrient presentation, custom-range labels, focused tests, and
+  the Complex Insights route scale. No API, database, shared contract,
+  dependency, or analytics-semantics changes were made.
+- Exact Figma context and screenshots were freshly captured for every target;
+  exact metadata dimensions are recorded in the implementation plan and the
+  screenshots are retained under the temporary evidence root above.
+- Focused mobile evidence currently passes: reporting-format Vitest 3/3;
+  core trend fidelity Jest 4/4; Simple Insights fidelity Jest 4/4; Vitamin C
+  detail fidelity Jest 1/1; custom-range and trend-detail suites 13/13.
+- Simulator capture is not valid yet. `xcodebuild` reported `ENOSPC` / `No
+  space left on device`; `df -h /` showed 104 MiB available and 100% capacity.
+  No cache or generated-native cleanup was performed.
 
 ## Physical findings being recovered
 

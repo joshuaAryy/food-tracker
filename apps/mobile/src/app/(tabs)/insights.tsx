@@ -379,7 +379,6 @@ export default function InsightsScreen() {
               onOverviewRetry={(overview) =>
                 void loadReporting(period, false, null, overview)
               }
-              compact
               onManagePinned={() => router.push('/trends/saved-views' as never)}
               onOpenPinned={(metric, query) =>
                 router.push({

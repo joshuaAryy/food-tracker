@@ -4,6 +4,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import type {
   AnalyticsReportOverviewState,
   AnalyticsReportSectionState,
@@ -14,7 +15,7 @@ function changeCopy(change: AnalyticsOverviewWeight['change']): string {
   if (change.value === null || change.direction === 'unknown')
     return 'No 30-day change yet';
   const sign = change.value > 0 ? '+' : '';
-  return `${sign}${change.value.toFixed(1)} lb over ${change.periodDays} days`;
+  return `${sign}${formatMetricWithUnit(change.value, 'lb')} over ${change.periodDays} days`;
 }
 
 function goalCopy(status: AnalyticsOverviewWeight['goalPathStatus']): string {
@@ -89,7 +90,7 @@ export function WeightDirectionCard({
                   compact ? 'text-[24px] leading-7' : 'text-[30px] leading-9'
                 }
               >
-                {data.current === null ? '—' : `${data.current.toFixed(1)} lb`}
+                {formatMetricWithUnit(data.current, 'lb')}
               </AppText>
               <AppText variant="caption" className="text-primary-dark">
                 {changeCopy(data.change)}
@@ -104,8 +105,9 @@ export function WeightDirectionCard({
                 <LineTrendChart
                   data={chartData}
                   width={Math.max(220, width - 76)}
-                  height={compact ? 48 : 74}
-                  color="#337AC7"
+                  height={44}
+                  color="#7A9B76"
+                  trendValues={trend?.data?.rollingTrend?.values}
                   reference={
                     data.reference.kind === 'target'
                       ? data.reference.value

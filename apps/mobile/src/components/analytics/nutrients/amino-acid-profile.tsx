@@ -6,6 +6,7 @@ import {
 } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 const essentialMetrics = [
   'histidine',
@@ -66,7 +67,7 @@ export function AminoAcidProfile({
                     <AppText variant="caption" className="text-muted">
                       {entry.average === null
                         ? 'Unknown'
-                        : `${entry.average} ${definition.unit}`}
+                        : formatMetricWithUnit(entry.average, definition.unit)}
                     </AppText>
                     <AppText
                       variant="caption"

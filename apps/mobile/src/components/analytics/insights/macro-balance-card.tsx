@@ -8,10 +8,11 @@ import type {
   AnalyticsReportOverviewState,
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function grams(value: number | null): string {
-  return value === null ? '—' : `${Math.round(value)} g`;
+  return formatMetricWithUnit(value, 'g', { maximumFractionDigits: 0 });
 }
 
 function trendData(section: AnalyticsReportSectionState | undefined) {
@@ -65,7 +66,7 @@ export function MacroBalanceCard({
           <AppCard
             elevated
             compact={compact}
-            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+            className="gap-3 rounded-[20px] p-[18px]"
           >
             <AppText variant="caption" className="text-muted">
               REPORT · Period composition
@@ -77,11 +78,13 @@ export function MacroBalanceCard({
                   carbs: data.carbs.grams,
                   fat: data.fat.grams,
                 }}
-                size={compact ? 78 : 104}
+                size={104}
                 centerValue={
                   energyAverage === null
                     ? undefined
-                    : Math.round(energyAverage).toLocaleString('en-US')
+                    : formatMetricValue(energyAverage, {
+                        maximumFractionDigits: 0,
+                      })
                 }
                 centerLabel="kcal avg"
                 accessibilityLabel="Macro balance composition"
@@ -118,28 +121,25 @@ export function MacroBalanceCard({
               </View>
             </View>
             <View className="gap-1 border-t border-line pt-3">
-              <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center justify-between gap-3">
                 <AppText variant="caption" className="text-muted">
                   TREND · Protein
                 </AppText>
-                <AppText variant="caption" className="text-muted">
-                  g · 14 days
-                </AppText>
+                {proteinTrend?.data === null ||
+                proteinTrend?.data === undefined ? (
+                  <AppText variant="caption" className="text-muted">
+                    Unavailable
+                  </AppText>
+                ) : (
+                  <LineTrendChart
+                    data={trendData(proteinTrend)}
+                    width={Math.min(176, Math.max(150, width - 214))}
+                    height={50}
+                    color="#C9242D"
+                    accessibilityLabel="Protein trend"
+                  />
+                )}
               </View>
-              {proteinTrend?.data === null ||
-              proteinTrend?.data === undefined ? (
-                <AppText variant="caption" className="text-muted">
-                  Unavailable
-                </AppText>
-              ) : (
-                <LineTrendChart
-                  data={trendData(proteinTrend)}
-                  width={Math.max(180, width - 76)}
-                  height={compact ? 42 : 58}
-                  color="#C9242D"
-                  accessibilityLabel="Protein trend"
-                />
-              )}
             </View>
           </AppCard>
         </Pressable>

@@ -1,6 +1,7 @@
 import type { CanonicalTrendResponse } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function WeightDirectionCard({
   facts,
@@ -26,7 +27,7 @@ export function WeightDirectionCard({
       {facts?.change === null || facts?.change === undefined ? null : (
         <AppText variant="caption" className="text-muted">
           {facts.change > 0 ? '+' : ''}
-          {facts.change.toFixed(1)} lb over the selected period.
+          {formatMetricWithUnit(facts.change, 'lb')} over the selected period.
         </AppText>
       )}
     </AppCard>

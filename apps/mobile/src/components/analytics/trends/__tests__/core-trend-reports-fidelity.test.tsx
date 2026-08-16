@@ -33,6 +33,9 @@ describe('metric-specific trend reports', () => {
     );
 
     expect(screen.getByText('129.4 lb')).toBeTruthy();
+    expect(screen.getByTestId('weight-trend-chart').props.style.height).toBe(
+      190,
+    );
     expect(
       screen.getByText('Your weight trend is moving toward your goal.'),
     ).toBeTruthy();
@@ -48,6 +51,7 @@ describe('metric-specific trend reports', () => {
           primaryMetric: 'macroComposition',
           macroComposition: { protein: 120, carbs: 240, fat: 60 },
           macroPercentages: { protein: 24, carbs: 49, fat: 27 },
+          macroAverageEnergy: 2184.4,
         }}
         width={390}
         simple={false}
@@ -62,6 +66,10 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('Protein · 24%')).toBeTruthy();
     expect(screen.getByText('Carbohydrates · 49%')).toBeTruthy();
     expect(screen.getByText('Fat · 27%')).toBeTruthy();
+    expect(screen.getByText('2,184')).toBeTruthy();
+    expect(
+      screen.getByTestId('macro-donut-svg').props.style.width,
+    ).toBeGreaterThan(100);
     expect(screen.getByText('Protein trend')).toBeTruthy();
   });
 
@@ -93,6 +101,9 @@ describe('metric-specific trend reports', () => {
       screen.getByText('Complete 21 · Partial 3 · Unlogged 3'),
     ).toBeTruthy();
     expect(screen.getByText('Today is still in progress.')).toBeTruthy();
+    expect(
+      screen.getByTestId('logging-consistency-heatmap-grid').props.style.width,
+    ).toBe(292);
   });
 
   it('keeps Hydration water-only and exposes the canonical Log water action', async () => {

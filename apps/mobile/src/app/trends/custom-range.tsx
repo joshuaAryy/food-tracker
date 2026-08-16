@@ -406,7 +406,7 @@ export default function CustomRangeScreen() {
               accessibilityRole="adjustable"
               accessibilityLabel="Custom date range history rail"
               accessibilityValue={{
-                text: `${selection.startDate} through ${selection.endDate}`,
+                text: `${formatPresentationDate(selection.startDate, { includeYear: true })} through ${formatPresentationDate(selection.endDate, { includeYear: true })}`,
               }}
               className="h-[68px] justify-center rounded-app bg-module px-3"
               onLayout={onRailLayout}
@@ -528,11 +528,12 @@ function RangeDateInput({
       <TextInput
         accessibilityLabel={`${label} date`}
         className="min-h-11 rounded-control border border-line bg-module px-4 text-ink"
-        value={draft}
+        value={formatPresentationDate(value, { includeYear: true })}
         onChangeText={setDraft}
         onSubmitEditing={() => onSubmit(draft)}
         onBlur={() => onSubmit(draft)}
-        placeholder="YYYY-MM-DD"
+        editable={false}
+        placeholder="Choose a date"
         autoCapitalize="none"
       />
       <Pressable
@@ -583,7 +584,13 @@ function RangeCalendar({
         >
           <AppText muted>Previous</AppText>
         </Pressable>
-        <AppText variant="label">{month}</AppText>
+        <AppText variant="label">
+          {new Intl.DateTimeFormat('en-US', {
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC',
+          }).format(new Date(`${month}-01T12:00:00.000Z`))}
+        </AppText>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Next month"
@@ -601,7 +608,11 @@ function RangeCalendar({
             <Pressable
               key={date ?? `blank-${index}`}
               accessibilityRole="button"
-              accessibilityLabel={date === null ? 'Unavailable day' : date}
+              accessibilityLabel={
+                date === null
+                  ? 'Unavailable day'
+                  : formatPresentationDate(date, { includeYear: true })
+              }
               accessibilityState={{
                 disabled: !available,
                 selected: date === selectedDate,

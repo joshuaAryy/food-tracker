@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import type { AnalyticsContributor } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricValue } from '@/lib/reporting-ui';
 
 export function TrendContributorsCard({
   contributors,
@@ -28,7 +29,7 @@ export function TrendContributorsCard({
                 {index + 1}. {contributor.foodName}
               </AppText>
               <AppText variant="caption" className="text-muted">
-                {contributor.percentage}%
+                {formatMetricValue(contributor.percentage * 100)}%
               </AppText>
             </View>
           ))}

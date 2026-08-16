@@ -3,11 +3,10 @@ import { View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { NutrientReferenceSummary } from './nutrient-reference-summary';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 function formatValue(value: number | null, unit: string): string {
-  return value === null
-    ? 'Unknown'
-    : `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${unit}`;
+  return value === null ? 'Unknown' : formatMetricWithUnit(value, unit);
 }
 
 function visualDepth(

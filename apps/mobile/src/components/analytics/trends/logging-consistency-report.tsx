@@ -84,18 +84,31 @@ export function LoggingConsistencyReport({
         <LoggingDayStateLegend />
       </AppCard>
       {trend.aggregation === 'daily' ? (
-        <HeatmapChart
-          points={dailyPoints}
-          colorForState={color}
-          accessibilityLabel="Logging consistency by day"
-        />
+        <AppCard elevated className="gap-3 p-[18px]">
+          <AppText variant="label">Daily completeness</AppText>
+          <HeatmapChart
+            points={dailyPoints}
+            colorForState={color}
+            columns={selectedPeriod === 30 ? 10 : 14}
+            cellSize={selectedPeriod === 30 ? 22 : 14}
+            cellGap={selectedPeriod === 30 ? 8 : 4}
+            testID="logging-consistency-heatmap"
+            accessibilityLabel="Logging consistency by day"
+          />
+        </AppCard>
       ) : (
-        <AppCard elevated className="gap-2 p-3">
+        <AppCard elevated className="gap-3 p-[18px]">
           <AppText variant="label">Period pattern</AppText>
+          <AppText variant="caption" className="text-muted">
+            Weekly completeness keeps the 90-day pattern readable without
+            compressing individual daily cells.
+          </AppText>
           <BarTrendChart
             data={aggregatedPoints}
             width={280}
-            color="#33B866"
+            height={190}
+            color="#6F9870"
+            trendValues={trend.rollingTrend?.values}
             accessibilityLabel="Logging consistency aggregated by week"
           />
         </AppCard>

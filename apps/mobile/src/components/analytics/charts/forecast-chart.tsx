@@ -15,6 +15,7 @@ import {
 import { ChartFrame } from './chart-frame';
 import { CartesianPlot } from './cartesian-plot';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
+import { formatMetricValue } from '@/lib/reporting-ui';
 
 export function ForecastChart({
   historical,
@@ -75,7 +76,7 @@ export function ForecastChart({
       selectedDescription={
         selectedIndex === null
           ? undefined
-          : `${selectedIndex < historical.length ? 'Historical' : 'Estimated'} value: ${selectedValue ?? 'No recorded value'}`
+          : `${selectedIndex < historical.length ? 'Historical' : 'Estimated'} value: ${selectedValue === null ? 'No recorded value' : formatMetricValue(selectedValue)}`
       }
     >
       <View>

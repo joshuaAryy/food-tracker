@@ -40,6 +40,7 @@ export function MacroChart({
       <ChartFrame accessibilityLabel={accessibilityLabel}>
         <View>
           <Svg
+            testID="macro-donut-svg"
             width={size}
             height={size * 0.34}
             viewBox={`0 0 ${size} ${size * 0.34}`}
@@ -68,7 +69,11 @@ export function MacroChart({
   let offset = 0;
   return (
     <ChartFrame accessibilityLabel={accessibilityLabel}>
-      <View className="relative">
+      <View
+        testID="macro-donut-svg"
+        className="relative"
+        style={{ width: size, height: size }}
+      >
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {segments.map((segment) => {
             const length = circumference * segment.fraction;
@@ -100,7 +105,7 @@ export function MacroChart({
             {centerValue === undefined ? null : (
               <AppText
                 variant="number"
-                className="text-center text-[16px] leading-5"
+                className="text-center text-[18px] leading-5"
               >
                 {centerValue}
               </AppText>

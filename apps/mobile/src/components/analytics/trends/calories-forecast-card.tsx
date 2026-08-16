@@ -3,6 +3,8 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { ForecastChart } from '@/components/analytics/charts/forecast-chart';
 import { ForecastUnavailableCard } from './forecast-unavailable-card';
+import { formatPresentationDate } from '@/lib/date-time';
+import { formatMetricValue } from '@/lib/reporting-ui';
 
 export function CaloriesForecastCard({
   forecast,
@@ -19,15 +21,16 @@ export function CaloriesForecastCard({
       <AppCard elevated className="gap-1 p-[18px]">
         <AppText variant="label">Calorie forecast</AppText>
         <AppText variant="caption" className="text-muted">
-          Seven-day projection after {forecast.todayDate}.
+          Seven-day projection after{' '}
+          {formatPresentationDate(forecast.todayDate, { includeYear: true })}.
         </AppText>
         {last === undefined ? null : (
           <AppText
             variant="heading"
             className="text-[20px] leading-7 tabular-nums"
           >
-            {Math.round(last.lower).toLocaleString('en-US')}–
-            {Math.round(last.upper).toLocaleString('en-US')} kcal
+            {formatMetricValue(last.lower, { maximumFractionDigits: 0 })}–
+            {formatMetricValue(last.upper, { maximumFractionDigits: 0 })} kcal
           </AppText>
         )}
         <ForecastChart

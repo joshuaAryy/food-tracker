@@ -1,6 +1,7 @@
 import type { CanonicalTrendResponse } from '@food-tracker/shared';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
 function comparisonCopy(trend: CanonicalTrendResponse): string {
   const message = trend.interpretation?.message;
@@ -20,12 +21,14 @@ export function CaloriesSummaryCard({
       <AppText variant="heading" className="text-[30px] leading-9 tabular-nums">
         {trend.summary.average === null
           ? 'Unknown'
-          : `${trend.summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })} kcal`}
+          : formatMetricWithUnit(trend.summary.average, 'kcal', {
+              maximumFractionDigits: 0,
+            })}
       </AppText>
       <AppText variant="caption" className="text-muted">
         {trend.summary.average === null
           ? 'No recorded values in this period.'
-          : `Average ${trend.summary.average.toFixed(1)} kcal`}
+          : `Average ${formatMetricWithUnit(trend.summary.average, 'kcal')}`}
       </AppText>
       {trend.summary.average === null ? null : (
         <AppText variant="caption" className="text-muted">

@@ -17,6 +17,31 @@ import {
   formatPresentationDateRange,
 } from './date-time';
 
+export type MetricFormatOptions = Intl.NumberFormatOptions;
+
+export function formatMetricValue(
+  value: number | null | undefined,
+  options: MetricFormatOptions = {},
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 1,
+    ...options,
+  });
+}
+
+export function formatMetricWithUnit(
+  value: number | null | undefined,
+  unit: string,
+  options: MetricFormatOptions = {},
+): string {
+  const formatted = formatMetricValue(value, options);
+  return formatted === '—' ? formatted : `${formatted} ${unit}`;
+}
+
 export function availableValue<T>(
   metric: { available: true; value: T } | { available: false },
 ): T | null {

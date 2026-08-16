@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 
 export function AnalyticsFirstUse({
   mealCount,
@@ -42,14 +43,14 @@ export function AnalyticsFirstUse({
               Energy (kcal)
             </AppText>
             <AppText variant="number">
-              {calories === null ? '—' : calories.toLocaleString('en-US')}
+              {formatMetricValue(calories, { maximumFractionDigits: 0 })}
             </AppText>
           </View>
         </View>
         <AppText variant="caption" className="text-muted">
           {proteinGrams === null
             ? 'Protein unavailable'
-            : `${proteinGrams} g protein`}{' '}
+            : `${formatMetricWithUnit(proteinGrams, 'g')} protein`}{' '}
           · current recorded totals
         </AppText>
       </AppCard>
