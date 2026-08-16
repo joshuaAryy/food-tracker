@@ -4,6 +4,12 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatMetricValue } from '@/lib/reporting-ui';
 
+function contributorPercentage(value: number): string {
+  // Canonical API responses use fractions; older local view fixtures use
+  // already-percent values. Keep presentation tolerant of both shapes.
+  return formatMetricValue(value >= 0 && value <= 1 ? value * 100 : value);
+}
+
 export function TrendContributorsCard({
   contributors,
   onOpenAll,
@@ -29,7 +35,7 @@ export function TrendContributorsCard({
                 {index + 1}. {contributor.foodName}
               </AppText>
               <AppText variant="caption" className="text-muted">
-                {formatMetricValue(contributor.percentage * 100)}%
+                {contributorPercentage(contributor.percentage)}%
               </AppText>
             </View>
           ))}

@@ -77,7 +77,7 @@ describe('related nutrient detail fidelity', () => {
     );
 
     expect(screen.getByText('Sodium')).toBeTruthy();
-    expect(screen.getByText('Limit · no more than 2300 mg')).toBeTruthy();
+    expect(screen.getByText('Limit · no more than 2,300 mg')).toBeTruthy();
     expect(screen.getByText('Related metric unavailable')).toBeTruthy();
     expect(
       screen.getByText('Primary nutrient remains available.'),

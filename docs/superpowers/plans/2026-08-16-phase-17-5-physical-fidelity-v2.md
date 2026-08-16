@@ -104,7 +104,7 @@
 - Modify: `docs/superpowers/phase-17-5-physical-fidelity-recovery.md`
 - Evidence: `/tmp/food-tracker-phase17-5-visual-v2/`
 
-- [ ] Build and run the actual Food Tracker iOS app against the existing staging selector with the seeded QA account. Blocked: root volume at 100% (`ENOSPC`).
+- [ ] Build and run the actual Food Tracker iOS app against the existing staging selector with the seeded QA account. Workspace build/install/launch and guarded Node 22 staging Metro startup succeeded; the app remains blank after bundle download.
 - [ ] Capture Complex Insights, Macro, Weight, Consistency 30D/90D, Hydration, Water Log, and Vitamin C at 390pt and neighboring width.
 - [ ] Record before/after filenames and measured card geometry in the ledger.
 - [ ] Perform an independent visual review for every high-risk surface and record findings by category/severity.
@@ -117,7 +117,7 @@
 - Modify only intentionally changed source/tests/docs paths.
 
 - [x] Run Node 22.23.x and pnpm 10.34.3 checks.
-- [ ] Run Prisma generate/validate, shared build/typecheck, API typecheck/lint/build/tests against `food_tracker_test`, mobile Vitest/Jest/typecheck/lint, root typecheck/lint/build/tests, changed-file Prettier, and `git diff --check`. Blocked for write-dependent build/test commands by `ENOSPC`; Prisma validate, root lint/typecheck, mobile lint/typecheck, focused tests, changed-file Prettier, and diff check pass.
+- [ ] Run Prisma generate/validate, shared build/typecheck, API typecheck/lint/build/tests against `food_tracker_test`, mobile Vitest/Jest/typecheck/lint, root typecheck/lint/build/tests, changed-file Prettier, and `git diff --check`. Prisma generate/validate, mobile Vitest/Jest/typecheck/lint, API lint/typecheck/build, root lint/typecheck/build, changed-file Prettier, and diff check pass; API tests are blocked by PostgreSQL `P1001`, and root format check reports 20 pre-existing artifact warnings.
 - [ ] Review protected paths and stage explicit paths only.
 - [ ] Commit implementation slices and docs evidence with intentional messages.
 - [ ] Push `phase-17-5-custom-analytics` without force-push.
