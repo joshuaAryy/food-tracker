@@ -96,18 +96,29 @@ the result is close.
 
 - Presentation-only mobile changes are confined to analytics routes, chart
   primitives, nutrient presentation, custom-range labels, focused tests, and
-  the Complex Insights route scale. No API, database, shared contract,
-  dependency, or analytics-semantics changes were made.
+  the Complex Insights route scale. The latest pass also removes pinned-analysis
+  rendering from the exact Complex Insights overview hierarchy while retaining
+  the standalone pin-management/trend surfaces, and limits Water Log history
+  visuals to edit mode. No API, database, shared contract, dependency, or
+  analytics-semantics changes were made.
 - Exact Figma context and screenshots were freshly captured for every target;
   exact metadata dimensions are recorded in the implementation plan and the
   screenshots are retained under the temporary evidence root above.
 - Focused mobile evidence currently passes: reporting-format Vitest 3/3;
-  core trend fidelity Jest 4/4; Simple Insights fidelity Jest 4/4; Vitamin C
-  detail fidelity Jest 1/1; custom-range and trend-detail suites 13/13.
-- Full mobile evidence currently passes: Vitest 53 files / 366 tests and Jest
-  48 suites / 134 tests. Mobile lint and typecheck, API lint/typecheck/build,
+  core trend fidelity Jest 5/5; Simple Insights fidelity Jest 4/4; Vitamin C
+  detail fidelity Jest 1/1; Water Log Jest 4/4; custom-range and trend-detail
+  suites remain green.
+- Full mobile evidence currently passes: Vitest 53 files / 367 tests and Jest
+  48 suites / 135 tests. Mobile lint and typecheck, API lint/typecheck/build,
   and root lint/typecheck/build also pass. Root format check reports 20
   warnings in pre-existing protected/ignored artifacts.
+- An independent read-only reviewer checked the implementation against the
+  exact Figma captures. Static review confirms the macro vertical mix, Weight
+  area/reference treatment, Vitamin C bars/range band, Hydration vessel and
+  goal treatment, Logging Consistency hierarchy, and Water Log add-modal
+  boundary are materially closer. The review also records that runtime target
+  screenshots, geometry measurements, and the required second high-risk pass
+  remain unavailable without a seeded staging session.
 - Regenerated only the disposable `apps/mobile/ios/` native state, ran
   CocoaPods, and completed a Debug `xcodebuild -jobs 2` against
   `FoodTracker.xcworkspace`, scheme `FoodTracker`, and the booted iPhone 17

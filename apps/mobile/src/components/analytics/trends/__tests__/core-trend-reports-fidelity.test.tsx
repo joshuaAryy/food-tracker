@@ -33,11 +33,16 @@ describe('metric-specific trend reports', () => {
     );
 
     expect(screen.getByText('129.4 lb')).toBeTruthy();
+    expect(screen.queryByText('Latest authoritative weight')).toBeNull();
+    expect(screen.getByTestId('weight-chart-axis')).toBeTruthy();
+    expect(screen.getByText('Goal 130 lb')).toBeTruthy();
     expect(screen.getByTestId('weight-trend-chart').props.style.height).toBe(
       190,
     );
     expect(
-      screen.getByText('Your weight trend is moving toward your goal.'),
+      screen.getByText(
+        'Your smoothed trend is moving gradually toward your goal.',
+      ),
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Custom' })).toBeNull();
   });
@@ -67,10 +72,49 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('Carbohydrates · 49%')).toBeTruthy();
     expect(screen.getByText('Fat · 27%')).toBeTruthy();
     expect(screen.getByText('2,184')).toBeTruthy();
+    expect(screen.getByText('2,184').props).toEqual(
+      expect.objectContaining({
+        numberOfLines: 1,
+        adjustsFontSizeToFit: true,
+      }),
+    );
     expect(
       screen.getByTestId('macro-donut-svg').props.style.width,
     ).toBeGreaterThan(100);
     expect(screen.getByText('Protein trend')).toBeTruthy();
+  });
+
+  it('renders the Figma macro composition hierarchy and vertical daily mix', async () => {
+    const screen = await render(
+      <MacrosReport
+        trend={{
+          ...base,
+          trackingMode: 'complex',
+          primaryMetric: 'macroComposition',
+          macroComposition: { protein: 120, carbs: 240, fat: 60 },
+          macroPercentages: { protein: 24, carbs: 49, fat: 27 },
+          macroAverageEnergy: 2184.4,
+          macroDailyMix: [
+            { date: '2026-08-01', protein: 24, carbs: 49, fat: 27 },
+            { date: '2026-08-02', protein: 26, carbs: 45, fat: 29 },
+          ],
+        }}
+        width={390}
+        simple={false}
+        proteinTrend={base}
+        proteinTrendLoading={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        'Protein remained the most consistent macro across logged days.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByTestId('macro-daily-mix-chart')).toBeTruthy();
   });
 
   it('keeps Logging Consistency states and current phase from backend summary', async () => {
@@ -97,13 +141,17 @@ describe('metric-specific trend reports', () => {
       />,
     );
 
+    expect(screen.getByText('89%')).toBeTruthy();
     expect(
-      screen.getByText('Complete 21 · Partial 3 · Unlogged 3'),
-    ).toBeTruthy();
-    expect(screen.getByText('Today is still in progress.')).toBeTruthy();
+      screen.queryByText('Complete 21 · Partial 3 · Unlogged 3'),
+    ).toBeNull();
+    expect(screen.getByText('Daily completeness')).toBeTruthy();
+    expect(screen.getByText('Complete')).toBeTruthy();
+    expect(screen.queryByText('How to read this')).toBeNull();
     expect(
       screen.getByTestId('logging-consistency-heatmap-grid').props.style.width,
     ).toBe(292);
+    expect(JSON.stringify(screen.toJSON())).toContain('#76DBA0');
   });
 
   it('keeps Hydration water-only and exposes the canonical Log water action', async () => {
@@ -128,9 +176,15 @@ describe('metric-specific trend reports', () => {
     );
 
     expect(
-      screen.getByText('Explicitly logged drinks only · Goal 2000 mL/day'),
-    ).toBeTruthy();
+      screen.queryByText('Explicitly logged drinks only · Goal 2000 mL/day'),
+    ).toBeNull();
     expect(screen.getByText('1.5 L')).toBeTruthy();
+    expect(screen.getByText('2.0 L')).toBeTruthy();
+    expect(screen.getByText('THIS WEEK')).toBeTruthy();
+    expect(screen.queryByText('Water persistence')).toBeNull();
+    const renderedHydrationChart = JSON.stringify(screen.toJSON());
+    expect(renderedHydrationChart).toContain('"payload":4293325567');
+    expect(renderedHydrationChart).toContain('"payload":4287477474');
     await userEvent
       .setup()
       .press(screen.getByRole('button', { name: 'Log water' }));

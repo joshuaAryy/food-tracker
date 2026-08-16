@@ -101,11 +101,15 @@ export function MacroChart({
           <View
             pointerEvents="none"
             className="absolute inset-0 items-center justify-center"
+            style={{ paddingHorizontal: size * 0.14 }}
           >
             {centerValue === undefined ? null : (
               <AppText
                 variant="number"
-                className="text-center text-[18px] leading-5"
+                className="w-full text-center text-[18px] leading-5"
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {centerValue}
               </AppText>

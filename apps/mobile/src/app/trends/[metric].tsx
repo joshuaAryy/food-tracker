@@ -484,7 +484,11 @@ export default function TrendDetailScreen() {
               ? 'Explicitly logged drinks only'
               : metric === 'vitaminC'
                 ? 'Daily intake within your configured range'
-                : undefined
+                : metric === 'weight'
+                  ? 'Smoothed trend with raw weigh-ins'
+                  : metric === 'loggingConsistency'
+                    ? 'Coverage, meal rhythm and completeness'
+                    : undefined
         }
         trackingMode={trend?.trackingMode ?? 'simple'}
         selectedPeriod={selectedRelativePeriod}

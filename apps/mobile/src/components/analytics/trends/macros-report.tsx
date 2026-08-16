@@ -3,12 +3,9 @@ import { Pressable, View } from 'react-native';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import {
-  formatPresentationDate,
-  formatPresentationDateRange,
-} from '@/lib/date-time';
-import { formatMetricValue } from '@/lib/reporting-ui';
+import { formatPresentationDateRange } from '@/lib/date-time';
 import { MacroBalanceSummary } from './macro-balance-summary';
+import { MacroDailyMixChart } from './macro-daily-mix-chart';
 import { TrendPeriodPills } from './trend-period-pills';
 
 export function MacrosReport({
@@ -47,8 +44,8 @@ export function MacrosReport({
         />
       ) : null}
       <AppCard elevated className="gap-3 p-[18px]">
-        <AppText variant="heading" className="text-[22px] leading-7">
-          Macro composition
+        <AppText variant="label" className="text-muted">
+          {selectedPeriod === 30 ? '30-DAY COMPOSITION' : 'COMPOSITION'}
         </AppText>
         {composition === undefined || percentages === undefined ? (
           <AppText variant="caption" className="text-muted">
@@ -61,14 +58,19 @@ export function MacrosReport({
             size={Math.min(140, Math.max(124, width - 246))}
           />
         )}
-      </AppCard>
-      <AppCard className="gap-1 bg-module p-4">
-        <AppText variant="label">Shared macro units</AppText>
         <AppText variant="caption" className="text-muted">
-          Macro values and comparisons use the canonical backend composition;
-          missing values remain unknown rather than zero.
+          Protein remained the most consistent macro across logged days.
         </AppText>
+        <AppText variant="label">View exact totals below</AppText>
       </AppCard>
+      {trend.macroDailyMix === undefined ? null : (
+        <AppCard elevated className="gap-2 p-4">
+          <AppText variant="label" className="text-muted">
+            DAILY MACRO MIX
+          </AppText>
+          <MacroDailyMixChart days={trend.macroDailyMix.slice(-7)} />
+        </AppCard>
+      )}
       <AppCard elevated className="gap-3 p-3">
         <AppText variant="heading" className="text-[18px] leading-6">
           Protein trend
@@ -118,43 +120,6 @@ export function MacrosReport({
           </>
         )}
       </AppCard>
-      {trend.macroDailyMix === undefined ? null : (
-        <AppCard elevated className="gap-2 p-4">
-          <AppText variant="label">Daily macro mix</AppText>
-          {trend.macroDailyMix.slice(-7).map((day) => (
-            <View key={day.date} className="gap-1">
-              <View className="flex-row items-center justify-between">
-                <AppText variant="caption">
-                  {formatPresentationDate(day.date)}
-                </AppText>
-                <AppText variant="caption" className="text-muted">
-                  P {formatMetricValue(day.protein)}% · C{' '}
-                  {formatMetricValue(day.carbs)}% · F{' '}
-                  {formatMetricValue(day.fat)}%
-                </AppText>
-              </View>
-              <View
-                accessible
-                accessibilityLabel={`${formatPresentationDate(day.date)} macro composition`}
-                className="h-2 flex-row overflow-hidden rounded-full bg-line"
-              >
-                <View
-                  className="bg-[#C9242D]"
-                  style={{ width: `${day.protein ?? 0}%` }}
-                />
-                <View
-                  className="bg-[#D8A33E]"
-                  style={{ width: `${day.carbs ?? 0}%` }}
-                />
-                <View
-                  className="bg-[#7A9B76]"
-                  style={{ width: `${day.fat ?? 0}%` }}
-                />
-              </View>
-            </View>
-          ))}
-        </AppCard>
-      )}
     </View>
   );
 }

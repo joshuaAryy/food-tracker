@@ -56,14 +56,10 @@ describe('Water Log screen', () => {
       name: 'Add 250 mL',
     });
 
-    expect(
-      await screen.findByText(
-        'Today’s water history is temporarily unavailable.',
-      ),
-    ).toBeTruthy();
+    await screen.findByRole('button', { name: 'Add 250 mL' });
     expect(addButton.props.accessibilityState?.disabled).toBe(true);
-    expect(screen.getByText('Hydration today')).toBeTruthy();
-    expect(screen.getByText('Goal —')).toBeTruthy();
+    expect(screen.queryByText('Hydration today')).toBeNull();
+    expect(screen.queryByText('Goal —')).toBeNull();
   });
 
   it('loads an edited entry only after the canonical timezone is known', async () => {

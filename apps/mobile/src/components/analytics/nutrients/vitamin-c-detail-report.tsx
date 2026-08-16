@@ -5,7 +5,7 @@ import type {
 import { View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
+import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { TrendContributorsCard } from '@/components/analytics/trends/trend-contributors-card';
 import { formatPresentationDateRange } from '@/lib/date-time';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
@@ -88,23 +88,25 @@ export function VitaminCDetailReport({
       </AppCard>
       <AppCard elevated className="gap-3 p-[18px]">
         <AppText variant="label">Vitamin C trend</AppText>
-        <LineTrendChart
-          data={points}
-          width={Math.max(260, width - 76)}
-          height={190}
-          color="#5E8FBF"
-          trendValues={trend.rollingTrend?.values}
-          referenceRange={
-            trend.reference.kind === 'range'
-              ? {
-                  lower: trend.reference.lower,
-                  upper: trend.reference.upper,
-                }
-              : null
-          }
-          showRawPoints
-          accessibilityLabel={`Vitamin C trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
-        />
+        <View testID="vitamin-c-bar-trend">
+          <BarTrendChart
+            data={points}
+            width={Math.max(196, width - 110)}
+            height={190}
+            color="#5867C7"
+            barFill="#D8DCE3"
+            trendValues={trend.rollingTrend?.values}
+            referenceRange={
+              trend.reference.kind === 'range'
+                ? {
+                    lower: trend.reference.lower,
+                    upper: trend.reference.upper,
+                  }
+                : null
+            }
+            accessibilityLabel={`Vitamin C trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+          />
+        </View>
         <AppText variant="caption" className="text-muted">
           {recordedDays} recorded days are available for this configured range.
           Unknown nutrient values remain gaps.

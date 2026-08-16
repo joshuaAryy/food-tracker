@@ -2,6 +2,24 @@ import type { AnalyticsOverviewNutrientHighlight } from '@food-tracker/shared';
 
 const VESSEL_COUNT = 8;
 
+export interface HydrationVesselVisual {
+  fill: number | null;
+  outline: '#8DB6E2';
+  fillColor: '#E6F2FF';
+  trackColor: '#FFFFFF';
+}
+
+export function hydrationVesselVisual(
+  fill: number | null,
+): HydrationVesselVisual {
+  return {
+    fill,
+    outline: '#8DB6E2',
+    fillColor: '#E6F2FF',
+    trackColor: '#FFFFFF',
+  };
+}
+
 export function hydrationVesselFillLevels(
   total: number | null,
   goal: number,

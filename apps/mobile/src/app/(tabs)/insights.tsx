@@ -4,8 +4,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import type {
   ReportsResponse,
   Recommendation,
-  AnalyticsPreferenceValue,
-  AnalyticsSavedView,
   AnalyticsSectionKey,
   AnalyticsOverviewKey,
 } from '@food-tracker/shared';
@@ -66,9 +64,6 @@ export default function InsightsScreen() {
     initialAnalyticsReportResource,
   );
   const reportRequestId = useRef(0);
-  const [analyticsPreferences, setAnalyticsPreferences] =
-    useState<AnalyticsPreferenceValue | null>(null);
-  const [savedViews, setSavedViews] = useState<AnalyticsSavedView[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [dismissedRecommendations, setDismissedRecommendations] = useState<
     Recommendation[]
@@ -76,7 +71,6 @@ export default function InsightsScreen() {
   const [recommendationsError, setRecommendationsError] = useState<
     string | null
   >(null);
-  const [pinnedViewError, setPinnedViewError] = useState<string | null>(null);
   const [complexTab, setComplexTab] = useState<InsightsTab>('overview');
   const [nutrientReport, setNutrientReport] = useState<ReportsResponse | null>(
     null,
@@ -170,28 +164,12 @@ export default function InsightsScreen() {
         }
         if (insights.mode === 'complex') {
           void loadNutrientReport(nextPeriod);
-          try {
-            const [preferences, views] = await Promise.all([
-              api.analytics.preferences(),
-              api.analytics.savedViews(),
-            ]);
-            setAnalyticsPreferences(preferences);
-            setSavedViews(views);
-            setPinnedViewError(null);
-          } catch (pinnedError) {
-            setAnalyticsPreferences(null);
-            setSavedViews([]);
-            setPinnedViewError(errorMessage(pinnedError));
-          }
         } else {
           nutrientReportRequestId.current += 1;
           setNutrientReportLoading(false);
           setComplexTab('overview');
           setNutrientReport(null);
           setNutrientReportError(null);
-          setAnalyticsPreferences(null);
-          setSavedViews([]);
-          setPinnedViewError(null);
         }
       } catch {
         dispatchSectionReport({ type: 'failure', requestId });
@@ -358,33 +336,13 @@ export default function InsightsScreen() {
       ) : (
         <>
           <InsightsTabs value={complexTab} onChange={setComplexTab} />
-          {pinnedViewError === null ? null : (
-            <AppText variant="caption" className="text-muted">
-              Your primary view is unavailable right now. Insights remain up to
-              date.
-            </AppText>
-          )}
           {complexTab === 'overview' ? (
             <ComplexInsightsOverview
               resource={sectionReportResource}
-              preferences={
-                analyticsPreferences ?? {
-                  preferredSimpleMetric: 'calories',
-                  pinnedSavedViewId: null,
-                }
-              }
-              views={savedViews}
               onExploreTrends={() => router.push('/trends' as never)}
               onLogWater={() => router.push('/water-log' as never)}
               onOverviewRetry={(overview) =>
                 void loadReporting(period, false, null, overview)
-              }
-              onManagePinned={() => router.push('/trends/saved-views' as never)}
-              onOpenPinned={(metric, query) =>
-                router.push({
-                  pathname: '/trends/[metric]',
-                  params: { metric, query },
-                } as never)
               }
             />
           ) : complexTab === 'nutrients' ? (

@@ -78,5 +78,7 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText('75–120 mg')).toBeTruthy();
     expect(screen.getAllByText(/24 recorded days/)).toHaveLength(2);
     expect(screen.getByText('Top contributors')).toBeTruthy();
+    expect(screen.getByTestId('vitamin-c-bar-trend')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4283983815');
   });
 });

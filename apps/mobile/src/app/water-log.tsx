@@ -280,7 +280,9 @@ export default function WaterLogScreen() {
           message={submitError}
         />
       )}
-      <WaterProgressVisual totalMl={todayTotalMl} goalMl={dailyWaterGoalMl} />
+      {isEditing ? (
+        <WaterProgressVisual totalMl={todayTotalMl} goalMl={dailyWaterGoalMl} />
+      ) : null}
       <View className="gap-3">
         <AppText variant="caption" className="font-bold uppercase text-muted">
           Amount
@@ -406,52 +408,54 @@ export default function WaterLogScreen() {
           </AppCard>
         ) : null}
       </View>
-      <View className="gap-3">
-        <View className="flex-row items-center justify-between gap-3">
-          <AppText variant="label">Today’s water</AppText>
-          <AppText variant="caption" muted>
-            {todayTotalMl === null ? '—' : `${todayTotalMl} mL`}
-          </AppText>
+      {isEditing ? (
+        <View className="gap-3">
+          <View className="flex-row items-center justify-between gap-3">
+            <AppText variant="label">Today’s water</AppText>
+            <AppText variant="caption" muted>
+              {todayTotalMl === null ? '—' : `${todayTotalMl} mL`}
+            </AppText>
+          </View>
+          {historyLoading ? (
+            <AppText muted>Loading water history…</AppText>
+          ) : historyError !== null ? (
+            <ErrorState
+              message={historyError}
+              onRetry={() => void loadTodayWater()}
+            />
+          ) : timezone === null ? (
+            <AppText muted>
+              Hydration context is temporarily unavailable. Try again to view or
+              edit today’s water entries.
+            </AppText>
+          ) : todayWaterLogs.length === 0 ? (
+            <AppText muted>No water logged today.</AppText>
+          ) : (
+            todayWaterLogs.map((waterLog) => {
+              const time = dateTimeFieldsInTimezone(
+                waterLog.loggedAt,
+                timezone,
+              ).time;
+              return (
+                <Pressable
+                  key={waterLog.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit ${waterLog.amountMl} mL water at ${time}`}
+                  className="min-h-[58px] flex-row items-center justify-between rounded-[16px] bg-module px-4"
+                  onPress={() =>
+                    router.push(
+                      `/water-log?id=${encodeURIComponent(waterLog.id)}` as never,
+                    )
+                  }
+                >
+                  <AppText>{time}</AppText>
+                  <AppText variant="label">{waterLog.amountMl} mL</AppText>
+                </Pressable>
+              );
+            })
+          )}
         </View>
-        {historyLoading ? (
-          <AppText muted>Loading water history…</AppText>
-        ) : historyError !== null ? (
-          <ErrorState
-            message={historyError}
-            onRetry={() => void loadTodayWater()}
-          />
-        ) : timezone === null ? (
-          <AppText muted>
-            Hydration context is temporarily unavailable. Try again to view or
-            edit today’s water entries.
-          </AppText>
-        ) : todayWaterLogs.length === 0 ? (
-          <AppText muted>No water logged today.</AppText>
-        ) : (
-          todayWaterLogs.map((waterLog) => {
-            const time = dateTimeFieldsInTimezone(
-              waterLog.loggedAt,
-              timezone,
-            ).time;
-            return (
-              <Pressable
-                key={waterLog.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Edit ${waterLog.amountMl} mL water at ${time}`}
-                className="min-h-[58px] flex-row items-center justify-between rounded-[16px] bg-module px-4"
-                onPress={() =>
-                  router.push(
-                    `/water-log?id=${encodeURIComponent(waterLog.id)}` as never,
-                  )
-                }
-              >
-                <AppText>{time}</AppText>
-                <AppText variant="label">{waterLog.amountMl} mL</AppText>
-              </Pressable>
-            );
-          })
-        )}
-      </View>
+      ) : null}
       <AppCard className="gap-1 border-0 bg-[#EAF4FF]">
         <AppText variant="label">Counts toward hydration</AppText>
         <AppText variant="caption" muted>

@@ -1,5 +1,4 @@
-import { Pressable } from 'react-native';
-import { AppCard } from '@/components/app-card';
+import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import { formatMetricWithUnit } from '@/lib/reporting-ui';
 
@@ -23,28 +22,43 @@ export function HydrationTargetCard({
   quickAddUndo?: (() => void) | undefined;
 }) {
   return (
-    <AppCard elevated className="gap-2 p-[18px]">
-      <AppText variant="heading" className="text-[30px] leading-9">
-        Hydration
-      </AppText>
-      <AppText variant="caption" className="text-muted">
-        Explicitly logged drinks only ·{' '}
-        {goal === null ? 'Goal unavailable' : `Goal ${goal} mL/day`}
-      </AppText>
-      <AppText variant="heading" className="text-[30px] leading-9 tabular-nums">
-        {formatMetricWithUnit(average === null ? null : average / 1000, 'L', {
-          maximumFractionDigits: 1,
-        })}
-      </AppText>
-      <AppText variant="caption" className="text-primary-dark">
-        {average === null
-          ? 'No recorded water days in this period.'
-          : `Average across ${recordedDayCount} logged days`}
-      </AppText>
+    <View className="gap-3">
+      <View className="flex-row items-start justify-between gap-4">
+        <View className="min-w-0 flex-1 gap-1">
+          <AppText
+            variant="heading"
+            className="text-[30px] leading-9 tabular-nums"
+          >
+            {formatMetricWithUnit(
+              average === null ? null : average / 1000,
+              'L',
+              {
+                maximumFractionDigits: 1,
+              },
+            )}
+          </AppText>
+          <AppText variant="caption" className="text-primary-dark">
+            {average === null
+              ? 'No recorded water days in this period.'
+              : `Average across ${recordedDayCount} logged days`}
+          </AppText>
+        </View>
+        <View className="items-end gap-1">
+          <AppText variant="caption" className="text-muted">
+            Goal
+          </AppText>
+          <AppText variant="label">
+            {formatMetricWithUnit(goal === null ? null : goal / 1000, 'L', {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}
+          </AppText>
+        </View>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Log water"
-        className="min-h-11 self-start rounded-full bg-ink px-4 py-3"
+        className="min-h-11 self-end rounded-full bg-ink px-6 py-3"
         onPress={onLogWater}
       >
         <AppText className="text-white">
@@ -86,6 +100,6 @@ export function HydrationTargetCard({
           </AppText>
         </Pressable>
       )}
-    </AppCard>
+    </View>
   );
 }

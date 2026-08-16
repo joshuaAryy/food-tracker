@@ -107,7 +107,7 @@ jest.mock('@/components/auth/auth-bootstrap', () => ({
   useAuthRuntime: () => ({ userId: 'firebase-user-1' }),
 }));
 
-describe('Insights pinned view', () => {
+describe('Insights overview pin boundary', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     mockCacheWrite.mockReset();
@@ -157,30 +157,25 @@ describe('Insights pinned view', () => {
       .mockRejectedValue(new Error('Nutrient report unavailable'));
   });
 
-  it('loads a pinned saved configuration as an independent canonical trend preview', async () => {
+  it('keeps pinned analysis out of the exact Complex Insights overview hierarchy', async () => {
     const screen = await render(<InsightsScreen />);
 
-    expect(
-      await screen.findByLabelText('Protein · 30D primary view preview'),
-    ).toBeTruthy();
-    expect(api.analytics.trend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        primaryMetric: 'protein',
-        period: { kind: 'relative', days: 30 },
-      }),
-    );
+    await screen.findByTestId('complex-insights-overview');
+    expect(screen.queryByTestId('complex-insights-pinned-analysis')).toBeNull();
+    expect(api.analytics.trend).not.toHaveBeenCalled();
+    expect(api.analytics.preferences).not.toHaveBeenCalled();
+    expect(api.analytics.savedViews).not.toHaveBeenCalled();
   });
 
-  it('keeps the pinned Insights preview as a minimum-size accessible Trend entrypoint', async () => {
+  it('does not expose a pinned entrypoint from the exact Complex Insights overview', async () => {
     const screen = await render(<InsightsScreen />);
 
+    await screen.findByTestId('complex-insights-overview');
     expect(
-      (
-        await screen.findByRole('button', {
-          name: 'Open pinned view: Protein · 30D',
-        })
-      ).props.className,
-    ).toContain('min-h-11');
+      screen.queryByRole('button', {
+        name: 'Open pinned view: Protein · 30D',
+      }),
+    ).toBeNull();
   });
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {

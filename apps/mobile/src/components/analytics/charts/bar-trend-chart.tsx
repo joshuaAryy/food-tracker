@@ -16,6 +16,7 @@ import {
   selectedIndexForScrubX,
   shouldAnnounceSelectionChange,
 } from '@/lib/analytics/chart-interaction';
+import { referenceBand } from '@/lib/analytics/reference-geometry';
 import { ChartFrame } from './chart-frame';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
 import { CartesianPlot } from './cartesian-plot';
@@ -26,16 +27,20 @@ export function BarTrendChart({
   width,
   height = 180,
   color,
+  barFill,
   trendValues,
   reference = null,
+  referenceRange = null,
   accessibilityLabel,
 }: {
   data: readonly LineTrendDatum[];
   width: number;
   height?: number;
   color: string;
+  barFill?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
   reference?: number | null;
+  referenceRange?: { lower: number; upper: number } | null;
   accessibilityLabel: string;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -63,6 +68,8 @@ export function BarTrendChart({
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
   const selectedX =
     selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
+  const rangeBand =
+    domain === null ? null : referenceBand(referenceRange, domain, height);
   const trendPath = useMemo(
     () =>
       domain === null || trendValues === undefined
@@ -93,6 +100,26 @@ export function BarTrendChart({
           pointCount={data.length}
           selectedIndex={selectedIndex}
         >
+          {rangeBand === null ? null : (
+            <>
+              <Rect
+                x={0}
+                y={Math.max(0, rangeBand.y - 10)}
+                width={width}
+                height={Math.min(height, rangeBand.height + 20)}
+                fill={color}
+                opacity={0.035}
+              />
+              <Rect
+                x={0}
+                y={rangeBand.y}
+                width={width}
+                height={rangeBand.height}
+                fill={color}
+                opacity={0.12}
+              />
+            </>
+          )}
           {domain !== null && reference !== null ? (
             <Line
               x1={0}
@@ -108,7 +135,10 @@ export function BarTrendChart({
             <Rect
               key={bar.index}
               {...bar}
-              fill={color}
+              fill={barFill ?? color}
+              {...(barFill === undefined
+                ? {}
+                : { stroke: color, strokeWidth: 1 })}
               opacity={
                 selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
               }

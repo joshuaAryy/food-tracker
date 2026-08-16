@@ -1,8 +1,4 @@
-import type {
-  AnalyticsOverviewKey,
-  AnalyticsPreferenceValue,
-  AnalyticsSavedView,
-} from '@food-tracker/shared';
+import type { AnalyticsOverviewKey } from '@food-tracker/shared';
 import { Pressable, View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import { EnergyBalanceCard } from './energy-balance-card';
@@ -11,29 +7,20 @@ import { InsightsPeriodSummary } from './insights-period-summary';
 import { LoggingConsistencyCard } from './logging-consistency-card';
 import { MacroBalanceCard } from './macro-balance-card';
 import { NutrientHighlightsCard } from './nutrient-highlights-card';
-import { PinnedAnalysisCard } from './pinned-analysis-card';
 import { WeightDirectionCard } from './weight-direction-card';
 import type { AnalyticsReportResourceState } from '@/lib/analytics/analytics-report-resource';
 
 export function ComplexInsightsOverview({
   resource,
-  preferences,
-  views,
   onExploreTrends,
   onLogWater,
   onOverviewRetry,
-  onManagePinned,
-  onOpenPinned,
   compact = false,
 }: {
   resource: AnalyticsReportResourceState;
-  preferences: AnalyticsPreferenceValue;
-  views: readonly AnalyticsSavedView[];
   onExploreTrends: () => void;
   onLogWater: () => void;
   onOverviewRetry: (overview: AnalyticsOverviewKey) => void;
-  onManagePinned: () => void;
-  onOpenPinned: (metric: string, query: string) => void;
   compact?: boolean;
 }) {
   return (
@@ -60,13 +47,6 @@ export function ComplexInsightsOverview({
         period={resource.period ?? 'month'}
         summary={resource.overview.periodSummary}
         onRetry={() => onOverviewRetry('periodSummary')}
-        compact={compact}
-      />
-      <PinnedAnalysisCard
-        preferences={preferences}
-        views={views}
-        onManage={onManagePinned}
-        onOpen={onOpenPinned}
         compact={compact}
       />
       <EnergyBalanceCard

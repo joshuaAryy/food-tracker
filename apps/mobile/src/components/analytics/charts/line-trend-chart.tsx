@@ -31,6 +31,7 @@ interface LineTrendChartProps {
   width: number;
   height?: number;
   color: string;
+  areaColor?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
   showRawPoints?: boolean | undefined;
   reference?: number | null;
@@ -44,6 +45,7 @@ export function LineTrendChart({
   width,
   height = 180,
   color,
+  areaColor,
   trendValues,
   showRawPoints = false,
   reference = null,
@@ -71,6 +73,10 @@ export function LineTrendChart({
           ),
     [data, domain, height, trendValues, width],
   );
+  const areaPath =
+    path === '' || areaColor === undefined
+      ? ''
+      : `${path} L ${width} ${height} L 0 ${height} Z`;
 
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
@@ -133,7 +139,12 @@ export function LineTrendChart({
             />
           ) : null}
           {path === '' ? null : (
-            <Path d={path} fill="none" stroke={color} strokeWidth={3} />
+            <>
+              {areaPath === '' || areaColor === undefined ? null : (
+                <Path d={areaPath} fill={areaColor} opacity={0.16} />
+              )}
+              <Path d={path} fill="none" stroke={color} strokeWidth={3} />
+            </>
           )}
           {showRawPoints && domain !== null
             ? data.map((point, index) => {

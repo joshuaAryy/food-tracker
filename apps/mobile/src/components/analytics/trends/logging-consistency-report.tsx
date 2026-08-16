@@ -9,10 +9,10 @@ import { LoggingDayStateLegend } from './logging-day-state-legend';
 import { TrendPeriodPills } from './trend-period-pills';
 
 function color(state: string): string {
-  if (state === 'complete') return '#33B866';
-  if (state === 'partial') return '#FFAD8F';
-  if (state === 'in_progress') return '#A5B4A2';
-  return '#E7E7E7';
+  if (state === 'complete') return '#00D66B';
+  if (state === 'partial') return '#76DBA0';
+  if (state === 'in_progress') return '#76DBA0';
+  return '#E0E0D9';
 }
 
 export function LoggingConsistencyReport({
@@ -61,31 +61,23 @@ export function LoggingConsistencyReport({
           periods={[30, 90]}
         />
       ) : null}
-      <AppCard elevated className="gap-1 p-[18px]">
-        <AppText variant="heading" className="text-[30px] leading-9">
-          Logging consistency
-        </AppText>
+      <View className="gap-1">
+        {summary?.consistency === null ||
+        summary?.consistency === undefined ? null : (
+          <AppText variant="display" className="text-[38px] leading-[42px]">
+            {summary.consistency}%
+          </AppText>
+        )}
         <AppText variant="caption" className="text-muted">
           {summary === undefined
             ? 'Logging summary unavailable.'
-            : `Complete ${summary.complete} · Partial ${summary.partial} · Unlogged ${summary.unlogged}`}
+            : 'Consistency reflects complete and partial food-log days.'}
         </AppText>
-        {summary?.consistency === null ||
-        summary?.consistency === undefined ? null : (
-          <AppText variant="heading" className="text-[26px] leading-8">
-            {summary.consistency}% consistency
-          </AppText>
-        )}
-        {summary === undefined || summary.inProgress === 0 ? null : (
-          <AppText variant="caption" className="text-primary-dark">
-            Today is still in progress.
-          </AppText>
-        )}
-        <LoggingDayStateLegend />
-      </AppCard>
+      </View>
       {trend.aggregation === 'daily' ? (
         <AppCard elevated className="gap-3 p-[18px]">
           <AppText variant="label">Daily completeness</AppText>
+          <LoggingDayStateLegend />
           <HeatmapChart
             points={dailyPoints}
             colorForState={color}
@@ -140,13 +132,6 @@ export function LoggingConsistencyReport({
             Meal coverage is unavailable for this period.
           </AppText>
         ) : null}
-      </AppCard>
-      <AppCard className="gap-2 bg-module p-4">
-        <AppText variant="label">How to read this</AppText>
-        <AppText variant="caption" className="text-muted">
-          Logging completeness is based on food-log state. Missing nutrient
-          values do not change whether a day is complete.
-        </AppText>
       </AppCard>
     </View>
   );

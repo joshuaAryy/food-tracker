@@ -3,7 +3,10 @@ import { View } from 'react-native';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { formatPresentationDateRange } from '@/lib/date-time';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
 import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import { WeightDirectionCard } from './weight-direction-card';
 import { TrendPeriodPills } from './trend-period-pills';
@@ -39,12 +42,15 @@ export function WeightReport({
     value: point.value,
   }));
   const facts = trend.weightFacts;
+  const latestPoint = [...trend.points]
+    .reverse()
+    .find((point) => point.value !== null);
   const target =
     facts?.target ??
     (trend.reference.kind === 'target' ? trend.reference.value : null);
   return (
     <View testID="weight-report" className="gap-4">
-      <AppCard elevated className="gap-1 p-[18px]">
+      <View className="gap-1">
         <AppText
           variant="heading"
           className="text-[30px] leading-9 tabular-nums"
@@ -55,15 +61,13 @@ export function WeightReport({
               : formatMetricWithUnit(latest, 'lb')
             : formatMetricWithUnit(facts.current, 'lb')}
         </AppText>
-        <AppText variant="caption" className="text-muted">
-          Latest authoritative weight
-        </AppText>
-        {target === null ? null : (
-          <AppText variant="caption" className="text-primary-dark">
-            Goal reference {formatMetricWithUnit(target, 'lb')}
+        {facts?.change === null || facts?.change === undefined ? null : (
+          <AppText variant="label" className="text-success">
+            {facts.change > 0 ? '+' : ''}
+            {formatMetricWithUnit(facts.change, 'lb')} over the selected period
           </AppText>
         )}
-      </AppCard>
+      </View>
       {showPeriodControls ? (
         <TrendPeriodPills
           selectedPeriod={selectedPeriod}
@@ -73,24 +77,58 @@ export function WeightReport({
         />
       ) : null}
       <AppCard elevated className="gap-3 p-[18px]">
-        <AppText variant="caption" className="text-muted">
+        <AppText variant="caption" className="font-bold uppercase text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,
             trend.resolvedRange.endDate,
           )}
         </AppText>
-        <View testID="weight-trend-chart" style={{ height: 190 }}>
-          <LineTrendChart
-            data={points}
-            width={Math.max(260, width - 76)}
-            height={190}
-            color="#7A9B76"
-            showRawPoints
-            trendValues={trend.rollingTrend?.values}
-            reference={target}
-            accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
-          />
+        <View testID="weight-chart-axis" className="flex-row gap-2">
+          <View testID="weight-trend-chart" style={{ height: 190 }}>
+            <LineTrendChart
+              data={points}
+              width={Math.max(196, width - 110)}
+              height={190}
+              color="#789776"
+              areaColor="#789776"
+              showRawPoints
+              trendValues={trend.rollingTrend?.values}
+              reference={target}
+              accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+            />
+          </View>
+          <View className="h-[190px] justify-between py-1">
+            <AppText variant="caption" className="text-muted">
+              130
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              128
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              126
+            </AppText>
+          </View>
         </View>
+        {target === null ? null : (
+          <AppText variant="caption" className="text-primary-dark">
+            Goal {formatMetricWithUnit(target, 'lb')}
+          </AppText>
+        )}
+        {latestPoint === undefined ? null : (
+          <View className="flex-row justify-between border-t border-border pt-3">
+            <AppText variant="label">
+              {formatPresentationDate(
+                latestPoint.kind === 'daily'
+                  ? latestPoint.date
+                  : latestPoint.bucketStartDate,
+              )}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              {latest === null ? 'Unknown' : formatMetricWithUnit(latest, 'lb')}{' '}
+              · Raw weigh-in
+            </AppText>
+          </View>
+        )}
       </AppCard>
       <WeightDirectionCard facts={facts} />
       {facts?.recordedDayCount === undefined ||

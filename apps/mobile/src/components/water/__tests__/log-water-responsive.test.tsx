@@ -80,7 +80,7 @@ describe('Log Water responsive fidelity', () => {
     ]);
   });
 
-  it('keeps the 320pt quick amounts, rows, CTA, and explanatory state accessible', async () => {
+  it('keeps the 320pt add modal controls and explanatory state accessible', async () => {
     const screen = await render(
       <View testID="compact-320-water-screen" style={{ width: 320 }}>
         <WaterLogScreen />
@@ -102,11 +102,11 @@ describe('Log Water responsive fidelity', () => {
       screen.getByRole('button', { name: 'Open water time' }),
     ).toBeTruthy();
     expect(screen.getByText('Counts toward hydration')).toBeTruthy();
-    expect(await screen.findByText('Today’s water')).toBeTruthy();
+    expect(screen.queryByText('Today’s water')).toBeNull();
     expect(
-      await screen.findByRole('button', { name: /Edit 500 mL water at/ }),
-    ).toBeTruthy();
-    expect(screen.getByTestId('water-progress-visual')).toBeTruthy();
+      screen.queryByRole('button', { name: /Edit 500 mL water at/ }),
+    ).toBeNull();
+    expect(screen.queryByTestId('water-progress-visual')).toBeNull();
     expect(screen.getByRole('button', { name: 'Add 250 mL' })).toBeTruthy();
     expect(
       screen.getByRole('button', { name: 'Close water logger' }),

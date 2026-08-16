@@ -10,16 +10,13 @@ import type {
 import { hydrationVesselFillLevels } from '@/lib/analytics/overview-visuals';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { AnalyticsSectionError } from './analytics-section-error';
+import { HydrationVessel } from './hydration-vessel';
 
 function liters(value: number | null): string {
   return formatMetricWithUnit(value === null ? null : value / 1000, 'L', {
     maximumFractionDigits: 1,
   });
 }
-
-const HYDRATION_STROKE = '#72A8FF';
-const HYDRATION_FILL = '#DCEBFF';
-const HYDRATION_TRACK = '#F4F8FF';
 
 export function HydrationInsightsCard({
   overview,
@@ -92,29 +89,12 @@ export function HydrationInsightsCard({
             className="flex-row items-end justify-between px-1 pt-1"
           >
             {vesselFills.map((fill, index) => (
-              <View
+              <HydrationVessel
                 key={`vessel-${index}`}
-                testID={`hydration-vessel-${index}`}
-                className={
-                  compact
-                    ? 'h-9 w-4 overflow-hidden rounded-b-[6px] rounded-t-[4px] border-2'
-                    : 'h-10 w-5 overflow-hidden rounded-b-[7px] rounded-t-[4px] border-2'
-                }
-                style={{
-                  borderColor: HYDRATION_STROKE,
-                  backgroundColor: HYDRATION_TRACK,
-                }}
-              >
-                {fill === null ? null : (
-                  <View
-                    className="absolute bottom-0 left-0 right-0"
-                    style={{
-                      height: `${fill * 100}%`,
-                      backgroundColor: HYDRATION_FILL,
-                    }}
-                  />
-                )}
-              </View>
+                fill={fill}
+                index={index}
+                compact={compact}
+              />
             ))}
           </View>
           <View className="flex-row items-center justify-between gap-3">

@@ -65,9 +65,9 @@ function overview(): AnalyticsOverviewResultMap {
       status: 'available',
       fetchedAt,
       data: {
-        protein: { grams: 149, percentage: 24 },
-        carbs: { grams: 269, percentage: 49 },
-        fat: { grams: 49, percentage: 27 },
+        protein: { grams: 149, percentage: 24.4857142857143 },
+        carbs: { grams: 269, percentage: 49.1142857142857 },
+        fat: { grams: 49, percentage: 26.4 },
         status: 'recorded',
       },
     },
@@ -277,9 +277,9 @@ describe('Simple Insights overview fidelity', () => {
     expect(screen.getByText('2 of 5 eligible days logged')).toBeTruthy();
     expect(screen.getByText('1.6 L')).toBeTruthy();
     expect(screen.getAllByTestId(/hydration-vessel-/).length).toBe(8);
-    expect(screen.getAllByTestId(/hydration-vessel-/)[0]?.props.style).toEqual(
-      expect.objectContaining({ borderColor: '#72A8FF' }),
-    );
+    expect(screen.getByText('24.5%')).toBeTruthy();
+    expect(screen.getByText('49.1%')).toBeTruthy();
+    expect(screen.queryByText('24.4857142857143%')).toBeNull();
     expect(screen.getByText('129.4 lb')).toBeTruthy();
     expect(
       screen.getByRole('button', { name: 'Explore all trends' }),

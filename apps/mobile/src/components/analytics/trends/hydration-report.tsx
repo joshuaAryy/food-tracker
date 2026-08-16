@@ -7,6 +7,7 @@ import {
   formatPresentationDate,
   formatPresentationDateRange,
 } from '@/lib/date-time';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import { HydrationTargetCard } from './hydration-target-card';
 
 export function HydrationReport({
@@ -46,22 +47,37 @@ export function HydrationReport({
         quickAddUndo={quickAddUndo}
       />
       <AppCard elevated className="gap-3 p-[18px]">
-        <AppText variant="caption" className="text-muted">
+        <AppText variant="caption" className="font-bold uppercase text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,
             trend.resolvedRange.endDate,
           )}
         </AppText>
+        <View className="flex-row justify-between">
+          <AppText variant="caption" className="text-muted">
+            L
+          </AppText>
+          {goal === null ? null : (
+            <AppText variant="caption" className="text-primary-dark">
+              {formatMetricWithUnit(goal / 1000, 'L', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              })}{' '}
+              goal
+            </AppText>
+          )}
+        </View>
         <BarTrendChart
           data={points}
-          width={Math.max(260, width - 76)}
-          color="#72A8FF"
+          width={Math.max(196, width - 110)}
+          color="#8DB6E2"
+          barFill="#E6F2FF"
           reference={goal}
           accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
       </AppCard>
-      <AppCard className="gap-1 bg-module p-4">
-        <AppText variant="label">Selected period</AppText>
+      <AppCard className="gap-2" elevated>
+        <AppText variant="label">THIS WEEK</AppText>
         <AppText variant="caption" className="text-muted">
           {recentWaterLogs.length} explicit water entries in the selected
           period.
@@ -95,13 +111,6 @@ export function HydrationReport({
               </View>
             ))
         )}
-      </AppCard>
-      <AppCard className="gap-1 bg-module p-4">
-        <AppText variant="label">Water persistence</AppText>
-        <AppText variant="caption" className="text-muted">
-          Food-water is excluded. Add, edit, undo, and delete all use the same
-          canonical WaterLog history.
-        </AppText>
       </AppCard>
     </View>
   );
