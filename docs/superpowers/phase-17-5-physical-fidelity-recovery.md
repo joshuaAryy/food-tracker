@@ -65,6 +65,17 @@ development-client prompt, and the rebuilt app reaching the sign-in surface:
 /tmp/food-tracker-phase17-5-visual-v2/native-rebuilt-metro-3.png
 ```
 
+The latest authenticated-access audit also captured the sign-in boundary on
+both booted simulator candidates:
+
+```text
+/tmp/food-tracker-phase17-5-visual-v2/simulator-auth-audit-after-metro.png
+/tmp/food-tracker-phase17-5-visual-v2/simulator-other-auth-audit.png
+```
+
+Both show the real app's sign-in screen; neither has a persisted Firebase
+session for the seeded staging QA account.
+
 ### Geometry review
 
 For each major card, record approximate x, y, width, height, internal padding,
@@ -145,6 +156,10 @@ the result is close.
   and removed duplicate Vitamin C selection wording. These remain source-only
   review results; runtime target screenshots and simulator geometry measurements
   remain unavailable without a seeded staging session.
+- A final presentation-format audit found and corrected raw selected comparison
+  values by routing them through the centralized metric formatter; a noisy
+  `129.4857142857143` regression fixture now renders as `129.5`. The custom
+  range UI already formats date-only values through the centralized date helper.
 - The existing Firebase-linked staging QA target was verified read-only and
   reseeded through a Railway PostgreSQL SSH tunnel after extending only the
   seed transaction timeout for tunnel latency. The guarded seed completed with
