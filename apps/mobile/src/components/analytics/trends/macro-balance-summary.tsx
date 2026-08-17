@@ -3,6 +3,12 @@ import { MacroChart } from '@/components/analytics/charts/macro-chart';
 import { AppText } from '@/components/app-text';
 import { formatMetricValue } from '@/lib/reporting-ui';
 
+const macroLegend = [
+  { key: 'protein', label: 'Protein', color: '#C9242D' },
+  { key: 'carbs', label: 'Carbohydrates', color: '#33B866' },
+  { key: 'fat', label: 'Fat', color: '#FFAD8F' },
+] as const;
+
 export function MacroBalanceSummary({
   percentages,
   size,
@@ -29,12 +35,27 @@ export function MacroBalanceSummary({
         }
         centerLabel="kcal avg"
       />
-      <View className="gap-2">
-        <AppText>Protein · {formatMetricValue(percentages.protein)}%</AppText>
-        <AppText>
-          Carbohydrates · {formatMetricValue(percentages.carbs)}%
-        </AppText>
-        <AppText>Fat · {formatMetricValue(percentages.fat)}%</AppText>
+      <View className="min-w-0 flex-1 gap-3">
+        {macroLegend.map((item) => (
+          <View
+            key={item.key}
+            testID={`macro-legend-${item.key}`}
+            className="flex-row items-center justify-between gap-3"
+          >
+            <View className="min-w-0 flex-1 flex-row items-center gap-2">
+              <View
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <AppText variant="caption" numberOfLines={1}>
+                {item.label}
+              </AppText>
+            </View>
+            <AppText variant="caption" className="font-semibold tabular-nums">
+              {formatMetricValue(percentages[item.key])}%
+            </AppText>
+          </View>
+        ))}
       </View>
     </View>
   );

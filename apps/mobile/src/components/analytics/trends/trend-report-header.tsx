@@ -64,7 +64,11 @@ export function TrendReportHeader({
       </View>
       <View className="flex-row items-start justify-between gap-4">
         <View className="min-w-0 flex-1 gap-1">
-          <AppText variant="heading" className="text-[30px] leading-9">
+          <AppText
+            variant="heading"
+            className="text-[30px] leading-9"
+            numberOfLines={2}
+          >
             {metricName}
           </AppText>
           {subtitle === undefined ? null : <AppText muted>{subtitle}</AppText>}

@@ -36,9 +36,14 @@ describe('metric-specific trend reports', () => {
     expect(screen.queryByText('Latest authoritative weight')).toBeNull();
     expect(screen.getByTestId('weight-chart-axis')).toBeTruthy();
     expect(screen.getByText('Goal 130 lb')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).toContain(
+      '"strokeDasharray":["2","3"]',
+    );
     expect(screen.getByTestId('weight-trend-chart').props.style.height).toBe(
       190,
     );
+    expect(JSON.stringify(screen.toJSON())).toContain('"y1":95');
+    expect(screen.getAllByText('130').length).toBeGreaterThan(0);
     expect(
       screen.getByText(
         'Your smoothed trend is moving gradually toward your goal.',
@@ -68,9 +73,9 @@ describe('metric-specific trend reports', () => {
       />,
     );
 
-    expect(screen.getByText('Protein · 24%')).toBeTruthy();
-    expect(screen.getByText('Carbohydrates · 49%')).toBeTruthy();
-    expect(screen.getByText('Fat · 27%')).toBeTruthy();
+    expect(screen.getByTestId('macro-legend-protein')).toBeTruthy();
+    expect(screen.getByTestId('macro-legend-carbs')).toBeTruthy();
+    expect(screen.getByTestId('macro-legend-fat')).toBeTruthy();
     expect(screen.getByText('2,184')).toBeTruthy();
     expect(screen.getByText('2,184').props).toEqual(
       expect.objectContaining({
@@ -82,6 +87,7 @@ describe('metric-specific trend reports', () => {
       screen.getByTestId('macro-donut-svg').props.style.width,
     ).toBeGreaterThan(100);
     expect(screen.getByText('Protein trend')).toBeTruthy();
+    expect(screen.getByText(/Recorded value/)).toBeTruthy();
   });
 
   it('renders the Figma macro composition hierarchy and vertical daily mix', async () => {
@@ -115,6 +121,46 @@ describe('metric-specific trend reports', () => {
       ),
     ).toBeTruthy();
     expect(screen.getByTestId('macro-daily-mix-chart')).toBeTruthy();
+  });
+
+  it('keeps the logging report readable with bounded week labels and coverage context', async () => {
+    const screen = await render(
+      <LoggingConsistencyReport
+        trend={{
+          ...base,
+          trackingMode: 'simple',
+          primaryMetric: 'loggingConsistency',
+          loggingSummary: {
+            complete: 21,
+            partial: 3,
+            unlogged: 3,
+            inProgress: 1,
+            consistency: 89.4,
+            currentDayPhase: 'in_progress',
+            mealCoverage: Array.from({ length: 7 }, (_, index) => ({
+              date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+              breakfast: true,
+              lunch: true,
+              dinner: true,
+              snack: false,
+            })),
+          },
+        }}
+        simple
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('logging-consistency-week-labels')).toBeTruthy();
+    expect(
+      screen.getByTestId('logging-consistency-meal-coverage'),
+    ).toBeTruthy();
+    expect(screen.getByText('Period pattern')).toBeTruthy();
+    expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
+    expect(screen.getByText(/24 logged days/)).toBeTruthy();
+    expect(screen.getByText('89%')).toBeTruthy();
   });
 
   it('keeps Logging Consistency states and current phase from backend summary', async () => {
@@ -181,6 +227,8 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('1.5 L')).toBeTruthy();
     expect(screen.getByText('2.0 L')).toBeTruthy();
     expect(screen.getByText('THIS WEEK')).toBeTruthy();
+    expect(screen.getByTestId('hydration-trend-x-labels')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).toContain('"height":190');
     expect(screen.queryByText('Water persistence')).toBeNull();
     const renderedHydrationChart = JSON.stringify(screen.toJSON());
     expect(renderedHydrationChart).toContain('"payload":4293325567');

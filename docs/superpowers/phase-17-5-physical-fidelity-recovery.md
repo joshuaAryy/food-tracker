@@ -1,8 +1,8 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
-Status: presentation implementation complete; regenerated native state now
+Status: source presentation pass 2 is complete; regenerated native state
 builds, installs, and reaches the real sign-in screen through staging Metro.
-Target-screen evidence and review remain incomplete because the rebuilt
+Target-screen evidence and runtime review remain incomplete because the rebuilt
 simulator has not yet been authenticated into the seeded staging QA account.
 Physical iPhone validation:
 **PENDING USER RE-VALIDATION**.
@@ -23,6 +23,18 @@ Master viewport: 390pt. Responsive companion viewport: approximately 393pt.
 Every target uses a fresh `get_design_context`/screenshot capture from its
 exact final node. Metadata alone, older screenshots, hidden drafts, and
 implementation assumptions are insufficient evidence.
+
+Fresh Figma captures retained under the evidence root:
+
+```text
+figma/complex-insights.png
+figma/macros.png
+figma/weight.png
+figma/logging-consistency.png
+figma/hydration.png
+figma/water-log.png
+figma/vitamin-c.png
+```
 
 ### Capture layout
 
@@ -60,6 +72,20 @@ heading-to-card gap, chart width, and chart height for both Figma and the
 simulator. Review structural, geometry, typography, color, chart, effects, and
 responsive findings separately.
 
+Fresh Figma geometry baseline captured from the exact final nodes:
+
+| Surface | Major geometry | Chart geometry |
+| --- | --- | --- |
+| Macro Balance | composition card x20/y236/w350/h300; daily mix x20/y606/w350/h280 | donut approximately 124pt |
+| Weight | chart card x20/y318/w350/h372 | plot x38/y396/w272/h190 |
+| Logging Consistency | heatmap card x20/y420/w350/h286 | 22 rows x 22pt cells with 8pt gaps; 292pt grid |
+| Hydration | chart card x20/y330/w350/h382 | plot x38/y410/w272/h190 |
+| Vitamin C | chart card x20/y318/w350/h372 | plot x38/y396/w272/h190 |
+| Water Log | sheet x0/y166/w390/h734 | handle x166/y14/w58/h5; custom/time rows 62pt |
+
+No simulator geometry values are recorded because authentication did not reach
+the target routes.
+
 ### Independent review
 
 The implementer is not the sole approver. A fresh reviewer receives the exact
@@ -85,13 +111,13 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights-338-276.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros-338-720.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight-338-605.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/consistency-338-928.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration-426-159.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log-440-28.png` | blocked: simulator auth session unavailable | not captured | 0 |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c-425-21.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | blocked: simulator auth session unavailable | not captured | 0 |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | blocked: simulator auth session unavailable | not captured | 0 |
 
 ## Implementation evidence before simulator capture
 
@@ -105,20 +131,19 @@ the result is close.
 - Exact Figma context and screenshots were freshly captured for every target;
   exact metadata dimensions are recorded in the implementation plan and the
   screenshots are retained under the temporary evidence root above.
-- Focused mobile evidence currently passes: reporting-format Vitest 3/3;
-  core trend fidelity Jest 5/5; Simple Insights fidelity Jest 4/4; Vitamin C
-  detail fidelity Jest 1/1; Water Log Jest 4/4; custom-range and trend-detail
-  suites remain green.
+- Focused mobile evidence currently passes: core trend fidelity Jest 6/6 and
+  Vitamin C detail fidelity Jest 1/1 after the final bounded source fixes.
 - Full mobile evidence currently passes: Vitest 53 files / 367 tests and Jest
-  48 suites / 135 tests. Mobile lint and typecheck, API lint/typecheck/build,
+  48 suites / 136 tests. Mobile lint and typecheck, API lint/typecheck/build,
   and root lint/typecheck/build also pass. Root format check reports 20
   warnings in pre-existing protected/ignored artifacts.
-- An independent read-only reviewer checked the implementation against the
-  exact Figma captures. Static review confirms the macro vertical mix, Weight
-  area/reference treatment, Vitamin C bars/range band, Hydration vessel and
-  goal treatment, Logging Consistency hierarchy, and Water Log add-modal
-  boundary are materially closer. The review also records that runtime target
-  screenshots, geometry measurements, and the required second high-risk pass
+- Two independent read-only source reviews checked the implementation against
+  the exact Figma captures. They identified concrete gaps; the final bounded
+  source fixes then initialized selected-point state, added denser chart grids,
+  integrated the weight goal into the axis domain, matched hydration chart
+  height and endpoint context, narrowed daily macro bars, rounded logging copy,
+  and removed duplicate Vitamin C selection wording. These remain source-only
+  review results; runtime target screenshots and simulator geometry measurements
   remain unavailable without a seeded staging session.
 - The existing Firebase-linked staging QA target was verified read-only and
   reseeded through a Railway PostgreSQL SSH tunnel after extending only the

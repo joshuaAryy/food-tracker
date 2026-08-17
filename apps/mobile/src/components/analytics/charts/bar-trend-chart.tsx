@@ -1,7 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Line, Path, Rect } from 'react-native-svg';
+import {
+  Circle,
+  Defs,
+  Line,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
 import { formatMetricValue } from '@/lib/reporting-ui';
@@ -9,6 +17,7 @@ import { fixedDomain } from '@/lib/analytics/chart-domain';
 import {
   barRects,
   pointX,
+  pointY,
   referenceLineY,
   smoothLinePath,
 } from '@/lib/analytics/chart-geometry';
@@ -31,6 +40,11 @@ export function BarTrendChart({
   trendValues,
   reference = null,
   referenceRange = null,
+  showGrid = false,
+  initialSelectedIndex = null,
+  showSelectionTooltip = true,
+  showSelectionDescription = true,
+  selectedBarFill,
   accessibilityLabel,
 }: {
   data: readonly LineTrendDatum[];
@@ -41,17 +55,35 @@ export function BarTrendChart({
   trendValues?: readonly (number | null)[] | undefined;
   reference?: number | null;
   referenceRange?: { lower: number; upper: number } | null;
+  showGrid?: boolean | undefined;
+  initialSelectedIndex?: number | null | undefined;
+  showSelectionTooltip?: boolean | undefined;
+  showSelectionDescription?: boolean | undefined;
+  selectedBarFill?: string | undefined;
   accessibilityLabel: string;
 }) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selectedIndexRef = useRef<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(
+    initialSelectedIndex,
+  );
+  const selectedIndexRef = useRef<number | null>(initialSelectedIndex);
   const domain = useMemo(
     () =>
       fixedDomain(
-        [...data.map((point) => point.value), ...(trendValues ?? [])],
+        [
+          ...data.map((point) => point.value),
+          ...(trendValues ?? []),
+          ...(reference === null ? [] : [reference]),
+          ...(referenceRange === null
+            ? []
+            : [
+                referenceRange.lower,
+                referenceRange.upper,
+                referenceRange.upper * 1.25,
+              ]),
+        ],
         { includeZero: true },
       ),
-    [data, trendValues],
+    [data, reference, referenceRange, trendValues],
   );
   const bars = useMemo(
     () =>
@@ -70,6 +102,7 @@ export function BarTrendChart({
     selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
   const rangeBand =
     domain === null ? null : referenceBand(referenceRange, domain, height);
+  const rangeGradientId = `bar-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
   const trendPath = useMemo(
     () =>
       domain === null || trendValues === undefined
@@ -88,7 +121,7 @@ export function BarTrendChart({
     <ChartFrame
       accessibilityLabel={accessibilityLabel}
       selectedDescription={
-        selected === null
+        !showSelectionDescription || selected === null
           ? undefined
           : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : formatMetricValue(selected.value)}`
       }
@@ -101,24 +134,48 @@ export function BarTrendChart({
           selectedIndex={selectedIndex}
         >
           {rangeBand === null ? null : (
-            <>
-              <Rect
-                x={0}
-                y={Math.max(0, rangeBand.y - 10)}
-                width={width}
-                height={Math.min(height, rangeBand.height + 20)}
-                fill={color}
-                opacity={0.035}
-              />
-              <Rect
-                x={0}
-                y={rangeBand.y}
-                width={width}
-                height={rangeBand.height}
-                fill={color}
-                opacity={0.12}
-              />
-            </>
+            <Defs>
+              <LinearGradient id={rangeGradientId} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={color} stopOpacity={0.02} />
+                <Stop offset="0.24" stopColor={color} stopOpacity={0.12} />
+                <Stop offset="0.76" stopColor={color} stopOpacity={0.12} />
+                <Stop offset="1" stopColor={color} stopOpacity={0.02} />
+              </LinearGradient>
+            </Defs>
+          )}
+          {showGrid
+            ? [0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+                <Line
+                  key={`grid-${fraction}`}
+                  x1={0}
+                  x2={width}
+                  y1={fraction * height}
+                  y2={fraction * height}
+                  stroke="#E4E4E0"
+                  strokeWidth={1}
+                  opacity={0.9}
+                />
+              ))
+            : null}
+          {rangeBand === null ? null : (
+            <Rect
+              x={0}
+              y={Math.max(0, rangeBand.y - 10)}
+              width={width}
+              height={Math.min(height, rangeBand.height + 20)}
+              fill={`url(#${rangeGradientId})`}
+              opacity={0.75}
+            />
+          )}
+          {rangeBand === null ? null : (
+            <Rect
+              x={0}
+              y={Math.max(0, rangeBand.y - 4)}
+              width={width}
+              height={Math.min(height, rangeBand.height + 8)}
+              fill={color}
+              opacity={0.035}
+            />
           )}
           {domain !== null && reference !== null ? (
             <Line
@@ -136,6 +193,9 @@ export function BarTrendChart({
               key={bar.index}
               {...bar}
               fill={barFill ?? color}
+              {...(selectedIndex === bar.index && selectedBarFill !== undefined
+                ? { fill: selectedBarFill }
+                : {})}
               {...(barFill === undefined
                 ? {}
                 : { stroke: color, strokeWidth: 1 })}
@@ -143,10 +203,26 @@ export function BarTrendChart({
                 selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
               }
               rx={3}
+              {...(selectedIndex === bar.index
+                ? { stroke: color, strokeWidth: 2 }
+                : {})}
             />
           ))}
           {trendPath === '' ? null : (
             <Path d={trendPath} fill="none" stroke={color} strokeWidth={2.5} />
+          )}
+          {selected === null ||
+          selected.value === null ||
+          selectedX === null ||
+          domain === null ? null : (
+            <Circle
+              cx={selectedX}
+              cy={pointY(selected.value, domain, height)}
+              r={6}
+              fill={color}
+              stroke="#FFFFFF"
+              strokeWidth={3}
+            />
           )}
         </CartesianPlot>
         <ChartSelectionOverlay
@@ -165,7 +241,9 @@ export function BarTrendChart({
             );
           }}
         />
-        {selected === null || selectedX === null ? null : (
+        {!showSelectionTooltip ||
+        selected === null ||
+        selectedX === null ? null : (
           <View
             pointerEvents="none"
             className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"

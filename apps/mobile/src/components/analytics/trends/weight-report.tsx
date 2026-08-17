@@ -7,7 +7,8 @@ import {
   formatPresentationDate,
   formatPresentationDateRange,
 } from '@/lib/date-time';
-import { formatMetricWithUnit } from '@/lib/reporting-ui';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
+import { fixedDomain } from '@/lib/analytics/chart-domain';
 import { WeightDirectionCard } from './weight-direction-card';
 import { TrendPeriodPills } from './trend-period-pills';
 import { ForecastUnavailableCard } from './forecast-unavailable-card';
@@ -42,12 +43,32 @@ export function WeightReport({
     value: point.value,
   }));
   const facts = trend.weightFacts;
-  const latestPoint = [...trend.points]
-    .reverse()
-    .find((point) => point.value !== null);
   const target =
     facts?.target ??
     (trend.reference.kind === 'target' ? trend.reference.value : null);
+  const axisDomain = fixedDomain(
+    [
+      ...points.map((point) => point.value),
+      ...(trend.rollingTrend?.values ?? []),
+      ...(target === null ? [] : [target]),
+    ],
+    { includeZero: false },
+  );
+  const axisLabels =
+    axisDomain === null
+      ? ['—', '—', '—']
+      : [
+          axisDomain.max,
+          (axisDomain.max + axisDomain.min) / 2,
+          axisDomain.min,
+        ].map((value) => formatMetricValue(value));
+  const latestPoint = [...trend.points]
+    .reverse()
+    .find((point) => point.value !== null);
+  const latestIndex =
+    latestPoint === undefined
+      ? null
+      : trend.points.findIndex((point) => point === latestPoint);
   return (
     <View testID="weight-report" className="gap-4">
       <View className="gap-1">
@@ -87,27 +108,41 @@ export function WeightReport({
           <View testID="weight-trend-chart" style={{ height: 190 }}>
             <LineTrendChart
               data={points}
-              width={Math.max(196, width - 110)}
+              width={Math.max(196, width - 118)}
               height={190}
               color="#789776"
               areaColor="#789776"
+              showGrid
               showRawPoints
+              initialSelectedIndex={latestIndex}
+              showSelectionTooltip={false}
               trendValues={trend.rollingTrend?.values}
               reference={target}
               accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
             />
           </View>
           <View className="h-[190px] justify-between py-1">
-            <AppText variant="caption" className="text-muted">
-              130
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              128
-            </AppText>
-            <AppText variant="caption" className="text-muted">
-              126
-            </AppText>
+            {axisLabels.map((label, index) => (
+              <AppText
+                key={`${label}-${index}`}
+                variant="caption"
+                className="text-muted"
+              >
+                {label}
+              </AppText>
+            ))}
           </View>
+        </View>
+        <View
+          testID="weight-chart-x-labels"
+          className="flex-row justify-between pr-8"
+        >
+          <AppText variant="caption" className="text-muted">
+            {formatPresentationDate(trend.resolvedRange.startDate)}
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            {formatPresentationDate(trend.resolvedRange.endDate)}
+          </AppText>
         </View>
         {target === null ? null : (
           <AppText variant="caption" className="text-primary-dark">

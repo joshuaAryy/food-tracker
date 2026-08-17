@@ -76,9 +76,14 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText('average · inside your range')).toBeTruthy();
     expect(screen.getByText('Custom range')).toBeTruthy();
     expect(screen.getByText('75–120 mg')).toBeTruthy();
-    expect(screen.getAllByText(/24 recorded days/)).toHaveLength(2);
+    expect(screen.getAllByText(/24 recorded days/)).toHaveLength(1);
     expect(screen.getByText('Top contributors')).toBeTruthy();
     expect(screen.getByTestId('vitamin-c-bar-trend')).toBeTruthy();
+    expect(screen.getByTestId('vitamin-c-chart-card')).toBeTruthy();
+    expect(screen.queryByText('Vitamin C trend')).toBeNull();
+    expect(screen.getByText(/Recorded metric/)).toBeTruthy();
+    expect(screen.queryByText(/Complete day/)).toBeNull();
+    expect(JSON.stringify(screen.toJSON())).toContain('"r":6');
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4283983815');
   });
 });

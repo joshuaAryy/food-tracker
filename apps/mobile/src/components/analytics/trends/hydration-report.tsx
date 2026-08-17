@@ -34,6 +34,12 @@ export function HydrationReport({
     value: point.value,
   }));
   const goal = trend.reference.kind === 'target' ? trend.reference.value : null;
+  const latestIndex = points.reduce(
+    (latest, point, index) => (point.value === null ? latest : index),
+    -1,
+  );
+  const latestPoint = latestIndex < 0 ? null : (points[latestIndex] ?? null);
+  const weekdayPoints = points.slice(-7);
   return (
     <View testID="hydration-report" className="gap-4">
       <HydrationTargetCard
@@ -69,12 +75,47 @@ export function HydrationReport({
         </View>
         <BarTrendChart
           data={points}
-          width={Math.max(196, width - 110)}
+          width={Math.max(196, width - 118)}
+          height={190}
           color="#8DB6E2"
           barFill="#E6F2FF"
+          showGrid
+          initialSelectedIndex={latestIndex < 0 ? null : latestIndex}
+          showSelectionTooltip={false}
           reference={goal}
           accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
+        <View
+          testID="hydration-trend-x-labels"
+          className="flex-row justify-between px-1"
+        >
+          {weekdayPoints.map((point) => (
+            <AppText key={point.date} variant="caption" className="text-muted">
+              {new Intl.DateTimeFormat('en-US', {
+                weekday: 'short',
+                timeZone: 'UTC',
+              })
+                .format(new Date(`${point.date}T12:00:00.000Z`))
+                .slice(0, 1)}
+            </AppText>
+          ))}
+        </View>
+        {latestPoint === null ? null : (
+          <View className="flex-row justify-between border-t border-border pt-3">
+            <AppText variant="label">
+              {formatPresentationDate(latestPoint.date)}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              {latestPoint.value === null
+                ? 'No recorded value'
+                : formatMetricWithUnit(latestPoint.value / 1000, 'L', {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}{' '}
+              · Logged
+            </AppText>
+          </View>
+        )}
       </AppCard>
       <AppCard className="gap-2" elevated>
         <AppText variant="label">THIS WEEK</AppText>

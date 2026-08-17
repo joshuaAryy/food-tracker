@@ -7,7 +7,10 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { TrendContributorsCard } from '@/components/analytics/trends/trend-contributors-card';
-import { formatPresentationDateRange } from '@/lib/date-time';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { RelatedMetricCard } from './related-metric-card';
 
@@ -53,9 +56,16 @@ export function VitaminCDetailReport({
     value: point.value,
   }));
   const recordedDays = trend.metricDataSummary?.recorded ?? 0;
+  const latestRecordedPoint = [...trend.points]
+    .reverse()
+    .find((point) => point.value !== null);
+  const latestRecordedIndex =
+    latestRecordedPoint === undefined
+      ? null
+      : trend.points.findIndex((point) => point === latestRecordedPoint);
   return (
     <View testID="vitamin-c-detail-report" className="gap-4">
-      <AppCard elevated className="gap-3 p-[18px]">
+      <View className="gap-1">
         <View className="flex-row items-end justify-between gap-4">
           <View className="min-w-0 flex-1 gap-1">
             <AppText variant="display" className="text-[38px] leading-[42px]">
@@ -78,24 +88,32 @@ export function VitaminCDetailReport({
             <AppText variant="label">{rangeLabel(trend)}</AppText>
           </View>
         </View>
-        <AppText variant="caption" className="text-muted">
-          {recordedDays} recorded days ·{' '}
+      </View>
+      <AppCard
+        testID="vitamin-c-chart-card"
+        elevated
+        className="gap-3 p-[18px]"
+      >
+        <AppText variant="caption" className="font-bold uppercase text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,
             trend.resolvedRange.endDate,
-          )}
+          )}{' '}
+          · {trend.reference.unit}
         </AppText>
-      </AppCard>
-      <AppCard elevated className="gap-3 p-[18px]">
-        <AppText variant="label">Vitamin C trend</AppText>
         <View testID="vitamin-c-bar-trend">
           <BarTrendChart
             data={points}
-            width={Math.max(196, width - 110)}
+            width={Math.max(196, width - 118)}
             height={190}
             color="#5867C7"
             barFill="#D8DCE3"
+            selectedBarFill="#5867C7"
+            showGrid
             trendValues={trend.rollingTrend?.values}
+            initialSelectedIndex={latestRecordedIndex}
+            showSelectionTooltip={false}
+            showSelectionDescription={false}
             referenceRange={
               trend.reference.kind === 'range'
                 ? {
@@ -107,6 +125,24 @@ export function VitaminCDetailReport({
             accessibilityLabel={`Vitamin C trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
           />
         </View>
+        {latestRecordedPoint === undefined ? null : (
+          <View className="flex-row justify-between border-t border-border pt-3">
+            <AppText variant="label">
+              {formatPresentationDate(
+                latestRecordedPoint.kind === 'daily'
+                  ? latestRecordedPoint.date
+                  : latestRecordedPoint.bucketStartDate,
+              )}
+            </AppText>
+            <AppText variant="caption" className="text-muted">
+              {formatMetricWithUnit(
+                latestRecordedPoint.value,
+                trend.reference.unit,
+              )}{' '}
+              · Recorded metric
+            </AppText>
+          </View>
+        )}
         <AppText variant="caption" className="text-muted">
           {recordedDays} recorded days are available for this configured range.
           Unknown nutrient values remain gaps.

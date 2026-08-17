@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { formatPresentationDate } from '@/lib/date-time';
 import {
   heatmapCells,
   type HeatmapState,
@@ -37,7 +38,7 @@ export function HeatmapChart({
           <View
             key={cell.date}
             accessible
-            accessibilityLabel={`${cell.date}: ${cell.state}`}
+            accessibilityLabel={`${formatPresentationDate(cell.date)}: ${cell.state}`}
             className="rounded-[6px]"
             style={{
               width: cellSize,

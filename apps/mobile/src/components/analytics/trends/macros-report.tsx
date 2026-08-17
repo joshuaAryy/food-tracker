@@ -3,7 +3,11 @@ import { Pressable, View } from 'react-native';
 import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
-import { formatPresentationDateRange } from '@/lib/date-time';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from '@/lib/date-time';
+import { formatMetricWithUnit } from '@/lib/reporting-ui';
 import { MacroBalanceSummary } from './macro-balance-summary';
 import { MacroDailyMixChart } from './macro-daily-mix-chart';
 import { TrendPeriodPills } from './trend-period-pills';
@@ -33,6 +37,17 @@ export function MacrosReport({
 }) {
   const composition = trend.macroComposition;
   const percentages = trend.macroPercentages;
+  const proteinPoints =
+    proteinTrend?.points.map((point) => ({
+      date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+      value: point.value,
+    })) ?? [];
+  const latestProteinIndex = proteinPoints.reduce(
+    (latest, point, index) => (point.value === null ? latest : index),
+    -1,
+  );
+  const latestProtein =
+    latestProteinIndex < 0 ? null : (proteinPoints[latestProteinIndex] ?? null);
   return (
     <View testID="macros-report" className="gap-4">
       {showPeriodControls ? (
@@ -55,7 +70,7 @@ export function MacrosReport({
           <MacroBalanceSummary
             percentages={percentages}
             averageEnergy={trend.macroAverageEnergy ?? null}
-            size={Math.min(140, Math.max(124, width - 246))}
+            size={Math.min(124, Math.max(112, width - 266))}
           />
         )}
         <AppText variant="caption" className="text-muted">
@@ -86,13 +101,14 @@ export function MacrosReport({
         ) : (
           <>
             <LineTrendChart
-              data={proteinTrend.points.map((point) => ({
-                date:
-                  point.kind === 'daily' ? point.date : point.bucketStartDate,
-                value: point.value,
-              }))}
+              data={proteinPoints}
               width={Math.max(260, width - 76)}
               color="#C9242D"
+              initialSelectedIndex={
+                latestProteinIndex < 0 ? null : latestProteinIndex
+              }
+              showSelectionTooltip={false}
+              showSelectionDescription={false}
               reference={
                 proteinTrend.reference.kind === 'target' ||
                 proteinTrend.reference.kind === 'minimum' ||
@@ -102,6 +118,22 @@ export function MacrosReport({
               }
               accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
             />
+            {latestProtein === null ? null : (
+              <View className="flex-row justify-between border-t border-border pt-3">
+                <AppText variant="label">
+                  {formatPresentationDate(latestProtein.date)}
+                </AppText>
+                <AppText variant="caption" className="text-muted">
+                  {latestProtein.value === null
+                    ? 'No recorded value'
+                    : formatMetricWithUnit(
+                        latestProtein.value,
+                        proteinTrend.reference.unit,
+                      )}{' '}
+                  · Recorded value
+                </AppText>
+              </View>
+            )}
             {onOpenProtein === undefined ? null : (
               <Pressable
                 accessibilityRole="button"

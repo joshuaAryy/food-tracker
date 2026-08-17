@@ -1,7 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Circle, Line, Path, Rect } from 'react-native-svg';
+import {
+  Circle,
+  Defs,
+  Line,
+  LinearGradient,
+  Path,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
 import { formatMetricValue } from '@/lib/reporting-ui';
@@ -36,6 +44,10 @@ interface LineTrendChartProps {
   showRawPoints?: boolean | undefined;
   reference?: number | null;
   referenceRange?: { lower: number; upper: number } | null;
+  showGrid?: boolean | undefined;
+  initialSelectedIndex?: number | null | undefined;
+  showSelectionTooltip?: boolean | undefined;
+  showSelectionDescription?: boolean | undefined;
   accessibilityLabel: string;
 }
 
@@ -50,17 +62,34 @@ export function LineTrendChart({
   showRawPoints = false,
   reference = null,
   referenceRange = null,
+  showGrid = false,
+  initialSelectedIndex = null,
+  showSelectionTooltip = true,
+  showSelectionDescription = true,
   accessibilityLabel,
 }: LineTrendChartProps) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const selectedIndexRef = useRef<number | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(
+    initialSelectedIndex,
+  );
+  const selectedIndexRef = useRef<number | null>(initialSelectedIndex);
   const domain = useMemo(
     () =>
       fixedDomain(
-        [...data.map((point) => point.value), ...(trendValues ?? [])],
+        [
+          ...data.map((point) => point.value),
+          ...(trendValues ?? []),
+          ...(reference === null ? [] : [reference]),
+          ...(referenceRange === null
+            ? []
+            : [
+                referenceRange.lower,
+                referenceRange.upper,
+                referenceRange.upper * 1.25,
+              ]),
+        ],
         { includeZero: false },
       ),
-    [data, trendValues],
+    [data, reference, referenceRange, trendValues],
   );
   const path = useMemo(
     () =>
@@ -84,6 +113,7 @@ export function LineTrendChart({
     selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
   const rangeBand =
     domain === null ? null : referenceBand(referenceRange, domain, height);
+  const rangeGradientId = `trend-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
   const selectIndex = useCallback((nextIndex: number) => {
     if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -95,7 +125,7 @@ export function LineTrendChart({
     <ChartFrame
       accessibilityLabel={accessibilityLabel}
       selectedDescription={
-        selected === null
+        !showSelectionDescription || selected === null
           ? undefined
           : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : formatMetricValue(selected.value)}`
       }
@@ -108,24 +138,48 @@ export function LineTrendChart({
           selectedIndex={selectedIndex}
         >
           {rangeBand === null ? null : (
-            <>
-              <Rect
-                x={0}
-                y={Math.max(0, rangeBand.y - 10)}
-                width={width}
-                height={Math.min(height, rangeBand.height + 20)}
-                fill={color}
-                opacity={0.035}
-              />
-              <Rect
-                x={0}
-                y={rangeBand.y}
-                width={width}
-                height={rangeBand.height}
-                fill={color}
-                opacity={0.12}
-              />
-            </>
+            <Defs>
+              <LinearGradient id={rangeGradientId} x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={color} stopOpacity={0.02} />
+                <Stop offset="0.24" stopColor={color} stopOpacity={0.12} />
+                <Stop offset="0.76" stopColor={color} stopOpacity={0.12} />
+                <Stop offset="1" stopColor={color} stopOpacity={0.02} />
+              </LinearGradient>
+            </Defs>
+          )}
+          {showGrid
+            ? [0, 0.25, 0.5, 0.75, 1].map((fraction) => (
+                <Line
+                  key={`grid-${fraction}`}
+                  x1={0}
+                  x2={width}
+                  y1={fraction * height}
+                  y2={fraction * height}
+                  stroke="#E4E4E0"
+                  strokeWidth={1}
+                  opacity={0.9}
+                />
+              ))
+            : null}
+          {rangeBand === null ? null : (
+            <Rect
+              x={0}
+              y={Math.max(0, rangeBand.y - 10)}
+              width={width}
+              height={Math.min(height, rangeBand.height + 20)}
+              fill={`url(#${rangeGradientId})`}
+              opacity={0.75}
+            />
+          )}
+          {rangeBand === null ? null : (
+            <Rect
+              x={0}
+              y={Math.max(0, rangeBand.y - 4)}
+              width={width}
+              height={Math.min(height, rangeBand.height + 8)}
+              fill={color}
+              opacity={0.035}
+            />
           )}
           {domain !== null && reference !== null ? (
             <Line
@@ -195,7 +249,9 @@ export function LineTrendChart({
             );
           }}
         />
-        {selected === null || selectedX === null ? null : (
+        {!showSelectionTooltip ||
+        selected === null ||
+        selectedX === null ? null : (
           <View
             pointerEvents="none"
             className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"
