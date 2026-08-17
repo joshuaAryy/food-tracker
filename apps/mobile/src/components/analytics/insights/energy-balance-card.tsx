@@ -159,7 +159,7 @@ export function EnergyBalanceCard({
               <AppText variant="caption" className="text-ink">
                 {data.comparison.percentage === null
                   ? 'No previous period'
-                  : `${data.comparison.percentage > 0 ? '+' : ''}${data.comparison.percentage}% vs previous period`}
+                  : `${data.comparison.percentage > 0 ? '+' : ''}${formatMetricValue(data.comparison.percentage)}% vs previous period`}
               </AppText>
             </View>
           </AppCard>

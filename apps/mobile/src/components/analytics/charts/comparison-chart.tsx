@@ -73,7 +73,7 @@ export function ComparisonChart({
       selectedDescription={
         selectedValues === null
           ? undefined
-          : `${formatPresentationDate(selectedValues.date)}: ${selectedValues.primaryValue ?? 'No recorded primary value'}; ${selectedValues.comparisonValue ?? 'No recorded comparison value'}`
+          : `${formatPresentationDate(selectedValues.date)}: ${formatSelectedValue(selectedValues.primaryValue)}; ${formatSelectedValue(selectedValues.comparisonValue)}`
       }
     >
       <View>

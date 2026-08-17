@@ -10,7 +10,7 @@ const baseProps = {
   ],
   comparison: [
     { date: '2026-08-01', value: 129 },
-    { date: '2026-08-02', value: 129.4 },
+    { date: '2026-08-02', value: 129.4857142857143 },
   ],
   primaryAxis: { minimum: 0, maximum: 100 },
   comparisonAxis: { minimum: 128, maximum: 131 },
@@ -71,6 +71,6 @@ describe('comparison report fidelity', () => {
 
     expect(screen.getByText('Aug 2')).toBeTruthy();
     expect(screen.getByText('Protein · g: 90')).toBeTruthy();
-    expect(screen.getByText('Weight · lb: 129.4')).toBeTruthy();
+    expect(screen.getByText('Weight · lb: 129.5')).toBeTruthy();
   });
 });
