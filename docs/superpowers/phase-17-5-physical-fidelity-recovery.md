@@ -566,6 +566,24 @@ the result is close.
   occurred, and the parallel loop shortened the correction cycle without
   weakening the post-render review gate.
 
+## Final viewport evidence attempt — 2026-08-18
+
+- Starting HEAD: `fecc362`. No application source, semantic, schema, or
+  dependency changes were required for this evidence-only pass.
+- The signed-in iPhone 17 Simulator remains the only working authenticated
+  runtime. Its raw screenshot is 1206x2622 pixels, or approximately 402x874pt;
+  this is not a 390pt or 393pt viewport and is not being substituted for one.
+- No 390pt/393pt simulator existed in the configured set. Disposable iPhone 14
+  (390pt class) and iPhone 15 (393pt class) candidates were created, but their
+  CoreSimulator services never completed boot: app installation timed out and
+  `simctl spawn` returned `NSPOSIXErrorDomain` code 2 (`No such file or
+  directory`). The candidates were removed and the session defaults restored
+  to the signed-in iPhone 17; no user simulator data was erased.
+- Therefore the required 390pt and approximately 393pt surface captures and
+  independent reviews remain genuinely blocked by simulator/runtime state and
+  authenticated-account availability. No visual discrepancy was inferred and
+  no speculative source fix was made.
+
 ## Approval boundary
 
 This ledger is not complete until every target has exact screenshots, measured
