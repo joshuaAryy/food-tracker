@@ -27,4 +27,16 @@ describe('Trend data-state copy', () => {
       }),
     ).toBe('Target: 2000 kcal');
   });
+
+  it('formats noisy reference values for presentation', () => {
+    expect(
+      referenceMessage({
+        kind: 'range',
+        lower: 92.85714285714286,
+        upper: 124.4857142857143,
+        unit: 'g',
+        source: 'derived',
+      }),
+    ).toBe('Accepted range: 92.9–124.5 g');
+  });
 });

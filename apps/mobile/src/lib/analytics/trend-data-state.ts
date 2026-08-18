@@ -1,4 +1,12 @@
 import type { AnalyticsReference } from '@food-tracker/shared';
+import { formatMetricValue } from '../reporting-ui';
+
+function formatReferenceValue(value: number): string {
+  return formatMetricValue(value, {
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  });
+}
 
 export function metricCoverageMessage(counts: {
   recorded: number;
@@ -14,7 +22,7 @@ export function metricCoverageMessage(counts: {
 export function referenceMessage(reference: AnalyticsReference): string | null {
   if (reference.kind === 'none') return null;
   if (reference.kind === 'range') {
-    return `Accepted range: ${reference.lower}–${reference.upper} ${reference.unit}`;
+    return `Accepted range: ${formatReferenceValue(reference.lower)}–${formatReferenceValue(reference.upper)} ${reference.unit}`;
   }
   const label =
     reference.kind === 'target'
@@ -22,5 +30,5 @@ export function referenceMessage(reference: AnalyticsReference): string | null {
       : reference.kind === 'minimum'
         ? 'Minimum'
         : 'Limit';
-  return `${label}: ${reference.value} ${reference.unit}`;
+  return `${label}: ${formatReferenceValue(reference.value)} ${reference.unit}`;
 }

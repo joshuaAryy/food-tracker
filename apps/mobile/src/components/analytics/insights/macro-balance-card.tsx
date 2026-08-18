@@ -119,7 +119,9 @@ export function MacroBalanceCard({
                     <AppText variant="caption" className="text-ink">
                       {percentage === null
                         ? '—'
-                        : `${formatMetricValue(percentage as number)}%`}
+                        : `${formatMetricValue(percentage as number, {
+                            maximumFractionDigits: 0,
+                          })}%`}
                     </AppText>
                   </View>
                 ))}
