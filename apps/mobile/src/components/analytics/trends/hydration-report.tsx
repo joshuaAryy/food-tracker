@@ -58,9 +58,8 @@ export function HydrationReport({
         quickAddUndo={quickAddUndo}
       />
       <AppCard
-        elevated
         testID="hydration-trend-card"
-        className="gap-3 p-[18px]"
+        className="gap-3 rounded-[18px] p-[18px]"
         style={{ minHeight: 382 }}
       >
         <AppText variant="caption" className="font-bold uppercase text-muted">
@@ -128,15 +127,28 @@ export function HydrationReport({
           </View>
         )}
       </AppCard>
-      <AppCard className="gap-2" elevated>
-        <AppText variant="label">THIS WEEK</AppText>
-        <AppText variant="caption" className="text-muted">
-          {recentWaterLogs.length} explicit water entries in the selected
-          period.
+      <View className="gap-3">
+        <AppText variant="caption" className="font-bold uppercase text-muted">
+          THIS WEEK
         </AppText>
-      </AppCard>
-      <AppCard className="gap-2" elevated>
-        <AppText variant="label">Recent drinks</AppText>
+        <AppCard
+          testID="hydration-this-week-card"
+          className="min-h-[162px] gap-3 rounded-[18px] p-[18px]"
+        >
+          <AppText variant="caption" className="text-muted">
+            {recentWaterLogs.length} explicit water entries in the selected
+            period.
+          </AppText>
+          <AppText variant="caption" className="mt-auto text-muted">
+            Hydration excludes water contained in foods. Only explicit drink
+            logs count toward this goal.
+          </AppText>
+        </AppCard>
+      </View>
+      <View className="gap-3">
+        <AppText variant="caption" className="font-bold uppercase text-muted">
+          RECENT DRINKS
+        </AppText>
         {recentWaterLogs.length === 0 ? (
           <AppText variant="caption" className="text-muted">
             No explicit water entries in this period.
@@ -163,7 +175,7 @@ export function HydrationReport({
               </View>
             ))
         )}
-      </AppCard>
+      </View>
     </View>
   );
 }

@@ -69,8 +69,9 @@ export function MacrosReport({
     proteinRollingValues.filter(
       (value) => value !== null && Number.isFinite(value),
     ).length >= 2;
+  const compositionDonutSize = width >= 360 ? 124 : 108;
   return (
-    <View testID="macros-report" className="gap-4">
+    <View testID="macros-report" className="gap-6">
       {showPeriodControls ? (
         <TrendPeriodPills
           selectedPeriod={selectedPeriod}
@@ -96,7 +97,7 @@ export function MacrosReport({
           <MacroBalanceSummary
             percentages={percentages}
             averageEnergy={trend.macroAverageEnergy ?? null}
-            size={Math.min(124, Math.max(112, width - 266))}
+            size={compositionDonutSize}
           />
         )}
         <AppText variant="caption" className="text-muted">
@@ -118,14 +119,19 @@ export function MacrosReport({
           </AppText>
           <AppCard
             elevated
-            className="min-h-[280px] justify-between p-4"
+            className="min-h-[280px] justify-between p-[18px]"
             style={{ minHeight: 280 }}
           >
             <MacroDailyMixChart days={trend.macroDailyMix.slice(-7)} />
           </AppCard>
         </View>
       )}
-      <AppCard elevated className="gap-3 p-3">
+      <AppCard
+        elevated
+        testID="macro-protein-trend-card"
+        className="min-h-[226px] gap-3 p-[18px]"
+        style={{ minHeight: 226 }}
+      >
         <AppText variant="heading" className="text-[18px] leading-6">
           Protein trend
         </AppText>

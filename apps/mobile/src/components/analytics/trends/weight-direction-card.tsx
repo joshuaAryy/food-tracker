@@ -19,7 +19,7 @@ export function WeightDirectionCard({
             ? 'Your current weight is at your goal.'
             : 'A weight goal is not configured.';
   return (
-    <View className="gap-1 border-b border-border pb-4">
+    <View className="gap-2 border-b border-border pb-6">
       <AppText variant="label">{message}</AppText>
       <AppText variant="caption" className="text-muted">
         Raw weigh-ins remain available without making daily fluctuations the

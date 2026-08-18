@@ -5,6 +5,7 @@ import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
+import { loggingConsistencyLayout } from '@/lib/analytics/heatmap-geometry';
 import { LoggingDayStateLegend } from './logging-day-state-legend';
 import { TrendPeriodPills } from './trend-period-pills';
 
@@ -62,6 +63,7 @@ export function LoggingConsistencyReport({
   );
   const summary = trend.loggingSummary;
   const mealCoverage = summary?.mealCoverage ?? [];
+  const layout = loggingConsistencyLayout(selectedPeriod === 90 ? 90 : 30);
   const mealWeek = mealCoverage.slice(-7);
   const recentDailyPoints = dailyPoints.slice(-10);
   const recentCounts = recentDailyPoints.reduce(
@@ -75,10 +77,17 @@ export function LoggingConsistencyReport({
   );
   const loggedDayCount =
     summary === undefined ? null : summary.complete + summary.partial;
+  const elapsedDayCount =
+    summary === undefined
+      ? null
+      : summary.complete +
+        summary.partial +
+        summary.unlogged +
+        summary.inProgress;
   const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
   return (
-    <View testID="logging-consistency-report" className="gap-4">
-      <View className="gap-1">
+    <View testID="logging-consistency-report" className="gap-6">
+      <View className="gap-2">
         {summary?.consistency === null ||
         summary?.consistency === undefined ? null : (
           <AppText variant="display" className="text-[38px] leading-[42px]">
@@ -88,7 +97,7 @@ export function LoggingConsistencyReport({
         <AppText variant="caption" className="text-muted">
           {summary === undefined
             ? 'Logging summary unavailable.'
-            : `${loggedDayCount} logged days · consistency reflects complete and partial food-log days.`}
+            : `${loggedDayCount} of ${elapsedDayCount} elapsed days logged`}
         </AppText>
       </View>
       {showPeriodControls ? (
@@ -101,7 +110,7 @@ export function LoggingConsistencyReport({
         />
       ) : null}
       {trend.aggregation === 'daily' ? (
-        <View className="gap-2">
+        <View className="gap-3">
           <AppText
             testID="logging-consistency-daily-section-label"
             variant="label"
@@ -112,16 +121,17 @@ export function LoggingConsistencyReport({
           <AppCard
             elevated
             testID="logging-consistency-daily-card"
-            className="gap-3 p-[18px]"
-            style={{ minHeight: 286 }}
+            className="gap-5 p-[18px]"
+            style={{ minHeight: layout.dailyCardMinHeight }}
           >
             <LoggingDayStateLegend />
             <HeatmapChart
               points={dailyPoints}
               colorForState={color}
-              columns={selectedPeriod === 30 ? 10 : 14}
-              cellSize={selectedPeriod === 30 ? 22 : 14}
-              cellGap={selectedPeriod === 30 ? 8 : 4}
+              columns={layout.columns}
+              cellSize={layout.cellSize}
+              cellGap={layout.cellGap}
+              minHeight={layout.dailyGridMinHeight}
               testID="logging-consistency-heatmap"
               accessibilityLabel="Logging consistency by day"
             />
@@ -147,19 +157,24 @@ export function LoggingConsistencyReport({
           </AppCard>
         </View>
       ) : (
-        <View className="gap-2">
+        <View className="gap-3">
           <AppText variant="label" className="text-muted uppercase">
             PERIOD PATTERN
           </AppText>
-          <AppCard elevated className="gap-3 p-[18px]">
+          <AppCard
+            elevated
+            testID="logging-consistency-period-card"
+            className="gap-5 p-[18px]"
+            style={{ minHeight: layout.periodCardMinHeight }}
+          >
             <AppText variant="caption" className="text-muted">
               Weekly completeness keeps the 90-day pattern readable without
               compressing individual daily cells.
             </AppText>
             <BarTrendChart
               data={aggregatedPoints}
-              width={280}
-              height={190}
+              width={320}
+              height={layout.periodChartHeight}
               color="#6F9870"
               trendValues={trend.rollingTrend?.values}
               accessibilityLabel="Logging consistency aggregated by week"
@@ -167,7 +182,7 @@ export function LoggingConsistencyReport({
           </AppCard>
         </View>
       )}
-      <View className="gap-2">
+      <View className="gap-3">
         <AppText
           testID="logging-consistency-meal-section-label"
           variant="label"
@@ -178,8 +193,8 @@ export function LoggingConsistencyReport({
         <AppCard
           elevated
           testID="logging-consistency-meal-card"
-          className="gap-3 p-4"
-          style={{ minHeight: 356 }}
+          className="gap-5 p-[18px]"
+          style={{ minHeight: layout.mealCoverageMinHeight }}
         >
           {mealWeek.length === 0 ? null : (
             <View testID="logging-consistency-meal-coverage" className="gap-3">
@@ -229,11 +244,11 @@ export function LoggingConsistencyReport({
         </AppCard>
       </View>
       {summary === undefined ? null : (
-        <View className="gap-2">
+        <View className="gap-3">
           <AppText variant="label" className="text-muted uppercase">
             PERIOD PATTERN
           </AppText>
-          <AppCard elevated className="gap-2 p-[18px]">
+          <AppCard elevated className="gap-3 p-[18px]">
             <AppText variant="heading" className="text-[18px] leading-6">
               Food-log coverage stays separate from nutrient availability.
             </AppText>

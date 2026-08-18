@@ -32,7 +32,12 @@ export function MacroChart({
 }) {
   const segments = useMemo(() => macroSegments(values), [values]);
   const stackedSegments = useMemo(() => stackedMacroSegments(values), [values]);
-  const radius = size * 0.34;
+  const radius = Math.round(size * 0.355);
+  const strokeWidth = Math.round(size * 0.16);
+  const centerRadius = Math.round(radius - strokeWidth / 2);
+  const centerDiameter = centerRadius * 2;
+  const centerValueSize = size >= 112 ? 22 : 14;
+  const centerLabelSize = size >= 112 ? 12 : 10;
   const circumference = 2 * Math.PI * radius;
   const stackedTotal = stackedSegments.at(-1)?.end ?? 0;
   if (variant === 'stacked_bar') {
@@ -95,12 +100,13 @@ export function MacroChart({
             const circle = (
               <Circle
                 key={segment.key}
+                testID={`macro-donut-segment-${segment.key}`}
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
                 fill="none"
                 stroke={macroColors[segment.key]}
-                strokeWidth={size * 0.2}
+                strokeWidth={strokeWidth}
                 strokeDasharray={`${length} ${circumference - length}`}
                 strokeDashoffset={-offset}
                 strokeLinecap="butt"
@@ -112,17 +118,23 @@ export function MacroChart({
             return circle;
           })}
           <Circle
+            testID="macro-donut-center-disc"
             cx={size / 2}
             cy={size / 2}
-            r={radius - size * 0.105}
+            r={centerRadius}
             fill="#FFFFFF"
           />
         </Svg>
         {centerValue === undefined && centerLabel === undefined ? null : (
           <View
+            testID="macro-donut-center"
             pointerEvents="none"
-            className="absolute inset-0 items-center justify-center"
-            style={{ paddingHorizontal: size * 0.14 }}
+            className="absolute items-center justify-center self-center"
+            style={{
+              width: centerDiameter,
+              height: centerDiameter,
+              paddingHorizontal: 2,
+            }}
           >
             {centerValue === undefined ? null : (
               <AppText
@@ -130,13 +142,24 @@ export function MacroChart({
                 className="w-full text-center text-[20px] leading-6 tabular-nums"
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.85}
+                minimumFontScale={0.8}
+                style={{
+                  fontSize: centerValueSize,
+                  lineHeight: centerValueSize + 2,
+                }}
               >
                 {centerValue}
               </AppText>
             )}
             {centerLabel === undefined ? null : (
-              <AppText variant="caption" className="text-center text-muted">
+              <AppText
+                variant="caption"
+                className="text-center text-muted"
+                style={{
+                  fontSize: centerLabelSize,
+                  lineHeight: centerLabelSize + 2,
+                }}
+              >
                 {centerLabel}
               </AppText>
             )}

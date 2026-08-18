@@ -37,14 +37,18 @@ export function BarTrendChart({
   height = 180,
   color,
   barFill,
+  barStroke,
   trendValues,
+  connectTrendGaps,
   reference = null,
   referenceRange = null,
   showGrid = false,
+  gridOpacity = 0.9,
   initialSelectedIndex = null,
   showSelectionTooltip = true,
   showSelectionDescription = true,
   selectedBarFill,
+  selectedBarStroke,
   accessibilityLabel,
 }: {
   data: readonly LineTrendDatum[];
@@ -52,14 +56,18 @@ export function BarTrendChart({
   height?: number;
   color: string;
   barFill?: string | undefined;
+  barStroke?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
+  connectTrendGaps?: boolean | undefined;
   reference?: number | null;
   referenceRange?: { lower: number; upper: number } | null;
   showGrid?: boolean | undefined;
+  gridOpacity?: number | undefined;
   initialSelectedIndex?: number | null | undefined;
   showSelectionTooltip?: boolean | undefined;
   showSelectionDescription?: boolean | undefined;
   selectedBarFill?: string | undefined;
+  selectedBarStroke?: string | undefined;
   accessibilityLabel: string;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(
@@ -107,8 +115,15 @@ export function BarTrendChart({
     () =>
       domain === null || trendValues === undefined
         ? ''
-        : smoothLinePath(trendValues, domain, { width, height }),
-    [domain, height, trendValues, width],
+        : smoothLinePath(
+            trendValues,
+            domain,
+            { width, height },
+            {
+              connectGaps: connectTrendGaps !== false,
+            },
+          ),
+    [connectTrendGaps, domain, height, trendValues, width],
   );
   const selectIndex = useCallback((nextIndex: number) => {
     if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
@@ -153,7 +168,7 @@ export function BarTrendChart({
                   y2={fraction * height}
                   stroke="#E4E4E0"
                   strokeWidth={1}
-                  opacity={0.9}
+                  opacity={gridOpacity}
                 />
               ))
             : null}
@@ -198,13 +213,16 @@ export function BarTrendChart({
                 : {})}
               {...(barFill === undefined
                 ? {}
-                : { stroke: color, strokeWidth: 1 })}
+                : { stroke: barStroke ?? color, strokeWidth: 1 })}
               opacity={
                 selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
               }
               rx={3}
               {...(selectedIndex === bar.index
-                ? { stroke: color, strokeWidth: 2 }
+                ? {
+                    stroke: selectedBarStroke ?? barStroke ?? color,
+                    strokeWidth: 2,
+                  }
                 : {})}
             />
           ))}

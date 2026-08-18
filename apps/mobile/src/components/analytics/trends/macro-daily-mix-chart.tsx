@@ -47,7 +47,7 @@ export function MacroDailyMixChart({ days }: { days: readonly DailyMix[] }) {
           >
             <View
               testID="macro-daily-mix-bar"
-              className="w-4 overflow-hidden rounded-t-[4px]"
+              className="w-3 overflow-hidden rounded-t-[5px]"
               style={{
                 height: BAR_HEIGHT,
                 shadowColor: '#7A9B76',

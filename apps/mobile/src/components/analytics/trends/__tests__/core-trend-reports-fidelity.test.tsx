@@ -22,6 +22,8 @@ describe('metric-specific trend reports', () => {
             direction: 'down',
             target: 130,
             goalPath: 'moving_toward',
+            recordedDayCount: 18,
+            eligibleDayCount: 30,
           },
         }}
         width={390}
@@ -48,7 +50,8 @@ describe('metric-specific trend reports', () => {
       190,
     );
     expect(screen.getByText('lb')).toBeTruthy();
-    expect(JSON.stringify(screen.toJSON())).not.toContain('"opacity":0.16');
+    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286093174');
+    expect(JSON.stringify(screen.toJSON())).toContain('"opacity":0.16');
     expect(JSON.stringify(screen.toJSON())).toContain('"y1":95');
     expect(screen.getAllByText('130').length).toBeGreaterThan(0);
     expect(
@@ -56,6 +59,13 @@ describe('metric-specific trend reports', () => {
         'Your smoothed trend is moving gradually toward your goal.',
       ),
     ).toBeTruthy();
+    expect(screen.getByTestId('weight-weigh-in-coverage')).toBeTruthy();
+    expect(screen.getAllByTestId('weight-weigh-in-cell')).toHaveLength(20);
+    expect(screen.getByText('18 weigh-ins across 30 days')).toBeTruthy();
+    expect(screen.getByTestId('weight-display-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 142 }),
+    );
+    expect(screen.getByText('Raw points visible')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Custom' })).toBeNull();
   });
 
@@ -102,6 +112,12 @@ describe('metric-specific trend reports', () => {
       }),
     );
     expect(screen.getByTestId('macro-donut-halo')).toBeTruthy();
+    expect(screen.getByTestId('macro-composition-layout').props.style).toEqual(
+      expect.objectContaining({ width: 156 }),
+    );
+    expect(screen.getByTestId('macro-protein-trend-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 226 }),
+    );
     expect(screen.getByText('Protein trend')).toBeTruthy();
     expect(screen.getByText(/Recorded value/)).toBeTruthy();
   });
@@ -351,13 +367,13 @@ describe('metric-specific trend reports', () => {
     ).toBeTruthy();
     expect(
       screen.getByTestId('logging-consistency-daily-card').props.style,
-    ).toEqual(expect.objectContaining({ minHeight: 286 }));
+    ).toEqual(expect.objectContaining({ minHeight: 284 }));
     expect(
       screen.getByTestId('logging-consistency-meal-coverage'),
     ).toBeTruthy();
     expect(
       screen.getByTestId('logging-consistency-meal-card').props.style,
-    ).toEqual(expect.objectContaining({ minHeight: 356 }));
+    ).toEqual(expect.objectContaining({ minHeight: 354 }));
     expect(
       screen.getByTestId('logging-consistency-meal-section-label'),
     ).toBeTruthy();
@@ -365,7 +381,7 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
     const recentSummary = screen.getByText(/most recent 10 days contain/);
     expect(recentSummary.props.children.at(-2)).toBe('days');
-    expect(screen.getByText(/24 logged days/)).toBeTruthy();
+    expect(screen.getByText('24 of 28 elapsed days logged')).toBeTruthy();
     expect(screen.getByText('89%')).toBeTruthy();
   });
 
@@ -424,6 +440,7 @@ describe('metric-specific trend reports', () => {
         }}
         width={390}
         onLogWater={onLogWater}
+        onOpenWaterLogger={jest.fn()}
       />,
     );
 
@@ -434,6 +451,13 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('2.0 L')).toBeTruthy();
     expect(screen.getByText('THIS WEEK')).toBeTruthy();
     expect(screen.getByTestId('hydration-trend-x-labels')).toBeTruthy();
+    expect(
+      screen.getByTestId('hydration-trend-card').props.className,
+    ).toContain('rounded-[18px]');
+    expect(screen.getByTestId('hydration-target-actions')).toBeTruthy();
+    expect(
+      screen.getByTestId('hydration-target-other-amount').props.className,
+    ).toContain('bg-[#F7F7F4]');
     expect(JSON.stringify(screen.toJSON())).toContain('"height":190');
     expect(screen.queryByText('Water persistence')).toBeNull();
     const renderedHydrationChart = JSON.stringify(screen.toJSON());

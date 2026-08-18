@@ -278,7 +278,7 @@ describe('Simple Insights overview fidelity', () => {
     expect(screen.queryByText('40.6%')).toBeNull();
     expect(screen.getByText('2 of 5 eligible days logged')).toBeTruthy();
     expect(screen.getByText('1.6 L')).toBeTruthy();
-    expect(screen.getAllByTestId(/hydration-vessel-/).length).toBe(8);
+    expect(screen.getAllByTestId(/hydration-vessel-\d+$/).length).toBe(8);
     expect(screen.getByText('24%')).toBeTruthy();
     expect(screen.getByText('49%')).toBeTruthy();
     expect(screen.getByText('26%')).toBeTruthy();

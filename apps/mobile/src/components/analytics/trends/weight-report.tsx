@@ -79,6 +79,9 @@ export function WeightReport({
     rollingValues !== undefined &&
     rollingValues.filter((value) => value !== null && Number.isFinite(value))
       .length >= 2;
+  const recentWeighIns = trend.points
+    .filter((point) => point.kind === 'daily')
+    .slice(-20);
   return (
     <View testID="weight-report" className="gap-4">
       <View className="gap-1">
@@ -134,6 +137,7 @@ export function WeightReport({
                 width={Math.max(196, width - 118)}
                 height={190}
                 color="#789776"
+                areaColor="#789776"
                 showGrid
                 showRawPoints
                 initialSelectedIndex={latestIndex}
@@ -201,13 +205,59 @@ export function WeightReport({
       <WeightDirectionCard facts={facts} />
       {facts?.recordedDayCount === undefined ||
       facts.eligibleDayCount === undefined ? null : (
-        <AppCard className="gap-1 bg-module p-4">
-          <AppText variant="label">Weigh-in coverage</AppText>
-          <AppText variant="caption" className="text-muted">
-            {facts.recordedDayCount} of {facts.eligibleDayCount} days recorded
+        <View testID="weight-weigh-in-coverage" className="gap-3">
+          <AppText variant="label" className="text-muted uppercase">
+            WEIGH-IN COVERAGE
           </AppText>
-        </AppCard>
+          <AppText variant="heading" className="text-[17px] leading-6">
+            {facts.recordedDayCount} weigh-ins across {facts.eligibleDayCount}{' '}
+            days
+          </AppText>
+          <View className="flex-row flex-wrap gap-2">
+            {recentWeighIns.map((point) => {
+              const date = point.date;
+              const recorded = point.value !== null;
+              return (
+                <View
+                  key={date}
+                  testID="weight-weigh-in-cell"
+                  accessible
+                  accessibilityLabel={`${formatPresentationDate(date)}: ${recorded ? 'recorded weigh-in' : 'no weigh-in'}`}
+                  className="h-6 w-6 rounded-[6px]"
+                  style={{
+                    backgroundColor: recorded ? '#00D66B' : '#E4E8E0',
+                  }}
+                />
+              );
+            })}
+          </View>
+        </View>
       )}
+      <AppCard
+        elevated
+        testID="weight-display-card"
+        className="gap-4 bg-module p-[18px]"
+        style={{ minHeight: 142 }}
+      >
+        <AppText variant="caption" className="font-bold text-muted">
+          Display
+        </AppText>
+        <View className="flex-row items-center justify-between gap-3">
+          <AppText variant="label">Smoothed trend</AppText>
+          <AppText variant="caption" className="text-muted">
+            Raw points visible
+          </AppText>
+        </View>
+        <View className="flex-row items-center justify-between gap-3">
+          <AppText variant="label">Goal reference</AppText>
+          <AppText
+            variant="caption"
+            className={target === null ? 'text-muted' : 'text-success'}
+          >
+            {target === null ? 'Not configured' : 'Shown'}
+          </AppText>
+        </View>
+      </AppCard>
       {trend.forecast?.kind === 'unavailable' ? (
         <ForecastUnavailableCard metric="weight" />
       ) : null}

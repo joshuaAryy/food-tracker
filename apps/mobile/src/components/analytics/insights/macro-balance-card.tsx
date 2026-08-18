@@ -69,7 +69,9 @@ export function MacroBalanceCard({
           <AppCard
             elevated
             compact={compact}
+            testID="macro-balance-card"
             className="gap-3 rounded-[20px] p-[18px]"
+            style={compact ? { minHeight: 236 } : undefined}
           >
             <AppText variant="caption" className="text-muted">
               REPORT · Period composition

@@ -60,7 +60,7 @@ export function LineTrendChart({
   color,
   areaColor,
   trendValues,
-  connectTrendGaps = false,
+  connectTrendGaps,
   showRawPoints = false,
   reference = null,
   referenceRange = null,
@@ -101,7 +101,10 @@ export function LineTrendChart({
             trendValues ?? data.map((point) => point.value),
             domain,
             { width, height },
-            { connectGaps: connectTrendGaps },
+            {
+              connectGaps:
+                trendValues !== undefined && connectTrendGaps !== false,
+            },
           ),
     [connectTrendGaps, data, domain, height, trendValues, width],
   );

@@ -112,9 +112,9 @@ function smoothSegmentPath(
 }
 
 /**
- * Draws a smoothed derived trend while preserving raw timeline gaps. Each
- * contiguous numeric segment is smoothed independently, so missing values are
- * never bridged or replaced with zero.
+ * Draws values against their fixed timeline. Derived trend layers may bridge
+ * gaps without manufacturing raw observations; raw daily layers should retain
+ * the default segmented behavior.
  */
 export function smoothLinePath(
   values: readonly (number | null)[],

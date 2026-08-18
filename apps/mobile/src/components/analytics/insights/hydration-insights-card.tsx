@@ -62,9 +62,13 @@ export function HydrationInsightsCard({
         />
       ) : (
         <AppCard
-          elevated
           compact={compact}
-          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+          testID="hydration-insights-card"
+          className={
+            compact
+              ? 'gap-2 rounded-[16px] p-3'
+              : 'gap-2 rounded-[18px] p-[14px]'
+          }
         >
           <AppText variant="caption" className="text-muted">
             TODAY · Logged drinks only
@@ -73,7 +77,7 @@ export function HydrationInsightsCard({
             <AppText
               variant="number"
               className={
-                compact ? 'text-[24px] leading-7' : 'text-[32px] leading-10'
+                compact ? 'text-[24px] leading-7' : 'text-[28px] leading-8'
               }
             >
               {liters(data.total)}
@@ -89,7 +93,8 @@ export function HydrationInsightsCard({
           <View
             accessible
             accessibilityLabel={`Hydration vessel progress: ${vesselSummary}`}
-            className="flex-row items-end justify-between px-1 pt-1"
+            testID="hydration-vessel-row"
+            className="flex-row items-end gap-[15px] py-1"
           >
             {vesselFills.map((fill, index) => (
               <HydrationVessel
@@ -100,14 +105,34 @@ export function HydrationInsightsCard({
               />
             ))}
           </View>
-          <View className="flex-row items-center justify-between gap-3">
-            <AppText variant="label">{vesselSummary}</AppText>
+          <View
+            testID="hydration-insights-actions"
+            className="flex-row items-center gap-2"
+          >
+            <AppText variant="label" className="min-w-0 flex-1">
+              {vesselSummary}
+            </AppText>
+            <Pressable
+              testID="hydration-other-amount"
+              accessibilityRole="button"
+              accessibilityLabel="Open other water amount"
+              className="min-h-8 w-10 items-center justify-center rounded-[12px] bg-water-soft px-1"
+              onPress={onLogWater}
+            >
+              <AppText
+                variant="caption"
+                className="text-center text-[9px] font-semibold leading-[10px] text-[#337CCA]"
+              >
+                Other{`\n`}amount ›
+              </AppText>
+            </Pressable>
             <AppButton
+              testID="hydration-quick-add"
               accessibilityLabel="Log water"
               className={
                 compact
                   ? 'min-h-8 rounded-[16px] px-3 py-1'
-                  : 'min-h-10 rounded-[19px] px-4 py-1'
+                  : 'min-h-8 min-w-[104px] rounded-[17px] px-3 py-1'
               }
               onPress={onLogWater}
             >
@@ -116,19 +141,10 @@ export function HydrationInsightsCard({
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open other water amount"
-            onPress={onLogWater}
-          >
-            <AppText variant="caption" className="text-primary-dark">
-              Other amount ›
-            </AppText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
             accessibilityLabel="Open hydration trend"
             onPress={onOpenTrend}
           >
-            <View className="flex-row items-center justify-between border-t border-line pt-3">
+            <View className="flex-row items-center justify-between border-t border-line pt-2">
               <AppText variant="label">7-day hydration trend</AppText>
               <AppText variant="heading" className="text-muted">
                 ›

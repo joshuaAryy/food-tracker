@@ -55,16 +55,37 @@ export function HydrationTargetCard({
           </AppText>
         </View>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Log water"
-        className="min-h-11 self-end rounded-full bg-ink px-6 py-3"
-        onPress={onLogWater}
+      <View
+        testID="hydration-target-actions"
+        className="flex-row items-center justify-end gap-3"
       >
-        <AppText className="text-white">
-          {quickAddPending ? 'Adding…' : '+ 250 mL'}
-        </AppText>
-      </Pressable>
+        {onOpenWaterLogger === undefined ? null : (
+          <Pressable
+            testID="hydration-target-other-amount"
+            accessibilityRole="button"
+            accessibilityLabel="Open other water amount"
+            className="min-h-10 flex-row items-center gap-2 rounded-[14px] bg-[#F7F7F4] px-3"
+            onPress={onOpenWaterLogger}
+          >
+            <AppText variant="caption" className="font-semibold">
+              Other amount
+            </AppText>
+            <AppText variant="heading" className="text-muted">
+              ›
+            </AppText>
+          </Pressable>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Log water"
+          className="min-h-10 rounded-full bg-ink px-6 py-2"
+          onPress={onLogWater}
+        >
+          <AppText variant="label" className="text-white">
+            {quickAddPending ? 'Adding…' : '+ 250 mL'}
+          </AppText>
+        </Pressable>
+      </View>
       {quickAddUndo === undefined ? null : (
         <Pressable
           accessibilityRole="button"
@@ -84,21 +105,6 @@ export function HydrationTargetCard({
         <AppText variant="caption" className="text-[#D72620]">
           {quickAddError}
         </AppText>
-      )}
-      {onOpenWaterLogger === undefined ? null : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open other water amount"
-          className="min-h-11 self-start justify-center"
-          onPress={onOpenWaterLogger}
-        >
-          <AppText
-            variant="caption"
-            className="font-semibold text-primary-dark"
-          >
-            Other amount ›
-          </AppText>
-        </Pressable>
       )}
     </View>
   );

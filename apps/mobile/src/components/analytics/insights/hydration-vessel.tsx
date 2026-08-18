@@ -23,8 +23,8 @@ export function HydrationVessel({
     <View
       testID={`hydration-vessel-${index}`}
       style={{
-        width: compact ? 20 : 24,
-        height: compact ? 36 : VIEWBOX_HEIGHT,
+        width: compact ? 16 : 18,
+        height: compact ? 28 : 32,
       }}
     >
       <Svg

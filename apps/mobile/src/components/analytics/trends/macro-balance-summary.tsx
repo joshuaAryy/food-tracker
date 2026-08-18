@@ -24,17 +24,23 @@ export function MacroBalanceSummary({
 }) {
   return (
     <View className="flex-row items-center gap-4">
-      <MacroChart
-        values={percentages}
-        accessibilityLabel="Canonical macro composition"
-        size={size}
-        centerValue={
-          averageEnergy === null || averageEnergy === undefined
-            ? undefined
-            : formatMetricValue(averageEnergy, { maximumFractionDigits: 0 })
-        }
-        centerLabel="kcal avg"
-      />
+      <View
+        testID="macro-composition-layout"
+        className="items-center"
+        style={{ width: size + 32 }}
+      >
+        <MacroChart
+          values={percentages}
+          accessibilityLabel="Canonical macro composition"
+          size={size}
+          centerValue={
+            averageEnergy === null || averageEnergy === undefined
+              ? undefined
+              : formatMetricValue(averageEnergy, { maximumFractionDigits: 0 })
+          }
+          centerLabel="kcal avg"
+        />
+      </View>
       <View className="min-w-0 flex-1 gap-3">
         {macroLegend.map((item) => (
           <View

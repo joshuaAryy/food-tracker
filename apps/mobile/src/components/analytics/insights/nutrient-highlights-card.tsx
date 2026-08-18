@@ -55,9 +55,35 @@ function referenceCopy(highlight: AnalyticsOverviewNutrientHighlight): string {
   const reference = highlight.reference;
   if (reference.kind === 'none') return 'Reference unavailable';
   if (reference.kind === 'range') {
-    return `${formatMetricValue(reference.lower)}–${formatMetricValue(reference.upper)} ${highlight.unit}`;
+    return `Range · ${formatMetricValue(reference.lower)}–${formatMetricValue(reference.upper)} ${highlight.unit}`;
   }
-  return `${formatMetricValue(reference.value)} ${highlight.unit} ${reference.kind === 'limit' ? 'limit' : 'target'}`;
+  const label =
+    reference.kind === 'limit'
+      ? 'Limit'
+      : reference.kind === 'minimum'
+        ? 'Minimum'
+        : 'Target';
+  return `${label} · ${formatMetricValue(reference.value)} ${highlight.unit}`;
+}
+
+function statusBackground(
+  highlight: AnalyticsOverviewNutrientHighlight,
+): string {
+  if (
+    highlight.status === 'above_limit' ||
+    highlight.status === 'above_range'
+  ) {
+    return '#FBE8E9';
+  }
+  if (
+    highlight.status === 'below_target' ||
+    highlight.status === 'below_minimum' ||
+    highlight.status === 'below_range'
+  ) {
+    return '#FFF4D9';
+  }
+  if (highlight.status === 'unknown') return '#EEF1EE';
+  return '#E3F7EC';
 }
 
 export function NutrientHighlightsCard({
@@ -92,26 +118,48 @@ export function NutrientHighlightsCard({
         <AppCard
           elevated
           compact={compact}
-          className={compact ? 'gap-0 rounded-[12px] p-3' : 'gap-0 p-[18px]'}
+          className={
+            compact ? 'gap-0 rounded-[16px] p-3' : 'gap-0 rounded-[24px] p-5'
+          }
         >
           {data.highlights.map((highlight, index) => (
             <View
               key={highlight.metric}
               className={
-                index === 0 ? 'gap-2 pb-3' : 'gap-2 border-t border-line py-3'
+                index === 0 ? 'gap-3 pb-5' : 'gap-3 border-t border-line py-5'
               }
             >
               <View className="flex-row items-center justify-between gap-3">
-                <AppText variant="label">{label(highlight.metric)}</AppText>
-                <AppText
-                  variant="caption"
-                  style={{ color: statusColor(highlight) }}
+                <View className="flex-row items-center gap-2">
+                  <View
+                    testID={`nutrient-highlight-${highlight.metric}-accent`}
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: statusColor(highlight) }}
+                  />
+                  <AppText
+                    variant="label"
+                    className={compact ? '' : 'text-base'}
+                  >
+                    {label(highlight.metric)}
+                  </AppText>
+                </View>
+                <View
+                  className="rounded-full px-2 py-1"
+                  style={{ backgroundColor: statusBackground(highlight) }}
                 >
-                  {statusCopy(highlight)}
-                </AppText>
+                  <AppText
+                    variant="caption"
+                    style={{ color: statusColor(highlight) }}
+                  >
+                    {statusCopy(highlight)}
+                  </AppText>
+                </View>
               </View>
               <View className="flex-row items-end justify-between gap-3">
-                <AppText variant="caption" className="text-muted">
+                <AppText
+                  variant={compact ? 'label' : 'heading'}
+                  className="tabular-nums"
+                >
                   {valueCopy(highlight)}
                 </AppText>
                 <AppText variant="caption" className="text-muted">
@@ -138,9 +186,16 @@ function NutrientGauge({
     <View
       accessible
       accessibilityLabel={`${label(highlight.metric)} ${statusCopy(highlight)}; ${valueCopy(highlight)}; ${referenceCopy(highlight)}`}
-      className="h-3 justify-center"
+      testID={`nutrient-highlight-${highlight.metric}-gauge`}
+      className="h-5 justify-center"
     >
-      <View className="h-1.5 overflow-hidden rounded-full bg-module">
+      <View
+        className={
+          gauge.fillPercent === null
+            ? 'h-2.5 rounded-full border border-dashed border-line bg-surface'
+            : 'h-2.5 overflow-hidden rounded-full bg-module'
+        }
+      >
         {gauge.fillPercent === null ? null : (
           <View
             className="h-full rounded-full"
@@ -151,14 +206,16 @@ function NutrientGauge({
       {gauge.primaryMarkerPercent === null ? null : (
         <View
           pointerEvents="none"
-          className="absolute h-3 w-0.5 rounded-full bg-ink"
+          testID={`nutrient-highlight-${highlight.metric}-marker`}
+          className="absolute h-5 w-[2px] rounded-full bg-ink"
           style={{ left: `${gauge.primaryMarkerPercent}%` }}
         />
       )}
       {gauge.secondaryMarkerPercent === null ? null : (
         <View
           pointerEvents="none"
-          className="absolute h-3 w-0.5 rounded-full bg-ink"
+          testID={`nutrient-highlight-${highlight.metric}-secondary-marker`}
+          className="absolute h-5 w-[2px] rounded-full bg-ink"
           style={{ left: `${gauge.secondaryMarkerPercent}%` }}
         />
       )}

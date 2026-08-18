@@ -74,4 +74,51 @@ describe('Calories trend report fidelity', () => {
     ).toBeNull();
     await userEvent.setup().press(screen.getByRole('button', { name: '7D' }));
   });
+
+  it('separates pale daily calorie columns from the dark derived trend', async () => {
+    const dailyPoints: CanonicalTrendResponse['points'] = [
+      {
+        kind: 'daily',
+        date: '2026-08-29',
+        loggingDayState: 'complete',
+        loggingDayPhase: 'closed',
+        metricDataState: 'recorded',
+        value: 1846,
+        foodLogCount: 3,
+        metricRecordedLogCount: 3,
+        metricUnknownLogCount: 0,
+      },
+      {
+        kind: 'daily',
+        date: '2026-08-30',
+        loggingDayState: 'unlogged',
+        loggingDayPhase: 'closed',
+        metricDataState: null,
+        value: null,
+        foodLogCount: 0,
+        metricRecordedLogCount: 0,
+        metricUnknownLogCount: 0,
+      },
+    ];
+    const screen = await render(
+      <CaloriesReport
+        trend={{
+          ...trend,
+          points: dailyPoints,
+          rollingTrend: { window: 3, values: [1846, null] },
+        }}
+        width={390}
+        simple
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+        onOpenContributors={jest.fn()}
+      />,
+    );
+
+    const tree = JSON.stringify(screen.toJSON());
+    expect(tree).toContain('"payload":4294178031');
+    expect(tree).toContain('Selected values remain gaps');
+    expect(tree).toContain('"payload":4279111182');
+  });
 });

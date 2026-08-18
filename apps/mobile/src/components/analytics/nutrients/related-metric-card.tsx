@@ -10,16 +10,33 @@ export function RelatedMetricCard({
   trend,
   error,
   onOpen,
+  presentation = 'default',
 }: {
   name: string;
   trend: CanonicalTrendResponse | null;
   error: string | null;
   onOpen: () => void;
+  presentation?: 'default' | 'nutrient-detail';
 }) {
+  const showReference = presentation === 'default';
   return (
-    <AppCard className={trend === null ? 'gap-2' : 'gap-2 bg-module'}>
+    <AppCard
+      testID="related-metric-card"
+      className={
+        presentation === 'nutrient-detail'
+          ? 'gap-4 bg-surface p-[18px]'
+          : trend === null
+            ? 'gap-2'
+            : 'gap-2 bg-module'
+      }
+    >
       <View className="flex-row items-center justify-between gap-3">
-        <AppText variant="label">{name}</AppText>
+        <AppText
+          variant="label"
+          className={presentation === 'nutrient-detail' ? 'text-[16px]' : ''}
+        >
+          {name}
+        </AppText>
         {trend === null ? null : (
           <AppText variant="caption" className="text-muted">
             {trend.summary.average === null
@@ -32,7 +49,7 @@ export function RelatedMetricCard({
         <AppText variant="caption" className="text-muted">
           {error ?? 'Related metric unavailable'}
         </AppText>
-      ) : (
+      ) : !showReference ? null : (
         <NutrientReferenceSummary reference={trend.reference} />
       )}
       {trend === null ? (
@@ -46,7 +63,7 @@ export function RelatedMetricCard({
         className="min-h-11 justify-center self-start"
         onPress={onOpen}
       >
-        <AppText variant="caption" className="font-semibold text-primary-dark">
+        <AppText variant="caption" className="font-semibold text-[#5867C7]">
           Open paired view ›
         </AppText>
       </Pressable>

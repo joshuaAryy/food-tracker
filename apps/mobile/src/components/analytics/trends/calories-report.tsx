@@ -89,7 +89,8 @@ export function CaloriesReport({
           data={points}
           width={Math.max(280, width - 40)}
           height={170}
-          color="#111111"
+          color="#0E0E0E"
+          barFill="#F3F4EF"
           trendValues={trend.rollingTrend?.values}
           accessibilityLabel={`Calories trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />

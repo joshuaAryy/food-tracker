@@ -13,6 +13,7 @@ export function HeatmapChart({
   columns = 14,
   cellSize = 14,
   cellGap = 4,
+  minHeight,
   testID,
 }: {
   points: readonly { date: string; state: HeatmapState }[];
@@ -21,6 +22,7 @@ export function HeatmapChart({
   columns?: number;
   cellSize?: number;
   cellGap?: number;
+  minHeight?: number | undefined;
   testID?: string;
 }) {
   const cells = heatmapCells(points, columns);
@@ -32,6 +34,7 @@ export function HeatmapChart({
         style={{
           width: columns * cellSize + (columns - 1) * cellGap,
           gap: cellGap,
+          minHeight,
         }}
       >
         {cells.map((cell) => (

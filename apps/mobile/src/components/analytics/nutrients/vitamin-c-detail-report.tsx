@@ -33,6 +33,26 @@ function averageStatus(trend: CanonicalTrendResponse): string {
   return 'average · reference unavailable';
 }
 
+function recordedPeriodSummary(
+  trend: CanonicalTrendResponse,
+  recordedDays: number,
+): string {
+  const dayLabel = `recorded day${recordedDays === 1 ? '' : 's'}`;
+  if (recordedDays === 0 || trend.summary.average === null) {
+    return 'No recorded values are available for this period.';
+  }
+  if (trend.interpretation?.kind === 'within_range') {
+    return `Average across ${recordedDays} ${dayLabel} is inside your configured range.`;
+  }
+  if (
+    trend.interpretation?.kind === 'below_range' ||
+    trend.interpretation?.kind === 'above_range'
+  ) {
+    return `Average across ${recordedDays} ${dayLabel} is outside your configured range.`;
+  }
+  return `${recordedDays} ${dayLabel} are available. Reference unavailable.`;
+}
+
 export function VitaminCDetailReport({
   trend,
   relatedTrend,
@@ -64,7 +84,7 @@ export function VitaminCDetailReport({
     date: point.kind === 'daily' ? point.date : point.bucketStartDate,
     value: point.value,
   }));
-  const recordedDays = trend.metricDataSummary?.recorded ?? 0;
+  const recordedDays = trend.summary.numericDayCount;
   const latestRecordedPoint = [...trend.points]
     .reverse()
     .find((point) => point.value !== null);
@@ -73,7 +93,7 @@ export function VitaminCDetailReport({
       ? null
       : trend.points.findIndex((point) => point === latestRecordedPoint);
   return (
-    <View testID="vitamin-c-detail-report" className="gap-4">
+    <View testID="vitamin-c-detail-report" className="gap-5">
       <View className="gap-1">
         <View className="flex-row items-end justify-between gap-4">
           <View className="min-w-0 flex-1 gap-1">
@@ -123,9 +143,12 @@ export function VitaminCDetailReport({
             width={Math.max(196, width - 118)}
             height={190}
             color="#5867C7"
-            barFill="#D8DCE3"
+            barFill="#E0E3EA"
+            barStroke="#E0E3EA"
             selectedBarFill="#858A99"
+            selectedBarStroke="#858A99"
             showGrid
+            gridOpacity={0.45}
             trendValues={trend.rollingTrend?.values}
             initialSelectedIndex={latestRecordedIndex}
             showSelectionTooltip={false}
@@ -159,21 +182,34 @@ export function VitaminCDetailReport({
             </AppText>
           </View>
         )}
-        <AppText variant="caption" className="text-muted">
-          {recordedDays} recorded days are available for this configured range.
-          Unknown nutrient values remain gaps.
-        </AppText>
       </AppCard>
-      <RelatedMetricCard
-        name={relatedName}
-        trend={relatedTrend}
-        error={relatedError}
-        onOpen={onOpenRelated}
-      />
-      <TrendContributorsCard
-        contributors={contributors?.contributors ?? []}
-        onOpenAll={onOpenContributors}
-      />
+      <View testID="vitamin-c-recorded-period-summary" className="gap-2 pt-1">
+        <AppText variant="label" className="text-[16px] leading-5">
+          {recordedPeriodSummary(trend, recordedDays)}
+        </AppText>
+        <AppText variant="caption" className="text-muted">
+          This describes the recorded period only; it does not infer a health
+          outcome.
+        </AppText>
+      </View>
+      <View className="mt-4 gap-3">
+        <AppText variant="caption" className="font-bold uppercase text-muted">
+          Related metric
+        </AppText>
+        <RelatedMetricCard
+          name={relatedName}
+          trend={relatedTrend}
+          error={relatedError}
+          onOpen={onOpenRelated}
+          presentation="nutrient-detail"
+        />
+      </View>
+      <View className="mt-4 border-t border-border pt-7">
+        <TrendContributorsCard
+          contributors={contributors?.contributors ?? []}
+          onOpenAll={onOpenContributors}
+        />
+      </View>
     </View>
   );
 }

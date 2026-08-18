@@ -6,6 +6,45 @@ export type HeatmapState =
   | 'recorded'
   | 'unknown';
 
+export type LoggingConsistencyLayout = {
+  columns: number;
+  cellSize: number;
+  cellGap: number;
+  dailyCardMinHeight: number;
+  dailyGridMinHeight: number;
+  periodChartHeight: number;
+  periodCardMinHeight: number;
+  mealCoverageMinHeight: number;
+};
+
+export function loggingConsistencyLayout(
+  period: 30 | 90,
+): LoggingConsistencyLayout {
+  if (period === 90) {
+    return {
+      columns: 14,
+      cellSize: 14,
+      cellGap: 4,
+      dailyCardMinHeight: 254,
+      dailyGridMinHeight: 50,
+      periodChartHeight: 254,
+      periodCardMinHeight: 330,
+      mealCoverageMinHeight: 344,
+    };
+  }
+
+  return {
+    columns: 10,
+    cellSize: 22,
+    cellGap: 8,
+    dailyCardMinHeight: 284,
+    dailyGridMinHeight: 112,
+    periodChartHeight: 190,
+    periodCardMinHeight: 284,
+    mealCoverageMinHeight: 354,
+  };
+}
+
 export function heatmapCells(
   points: readonly { date: string; state: HeatmapState }[],
   columns = 7,
