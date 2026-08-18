@@ -137,6 +137,7 @@ export function WeightReport({
                 trendValues={
                   hasRenderableRollingTrend ? rollingValues : undefined
                 }
+                connectTrendGaps={hasRenderableRollingTrend}
                 reference={target}
                 accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
               />
@@ -146,7 +147,7 @@ export function WeightReport({
                   className="absolute right-1"
                   style={{ top: Math.max(0, targetY - 12) }}
                 >
-                  <AppText variant="caption" className="text-primary-dark">
+                  <AppText variant="caption" className="text-sage">
                     Goal {formatMetricWithUnit(target, 'lb')}
                   </AppText>
                 </View>

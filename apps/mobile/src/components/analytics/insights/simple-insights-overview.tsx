@@ -1,5 +1,5 @@
 import type { AnalyticsOverviewKey } from '@food-tracker/shared';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import type { AnalyticsReportResourceState } from '@/lib/analytics/analytics-report-resource';
 import { EnergyBalanceCard } from './energy-balance-card';
@@ -10,6 +10,7 @@ import { MacroBalanceCard } from './macro-balance-card';
 import { NutrientHighlightsCard } from './nutrient-highlights-card';
 import { WeightDirectionCard } from './weight-direction-card';
 import { AnalyticsFirstUse } from '../states/analytics-first-use';
+import { ExploreTrendsButton } from './explore-trends-button';
 
 export function SimpleInsightsOverview({
   resource,
@@ -85,21 +86,11 @@ export function SimpleInsightsOverview({
       ) : null}
       {firstUseData === null ? (
         <>
-          <View testID="simple-insights-explore" className="gap-2">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Explore all trends"
-              className={`flex-row items-center justify-between rounded-[12px] bg-module-muted px-4 active:opacity-70 ${compact ? 'min-h-10' : 'min-h-[52px]'}`}
-              onPress={onExploreTrends}
-            >
-              <AppText variant={compact ? 'caption' : 'label'}>
-                Explore all trends
-              </AppText>
-              <AppText variant="label" className="text-muted">
-                ›
-              </AppText>
-            </Pressable>
-          </View>
+          <ExploreTrendsButton
+            testID="simple-insights-explore"
+            onPress={onExploreTrends}
+            compact={compact}
+          />
           <InsightsPeriodSummary
             period={resource.period ?? 'week'}
             summary={resource.overview.periodSummary}

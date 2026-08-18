@@ -7,6 +7,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { TrendContributorsCard } from '@/components/analytics/trends/trend-contributors-card';
+import { TrendPeriodPills } from '@/components/analytics/trends/trend-period-pills';
 import {
   formatPresentationDate,
   formatPresentationDateRange,
@@ -39,6 +40,10 @@ export function VitaminCDetailReport({
   relatedName,
   contributors,
   width,
+  simple,
+  selectedPeriod,
+  onSelectPeriod,
+  onOpenCustomRange,
   onOpenRelated,
   onOpenContributors,
 }: {
@@ -48,6 +53,10 @@ export function VitaminCDetailReport({
   relatedName: string;
   contributors: AnalyticsContributorsResponse | null;
   width: number;
+  simple: boolean;
+  selectedPeriod: 7 | 30 | 90 | null;
+  onSelectPeriod: (period: 7 | 30 | 90) => void;
+  onOpenCustomRange: () => void;
   onOpenRelated: () => void;
   onOpenContributors: () => void;
 }) {
@@ -89,6 +98,12 @@ export function VitaminCDetailReport({
           </View>
         </View>
       </View>
+      <TrendPeriodPills
+        selectedPeriod={selectedPeriod}
+        onSelect={onSelectPeriod}
+        simple={simple}
+        onOpenCustomRange={onOpenCustomRange}
+      />
       <AppCard
         testID="vitamin-c-chart-card"
         elevated

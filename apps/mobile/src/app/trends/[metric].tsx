@@ -477,7 +477,11 @@ export default function TrendDetailScreen() {
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
       <TrendReportHeader
         metricName={
-          metric === 'macroComposition' ? 'Macros' : definition.displayName
+          metric === 'macroComposition'
+            ? 'Macros'
+            : metric === 'loggingConsistency'
+              ? 'Logging consistency'
+              : definition.displayName
         }
         subtitle={
           metric === 'calories'
@@ -501,7 +505,8 @@ export default function TrendDetailScreen() {
         showPeriodControls={
           metric !== 'hydration' &&
           metric !== 'weight' &&
-          metric !== 'loggingConsistency'
+          metric !== 'loggingConsistency' &&
+          metric !== 'vitaminC'
         }
         onOpenCustomRange={() =>
           router.push({
@@ -538,7 +543,11 @@ export default function TrendDetailScreen() {
           activeQuery.comparisonMetric === undefined ? 'Trends' : 'Compare'
         }
         backLabel={
-          activeQuery.comparisonMetric === undefined ? '‹ Insights' : '‹ Trends'
+          activeQuery.comparisonMetric !== undefined
+            ? '‹ Trends'
+            : metric === 'vitaminC'
+              ? '‹ Vitamins'
+              : '‹ Insights'
         }
       />
       {trendResource.error === null ? null : (
@@ -663,6 +672,18 @@ export default function TrendDetailScreen() {
             relatedError={relatedTrendError}
             contributors={nutrientContributors}
             width={width}
+            simple={trend.trackingMode === 'simple'}
+            selectedPeriod={selectedRelativePeriod}
+            onSelectPeriod={setSelectedRelativePeriod}
+            onOpenCustomRange={() =>
+              router.push({
+                pathname: '/trends/custom-range',
+                params: {
+                  query: trendQueryRouteParam(activeQuery),
+                  ...(savedViewId === undefined ? {} : { savedViewId }),
+                },
+              } as never)
+            }
             onOpenRelated={() => {
               const relatedMetric = trend.relatedMetrics[0];
               if (relatedMetric === undefined) return;

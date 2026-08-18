@@ -66,6 +66,10 @@ describe('Vitamin C detail report fidelity', () => {
         relatedError={null}
         contributors={contributors}
         width={390}
+        simple={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
         onOpenRelated={jest.fn()}
         onOpenContributors={jest.fn()}
       />,
@@ -76,6 +80,8 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText('average · inside your range')).toBeTruthy();
     expect(screen.getByText('Custom range')).toBeTruthy();
     expect(screen.getByText('75–120 mg')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '30D' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Custom' })).toBeTruthy();
     expect(screen.getAllByText(/24 recorded days/)).toHaveLength(1);
     expect(screen.getByText('Top contributors')).toBeTruthy();
     expect(screen.getByTestId('vitamin-c-bar-trend')).toBeTruthy();
@@ -96,6 +102,10 @@ describe('Vitamin C detail report fidelity', () => {
         relatedError={null}
         contributors={contributors}
         width={390}
+        simple={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
         onOpenRelated={jest.fn()}
         onOpenContributors={jest.fn()}
       />,

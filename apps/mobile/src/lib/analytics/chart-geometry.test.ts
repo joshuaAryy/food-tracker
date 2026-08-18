@@ -54,6 +54,18 @@ describe('analytics chart geometry', () => {
     expect(path).not.toContain('L 75');
   });
 
+  it('can connect backend-provided derived trend values across sparse raw days', () => {
+    const path = smoothLinePath(
+      [10, null, 20],
+      { min: 0, max: 20 },
+      { width: 100, height: 100 },
+      { connectGaps: true },
+    );
+
+    expect(path).toContain('M 0 50 C');
+    expect(path).toContain('100 0');
+  });
+
   it('uses bounded tangent controls for monotone derived trends', () => {
     const path = smoothLinePath(
       [0, 10, 20, 30],

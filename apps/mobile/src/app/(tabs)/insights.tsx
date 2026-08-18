@@ -13,6 +13,7 @@ import { ErrorState } from '@/components/error-state';
 import { ComplexInsightsNutrients } from '@/components/analytics/insights/complex-insights-nutrients';
 import { ComplexInsightsOverview } from '@/components/analytics/insights/complex-insights-overview';
 import { ComplexInsightsRecommendations } from '@/components/analytics/insights/complex-insights-recommendations';
+import { ExploreTrendsButton } from '@/components/analytics/insights/explore-trends-button';
 import {
   InsightsTabs,
   type InsightsTab,
@@ -335,6 +336,10 @@ export default function InsightsScreen() {
         ) : null
       ) : (
         <>
+          <ExploreTrendsButton
+            testID="complex-insights-explore"
+            onPress={() => router.push('/trends' as never)}
+          />
           <InsightsTabs value={complexTab} onChange={setComplexTab} />
           {complexTab === 'overview' ? (
             <ComplexInsightsOverview

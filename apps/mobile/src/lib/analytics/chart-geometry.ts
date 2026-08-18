@@ -120,7 +120,22 @@ export function smoothLinePath(
   values: readonly (number | null)[],
   domain: ChartDomain,
   size: ChartSize,
+  options: { connectGaps?: boolean } = {},
 ): string {
+  if (options.connectGaps === true) {
+    const points = values.flatMap((value, index) =>
+      value === null || !Number.isFinite(value)
+        ? []
+        : [
+            {
+              x: pointX(index, values.length, size.width),
+              y: pointY(value, domain, size.height),
+            },
+          ],
+    );
+    return smoothSegmentPath(points);
+  }
+
   const segments: string[] = [];
   let segment: { x: number; y: number }[] = [];
   const flush = () => {

@@ -1,6 +1,5 @@
 import type { AnalyticsOverviewKey } from '@food-tracker/shared';
-import { Pressable, View } from 'react-native';
-import { AppText } from '@/components/app-text';
+import { View } from 'react-native';
 import { EnergyBalanceCard } from './energy-balance-card';
 import { HydrationInsightsCard } from './hydration-insights-card';
 import { InsightsPeriodSummary } from './insights-period-summary';
@@ -28,21 +27,6 @@ export function ComplexInsightsOverview({
       testID="complex-insights-overview"
       className={compact ? 'gap-4' : 'gap-7'}
     >
-      <View testID="complex-insights-explore" className="gap-2">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Explore trends"
-          className={`flex-row items-center justify-between rounded-[12px] bg-module-muted px-4 active:opacity-70 ${compact ? 'min-h-10' : 'min-h-[52px]'}`}
-          onPress={onExploreTrends}
-        >
-          <AppText variant={compact ? 'caption' : 'label'}>
-            Explore all trends
-          </AppText>
-          <AppText variant="label" className="text-muted">
-            ›
-          </AppText>
-        </Pressable>
-      </View>
       <InsightsPeriodSummary
         period={resource.period ?? 'month'}
         summary={resource.overview.periodSummary}

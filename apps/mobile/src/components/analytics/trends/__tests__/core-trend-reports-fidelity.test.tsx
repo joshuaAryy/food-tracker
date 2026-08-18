@@ -35,7 +35,9 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('129.4 lb')).toBeTruthy();
     expect(screen.queryByText('Latest authoritative weight')).toBeNull();
     expect(screen.getByTestId('weight-chart-axis')).toBeTruthy();
-    expect(screen.getByText('Goal 130 lb')).toBeTruthy();
+    expect(screen.getByText('Goal 130 lb').props.className).toContain(
+      'text-sage',
+    );
     expect(JSON.stringify(screen.toJSON())).toContain(
       '"strokeDasharray":["2","3"]',
     );
@@ -193,6 +195,9 @@ describe('metric-specific trend reports', () => {
 
     expect(screen.getByTestId('logging-consistency-week-labels')).toBeTruthy();
     expect(
+      screen.getByTestId('logging-consistency-daily-section-label'),
+    ).toBeTruthy();
+    expect(
       screen.getByTestId('logging-consistency-daily-card').props.style,
     ).toEqual(expect.objectContaining({ minHeight: 286 }));
     expect(
@@ -201,7 +206,10 @@ describe('metric-specific trend reports', () => {
     expect(
       screen.getByTestId('logging-consistency-meal-card').props.style,
     ).toEqual(expect.objectContaining({ minHeight: 356 }));
-    expect(screen.getByText('Period pattern')).toBeTruthy();
+    expect(
+      screen.getByTestId('logging-consistency-meal-section-label'),
+    ).toBeTruthy();
+    expect(screen.getByText('PERIOD PATTERN')).toBeTruthy();
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
     expect(screen.getByText(/24 logged days/)).toBeTruthy();
     expect(screen.getByText('89%')).toBeTruthy();
@@ -235,7 +243,7 @@ describe('metric-specific trend reports', () => {
     expect(
       screen.queryByText('Complete 21 · Partial 3 · Unlogged 3'),
     ).toBeNull();
-    expect(screen.getByText('Daily completeness')).toBeTruthy();
+    expect(screen.getByText('DAILY COMPLETENESS')).toBeTruthy();
     expect(screen.getByText('Complete')).toBeTruthy();
     expect(screen.queryByText('How to read this')).toBeNull();
     expect(

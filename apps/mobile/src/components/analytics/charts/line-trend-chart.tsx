@@ -41,6 +41,7 @@ interface LineTrendChartProps {
   color: string;
   areaColor?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
+  connectTrendGaps?: boolean | undefined;
   showRawPoints?: boolean | undefined;
   reference?: number | null;
   referenceRange?: { lower: number; upper: number } | null;
@@ -59,6 +60,7 @@ export function LineTrendChart({
   color,
   areaColor,
   trendValues,
+  connectTrendGaps = false,
   showRawPoints = false,
   reference = null,
   referenceRange = null,
@@ -99,8 +101,9 @@ export function LineTrendChart({
             trendValues ?? data.map((point) => point.value),
             domain,
             { width, height },
+            { connectGaps: connectTrendGaps },
           ),
-    [data, domain, height, trendValues, width],
+    [connectTrendGaps, data, domain, height, trendValues, width],
   );
   const areaValues = trendValues ?? data.map((point) => point.value);
   const firstAreaIndex = areaValues.findIndex(

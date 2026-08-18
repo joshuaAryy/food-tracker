@@ -71,7 +71,14 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="water-log"
-            options={{ presentation: 'modal', gestureEnabled: true }}
+            options={{
+              presentation: 'formSheet',
+              gestureEnabled: true,
+              sheetAllowedDetents: [0.85],
+              sheetInitialDetentIndex: 0,
+              sheetGrabberVisible: false,
+              sheetCornerRadius: 28,
+            }}
           />
           <Stack.Screen
             name="recipes/index"

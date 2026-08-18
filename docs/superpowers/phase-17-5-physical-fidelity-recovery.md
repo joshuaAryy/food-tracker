@@ -1,7 +1,7 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
 Status: authenticated simulator runtime evidence is now available; source
-presentation pass 3 is in progress. The onboarding/runtime crash found after
+presentation pass 4 is in progress. The onboarding/runtime crash found after
 the user completed onboarding was fixed, and high-risk visual review has
 identified additional geometry, chart, empty-state, and evidence gaps.
 Physical iPhone validation:
@@ -82,6 +82,9 @@ GestureHandlerRootView`; the root layout now wraps the app in
 `GestureHandlerRootView`, and the relaunch reaches authenticated Progress and
 Insights screens without that render error. The development-client tools gear
 still appears on simulator captures and is excluded from acceptance claims.
+The config now sets the Expo development-client tools button off for the next
+native rebuild; the current installed development client predates that native
+configuration and still shows the gear.
 
 ### Geometry review
 
@@ -101,11 +104,14 @@ Fresh Figma geometry baseline captured from the exact final nodes:
 | Vitamin C | chart card x20/y318/w350/h372 | plot x38/y396/w272/h190 |
 | Water Log | sheet x0/y166/w390/h734 | handle x166/y14/w58/h5; custom/time rows 62pt |
 
-Current simulator evidence is captured through XcodeBuildMCP's optimized
-368x800 image output (the underlying iPhone 17 simulator is approximately
-402pt wide). This is useful runtime evidence but is not a matched 390/393pt
-comparison. Approximate post-fix observations are recorded in the target table
-and the remaining responsive evidence gap is explicit.
+Current simulator evidence includes XcodeBuildMCP's optimized 368x800 output
+and full-resolution simctl captures at 1206x2622 (3x, approximately 402x874pt).
+This proves the neighboring-width runtime path but is not a matched 390/393pt
+comparison. The available simulator set has no 393pt device. Approximate
+post-fix observations are recorded in the target table and the remaining
+responsive evidence gap is explicit. A native development-client config change
+sets `toolsButton: false` for the next rebuild; the current installed client
+predates that change and still shows the gear.
 
 ### Independent review
 
@@ -132,13 +138,13 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-logging-order-fix.jpg` | 1 independent review; matched Month state and viewport still pending |
-| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-daily-mix-fix.jpg` | 1 independent review; second pass and matched viewport required |
-| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-trend-fallback.jpg` | 1 independent review; line/viewport gaps remain |
-| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-after-geometry-fix.jpg` | review pending; 90D capture pending |
-| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | pending | 0 |
-| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | pending | 0 |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | second capture and independent review pending | 0 |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-full.png` | 2 independent review passes; current authenticated account renders Week/simple, not the required Month/Complex state |
+| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-current-full.png` | 2 independent review passes; gear overlay and 402pt neighboring viewport remain evidence limitations |
+| Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
+| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-simulator-current-full.png` | structural capture complete; independent review and matched viewport pending |
+| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | structural capture complete; independent review pending, with dev-client overlay still present |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | independent review pending; account has `Reference unavailable`, which is authoritative data rather than a client fallback |
 
 ## Implementation evidence before simulator capture
 
@@ -146,25 +152,28 @@ the result is close.
   primitives, nutrient presentation, custom-range labels, focused tests, and
   the Complex Insights route scale. The latest pass also removes pinned-analysis
   rendering from the exact Complex Insights overview hierarchy while retaining
-  the standalone pin-management/trend surfaces, and limits Water Log history
-  visuals to edit mode. No API, database, shared contract, dependency, or
+  the standalone pin-management/trend surfaces, limits Water Log history
+  visuals to edit mode, moves Logging section labels outside their cards to
+  match the Figma hierarchy, and configures the next native dev-client rebuild
+  to hide its tools button. No API, database, shared contract, dependency, or
   analytics-semantics changes were made.
 - Exact Figma context and screenshots were freshly captured for every target;
   exact metadata dimensions are recorded in the implementation plan and the
   screenshots are retained under the temporary evidence root above.
 - Focused mobile evidence currently passes: core trend fidelity Jest 7/7 and
   trend shell fidelity Jest 5/5 after the current chart, macro, weight, and
-  logging layout fixes. Root-layout gesture coverage passes 1/1.
-- Full mobile evidence currently passes: Vitest 53 files / 367 tests and Jest
-  49 suites / 139 tests. Mobile lint and typecheck, API lint/typecheck/build,
-  and root lint/typecheck/build also pass. Root format check reports 20
+  logging layout fixes. Root-layout gesture coverage passes 1/1. The latest
+  red-green TDD cycle for the Logging section-label hierarchy passed core trend
+  fidelity 7/7.
+- Final full mobile evidence passes Vitest 53 files / 368 tests and Jest 49
+  suites / 140 tests. Mobile lint and typecheck, API lint/typecheck/build, and
+  root lint/typecheck/build also pass. Root format check remains blocked by 20
   warnings in pre-existing protected/ignored artifacts.
 - Independent read-only visual review has now covered Complex Insights, Macro
-  Balance, and Weight. Macro review confirms the center clipping is fixed but
-  requires a matched viewport, a clean capture without the dev-client gear, and
-  an intentional populated/empty daily-mix state. Weight review found the
-  smoothed line/reference treatment still insufficient in the current data
-  capture, plus compressed geometry and evidence normalization gaps.
+  Balance, Weight, and Logging Consistency in two passes. The latest Weight
+  capture now shows the backend-provided smoothed line across sparse raw days.
+  Macro and Weight still require clean no-overlay and matched-width evidence;
+  Complex remains blocked by the authenticated account's Week/simple state.
 - A final presentation-format audit found and corrected raw selected comparison
   values by routing them through the centralized metric formatter; a noisy
   `129.4857142857143` regression fixture now renders as `129.5`. The custom
@@ -217,10 +226,13 @@ the result is close.
   context, and replaced an empty daily-mix chart with an explicit empty state.
 - Bounded generic line-chart area fills to recorded trend extents, moved Weight
   period controls after the primary metric, added the `lb` axis label and
-  inline goal label, removed duplicate selection-description text, and used a
-  backend-provided trend only when it contains enough recorded points.
+  inline sage goal label, removed duplicate selection-description text, and
+  used a backend-provided trend only when it contains enough recorded points.
 - Increased Logging Consistency daily and meal-card minimum geometry to keep
   sparse 30D data from collapsing the Figma hierarchy.
+- Moved Logging Consistency's DAILY COMPLETENESS, MEAL COVERAGE, and PERIOD
+  PATTERN labels outside their cards to match the final Figma section hierarchy;
+  added regression assertions for the new section boundaries.
 - Removed the elevated shadow variant from the related nutrient card after a
   simulator-only React Navigation context error reproduced when Vitamin C's
   related trend became available; retained the shared card structure and added
@@ -232,6 +244,10 @@ This ledger is not complete until every target has exact screenshots, measured
 geometry, two independent review passes for high-risk screens, focused and
 full automated validation, and a pushed branch. Current blockers are the
 matched 390/393pt capture, removal of the development-client overlay from
-evidence, remaining Weight trend/reference fidelity, 90D Logging Consistency,
-second-pass reviews, and final Water Log/Vitamin C evidence. Physical iPhone
-operation, standalone signing, installation, and acceptance remain user-only.
+evidence (requires the next native rebuild), the authenticated account's
+Week/simple state versus the required Complex/Month state, remaining
+Hydration/Water Log/Vitamin C independent review, and final full-suite gates.
+The guarded standalone Release preparation is also blocked before prebuild by
+the 10 GiB free-disk prerequisite; no generated-native cleanup is authorized
+while physical validation remains pending. Physical iPhone operation,
+standalone signing, installation, and acceptance remain user-only.

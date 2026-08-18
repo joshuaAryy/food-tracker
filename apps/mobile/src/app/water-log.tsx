@@ -235,7 +235,7 @@ export default function WaterLogScreen() {
 
   return (
     <AppScreen
-      backgroundColor="#F0F0ED"
+      backgroundColor="#FFFFFF"
       contentClassName="gap-6 rounded-t-[28px] bg-white pb-8 pt-4"
       footer={
         <View className="gap-2">
@@ -312,6 +312,7 @@ export default function WaterLogScreen() {
           accessibilityRole="button"
           accessibilityLabel="Open other water amount"
           className="min-h-[62px] flex-row items-center justify-between rounded-[16px] bg-module px-4"
+          style={{ backgroundColor: '#F5F5F2' }}
           onPress={() => setCustomAmountOpen((open) => !open)}
         >
           <AppText muted>Other amount</AppText>
@@ -355,6 +356,7 @@ export default function WaterLogScreen() {
           accessibilityRole="button"
           accessibilityLabel="Open water time"
           className="min-h-[62px] flex-row items-center justify-between rounded-[16px] bg-module px-4"
+          style={{ backgroundColor: '#F5F5F2' }}
           onPress={() => setTimeOpen((open) => !open)}
         >
           <AppText>Time</AppText>
@@ -456,7 +458,10 @@ export default function WaterLogScreen() {
           )}
         </View>
       ) : null}
-      <AppCard className="gap-1 border-0 bg-[#EAF4FF]">
+      <AppCard
+        className="gap-1 border-0 bg-[#EAF4FF]"
+        style={{ backgroundColor: '#EAF4FF', borderColor: 'transparent' }}
+      >
         <AppText variant="label">Counts toward hydration</AppText>
         <AppText variant="caption" muted>
           Only explicitly logged drinks count. Water contained in foods is
