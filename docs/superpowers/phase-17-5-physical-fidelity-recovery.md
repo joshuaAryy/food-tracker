@@ -176,7 +176,7 @@ the result is close.
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
 | Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-markers-after-fixes.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-middle-final.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-lower-final.png` | 2 fresh independent reviews; compact hierarchy, title, markers, black energy trend, and macro sizing corrected; exact Month state, clean overlay-free capture, and matched 390/393pt viewport remain unproven |
-| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-current-full-after-percent-format.jpg` | 2 independent review passes; whole-number percentage typography now passes, while the 368x800 capture is incomplete, data differs from Figma, and gear overlay/matched-width evidence remain limitations |
+| Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-current-full-after-percent-format.jpg`; `/tmp/food-tracker-phase17-5-visual-v2/macros-current-lower-after-range-fix.jpg` | 2 independent review passes plus lower-surface capture; whole-number percentage typography and Protein range/smoothed trend treatment corrected, while data parity, 368x800 normalization, and gear-free evidence remain limitations |
 | Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
 | Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
 | Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png` | 2 fresh independent reviews; `‹ Overview`, seven-point presentation, and seven-day default corrected; target-state data, clean overlay-free capture, and matched viewport remain limitations |
@@ -314,6 +314,11 @@ the result is close.
   second independent review confirms the typography correction, but retains
   Moderate geometry/chart evidence limits for the incomplete 368x800 capture,
   differing seeded data, and development-client overlay.
+- Restored the detailed Protein trend's backend rolling series and true
+  reference range when present, preserving raw points for selection/footer
+  facts while making the chart's smoothed line and range treatment visible;
+  focused coverage asserts the range gradient and the fresh lower capture shows
+  the resulting composed trend card.
 
 ## Approval boundary
 
