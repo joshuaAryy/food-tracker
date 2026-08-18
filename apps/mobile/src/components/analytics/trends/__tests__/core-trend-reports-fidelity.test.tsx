@@ -42,6 +42,8 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByTestId('weight-trend-chart').props.style.height).toBe(
       190,
     );
+    expect(screen.getByText('lb')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).not.toContain('"opacity":0.16');
     expect(JSON.stringify(screen.toJSON())).toContain('"y1":95');
     expect(screen.getAllByText('130').length).toBeGreaterThan(0);
     expect(
@@ -81,6 +83,7 @@ describe('metric-specific trend reports', () => {
       expect.objectContaining({
         numberOfLines: 1,
         adjustsFontSizeToFit: true,
+        className: expect.stringContaining('text-[20px]'),
       }),
     );
     expect(
@@ -120,7 +123,42 @@ describe('metric-specific trend reports', () => {
         'Protein remained the most consistent macro across logged days.',
       ),
     ).toBeTruthy();
+    expect(
+      screen.getByTestId('macro-composition-card').props.className,
+    ).toEqual(expect.stringContaining('min-h-[300px]'));
+    expect(screen.getByTestId('macro-composition-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 300 }),
+    );
+    expect(screen.getByTestId('macro-daily-mix-section')).toBeTruthy();
     expect(screen.getByTestId('macro-daily-mix-chart')).toBeTruthy();
+  });
+
+  it('does not reserve a blank daily-mix chart when the backend has no daily series', async () => {
+    const screen = await render(
+      <MacrosReport
+        trend={{
+          ...base,
+          trackingMode: 'complex',
+          primaryMetric: 'macroComposition',
+          macroComposition: { protein: 120, carbs: 240, fat: 60 },
+          macroPercentages: { protein: 24, carbs: 49, fat: 27 },
+          macroAverageEnergy: 2184.4,
+          macroDailyMix: [],
+        }}
+        width={390}
+        simple={false}
+        proteinTrend={null}
+        proteinTrendLoading={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('Daily macro mix is unavailable for this period.'),
+    ).toBeTruthy();
+    expect(screen.queryByTestId('macro-daily-mix-chart')).toBeNull();
   });
 
   it('keeps the logging report readable with bounded week labels and coverage context', async () => {
@@ -155,8 +193,14 @@ describe('metric-specific trend reports', () => {
 
     expect(screen.getByTestId('logging-consistency-week-labels')).toBeTruthy();
     expect(
+      screen.getByTestId('logging-consistency-daily-card').props.style,
+    ).toEqual(expect.objectContaining({ minHeight: 286 }));
+    expect(
       screen.getByTestId('logging-consistency-meal-coverage'),
     ).toBeTruthy();
+    expect(
+      screen.getByTestId('logging-consistency-meal-card').props.style,
+    ).toEqual(expect.objectContaining({ minHeight: 356 }));
     expect(screen.getByText('Period pattern')).toBeTruthy();
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
     expect(screen.getByText(/24 logged days/)).toBeTruthy();

@@ -58,7 +58,12 @@ export function MacrosReport({
           onOpenCustomRange={onOpenCustomRange}
         />
       ) : null}
-      <AppCard elevated className="gap-3 p-[18px]">
+      <AppCard
+        elevated
+        testID="macro-composition-card"
+        className="min-h-[300px] justify-between gap-3 p-[18px]"
+        style={{ minHeight: 300 }}
+      >
         <AppText variant="label" className="text-muted">
           {selectedPeriod === 30 ? '30-DAY COMPOSITION' : 'COMPOSITION'}
         </AppText>
@@ -78,13 +83,26 @@ export function MacrosReport({
         </AppText>
         <AppText variant="label">View exact totals below</AppText>
       </AppCard>
-      {trend.macroDailyMix === undefined ? null : (
-        <AppCard elevated className="gap-2 p-4">
+      {trend.macroDailyMix === undefined ? null : trend.macroDailyMix.length ===
+        0 ? (
+        <AppCard elevated className="p-4">
+          <AppText variant="caption" className="text-muted">
+            Daily macro mix is unavailable for this period.
+          </AppText>
+        </AppCard>
+      ) : (
+        <View testID="macro-daily-mix-section" className="gap-3">
           <AppText variant="label" className="text-muted">
             DAILY MACRO MIX
           </AppText>
-          <MacroDailyMixChart days={trend.macroDailyMix.slice(-7)} />
-        </AppCard>
+          <AppCard
+            elevated
+            className="min-h-[280px] justify-between p-4"
+            style={{ minHeight: 280 }}
+          >
+            <MacroDailyMixChart days={trend.macroDailyMix.slice(-7)} />
+          </AppCard>
+        </View>
       )}
       <AppCard elevated className="gap-3 p-3">
         <AppText variant="heading" className="text-[18px] leading-6">

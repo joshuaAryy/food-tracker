@@ -86,4 +86,24 @@ describe('Vitamin C detail report fidelity', () => {
     expect(JSON.stringify(screen.toJSON())).toContain('"r":6');
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4283983815');
   });
+
+  it('keeps the related metric card renderable when its trend is available', async () => {
+    const screen = await render(
+      <VitaminCDetailReport
+        trend={trend}
+        relatedName="Iron"
+        relatedTrend={{ ...trend, primaryMetric: 'iron' }}
+        relatedError={null}
+        contributors={contributors}
+        width={390}
+        onOpenRelated={jest.fn()}
+        onOpenContributors={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('96 mg average')).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Open Iron paired view' }),
+    ).toBeTruthy();
+  });
 });

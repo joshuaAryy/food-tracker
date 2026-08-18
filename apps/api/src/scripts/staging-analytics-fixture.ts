@@ -69,6 +69,7 @@ export interface StagingAnalyticsFixture {
   profile: {
     name: string;
     age: number;
+    birthDate: string;
     sex: string;
     heightInches: number;
     startingWeightLb: number;
@@ -339,6 +340,7 @@ export function buildStagingAnalyticsFixture({
     profile: {
       name: 'Phase 17.5 QA',
       age: 34,
+      birthDate: '1992-06-15',
       sex: 'female',
       heightInches: 67,
       startingWeightLb: 188,

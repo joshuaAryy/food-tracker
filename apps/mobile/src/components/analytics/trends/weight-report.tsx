@@ -9,6 +9,7 @@ import {
 } from '@/lib/date-time';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
+import { referenceLineY } from '@/lib/analytics/chart-geometry';
 import { WeightDirectionCard } from './weight-direction-card';
 import { TrendPeriodPills } from './trend-period-pills';
 import { ForecastUnavailableCard } from './forecast-unavailable-card';
@@ -69,6 +70,15 @@ export function WeightReport({
     latestPoint === undefined
       ? null
       : trend.points.findIndex((point) => point === latestPoint);
+  const targetY =
+    axisDomain === null || target === null
+      ? null
+      : referenceLineY(target, axisDomain, 190);
+  const rollingValues = trend.rollingTrend?.values;
+  const hasRenderableRollingTrend =
+    rollingValues !== undefined &&
+    rollingValues.filter((value) => value !== null && Number.isFinite(value))
+      .length >= 2;
   return (
     <View testID="weight-report" className="gap-4">
       <View className="gap-1">
@@ -105,21 +115,43 @@ export function WeightReport({
           )}
         </AppText>
         <View testID="weight-chart-axis" className="flex-row gap-2">
-          <View testID="weight-trend-chart" style={{ height: 190 }}>
-            <LineTrendChart
-              data={points}
-              width={Math.max(196, width - 118)}
-              height={190}
-              color="#789776"
-              areaColor="#789776"
-              showGrid
-              showRawPoints
-              initialSelectedIndex={latestIndex}
-              showSelectionTooltip={false}
-              trendValues={trend.rollingTrend?.values}
-              reference={target}
-              accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
-            />
+          <View className="min-w-0 flex-1 gap-1">
+            <AppText variant="caption" className="text-muted">
+              lb
+            </AppText>
+            <View
+              testID="weight-trend-chart"
+              className="relative"
+              style={{ height: 190 }}
+            >
+              <LineTrendChart
+                data={points}
+                width={Math.max(196, width - 118)}
+                height={190}
+                color="#789776"
+                showGrid
+                showRawPoints
+                initialSelectedIndex={latestIndex}
+                showSelectionTooltip={false}
+                showSelectionDescription={false}
+                trendValues={
+                  hasRenderableRollingTrend ? rollingValues : undefined
+                }
+                reference={target}
+                accessibilityLabel={`Weight trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+              />
+              {targetY === null ? null : (
+                <View
+                  pointerEvents="none"
+                  className="absolute right-1"
+                  style={{ top: Math.max(0, targetY - 12) }}
+                >
+                  <AppText variant="caption" className="text-primary-dark">
+                    Goal {formatMetricWithUnit(target, 'lb')}
+                  </AppText>
+                </View>
+              )}
+            </View>
           </View>
           <View className="h-[190px] justify-between py-1">
             {axisLabels.map((label, index) => (
@@ -144,11 +176,6 @@ export function WeightReport({
             {formatPresentationDate(trend.resolvedRange.endDate)}
           </AppText>
         </View>
-        {target === null ? null : (
-          <AppText variant="caption" className="text-primary-dark">
-            Goal {formatMetricWithUnit(target, 'lb')}
-          </AppText>
-        )}
         {latestPoint === undefined ? null : (
           <View className="flex-row justify-between border-t border-border pt-3">
             <AppText variant="label">

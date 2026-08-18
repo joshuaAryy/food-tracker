@@ -9,7 +9,7 @@ type DailyMix = {
   fat: number | null;
 };
 
-const BAR_HEIGHT = 140;
+const BAR_HEIGHT = 150;
 
 const segmentColors = {
   protein: '#C9242D',
@@ -34,7 +34,10 @@ export function MacroDailyMixChart({ days }: { days: readonly DailyMix[] }) {
       accessibilityLabel="Daily macro mix"
       className="gap-2"
     >
-      <View className="h-[140px] flex-row items-end justify-between gap-3 border-b border-line px-1">
+      <AppText variant="caption" className="text-muted">
+        g
+      </AppText>
+      <View className="h-[150px] flex-row items-end justify-between gap-3 border-b border-line px-1">
         {days.map((day) => (
           <View
             key={day.date}

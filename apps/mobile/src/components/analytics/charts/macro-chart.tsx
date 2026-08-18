@@ -105,11 +105,11 @@ export function MacroChart({
           >
             {centerValue === undefined ? null : (
               <AppText
-                variant="number"
-                className="w-full text-center text-[18px] leading-5"
+                variant="label"
+                className="w-full text-center text-[20px] leading-6 tabular-nums"
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.75}
+                minimumFontScale={0.85}
               >
                 {centerValue}
               </AppText>

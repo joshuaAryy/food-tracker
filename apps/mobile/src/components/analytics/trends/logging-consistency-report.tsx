@@ -97,7 +97,12 @@ export function LoggingConsistencyReport({
         </AppText>
       </View>
       {trend.aggregation === 'daily' ? (
-        <AppCard elevated className="gap-3 p-[18px]">
+        <AppCard
+          elevated
+          testID="logging-consistency-daily-card"
+          className="gap-3 p-[18px]"
+          style={{ minHeight: 286 }}
+        >
           <AppText variant="label">Daily completeness</AppText>
           <LoggingDayStateLegend />
           <HeatmapChart
@@ -145,7 +150,12 @@ export function LoggingConsistencyReport({
           />
         </AppCard>
       )}
-      <AppCard elevated className="gap-3 p-4">
+      <AppCard
+        elevated
+        testID="logging-consistency-meal-card"
+        className="gap-3 p-4"
+        style={{ minHeight: 356 }}
+      >
         <AppText variant="label">Meal coverage</AppText>
         {mealWeek.length === 0 ? null : (
           <View testID="logging-consistency-meal-coverage" className="gap-3">

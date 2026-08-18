@@ -130,4 +130,27 @@ describe('shared trend report shell', () => {
     expect(await screen.findByText('Jul 29: No recorded value')).toBeTruthy();
     expect(Haptics.impactAsync).toHaveBeenCalledWith('light');
   });
+
+  it('bounds the area fill to the recorded trend when the timeline has trailing gaps', async () => {
+    const screen = await render(
+      <LineTrendChart
+        data={[
+          { date: '2026-07-28', value: 1800 },
+          { date: '2026-07-29', value: 1810 },
+          { date: '2026-07-30', value: null },
+          { date: '2026-07-31', value: null },
+        ]}
+        trendValues={[1800, 1810, null, null]}
+        width={300}
+        height={180}
+        color="#789776"
+        areaColor="#789776"
+        accessibilityLabel="Weight trend"
+      />,
+    );
+
+    expect(JSON.stringify(screen.toJSON())).not.toContain(
+      'L 300 180 L 0 180 Z',
+    );
+  });
 });

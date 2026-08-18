@@ -6,6 +6,7 @@ import {
   classifyFixtureDays,
 } from '../src/scripts/staging-analytics-fixture.js';
 import { seedStagingAnalyticsQa } from '../src/scripts/seed-staging-analytics-qa.js';
+import { isCompleteProfile } from '../src/lib/setup-completeness.js';
 
 describe('staging analytics QA fixture', () => {
   it('is deterministic for the same anchor and shifts dates for a new anchor', () => {
@@ -20,6 +21,7 @@ describe('staging analytics QA fixture', () => {
     expect(first.foodLogs.length).toBeGreaterThan(500);
     expect(first.weightLogs.length).toBeGreaterThan(100);
     expect(first.waterLogs.length).toBeGreaterThan(300);
+    expect(first.profile.birthDate).toBe('1992-06-15');
   });
 
   it('creates complete, partial, unlogged, and in-progress fixture days', () => {
@@ -131,6 +133,10 @@ describe('staging analytics QA persistence', () => {
     expect(await prisma.foodLog.count({ where: { userId: target.id } })).toBe(
       report.foodLogCount,
     );
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId: target.id },
+    });
+    expect(isCompleteProfile(profile)).toBe(true);
     expect(await prisma.foodLog.count({ where: { userId: other.id } })).toBe(1);
     expect(
       await prisma.user.count({ where: { firebaseUid: 'qa-target' } }),

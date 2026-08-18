@@ -93,6 +93,7 @@ async function persistFixture(
       userId,
       name: fixture.profile.name,
       age: fixture.profile.age,
+      birthDate: new Date(`${fixture.profile.birthDate}T00:00:00.000Z`),
       sex: fixture.profile.sex,
       heightInches: fixture.profile.heightInches,
       timezone: fixture.timezone,

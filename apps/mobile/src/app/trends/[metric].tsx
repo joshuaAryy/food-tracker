@@ -476,25 +476,33 @@ export default function TrendDetailScreen() {
   return (
     <AppScreen backgroundColor="#FFFFFF" contentClassName="gap-5">
       <TrendReportHeader
-        metricName={definition.displayName}
+        metricName={
+          metric === 'macroComposition' ? 'Macros' : definition.displayName
+        }
         subtitle={
           metric === 'calories'
             ? 'Daily intake'
-            : metric === 'hydration'
-              ? 'Explicitly logged drinks only'
-              : metric === 'vitaminC'
-                ? 'Daily intake within your configured range'
-                : metric === 'weight'
-                  ? 'Smoothed trend with raw weigh-ins'
-                  : metric === 'loggingConsistency'
-                    ? 'Coverage, meal rhythm and completeness'
-                    : undefined
+            : metric === 'macroComposition'
+              ? 'Composition and daily balance'
+              : metric === 'hydration'
+                ? 'Explicitly logged drinks only'
+                : metric === 'vitaminC'
+                  ? 'Daily intake within your configured range'
+                  : metric === 'weight'
+                    ? 'Smoothed trend with raw weigh-ins'
+                    : metric === 'loggingConsistency'
+                      ? 'Coverage, meal rhythm and completeness'
+                      : undefined
         }
         trackingMode={trend?.trackingMode ?? 'simple'}
         selectedPeriod={selectedRelativePeriod}
         onSelectPeriod={setSelectedRelativePeriod}
         periods={reportPeriods}
-        showPeriodControls={metric !== 'hydration'}
+        showPeriodControls={
+          metric !== 'hydration' &&
+          metric !== 'weight' &&
+          metric !== 'loggingConsistency'
+        }
         onOpenCustomRange={() =>
           router.push({
             pathname: '/trends/custom-range',
@@ -590,7 +598,7 @@ export default function TrendDetailScreen() {
                 },
               } as never)
             }
-            showPeriodControls={false}
+            showPeriodControls
           />
         ) : metric === 'macroComposition' ? (
           <MacrosReport
@@ -628,7 +636,7 @@ export default function TrendDetailScreen() {
                 },
               } as never)
             }
-            showPeriodControls={false}
+            showPeriodControls
           />
         ) : metric === 'hydration' ? (
           <HydrationReport

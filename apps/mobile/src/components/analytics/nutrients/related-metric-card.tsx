@@ -17,10 +17,7 @@ export function RelatedMetricCard({
   onOpen: () => void;
 }) {
   return (
-    <AppCard
-      elevated={trend !== null}
-      className={trend === null ? 'gap-2' : 'gap-2 bg-module'}
-    >
+    <AppCard className={trend === null ? 'gap-2' : 'gap-2 bg-module'}>
       <View className="flex-row items-center justify-between gap-3">
         <AppText variant="label">{name}</AppText>
         {trend === null ? null : (

@@ -102,10 +102,21 @@ export function LineTrendChart({
           ),
     [data, domain, height, trendValues, width],
   );
+  const areaValues = trendValues ?? data.map((point) => point.value);
+  const firstAreaIndex = areaValues.findIndex(
+    (value) => value !== null && Number.isFinite(value),
+  );
+  let lastAreaIndex = -1;
+  areaValues.forEach((value, index) => {
+    if (value !== null && Number.isFinite(value)) lastAreaIndex = index;
+  });
   const areaPath =
-    path === '' || areaColor === undefined
+    path === '' ||
+    areaColor === undefined ||
+    firstAreaIndex < 0 ||
+    lastAreaIndex < 0
       ? ''
-      : `${path} L ${width} ${height} L 0 ${height} Z`;
+      : `${path} L ${pointX(lastAreaIndex, areaValues.length, width)} ${height} L ${pointX(firstAreaIndex, areaValues.length, width)} ${height} Z`;
 
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
@@ -228,7 +239,7 @@ export function LineTrendChart({
               cy={pointY(selected.value, domain, height)}
               r={6}
               fill="#FFFFFF"
-              stroke="#111111"
+              stroke={color}
               strokeWidth={3}
             />
           ) : null}
