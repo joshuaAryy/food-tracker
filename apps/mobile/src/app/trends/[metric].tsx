@@ -135,7 +135,9 @@ export default function TrendDetailScreen() {
       periods.includes(restoredQuery.period.days as (typeof periods)[number])
       ? (restoredQuery.period.days as (typeof periods)[number])
       : restoredQuery === null
-        ? 30
+        ? metric === 'hydration'
+          ? 7
+          : 30
         : null,
   );
   const [trendResource, dispatchTrend] = useReducer(
@@ -547,7 +549,9 @@ export default function TrendDetailScreen() {
             ? '‹ Trends'
             : metric === 'vitaminC'
               ? '‹ Vitamins'
-              : '‹ Insights'
+              : metric === 'hydration'
+                ? '‹ Overview'
+                : '‹ Insights'
         }
       />
       {trendResource.error === null ? null : (

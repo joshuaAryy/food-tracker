@@ -123,6 +123,24 @@ describe('Trend detail screen', () => {
     expect(screen.getByText('Average 1,846 kcal')).toBeTruthy();
   });
 
+  it('defaults Hydration detail to the seven-day presentation window', async () => {
+    mockRouteParams = { metric: 'hydration' };
+    jest.spyOn(api.analytics, 'trend').mockResolvedValue({
+      ...trendResponse,
+      primaryMetric: 'hydration',
+      reference: { kind: 'target', value: 2000, unit: 'mL', source: 'user' },
+    } as never);
+
+    await render(<TrendDetailScreen />);
+
+    expect(api.analytics.trend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        primaryMetric: 'hydration',
+        period: { kind: 'relative', days: 7 },
+      }),
+    );
+  });
+
   it('keeps the rendered accessibility path reachable with a Large Type input', async () => {
     mockWindowDimensions = {
       ...analyticsStateFixtures.layouts.largeType390,

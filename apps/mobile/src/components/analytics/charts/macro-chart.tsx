@@ -72,7 +72,14 @@ export function MacroChart({
       <View
         testID="macro-donut-svg"
         className="relative"
-        style={{ width: size, height: size }}
+        style={{
+          width: size,
+          height: size,
+          shadowColor: '#7A9B76',
+          shadowOpacity: 0.28,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 0 },
+        }}
       >
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <Circle

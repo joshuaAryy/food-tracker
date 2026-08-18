@@ -40,6 +40,11 @@ export function HydrationReport({
   );
   const latestPoint = latestIndex < 0 ? null : (points[latestIndex] ?? null);
   const weekdayPoints = points.slice(-7);
+  const chartStartDate =
+    weekdayPoints[0]?.date ?? trend.resolvedRange.startDate;
+  const chartEndDate =
+    weekdayPoints[weekdayPoints.length - 1]?.date ??
+    trend.resolvedRange.endDate;
   return (
     <View testID="hydration-report" className="gap-4">
       <HydrationTargetCard
@@ -59,10 +64,7 @@ export function HydrationReport({
         style={{ minHeight: 382 }}
       >
         <AppText variant="caption" className="font-bold uppercase text-muted">
-          {formatPresentationDateRange(
-            trend.resolvedRange.startDate,
-            trend.resolvedRange.endDate,
-          )}
+          {formatPresentationDateRange(chartStartDate, chartEndDate)}
         </AppText>
         <View className="flex-row justify-between">
           <AppText variant="caption" className="text-muted">
@@ -79,16 +81,20 @@ export function HydrationReport({
           )}
         </View>
         <BarTrendChart
-          data={points}
+          data={weekdayPoints}
           width={Math.max(196, width - 118)}
           height={190}
           color="#8DB6E2"
           barFill="#E6F2FF"
           showGrid
-          initialSelectedIndex={latestIndex < 0 ? null : latestIndex}
+          initialSelectedIndex={
+            weekdayPoints.length === 0 || latestPoint === null
+              ? null
+              : weekdayPoints.length - 1
+          }
           showSelectionTooltip={false}
           reference={goal}
-          accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
+          accessibilityLabel={`Hydration trend for ${formatPresentationDateRange(chartStartDate, chartEndDate)}`}
         />
         <View
           testID="hydration-trend-x-labels"

@@ -7,15 +7,29 @@ export function ReportingSectionHeading({
   title,
   subtitle,
   compact = false,
+  markerColor,
 }: {
   icon: ReportingIconName;
   title: string;
   subtitle?: string;
   compact?: boolean;
+  markerColor?: string | undefined;
 }) {
   return (
     <View className="flex-row items-center gap-3">
-      <ReportingIcon name={icon} size={compact ? 32 : 34} />
+      {markerColor === undefined ? (
+        <ReportingIcon name={icon} size={compact ? 32 : 34} />
+      ) : (
+        <View
+          testID={`reporting-section-marker-${icon}`}
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: markerColor,
+          }}
+        />
+      )}
       <View className="min-w-0 flex-1 gap-0.5">
         <AppText
           variant="heading"

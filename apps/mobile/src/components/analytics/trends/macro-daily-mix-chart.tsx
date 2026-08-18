@@ -46,8 +46,15 @@ export function MacroDailyMixChart({ days }: { days: readonly DailyMix[] }) {
             accessibilityLabel={`${formatPresentationDate(day.date)} macro composition`}
           >
             <View
+              testID="macro-daily-mix-bar"
               className="w-4 overflow-hidden rounded-t-[4px]"
-              style={{ height: BAR_HEIGHT }}
+              style={{
+                height: BAR_HEIGHT,
+                shadowColor: '#7A9B76',
+                shadowOpacity: 0.24,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 0 },
+              }}
             >
               {(
                 [

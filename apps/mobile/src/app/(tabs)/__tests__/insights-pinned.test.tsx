@@ -161,6 +161,15 @@ describe('Insights overview pin boundary', () => {
     const screen = await render(<InsightsScreen />);
 
     await screen.findByTestId('complex-insights-overview');
+    expect(
+      screen.getByTestId('complex-insights-overview').props.className,
+    ).toContain('gap-4');
+    expect(screen.getByText('Insights').props.className).toContain(
+      'text-[22px]',
+    );
+    expect(
+      screen.getByTestId('reporting-section-marker-energy').props.style,
+    ).toEqual(expect.objectContaining({ backgroundColor: '#EA1226' }));
     expect(screen.queryByTestId('complex-insights-pinned-analysis')).toBeNull();
     expect(api.analytics.trend).not.toHaveBeenCalled();
     expect(api.analytics.preferences).not.toHaveBeenCalled();

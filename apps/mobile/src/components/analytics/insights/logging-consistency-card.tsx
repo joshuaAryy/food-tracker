@@ -24,10 +24,12 @@ export function LoggingConsistencyCard({
   overview,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'loggingConsistency'> | undefined;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const data = overview?.data ?? null;
   return (
@@ -39,6 +41,7 @@ export function LoggingConsistencyCard({
         icon="momentum"
         title="Logging consistency"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError

@@ -15,11 +15,13 @@ export function InsightsPeriodSummary({
   summary,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   period: 'week' | 'month';
   summary: AnalyticsReportOverviewState<'periodSummary'> | undefined;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const title = period === 'week' ? 'This week' : 'This month';
   const data = summary?.data ?? null;
@@ -32,6 +34,7 @@ export function InsightsPeriodSummary({
         icon="momentum"
         title={title}
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError

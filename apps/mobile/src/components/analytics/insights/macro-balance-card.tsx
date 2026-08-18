@@ -31,6 +31,7 @@ export function MacroBalanceCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'macros'> | undefined;
   energyAverage: number | null;
@@ -38,6 +39,7 @@ export function MacroBalanceCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
@@ -50,6 +52,7 @@ export function MacroBalanceCard({
         icon="macros"
         title="Macro balance"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError
@@ -78,7 +81,7 @@ export function MacroBalanceCard({
                   carbs: data.carbs.grams,
                   fat: data.fat.grams,
                 }}
-                size={104}
+                size={compact ? 80 : 104}
                 centerValue={
                   energyAverage === null
                     ? undefined
@@ -123,8 +126,8 @@ export function MacroBalanceCard({
               </View>
             </View>
             <View className="gap-1 border-t border-line pt-3">
-              <View className="flex-row items-center justify-between gap-3">
-                <AppText variant="caption" className="text-muted">
+              <View className="flex-row items-center gap-3">
+                <AppText variant="caption" className="shrink text-muted">
                   TREND · Protein
                 </AppText>
                 {proteinTrend?.data === null ||
@@ -133,13 +136,17 @@ export function MacroBalanceCard({
                     Unavailable
                   </AppText>
                 ) : (
-                  <LineTrendChart
-                    data={trendData(proteinTrend)}
-                    width={Math.min(176, Math.max(150, width - 214))}
-                    height={50}
-                    color="#C9242D"
-                    accessibilityLabel="Protein trend"
-                  />
+                  <View className="min-w-0 flex-1 items-end">
+                    <LineTrendChart
+                      data={trendData(proteinTrend)}
+                      width={Math.min(176, Math.max(150, width - 214))}
+                      height={50}
+                      color="#C9242D"
+                      connectTrendGaps
+                      trendValues={proteinTrend.data.rollingTrend?.values}
+                      accessibilityLabel="Protein trend"
+                    />
+                  </View>
                 )}
               </View>
             </View>

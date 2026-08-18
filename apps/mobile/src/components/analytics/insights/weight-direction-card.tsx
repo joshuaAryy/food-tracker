@@ -39,12 +39,14 @@ export function WeightDirectionCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'weight'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
@@ -62,6 +64,7 @@ export function WeightDirectionCard({
         icon="weight"
         title="Weight direction"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError

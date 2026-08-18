@@ -25,6 +25,7 @@ export function HydrationInsightsCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'hydration'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
@@ -32,6 +33,7 @@ export function HydrationInsightsCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const data = overview?.data ?? null;
   const vesselFills =
@@ -50,6 +52,7 @@ export function HydrationInsightsCard({
         icon="detail"
         title="Hydration"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError

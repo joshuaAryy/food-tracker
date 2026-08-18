@@ -65,11 +65,13 @@ export function NutrientHighlightsCard({
   onRetry,
   testID = 'simple-insights-section-nutrient-highlights',
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'nutrientHighlights'> | undefined;
   onRetry: () => void;
   testID?: string;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const data = overview?.data ?? null;
   return (
@@ -78,6 +80,7 @@ export function NutrientHighlightsCard({
         icon="nutrients"
         title="Nutrient highlights"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError

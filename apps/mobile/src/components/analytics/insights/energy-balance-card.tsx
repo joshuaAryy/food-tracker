@@ -57,12 +57,14 @@ export function EnergyBalanceCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'energy'> | undefined;
   trend: AnalyticsReportSectionState | undefined;
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
@@ -75,6 +77,7 @@ export function EnergyBalanceCard({
         icon="energy"
         title="Energy balance"
         compact={compact}
+        markerColor={markerColor}
       />
       {data === null ? (
         <AnalyticsSectionError
@@ -131,7 +134,9 @@ export function EnergyBalanceCard({
                   data={trendData(trend)}
                   width={Math.max(220, width - 76)}
                   height={compact ? 48 : 72}
-                  color="#33B866"
+                  color="#0E0E0E"
+                  connectTrendGaps
+                  trendValues={trend.data.rollingTrend?.values}
                   referenceRange={
                     data.reference.kind === 'range'
                       ? {

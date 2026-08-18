@@ -94,6 +94,13 @@ describe('metric-specific trend reports', () => {
     expect(
       screen.getByTestId('macro-donut-svg').props.style.width,
     ).toBeGreaterThan(100);
+    expect(screen.getByTestId('macro-donut-svg').props.style).toEqual(
+      expect.objectContaining({
+        shadowColor: '#7A9B76',
+        shadowOpacity: expect.any(Number),
+        shadowRadius: expect.any(Number),
+      }),
+    );
     expect(screen.getByTestId('macro-donut-halo')).toBeTruthy();
     expect(screen.getByText('Protein trend')).toBeTruthy();
     expect(screen.getByText(/Recorded value/)).toBeTruthy();
@@ -137,6 +144,15 @@ describe('metric-specific trend reports', () => {
     );
     expect(screen.getByTestId('macro-daily-mix-section')).toBeTruthy();
     expect(screen.getByTestId('macro-daily-mix-chart')).toBeTruthy();
+    expect(
+      screen.getAllByTestId('macro-daily-mix-bar')[0]!.props.style,
+    ).toEqual(
+      expect.objectContaining({
+        shadowColor: '#7A9B76',
+        shadowOpacity: expect.any(Number),
+        shadowRadius: expect.any(Number),
+      }),
+    );
   });
 
   it('does not reserve a blank daily-mix chart when the backend has no daily series', async () => {
@@ -168,6 +184,17 @@ describe('metric-specific trend reports', () => {
   });
 
   it('keeps the hydration trend card at the approved Figma composition height', async () => {
+    const points = Array.from({ length: 10 }, (_, index) => ({
+      kind: 'daily' as const,
+      date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+      value: 1500,
+      metricDataState: 'recorded' as const,
+      loggingDayState: 'complete' as const,
+      loggingDayPhase: 'closed' as const,
+      foodLogCount: 3,
+      metricRecordedLogCount: 3,
+      metricUnknownLogCount: 0,
+    }));
     const screen = await render(
       <HydrationReport
         trend={{
@@ -180,17 +207,7 @@ describe('metric-specific trend reports', () => {
             source: 'user',
           },
           summary: { ...base.summary, average: 1500, numericDayCount: 7 },
-          points: Array.from({ length: 7 }, (_, index) => ({
-            kind: 'daily' as const,
-            date: `2026-08-${String(index + 1).padStart(2, '0')}`,
-            value: 1500,
-            metricDataState: 'recorded' as const,
-            loggingDayState: 'complete' as const,
-            loggingDayPhase: 'closed' as const,
-            foodLogCount: 3,
-            metricRecordedLogCount: 3,
-            metricUnknownLogCount: 0,
-          })),
+          points,
         }}
         width={390}
         onLogWater={jest.fn()}
@@ -200,6 +217,10 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByTestId('hydration-trend-card').props.style).toEqual(
       expect.objectContaining({ minHeight: 382 }),
     );
+    expect(
+      screen.getByTestId('hydration-trend-x-labels').children,
+    ).toHaveLength(7);
+    expect(screen.getByText('Aug 4 – Aug 10')).toBeTruthy();
   });
 
   it('keeps the logging report readable with bounded week labels and coverage context', async () => {

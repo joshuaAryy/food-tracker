@@ -32,6 +32,7 @@ export function ComplexInsightsOverview({
         summary={resource.overview.periodSummary}
         onRetry={() => onOverviewRetry('periodSummary')}
         compact={compact}
+        markerColor="#00D66B"
       />
       <EnergyBalanceCard
         overview={resource.overview.energy}
@@ -39,6 +40,7 @@ export function ComplexInsightsOverview({
         onOpenTrend={onExploreTrends}
         onRetry={() => onOverviewRetry('energy')}
         compact={compact}
+        markerColor="#EA1226"
       />
       <MacroBalanceCard
         overview={resource.overview.macros}
@@ -47,11 +49,13 @@ export function ComplexInsightsOverview({
         onOpenTrend={onExploreTrends}
         onRetry={() => onOverviewRetry('macros')}
         compact={compact}
+        markerColor="#00D66B"
       />
       <NutrientHighlightsCard
         overview={resource.overview.nutrientHighlights}
         onRetry={() => onOverviewRetry('nutrientHighlights')}
         compact={compact}
+        markerColor="#FFB80D"
       />
       <HydrationInsightsCard
         overview={resource.overview.hydration}
@@ -60,6 +64,7 @@ export function ComplexInsightsOverview({
         onOpenTrend={onExploreTrends}
         onRetry={() => onOverviewRetry('hydration')}
         compact={compact}
+        markerColor="#337CCA"
       />
       <WeightDirectionCard
         overview={resource.overview.weight}
@@ -67,11 +72,13 @@ export function ComplexInsightsOverview({
         onOpenTrend={onExploreTrends}
         onRetry={() => onOverviewRetry('weight')}
         compact={compact}
+        markerColor="#0E0E0E"
       />
       <LoggingConsistencyCard
         overview={resource.overview.loggingConsistency}
         onRetry={() => onOverviewRetry('loggingConsistency')}
         compact={compact}
+        markerColor="#00D66B"
       />
     </View>
   );

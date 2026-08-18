@@ -292,7 +292,7 @@ export default function InsightsScreen() {
         <AnalyticsOfflineBanner cachedAt={sectionReportResource.updatedAt} />
       ) : null}
       <View className="gap-3">
-        <AppText variant="title" className="text-[30px] leading-9 text-ink">
+        <AppText variant="heading" className="text-ink">
           Insights
         </AppText>
         <ReportPeriodSelector
@@ -349,6 +349,7 @@ export default function InsightsScreen() {
               onOverviewRetry={(overview) =>
                 void loadReporting(period, false, null, overview)
               }
+              compact
             />
           ) : complexTab === 'nutrients' ? (
             <ComplexInsightsNutrients

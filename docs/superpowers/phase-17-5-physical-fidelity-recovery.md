@@ -1,10 +1,14 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
 Status: authenticated simulator runtime evidence is now available; source
-presentation pass 5 is in progress. The onboarding/runtime crash found after
+presentation pass 6 is in progress. The onboarding/runtime crash found after
 the user completed onboarding was fixed, and the rebuilt native app now reaches
-the required authenticated Month/Complex walkthrough. High-risk visual review
-has identified additional geometry, chart, empty-state, and evidence gaps.
+the authenticated Complex walkthrough. The latest implementation pass corrected
+the Complex compact hierarchy, solid section markers, black energy trend, macro
+composition sizing, and Hydration seven-day detail default. Two fresh
+independent reviews still fail final visual sign-off because exact Month state,
+matched viewport, clean captures, and some sparse-data chart comparisons remain
+unproven.
 Physical iPhone validation:
 **PENDING USER RE-VALIDATION**.
 
@@ -88,18 +92,36 @@ native rebuild; the current installed development client predates that native
 configuration and still shows the gear.
 
 The rebuilt native Debug app was installed and launched successfully on the
-iPhone 17 simulator. The authenticated Month/Complex walkthrough and hydration
-section were captured after the rebuild:
+iPhone 17 simulator. An earlier authenticated Month/Complex walkthrough and
+hydration section were captured after the rebuild:
 
 ```text
 /tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-month-native.png
 /tmp/food-tracker-phase17-5-visual-v2/hydration-current-month-native.png
 ```
 
-The Month/Complex capture shows the intended CTA-before-tabs hierarchy,
-period-summary content, macro/nutrient sections, and blue hydration vessels.
+That earlier Month/Complex capture shows the intended CTA-before-tabs hierarchy,
+period-summary content, macro/nutrient sections, and blue hydration vessels; it
+is retained as historical evidence and is superseded for current visual review
+by the post-fix captures below.
 The development-client gear remains visible in the capture and is excluded
 from acceptance claims.
+
+The latest post-fix simulator evidence is retained separately. It captures the
+actual authenticated Week/Complex state from the seeded account, the full
+Complex hierarchy across multiple viewport positions, and a restarted Hydration
+route using the seven-day default:
+
+```text
+/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-markers-after-fixes.png
+/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-middle-final.png
+/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-lower-final.png
+/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png
+```
+
+The current runtime still uses the available approximately 402pt simulator
+viewport, retains the development-client gear, and contains sparse seeded data;
+these are evidence limitations rather than acceptance claims.
 
 ### Geometry review
 
@@ -153,11 +175,11 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-month-native.png` | 2 prior independent review passes plus current Month/Complex walkthrough; fresh post-fix reviewer confirmation pending; gear overlay and 402pt neighboring viewport remain evidence limitations |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-markers-after-fixes.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-middle-final.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-lower-final.png` | 2 fresh independent reviews; compact hierarchy, title, markers, black energy trend, and macro sizing corrected; exact Month state, clean overlay-free capture, and matched 390/393pt viewport remain unproven |
 | Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-current-full.png` | 2 independent review passes; gear overlay and 402pt neighboring viewport remain evidence limitations |
 | Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
 | Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
-| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-month-native.png` | native Month/Complex walkthrough now captured; independent review and matched viewport pending; gear overlay remains |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png` | 2 fresh independent reviews; `‹ Overview`, seven-point presentation, and seven-day default corrected; target-state data, clean overlay-free capture, and matched viewport remain limitations |
 | Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | structural capture complete; independent review pending, with dev-client overlay still present |
 | Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | independent review pending; account has `Reference unavailable`, which is authoritative data rather than a client fallback |
 
@@ -175,15 +197,15 @@ the result is close.
 - Exact Figma context and screenshots were freshly captured for every target;
   exact metadata dimensions are recorded in the implementation plan and the
   screenshots are retained under the temporary evidence root above.
-- Focused mobile evidence currently passes: core trend fidelity Jest 7/7 and
-  trend shell fidelity Jest 5/5 after the current chart, macro, weight, and
-  logging layout fixes. Root-layout gesture coverage passes 1/1. The latest
-  red-green TDD cycle for the Logging section-label hierarchy passed core trend
-  fidelity 7/7.
-- Final full mobile evidence passes Vitest 53 files / 368 tests and Jest 49
-  suites / 140 tests. Mobile lint and typecheck, API lint/typecheck/build, and
-  root lint/typecheck/build also pass. Root format check remains blocked by 20
-  warnings in pre-existing protected/ignored artifacts.
+- Focused mobile evidence currently passes: Complex Insights boundary 7/7,
+  core trend fidelity 8/8, Trend detail 5/5, and trend shell fidelity 5/5
+  after the current chart, macro, hydration, and compact hierarchy fixes.
+- Final mobile Jest evidence passes 50 suites / 143 tests. Mobile lint and
+  typecheck, API lint/typecheck/build, and root lint/typecheck/build also pass.
+  Root format check remains blocked by exactly 20 warnings in pre-existing
+  protected/ignored artifacts. The required root API test command remains
+  blocked before collection by PostgreSQL `P1001` at `localhost:5432` while
+  targeting the dedicated `food_tracker_test` database.
 - Independent read-only visual review has now covered Complex Insights, Macro
   Balance, Weight, and Logging Consistency in two passes. The latest Weight
   capture now shows the backend-provided smoothed line across sparse raw days.
@@ -260,6 +282,18 @@ the result is close.
 - Added stable test IDs and button semantics to the Week/Month period selector;
   this enabled simulator automation to reach the required Month/Complex state
   and is covered by a focused regression test.
+- Passed `compact` through the Complex overview, changed its title to the
+  compact heading variant, and added Figma-colored solid marker circles while
+  preserving icon badges for other reporting surfaces.
+- Changed Complex overview energy rendering to a black connected trend and
+  allowed backend rolling-trend values to drive the compact preview when
+  available; the macro protein preview uses the same backend trend path.
+- Reduced the compact macro donut and gave its protein sparkline a flexible
+  layout slot so the composition hierarchy remains readable at the simulator
+  width.
+- Defaulted Hydration detail to a seven-day query, retained only the final
+  seven chart points as a presentation window, aligned the visible date range
+  with those points, and changed the back label to `‹ Overview`.
 
 ## Approval boundary
 
@@ -267,9 +301,10 @@ This ledger is not complete until every target has exact screenshots, measured
 geometry, two independent review passes for high-risk screens, focused and
 full automated validation, and a pushed branch. Current blockers are the
 matched 390/393pt capture, removal of the development-client overlay from
-evidence (requires the next native rebuild), the authenticated account's
-Week/simple state versus the required Complex/Month state, remaining
-Hydration/Water Log/Vitamin C independent review, and final full-suite gates.
+evidence (requires the next native rebuild), exact authenticated Month/Complex
+state capture, clean lower-surface evidence, sparse-data Macro/Hydration chart
+comparisons, remaining Water Log/Vitamin C independent review, and the blocked
+API test gate.
 The guarded standalone Release preparation is also blocked before prebuild by
 the 10 GiB free-disk prerequisite; no generated-native cleanup is authorized
 while physical validation remains pending. Physical iPhone operation,
