@@ -39,7 +39,7 @@ function overview(): AnalyticsOverviewResultMap {
         eligibleTotalDayCount: 5,
         streak: { currentDays: 1, longestDays: 3 },
         currentDayPhase: 'in_progress',
-        consistency: 40,
+        consistency: 40.6,
         interpretation: 'building',
       },
     },
@@ -274,6 +274,8 @@ describe('Simple Insights overview fidelity', () => {
     ]);
     expect(screen.getByText('1,846 kcal')).toBeTruthy();
     expect(screen.getByText('Protein · 149 g')).toBeTruthy();
+    expect(screen.getByText('41%')).toBeTruthy();
+    expect(screen.queryByText('40.6%')).toBeNull();
     expect(screen.getByText('2 of 5 eligible days logged')).toBeTruthy();
     expect(screen.getByText('1.6 L')).toBeTruthy();
     expect(screen.getAllByTestId(/hydration-vessel-/).length).toBe(8);

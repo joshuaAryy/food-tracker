@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { formatMetricValue, formatMetricWithUnit } from './reporting-ui';
+import type { ReportsResponse } from '@food-tracker/shared';
+import {
+  comparisonSentences,
+  formatMetricValue,
+  formatMetricWithUnit,
+} from './reporting-ui';
 
 describe('metric presentation formatting', () => {
   it('rounds floating-point noise without changing the source value', () => {
@@ -21,5 +26,30 @@ describe('metric presentation formatting', () => {
       '96 mg',
     );
     expect(formatMetricWithUnit(null, 'lb')).toBe('—');
+  });
+
+  it('formats comparison deltas without leaking floating-point noise', () => {
+    const comparison: ReportsResponse['comparison'] = {
+      currentBoundary: { startDate: '2026-08-01', endDate: '2026-08-07' },
+      previousEquivalentBoundary: {
+        startDate: '2026-07-25',
+        endDate: '2026-07-31',
+      },
+      consistency: {
+        current: 92.85714285714286,
+        previous: 0,
+        delta: 92.85714285714286,
+      },
+      averageProteinGrams: {
+        current: 0,
+        previous: 124.4857142857143,
+        delta: -124.4857142857143,
+      },
+    };
+
+    expect(comparisonSentences(comparison)).toEqual([
+      'Consistency increased by 92.9 percentage points.',
+      'Average protein decreased by 124.5 grams.',
+    ]);
   });
 });

@@ -553,12 +553,12 @@ export function comparisonSentences(
   }
   if (comparison.consistency !== undefined) {
     sentences.push(
-      `Consistency ${comparison.consistency.delta >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.consistency.delta)} percentage points.`,
+      `Consistency ${comparison.consistency.delta >= 0 ? 'increased' : 'decreased'} by ${formatMetricValue(Math.abs(comparison.consistency.delta))} percentage points.`,
     );
   }
   if (comparison.averageProteinGrams !== undefined) {
     sentences.push(
-      `Average protein ${comparison.averageProteinGrams.delta >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.averageProteinGrams.delta)} grams.`,
+      `Average protein ${comparison.averageProteinGrams.delta >= 0 ? 'increased' : 'decreased'} by ${formatMetricValue(Math.abs(comparison.averageProteinGrams.delta))} grams.`,
     );
   }
   return sentences;

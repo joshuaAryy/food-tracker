@@ -4,6 +4,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { ReportingSectionHeading } from '@/components/reporting-section-heading';
 import type { AnalyticsReportOverviewState } from '@/lib/analytics/analytics-report-resource';
+import { formatMetricValue } from '@/lib/reporting-ui';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function phaseCopy(phase: AnalyticsOverviewPeriodSummary['currentDayPhase']) {
@@ -73,7 +74,11 @@ export function InsightsPeriodSummary({
                   compact ? 'text-[24px] leading-7' : 'text-[34px] leading-10'
                 }
               >
-                {data.consistency === null ? '—' : `${data.consistency}%`}
+                {data.consistency === null
+                  ? '—'
+                  : `${formatMetricValue(data.consistency, {
+                      maximumFractionDigits: 0,
+                    })}%`}
               </AppText>
             </View>
           </View>
