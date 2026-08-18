@@ -142,6 +142,7 @@ export function MacrosReport({
             <LineTrendChart
               data={proteinPoints}
               width={Math.max(260, width - 76)}
+              height={112}
               color="#C9242D"
               trendValues={
                 hasProteinRollingTrend ? proteinRollingValues : undefined

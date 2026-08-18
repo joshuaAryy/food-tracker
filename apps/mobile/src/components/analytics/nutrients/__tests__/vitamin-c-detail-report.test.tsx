@@ -76,7 +76,13 @@ describe('Vitamin C detail report fidelity', () => {
     );
 
     expect(screen.getByTestId('vitamin-c-detail-report')).toBeTruthy();
-    expect(screen.getByText('96 mg')).toBeTruthy();
+    expect(screen.getByText('96 mg')).toEqual(
+      expect.objectContaining({
+        props: expect.objectContaining({
+          className: expect.stringContaining('text-[32px]'),
+        }),
+      }),
+    );
     expect(screen.getByText('average · inside your range')).toBeTruthy();
     expect(screen.getByText('Custom range')).toBeTruthy();
     expect(screen.getByTestId('vitamin-c-chart-card').props.style).toEqual(

@@ -171,6 +171,7 @@ describe('metric-specific trend reports', () => {
     );
 
     expect(JSON.stringify(screen.toJSON())).toContain('RNSVGLinearGradient');
+    expect(JSON.stringify(screen.toJSON())).toContain('"height":112');
   });
 
   it('renders the Figma macro composition hierarchy and vertical daily mix', async () => {

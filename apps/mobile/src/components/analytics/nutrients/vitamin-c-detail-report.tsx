@@ -77,7 +77,7 @@ export function VitaminCDetailReport({
       <View className="gap-1">
         <View className="flex-row items-end justify-between gap-4">
           <View className="min-w-0 flex-1 gap-1">
-            <AppText variant="display" className="text-[38px] leading-[42px]">
+            <AppText variant="display" className="text-[32px] leading-[36px]">
               {formatMetricWithUnit(
                 trend.summary.average,
                 trend.reference.unit,
