@@ -181,7 +181,7 @@ the result is close.
 | Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
 | Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png` | 2 fresh independent reviews; `‹ Overview`, seven-point presentation, and seven-day default corrected; target-state data, clean overlay-free capture, and matched viewport remain limitations |
 | Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full-after-bottom-sheet.jpg` | second fresh independent review: structural/full-width fix passes; Moderate geometry and clean-capture limitations remain because the optimized 368x800 viewport and dev-client overlay are not exact V2 evidence |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | first fresh independent review FAIL/partial; authoritative `Reference unavailable` state is preserved, selected bar was corrected to neutral gray, and clean normalized second-pass evidence remains required |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-after-size-fix.png`; `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-lower-after-size-fix.png` | 2 independent reviews; authoritative `Reference unavailable` state, neutral selected-bar treatment, and 32pt summary metric are preserved/corrected, while data parity, selected-point emphasis, matched viewport, and gear-free evidence remain limitations |
 
 ## Implementation evidence before simulator capture
 
@@ -334,11 +334,12 @@ full automated validation, and a pushed branch. Current blockers are the
 matched 390/393pt capture, removal of the development-client overlay from
 evidence (requires the next native rebuild), exact authenticated Month/Complex
 state capture, clean lower-surface evidence, sparse-data Macro/Hydration chart
-comparisons, clean second-pass Water Log/Vitamin C review after the current
-findings, and the blocked API test gate. Water Log's implementation now matches
-the full-width sheet structure, but strict signoff still requires a clean
-matched-width capture without the development-client overlay. Vitamin C's
-typography/viewport evidence remains unresolved.
+comparisons, remaining Macro range/data parity concerns, Vitamin C selected
+point/data parity concerns, and the blocked API test gate. Water Log's
+implementation now matches the full-width sheet structure, but strict signoff
+still requires a clean matched-width capture without the development-client
+overlay. Vitamin C's source typography fix is validated; its exact data and
+clean viewport evidence remain unresolved.
 The guarded standalone Release preparation is also blocked before prebuild by
 the 10 GiB free-disk prerequisite; no generated-native cleanup is authorized
 while physical validation remains pending. Physical iPhone operation,
