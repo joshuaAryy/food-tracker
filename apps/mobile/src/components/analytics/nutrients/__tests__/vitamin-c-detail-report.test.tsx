@@ -79,6 +79,9 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText('96 mg')).toBeTruthy();
     expect(screen.getByText('average · inside your range')).toBeTruthy();
     expect(screen.getByText('Custom range')).toBeTruthy();
+    expect(screen.getByTestId('vitamin-c-chart-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 372 }),
+    );
     expect(screen.getByText('75–120 mg')).toBeTruthy();
     expect(screen.getByRole('button', { name: '30D' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Custom' })).toBeTruthy();

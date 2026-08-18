@@ -752,13 +752,15 @@ export default function TrendDetailScreen() {
                   accessibilityLabel="Macro composition from recorded food snapshots"
                 />
                 <AppText>
-                  Protein: {trend.macroComposition.protein ?? 'Unknown'} g
+                  Protein:{' '}
+                  {formatMetricWithUnit(trend.macroComposition.protein, 'g')}
                 </AppText>
                 <AppText>
-                  Carbohydrates: {trend.macroComposition.carbs ?? 'Unknown'} g
+                  Carbohydrates:{' '}
+                  {formatMetricWithUnit(trend.macroComposition.carbs, 'g')}
                 </AppText>
                 <AppText>
-                  Fat: {trend.macroComposition.fat ?? 'Unknown'} g
+                  Fat: {formatMetricWithUnit(trend.macroComposition.fat, 'g')}
                 </AppText>
               </View>
             ) : presentation === 'logging_heatmap' ? (

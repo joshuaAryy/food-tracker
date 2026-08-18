@@ -29,6 +29,7 @@ describe('shared trend report shell', () => {
     );
 
     expect(screen.getByText('Trends')).toBeTruthy();
+    expect(screen.getByText('Trends').props.className).toContain('text-[20px]');
     expect(screen.getByText('Calories')).toBeTruthy();
     expect(screen.getByRole('button', { name: '30D' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Configure' })).toBeNull();

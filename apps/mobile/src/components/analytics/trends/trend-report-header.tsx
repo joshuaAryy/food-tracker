@@ -48,7 +48,9 @@ export function TrendReportHeader({
             <AppText variant="caption">{backLabel}</AppText>
           </Pressable>
         )}
-        <AppText variant="title">{title}</AppText>
+        <AppText variant="heading" className="text-[20px] leading-6">
+          {title}
+        </AppText>
         {complex && onSave !== undefined ? (
           <Pressable
             accessibilityRole="button"
@@ -71,7 +73,11 @@ export function TrendReportHeader({
           >
             {metricName}
           </AppText>
-          {subtitle === undefined ? null : <AppText muted>{subtitle}</AppText>}
+          {subtitle === undefined ? null : (
+            <AppText muted className="text-[14px] leading-5">
+              {subtitle}
+            </AppText>
+          )}
         </View>
         {complex && onConfigure !== undefined ? (
           <Pressable

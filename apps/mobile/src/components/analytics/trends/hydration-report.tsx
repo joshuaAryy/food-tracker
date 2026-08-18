@@ -52,7 +52,12 @@ export function HydrationReport({
         quickAddError={quickAddError}
         quickAddUndo={quickAddUndo}
       />
-      <AppCard elevated className="gap-3 p-[18px]">
+      <AppCard
+        elevated
+        testID="hydration-trend-card"
+        className="gap-3 p-[18px]"
+        style={{ minHeight: 382 }}
+      >
         <AppText variant="caption" className="font-bold uppercase text-muted">
           {formatPresentationDateRange(
             trend.resolvedRange.startDate,

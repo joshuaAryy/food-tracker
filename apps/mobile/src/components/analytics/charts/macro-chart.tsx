@@ -75,6 +75,14 @@ export function MacroChart({
         style={{ width: size, height: size }}
       >
         <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <Circle
+            testID="macro-donut-halo"
+            cx={size / 2}
+            cy={size / 2}
+            r={radius + size * 0.14}
+            fill="#F3F4EF"
+            opacity={0.9}
+          />
           {segments.map((segment) => {
             const length = circumference * segment.fraction;
             const circle = (
@@ -96,6 +104,12 @@ export function MacroChart({
             offset += length;
             return circle;
           })}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius - size * 0.105}
+            fill="#FFFFFF"
+          />
         </Svg>
         {centerValue === undefined && centerLabel === undefined ? null : (
           <View

@@ -1,9 +1,10 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
 Status: authenticated simulator runtime evidence is now available; source
-presentation pass 4 is in progress. The onboarding/runtime crash found after
-the user completed onboarding was fixed, and high-risk visual review has
-identified additional geometry, chart, empty-state, and evidence gaps.
+presentation pass 5 is in progress. The onboarding/runtime crash found after
+the user completed onboarding was fixed, and the rebuilt native app now reaches
+the required authenticated Month/Complex walkthrough. High-risk visual review
+has identified additional geometry, chart, empty-state, and evidence gaps.
 Physical iPhone validation:
 **PENDING USER RE-VALIDATION**.
 
@@ -86,6 +87,20 @@ The config now sets the Expo development-client tools button off for the next
 native rebuild; the current installed development client predates that native
 configuration and still shows the gear.
 
+The rebuilt native Debug app was installed and launched successfully on the
+iPhone 17 simulator. The authenticated Month/Complex walkthrough and hydration
+section were captured after the rebuild:
+
+```text
+/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-month-native.png
+/tmp/food-tracker-phase17-5-visual-v2/hydration-current-month-native.png
+```
+
+The Month/Complex capture shows the intended CTA-before-tabs hierarchy,
+period-summary content, macro/nutrient sections, and blue hydration vessels.
+The development-client gear remains visible in the capture and is excluded
+from acceptance claims.
+
 ### Geometry review
 
 For each major card, record approximate x, y, width, height, internal padding,
@@ -138,11 +153,11 @@ the result is close.
 
 | Surface | Final Figma node | Route | Figma screenshot | Simulator before | Simulator after | Review passes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-full.png` | 2 independent review passes; current authenticated account renders Week/simple, not the required Month/Complex state |
+| Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-month-native.png` | 2 prior independent review passes plus current Month/Complex walkthrough; fresh post-fix reviewer confirmation pending; gear overlay and 402pt neighboring viewport remain evidence limitations |
 | Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/figma/macros.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-current-full.png` | 2 independent review passes; gear overlay and 402pt neighboring viewport remain evidence limitations |
 | Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
 | Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
-| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-simulator-current-full.png` | structural capture complete; independent review and matched viewport pending |
+| Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-month-native.png` | native Month/Complex walkthrough now captured; independent review and matched viewport pending; gear overlay remains |
 | Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | structural capture complete; independent review pending, with dev-client overlay still present |
 | Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | independent review pending; account has `Reference unavailable`, which is authoritative data rather than a client fallback |
 
@@ -237,6 +252,14 @@ the result is close.
   simulator-only React Navigation context error reproduced when Vitamin C's
   related trend became available; retained the shared card structure and added
   a non-null related-card regression test.
+- Added Figma-tied minimum chart-card geometry for Weight, Hydration, and
+  Vitamin C, restored the macro donut's pale halo/white center treatment, and
+  tightened the shared Trends header hierarchy to the final small-title scale.
+- Routed macro-composition fallback values through the centralized metric
+  formatter so raw floating-point values cannot appear in the trend detail.
+- Added stable test IDs and button semantics to the Week/Month period selector;
+  this enabled simulator automation to reach the required Month/Complex state
+  and is covered by a focused regression test.
 
 ## Approval boundary
 

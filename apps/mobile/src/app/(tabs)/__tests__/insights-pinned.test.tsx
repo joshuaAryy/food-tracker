@@ -323,14 +323,14 @@ describe('Insights overview pin boundary', () => {
 
     await userEvent
       .setup()
-      .press(await screen.findByRole('tab', { name: 'Month reports' }));
+      .press(await screen.findByRole('button', { name: 'Month reports' }));
     await waitFor(() =>
       expect(api.analytics.insights).toHaveBeenCalledTimes(2),
     );
     await new Promise((resolve) => setTimeout(resolve, 30));
     await userEvent
       .setup()
-      .press(await screen.findByRole('tab', { name: 'Week reports' }));
+      .press(await screen.findByRole('button', { name: 'Week reports' }));
     await waitFor(() =>
       expect(api.analytics.insights).toHaveBeenCalledTimes(3),
     );

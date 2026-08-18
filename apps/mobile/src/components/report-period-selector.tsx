@@ -21,7 +21,8 @@ export function ReportPeriodSelector({
         return (
           <Pressable
             key={option}
-            accessibilityRole="tab"
+            testID={`report-period-${option}`}
+            accessibilityRole="button"
             accessibilityState={{ selected, disabled }}
             accessibilityLabel={`${label} reports`}
             className={`min-h-10 flex-1 items-center justify-center rounded-full px-4 ${selected ? 'bg-ink' : ''} ${disabled ? 'opacity-50' : ''}`}

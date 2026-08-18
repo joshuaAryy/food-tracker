@@ -35,6 +35,9 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('129.4 lb')).toBeTruthy();
     expect(screen.queryByText('Latest authoritative weight')).toBeNull();
     expect(screen.getByTestId('weight-chart-axis')).toBeTruthy();
+    expect(screen.getByTestId('weight-trend-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 372 }),
+    );
     expect(screen.getByText('Goal 130 lb').props.className).toContain(
       'text-sage',
     );
@@ -91,6 +94,7 @@ describe('metric-specific trend reports', () => {
     expect(
       screen.getByTestId('macro-donut-svg').props.style.width,
     ).toBeGreaterThan(100);
+    expect(screen.getByTestId('macro-donut-halo')).toBeTruthy();
     expect(screen.getByText('Protein trend')).toBeTruthy();
     expect(screen.getByText(/Recorded value/)).toBeTruthy();
   });
@@ -161,6 +165,41 @@ describe('metric-specific trend reports', () => {
       screen.getByText('Daily macro mix is unavailable for this period.'),
     ).toBeTruthy();
     expect(screen.queryByTestId('macro-daily-mix-chart')).toBeNull();
+  });
+
+  it('keeps the hydration trend card at the approved Figma composition height', async () => {
+    const screen = await render(
+      <HydrationReport
+        trend={{
+          ...base,
+          primaryMetric: 'hydration',
+          reference: {
+            kind: 'target',
+            value: 2000,
+            unit: 'mL',
+            source: 'user',
+          },
+          summary: { ...base.summary, average: 1500, numericDayCount: 7 },
+          points: Array.from({ length: 7 }, (_, index) => ({
+            kind: 'daily' as const,
+            date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+            value: 1500,
+            metricDataState: 'recorded' as const,
+            loggingDayState: 'complete' as const,
+            loggingDayPhase: 'closed' as const,
+            foodLogCount: 3,
+            metricRecordedLogCount: 3,
+            metricUnknownLogCount: 0,
+          })),
+        }}
+        width={390}
+        onLogWater={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('hydration-trend-card').props.style).toEqual(
+      expect.objectContaining({ minHeight: 382 }),
+    );
   });
 
   it('keeps the logging report readable with bounded week labels and coverage context', async () => {

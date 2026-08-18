@@ -108,6 +108,7 @@ export function VitaminCDetailReport({
         testID="vitamin-c-chart-card"
         elevated
         className="gap-3 p-[18px]"
+        style={{ minHeight: 372 }}
       >
         <AppText variant="caption" className="font-bold uppercase text-muted">
           {formatPresentationDateRange(
