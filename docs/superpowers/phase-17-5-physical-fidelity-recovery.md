@@ -180,8 +180,8 @@ the result is close.
 | Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
 | Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
 | Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png` | 2 fresh independent reviews; `‹ Overview`, seven-point presentation, and seven-day default corrected; target-state data, clean overlay-free capture, and matched viewport remain limitations |
-| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | structural capture complete; independent review pending, with dev-client overlay still present |
-| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | independent review pending; account has `Reference unavailable`, which is authoritative data rather than a client fallback |
+| Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-simulator.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | first fresh independent review FAIL; native form-sheet is inset instead of the exact full-width bottom sheet, with dev-client overlay still present; second pass remains required |
+| Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-full.png` | first fresh independent review FAIL/partial; authoritative `Reference unavailable` state is preserved, selected bar was corrected to neutral gray, and clean normalized second-pass evidence remains required |
 
 ## Implementation evidence before simulator capture
 
@@ -297,6 +297,11 @@ the result is close.
 - Normalized the Logging Consistency recent-day summary so sparse simulator
   states use the correct singular or plural `day` label; the live 30D state now
   reads `6 unlogged days` and has a focused regression assertion.
+- Matched the Complex Insights Week/Month control to the compact Figma-width
+  composition with a stable wrapper test ID and a focused width regression.
+- Changed only the Vitamin C selected bar from blue to the Figma-aligned neutral
+  gray while retaining blue for the trend line and selection guide; the focused
+  detail regression now asserts the rendered neutral SVG payload.
 
 ## Approval boundary
 
@@ -306,8 +311,10 @@ full automated validation, and a pushed branch. Current blockers are the
 matched 390/393pt capture, removal of the development-client overlay from
 evidence (requires the next native rebuild), exact authenticated Month/Complex
 state capture, clean lower-surface evidence, sparse-data Macro/Hydration chart
-comparisons, remaining Water Log/Vitamin C independent review, and the blocked
-API test gate.
+comparisons, second-pass Water Log/Vitamin C review after the current findings,
+and the blocked API test gate. Water Log's native inset form-sheet presentation
+and Vitamin C's typography/viewport evidence remain unresolved; no native modal
+architecture change is being made without a rebuild-capable environment.
 The guarded standalone Release preparation is also blocked before prebuild by
 the 10 GiB free-disk prerequisite; no generated-native cleanup is authorized
 while physical validation remains pending. Physical iPhone operation,

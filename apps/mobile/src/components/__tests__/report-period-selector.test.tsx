@@ -10,5 +10,8 @@ describe('ReportPeriodSelector', () => {
     expect(screen.getByTestId('report-period-week')).toBeTruthy();
     expect(screen.getByTestId('report-period-month')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Month reports' })).toBeTruthy();
+    expect(
+      screen.getByTestId('report-period-selector').props.className,
+    ).toEqual(expect.stringContaining('w-[180px]'));
   });
 });

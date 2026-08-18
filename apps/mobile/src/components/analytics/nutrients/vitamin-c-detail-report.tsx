@@ -124,7 +124,7 @@ export function VitaminCDetailReport({
             height={190}
             color="#5867C7"
             barFill="#D8DCE3"
-            selectedBarFill="#5867C7"
+            selectedBarFill="#858A99"
             showGrid
             trendValues={trend.rollingTrend?.values}
             initialSelectedIndex={latestRecordedIndex}

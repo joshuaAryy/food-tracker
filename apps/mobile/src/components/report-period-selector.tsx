@@ -14,7 +14,10 @@ export function ReportPeriodSelector({
   disabled = false,
 }: ReportPeriodSelectorProps) {
   return (
-    <View className="w-full flex-row rounded-full border border-line bg-surface-raised p-1">
+    <View
+      testID="report-period-selector"
+      className="w-[180px] self-start flex-row rounded-full border border-line bg-surface-raised p-1"
+    >
       {(['week', 'month'] as const).map((option) => {
         const selected = option === period;
         const label = option === 'week' ? 'Week' : 'Month';

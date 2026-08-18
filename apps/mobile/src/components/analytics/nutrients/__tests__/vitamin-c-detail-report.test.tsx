@@ -93,7 +93,7 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText(/Recorded metric/)).toBeTruthy();
     expect(screen.queryByText(/Complete day/)).toBeNull();
     expect(JSON.stringify(screen.toJSON())).toContain('"r":6');
-    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4283983815');
+    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286941849');
   });
 
   it('keeps the related metric card renderable when its trend is available', async () => {
