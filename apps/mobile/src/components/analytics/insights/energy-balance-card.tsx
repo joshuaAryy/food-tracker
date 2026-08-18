@@ -51,12 +51,30 @@ function trendData(section: AnalyticsReportSectionState | undefined) {
   );
 }
 
+function trendPreview(section: AnalyticsReportSectionState | undefined) {
+  if (section?.data === null || section?.data === undefined) return null;
+  const data = trendData(section);
+  const rollingValues = section.data.rollingTrend?.values;
+  const hasRollingValues =
+    rollingValues !== undefined &&
+    rollingValues.length === data.length &&
+    rollingValues.some((value) => value !== null && Number.isFinite(value));
+  if (hasRollingValues) return { data, trendValues: rollingValues };
+  if (
+    data.some((point) => point.value !== null && Number.isFinite(point.value))
+  ) {
+    return { data, trendValues: undefined };
+  }
+  return null;
+}
+
 export function EnergyBalanceCard({
   overview,
   trend,
   onOpenTrend,
   onRetry,
   compact = false,
+  presentation = 'simple',
   markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'energy'> | undefined;
@@ -64,10 +82,13 @@ export function EnergyBalanceCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  presentation?: 'simple' | 'complex';
   markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
+  const isComplexOverview = presentation === 'complex' && !compact;
+  const preview = trendPreview(trend);
   return (
     <View
       testID="simple-insights-section-energy-balance"
@@ -94,7 +115,15 @@ export function EnergyBalanceCard({
           <AppCard
             elevated
             compact={compact}
-            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+            testID="energy-balance-card"
+            className={
+              compact
+                ? 'gap-2 rounded-[12px] p-3'
+                : isComplexOverview
+                  ? 'gap-3 justify-between rounded-[20px] p-[18px]'
+                  : 'gap-3 p-[18px]'
+            }
+            style={isComplexOverview ? { minHeight: 294 } : undefined}
           >
             <View className="flex-row items-start justify-between gap-3">
               <View className="gap-1">
@@ -125,18 +154,18 @@ export function EnergyBalanceCard({
               {statusCopy(data)}
             </AppText>
             <View className="gap-1 rounded-[10px] bg-module-muted p-1.5">
-              {trend?.data === null || trend?.data === undefined ? (
+              {preview === null ? (
                 <AppText variant="caption" className="text-muted">
-                  Trend preview unavailable
+                  Energy trend unavailable
                 </AppText>
               ) : (
                 <LineTrendChart
-                  data={trendData(trend)}
+                  data={preview.data}
                   width={Math.max(220, width - 76)}
                   height={compact ? 48 : 72}
                   color="#0E0E0E"
                   connectTrendGaps
-                  trendValues={trend.data.rollingTrend?.values}
+                  trendValues={preview.trendValues}
                   referenceRange={
                     data.reference.kind === 'range'
                       ? {
@@ -153,7 +182,7 @@ export function EnergyBalanceCard({
                   kcal
                 </AppText>
                 <AppText variant="caption" className="text-muted">
-                  14D
+                  14 days
                 </AppText>
               </View>
             </View>

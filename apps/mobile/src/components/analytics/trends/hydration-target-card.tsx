@@ -37,10 +37,10 @@ export function HydrationTargetCard({
               },
             )}
           </AppText>
-          <AppText variant="caption" className="text-primary-dark">
+          <AppText variant="caption" className="text-[#337AC7]">
             {average === null
               ? 'No recorded water days in this period.'
-              : `Average across ${recordedDayCount} logged days`}
+              : `average across ${recordedDayCount} logged days`}
           </AppText>
         </View>
         <View className="items-end gap-1">

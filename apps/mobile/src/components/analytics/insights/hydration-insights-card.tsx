@@ -25,6 +25,7 @@ export function HydrationInsightsCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  presentation = 'simple',
   markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'hydration'> | undefined;
@@ -33,12 +34,14 @@ export function HydrationInsightsCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  presentation?: 'simple' | 'complex';
   markerColor?: string;
 }) {
   const data = overview?.data ?? null;
   const vesselFills =
     data === null ? [] : hydrationVesselFillLevels(data.total, data.goal);
   const fullVesselCount = vesselFills.filter((fill) => fill === 1).length;
+  const isComplexOverview = presentation === 'complex' && !compact;
   const vesselSummary =
     data === null || data.total === null
       ? 'Water data unavailable'
@@ -67,8 +70,11 @@ export function HydrationInsightsCard({
           className={
             compact
               ? 'gap-2 rounded-[16px] p-3'
-              : 'gap-2 rounded-[18px] p-[14px]'
+              : isComplexOverview
+                ? 'gap-2 justify-between rounded-[18px] p-[18px]'
+                : 'gap-2 rounded-[18px] p-[14px]'
           }
+          style={isComplexOverview ? { minHeight: 248 } : undefined}
         >
           <AppText variant="caption" className="text-muted">
             TODAY · Logged drinks only
@@ -94,15 +100,26 @@ export function HydrationInsightsCard({
             accessible
             accessibilityLabel={`Hydration vessel progress: ${vesselSummary}`}
             testID="hydration-vessel-row"
-            className="flex-row items-end gap-[15px] py-1"
+            className={
+              isComplexOverview
+                ? 'flex-row items-end gap-5 px-1 py-1'
+                : 'flex-row items-end gap-[15px] py-1'
+            }
           >
             {vesselFills.map((fill, index) => (
-              <HydrationVessel
+              <View
                 key={`vessel-${index}`}
-                fill={fill}
-                index={index}
-                compact={compact}
-              />
+                testID={`hydration-vessel-visual-${index}`}
+                style={
+                  isComplexOverview
+                    ? {
+                        transform: [{ scaleX: 26 / 18 }, { scaleY: 36 / 32 }],
+                      }
+                    : undefined
+                }
+              >
+                <HydrationVessel fill={fill} index={index} compact={compact} />
+              </View>
             ))}
           </View>
           <View
@@ -112,20 +129,6 @@ export function HydrationInsightsCard({
             <AppText variant="label" className="min-w-0 flex-1">
               {vesselSummary}
             </AppText>
-            <Pressable
-              testID="hydration-other-amount"
-              accessibilityRole="button"
-              accessibilityLabel="Open other water amount"
-              className="min-h-8 w-10 items-center justify-center rounded-[12px] bg-water-soft px-1"
-              onPress={onLogWater}
-            >
-              <AppText
-                variant="caption"
-                className="text-center text-[9px] font-semibold leading-[10px] text-[#337CCA]"
-              >
-                Other{`\n`}amount ›
-              </AppText>
-            </Pressable>
             <AppButton
               testID="hydration-quick-add"
               accessibilityLabel="Log water"
@@ -139,6 +142,29 @@ export function HydrationInsightsCard({
               + 250 mL
             </AppButton>
           </View>
+          <Pressable
+            testID="hydration-other-amount"
+            accessibilityRole="button"
+            accessibilityLabel="Open other water amount"
+            className={
+              isComplexOverview
+                ? 'min-h-7 self-center px-2 py-1'
+                : 'min-h-8 self-end rounded-[12px] bg-water-soft px-3 py-1'
+            }
+            onPress={onLogWater}
+          >
+            <AppText
+              variant="caption"
+              numberOfLines={1}
+              className={
+                isComplexOverview
+                  ? 'text-center text-[11px] font-semibold leading-4 text-[#337CCA]'
+                  : 'text-center font-semibold text-[#337CCA]'
+              }
+            >
+              Other amount ›
+            </AppText>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Open hydration trend"

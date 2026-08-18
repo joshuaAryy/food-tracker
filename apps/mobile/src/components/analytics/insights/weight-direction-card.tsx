@@ -39,6 +39,7 @@ export function WeightDirectionCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  presentation = 'simple',
   markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'weight'> | undefined;
@@ -46,10 +47,12 @@ export function WeightDirectionCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  presentation?: 'simple' | 'complex';
   markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
+  const isComplexOverview = presentation === 'complex' && !compact;
   const chartData =
     trend?.data?.points.map((point) => ({
       date: point.kind === 'daily' ? point.date : point.bucketStartDate,
@@ -81,7 +84,15 @@ export function WeightDirectionCard({
           <AppCard
             elevated
             compact={compact}
-            className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+            testID="weight-direction-card"
+            className={
+              compact
+                ? 'gap-2 rounded-[12px] p-3'
+                : isComplexOverview
+                  ? 'gap-3 justify-between rounded-[20px] p-[18px]'
+                  : 'gap-3 p-[18px]'
+            }
+            style={isComplexOverview ? { minHeight: 250 } : undefined}
           >
             <AppText variant="caption" className="text-muted">
               REPORT · Current weight
@@ -99,7 +110,13 @@ export function WeightDirectionCard({
                 {changeCopy(data.change)}
               </AppText>
             </View>
-            <View className="rounded-[10px] bg-module-muted p-1.5">
+            <View
+              className={
+                isComplexOverview
+                  ? 'min-h-[74px] justify-center rounded-[12px] bg-module-muted p-2.5'
+                  : 'rounded-[10px] bg-module-muted p-1.5'
+              }
+            >
               {chartData.length === 0 ? (
                 <AppText variant="caption" className="text-muted">
                   Weight trend unavailable

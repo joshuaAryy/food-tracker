@@ -1,8 +1,9 @@
-import { render } from '@/test/render';
+import { render, userEvent } from '@/test/render';
 import { HydrationInsightsCard } from '../hydration-insights-card';
 
 describe('HydrationInsightsCard', () => {
   it('uses the compact Figma vessel and action composition', async () => {
+    const onLogWater = jest.fn();
     const screen = await render(
       <HydrationInsightsCard
         overview={{
@@ -20,7 +21,7 @@ describe('HydrationInsightsCard', () => {
           },
         }}
         trend={undefined}
-        onLogWater={jest.fn()}
+        onLogWater={onLogWater}
         onOpenTrend={jest.fn()}
         onRetry={jest.fn()}
       />,
@@ -40,5 +41,11 @@ describe('HydrationInsightsCard', () => {
     expect(
       screen.getByTestId('hydration-other-amount').props.className,
     ).toContain('bg-water-soft');
+    expect(screen.getByText('Other amount ›').props.numberOfLines).toBe(1);
+
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('hydration-other-amount'));
+    await user.press(screen.getByTestId('hydration-quick-add'));
+    expect(onLogWater).toHaveBeenCalledTimes(2);
   });
 });

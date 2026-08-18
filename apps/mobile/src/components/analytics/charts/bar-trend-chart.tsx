@@ -19,6 +19,8 @@ import {
   pointX,
   pointY,
   referenceLineY,
+  roundedBarPath,
+  selectionDecorationX,
   smoothLinePath,
 } from '@/lib/analytics/chart-geometry';
 import {
@@ -108,6 +110,10 @@ export function BarTrendChart({
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
   const selectedX =
     selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
+  const selectedDecorationX =
+    selectedIndex === null
+      ? null
+      : selectionDecorationX(selectedIndex, data.length, width, 7.5);
   const rangeBand =
     domain === null ? null : referenceBand(referenceRange, domain, height);
   const rangeGradientId = `bar-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -146,7 +152,7 @@ export function BarTrendChart({
           width={width}
           height={height}
           pointCount={data.length}
-          selectedIndex={selectedIndex}
+          selectedIndex={null}
         >
           {rangeBand === null ? null : (
             <Defs>
@@ -204,9 +210,9 @@ export function BarTrendChart({
             />
           ) : null}
           {bars.map((bar) => (
-            <Rect
+            <Path
               key={bar.index}
-              {...bar}
+              d={roundedBarPath(bar, 4)}
               fill={barFill ?? color}
               {...(selectedIndex === bar.index && selectedBarFill !== undefined
                 ? { fill: selectedBarFill }
@@ -217,7 +223,6 @@ export function BarTrendChart({
               opacity={
                 selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
               }
-              rx={3}
               {...(selectedIndex === bar.index
                 ? {
                     stroke: selectedBarStroke ?? barStroke ?? color,
@@ -231,15 +236,26 @@ export function BarTrendChart({
           )}
           {selected === null ||
           selected.value === null ||
-          selectedX === null ||
+          selectedDecorationX === null ||
           domain === null ? null : (
             <Circle
-              cx={selectedX}
+              cx={selectedDecorationX}
               cy={pointY(selected.value, domain, height)}
               r={6}
               fill={color}
               stroke="#FFFFFF"
               strokeWidth={3}
+            />
+          )}
+          {selectedDecorationX === null ? null : (
+            <Line
+              x1={selectedDecorationX}
+              x2={selectedDecorationX}
+              y1={0}
+              y2={height}
+              stroke="#262626"
+              strokeDasharray="2 3"
+              opacity={0.45}
             />
           )}
         </CartesianPlot>

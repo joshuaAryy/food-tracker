@@ -66,6 +66,7 @@ export function MacroDailyMixChart({ days }: { days: readonly DailyMix[] }) {
                 value === null || value <= 0 ? null : (
                   <View
                     key={key}
+                    testID={`macro-daily-mix-segment-${key}`}
                     className="min-h-[2px] flex-1 border-b border-white"
                     style={{
                       flex: value,

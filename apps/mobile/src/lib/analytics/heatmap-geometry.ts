@@ -8,7 +8,6 @@ export type HeatmapState =
 
 export type LoggingConsistencyLayout = {
   columns: number;
-  dailyGridRows: number;
   cellSize: number;
   cellGap: number;
   dailyCardMinHeight: number;
@@ -24,7 +23,6 @@ export function loggingConsistencyLayout(
   if (period === 90) {
     return {
       columns: 14,
-      dailyGridRows: 0,
       cellSize: 14,
       cellGap: 4,
       dailyCardMinHeight: 254,
@@ -37,7 +35,6 @@ export function loggingConsistencyLayout(
 
   return {
     columns: 10,
-    dailyGridRows: 4,
     cellSize: 22,
     cellGap: 8,
     dailyCardMinHeight: 284,

@@ -36,6 +36,24 @@ export function pointX(index: number, count: number, width: number): number {
   return count <= 1 ? width / 2 : (index / (count - 1)) * width;
 }
 
+/**
+ * Insets selection-only decoration so its stroke remains visible at the plot
+ * boundary without altering the fixed x-domain used by raw chart values.
+ */
+export function selectionDecorationX(
+  index: number,
+  count: number,
+  width: number,
+  edgeInset: number,
+): number {
+  const safeWidth = Math.max(width, 0);
+  const safeInset = Math.min(Math.max(edgeInset, 0), safeWidth / 2);
+  return Math.min(
+    Math.max(pointX(index, count, width), safeInset),
+    safeWidth - safeInset,
+  );
+}
+
 function coordinate(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
@@ -184,11 +202,50 @@ export function forecastPathWithContinuity(
   return linePath(values, domain, size);
 }
 
+export interface ChartBarRect {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Draws a bar with a softened value-facing cap and a square baseline edge.
+ * Keeping the baseline edge square avoids the inflated pill/slab look when
+ * columns meet the zero line.
+ */
+export function roundedBarPath(bar: ChartBarRect, radius = 4): string {
+  const left = bar.x;
+  const top = bar.y;
+  const right = bar.x + bar.width;
+  const bottom = bar.y + bar.height;
+  const safeRadius = Math.min(
+    Math.max(radius, 0),
+    bar.width / 2,
+    bar.height / 2,
+  );
+
+  if (safeRadius === 0) {
+    return `M ${coordinate(left)} ${coordinate(top)} L ${coordinate(right)} ${coordinate(top)} L ${coordinate(right)} ${coordinate(bottom)} L ${coordinate(left)} ${coordinate(bottom)} Z`;
+  }
+
+  return [
+    `M ${coordinate(left + safeRadius)} ${coordinate(top)}`,
+    `Q ${coordinate(left)} ${coordinate(top)} ${coordinate(left)} ${coordinate(top + safeRadius)}`,
+    `L ${coordinate(left)} ${coordinate(bottom)}`,
+    `L ${coordinate(right)} ${coordinate(bottom)}`,
+    `L ${coordinate(right)} ${coordinate(top + safeRadius)}`,
+    `Q ${coordinate(right)} ${coordinate(top)} ${coordinate(right - safeRadius)} ${coordinate(top)}`,
+    'Z',
+  ].join(' ');
+}
+
 export function barRects(
   values: readonly (number | null)[],
   domain: ChartDomain,
   size: ChartSize,
-): { index: number; x: number; y: number; width: number; height: number }[] {
+): ChartBarRect[] {
   const slotWidth = size.width / Math.max(values.length, 1);
   const width = slotWidth * 0.8;
   const baseline = pointY(0, domain, size.height);

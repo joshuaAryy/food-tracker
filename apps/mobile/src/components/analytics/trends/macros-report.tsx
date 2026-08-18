@@ -69,7 +69,10 @@ export function MacrosReport({
     proteinRollingValues.filter(
       (value) => value !== null && Number.isFinite(value),
     ).length >= 2;
-  const compositionDonutSize = width >= 360 ? 124 : 108;
+  // MacroChart's colored ring sits inside its SVG canvas. A 142pt canvas keeps
+  // the visible ring at the approved 124pt Figma diameter without changing the
+  // shared chart primitive's geometry.
+  const compositionDonutSize = width >= 360 ? 142 : 108;
   return (
     <View testID="macros-report" className="gap-6">
       {showPeriodControls ? (
@@ -113,7 +116,7 @@ export function MacrosReport({
           </AppText>
         </AppCard>
       ) : (
-        <View testID="macro-daily-mix-section" className="gap-3">
+        <View testID="macro-daily-mix-section" className="mt-4 gap-4">
           <AppText variant="label" className="text-muted">
             DAILY MACRO MIX
           </AppText>
@@ -126,77 +129,84 @@ export function MacrosReport({
           </AppCard>
         </View>
       )}
-      <AppCard
-        elevated
-        testID="macro-protein-trend-card"
-        className="min-h-[226px] gap-3 p-[18px]"
-        style={{ minHeight: 226 }}
-      >
-        <AppText variant="heading" className="text-[18px] leading-6">
+      <View className="mt-5 gap-3">
+        <AppText
+          testID="macro-protein-trend-heading"
+          variant="heading"
+          className="text-[18px] leading-6"
+        >
           Protein trend
         </AppText>
-        {proteinTrendLoading ? (
-          <AppText variant="caption" className="text-muted">
-            Loading Protein trend…
-          </AppText>
-        ) : proteinTrend === null ? (
-          <AppText variant="caption" className="text-muted">
-            Protein trend unavailable for this period.
-          </AppText>
-        ) : (
-          <>
-            <LineTrendChart
-              data={proteinPoints}
-              width={Math.max(260, width - 76)}
-              height={112}
-              color="#C9242D"
-              trendValues={
-                hasProteinRollingTrend ? proteinRollingValues : undefined
-              }
-              connectTrendGaps={hasProteinRollingTrend}
-              initialSelectedIndex={
-                latestProteinIndex < 0 ? null : latestProteinIndex
-              }
-              showSelectionTooltip={false}
-              showSelectionDescription={false}
-              reference={proteinTarget}
-              referenceRange={proteinReferenceRange}
-              accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
-            />
-            {latestProtein === null ? null : (
-              <View className="flex-row justify-between border-t border-border pt-3">
-                <AppText variant="label">
-                  {formatPresentationDate(latestProtein.date)}
-                </AppText>
-                <AppText variant="caption" className="text-muted">
-                  {latestProtein.value === null
-                    ? 'No recorded value'
-                    : formatMetricWithUnit(
-                        latestProtein.value,
-                        proteinTrend.reference.unit,
-                      )}{' '}
-                  · Recorded value
-                </AppText>
-              </View>
-            )}
-            {onOpenProtein === undefined ? null : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open individual Protein trend"
-                className="min-h-11 self-start justify-center"
-                onPress={onOpenProtein}
-              >
-                <AppText
-                  variant="caption"
-                  className="font-semibold text-primary-dark"
-                >
-                  Open individual Protein trend ›
-                </AppText>
-              </Pressable>
-            )}
-          </>
+        <AppCard
+          elevated
+          testID="macro-protein-trend-card"
+          className="min-h-[228px] gap-3 p-[18px]"
+          style={{ minHeight: 228 }}
+        >
+          {proteinTrendLoading ? (
+            <AppText variant="caption" className="text-muted">
+              Loading Protein trend…
+            </AppText>
+          ) : proteinTrend === null ? (
+            <AppText variant="caption" className="text-muted">
+              Protein trend unavailable for this period.
+            </AppText>
+          ) : (
+            <>
+              <LineTrendChart
+                data={proteinPoints}
+                width={Math.max(260, width - 76)}
+                height={112}
+                color="#C9242D"
+                trendValues={
+                  hasProteinRollingTrend ? proteinRollingValues : undefined
+                }
+                connectTrendGaps={hasProteinRollingTrend}
+                initialSelectedIndex={
+                  latestProteinIndex < 0 ? null : latestProteinIndex
+                }
+                showSelectionTooltip={false}
+                showSelectionDescription={false}
+                reference={proteinTarget}
+                referenceRange={proteinReferenceRange}
+                accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
+              />
+              {latestProtein === null ? null : (
+                <View className="flex-row justify-between border-t border-border pt-3">
+                  <AppText variant="label">
+                    {formatPresentationDate(latestProtein.date)}
+                  </AppText>
+                  <AppText variant="caption" className="text-muted">
+                    {latestProtein.value === null
+                      ? 'No recorded value'
+                      : formatMetricWithUnit(
+                          latestProtein.value,
+                          proteinTrend.reference.unit,
+                        )}{' '}
+                    · Recorded value
+                  </AppText>
+                </View>
+              )}
+            </>
+          )}
+        </AppCard>
+        {onOpenProtein === undefined ? null : (
+          <Pressable
+            testID="macro-protein-trend-action"
+            accessibilityRole="button"
+            accessibilityLabel="Open individual Protein trend"
+            className="min-h-11 self-end justify-center"
+            onPress={onOpenProtein}
+          >
+            <AppText
+              variant="caption"
+              className="font-semibold text-primary-dark"
+            >
+              Open individual Protein trend ›
+            </AppText>
+          </Pressable>
         )}
-      </AppCard>
+      </View>
     </View>
   );
 }

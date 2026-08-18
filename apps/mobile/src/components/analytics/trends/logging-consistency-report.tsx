@@ -12,7 +12,7 @@ import { TrendPeriodPills } from './trend-period-pills';
 function color(state: string): string {
   if (state === 'complete') return '#00D66B';
   if (state === 'partial') return '#76DBA0';
-  if (state === 'in_progress') return '#76DBA0';
+  if (state === 'in_progress') return '#D99000';
   return '#E0E0D9';
 }
 
@@ -86,6 +86,12 @@ export function LoggingConsistencyReport({
         summary.unlogged +
         summary.inProgress;
   const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
+  const mealCoverageSummary = mealTypes
+    .map((mealType) => {
+      const loggedCount = mealWeek.filter((day) => day[mealType]).length;
+      return `${mealType[0]?.toUpperCase()}${mealType.slice(1)} ${loggedCount}/${mealWeek.length}`;
+    })
+    .join(' · ');
   return (
     <View testID="logging-consistency-report" className="gap-6">
       <View className="gap-2">
@@ -125,7 +131,11 @@ export function LoggingConsistencyReport({
             className="gap-5 p-[18px]"
             style={{ minHeight: layout.dailyCardMinHeight }}
           >
-            <LoggingDayStateLegend showOutsideRange={selectedPeriod === 30} />
+            <LoggingDayStateLegend
+              showInProgress={dailyPoints.some(
+                (point) => point.state === 'in_progress',
+              )}
+            />
             <HeatmapChart
               points={dailyPoints}
               colorForState={color}
@@ -133,8 +143,6 @@ export function LoggingConsistencyReport({
               cellSize={layout.cellSize}
               cellGap={layout.cellGap}
               minHeight={layout.dailyGridMinHeight}
-              minRows={layout.dailyGridRows}
-              showEmptyCells={selectedPeriod === 30}
               testID="logging-consistency-heatmap"
               accessibilityLabel="Logging consistency by day"
             />
@@ -221,7 +229,11 @@ export function LoggingConsistencyReport({
             <AppText variant="caption" className="text-muted">
               Meal coverage is unavailable for this period.
             </AppText>
-          ) : null}
+          ) : (
+            <AppText variant="caption" className="text-muted">
+              {mealCoverageSummary} meals logged in the latest 7 days.
+            </AppText>
+          )}
         </AppCard>
       </View>
       {trend.aggregation === 'daily' ? null : (

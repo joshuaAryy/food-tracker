@@ -17,7 +17,6 @@ describe('analytics heatmap geometry', () => {
   it('uses the final 30-day grid geometry while retaining a distinct 90-day composition', () => {
     expect(loggingConsistencyLayout(30)).toEqual({
       columns: 10,
-      dailyGridRows: 4,
       cellSize: 22,
       cellGap: 8,
       dailyCardMinHeight: 284,
@@ -28,7 +27,6 @@ describe('analytics heatmap geometry', () => {
     });
     expect(loggingConsistencyLayout(90)).toEqual({
       columns: 14,
-      dailyGridRows: 0,
       cellSize: 14,
       cellGap: 4,
       dailyCardMinHeight: 254,

@@ -22,12 +22,13 @@ export function MacroBalanceSummary({
   size: number;
   averageEnergy?: number | null;
 }) {
+  const compositionFrameWidth = size >= 142 ? 156 : size + 32;
   return (
-    <View className="flex-row items-center gap-4">
+    <View className="flex-row items-center gap-5">
       <View
         testID="macro-composition-layout"
         className="items-center"
-        style={{ width: size + 32 }}
+        style={{ width: compositionFrameWidth }}
       >
         <MacroChart
           values={percentages}
@@ -41,7 +42,10 @@ export function MacroBalanceSummary({
           centerLabel="kcal avg"
         />
       </View>
-      <View className="min-w-0 flex-1 gap-3">
+      <View
+        testID="macro-legend-list"
+        className="mt-1 min-w-0 flex-1 self-start gap-6"
+      >
         {macroLegend.map((item) => (
           <View
             key={item.key}

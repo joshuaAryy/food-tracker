@@ -24,14 +24,17 @@ export function LoggingConsistencyCard({
   overview,
   onRetry,
   compact = false,
+  presentation = 'simple',
   markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'loggingConsistency'> | undefined;
   onRetry: () => void;
   compact?: boolean;
+  presentation?: 'simple' | 'complex';
   markerColor?: string;
 }) {
   const data = overview?.data ?? null;
+  const isComplexOverview = presentation === 'complex' && !compact;
   return (
     <View
       testID="simple-insights-section-logging-consistency"
@@ -53,7 +56,15 @@ export function LoggingConsistencyCard({
         <AppCard
           elevated
           compact={compact}
-          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-3 p-[18px]'}
+          testID="logging-consistency-card"
+          className={
+            compact
+              ? 'gap-2 rounded-[12px] p-3'
+              : isComplexOverview
+                ? 'gap-3 justify-between rounded-[20px] p-[18px]'
+                : 'gap-3 p-[18px]'
+          }
+          style={isComplexOverview ? { minHeight: 230 } : undefined}
         >
           <AppText variant="caption" className="text-muted">
             REPORT · {data.completeDayCount} complete · {data.partialDayCount}{' '}

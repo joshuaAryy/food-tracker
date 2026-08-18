@@ -18,6 +18,7 @@ import {
   pointX,
   pointY,
   referenceLineY,
+  selectionDecorationX,
   smoothLinePath,
 } from '@/lib/analytics/chart-geometry';
 import {
@@ -128,6 +129,10 @@ export function LineTrendChart({
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
   const selectedX =
     selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
+  const selectedDecorationX =
+    selectedIndex === null
+      ? null
+      : selectionDecorationX(selectedIndex, data.length, width, 7.5);
   const rangeBand =
     domain === null ? null : referenceBand(referenceRange, domain, height);
   const rangeGradientId = `trend-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -152,7 +157,7 @@ export function LineTrendChart({
           width={width}
           height={height}
           pointCount={data.length}
-          selectedIndex={selectedIndex}
+          selectedIndex={null}
         >
           {rangeBand === null ? null : (
             <Defs>
@@ -238,10 +243,10 @@ export function LineTrendChart({
             : null}
           {selected !== null &&
           selected.value !== null &&
-          selectedX !== null &&
+          selectedDecorationX !== null &&
           domain !== null ? (
             <Circle
-              cx={selectedX}
+              cx={selectedDecorationX}
               cy={pointY(selected.value, domain, height)}
               r={6}
               fill="#FFFFFF"
@@ -249,6 +254,17 @@ export function LineTrendChart({
               strokeWidth={3}
             />
           ) : null}
+          {selectedDecorationX === null ? null : (
+            <Line
+              x1={selectedDecorationX}
+              x2={selectedDecorationX}
+              y1={0}
+              y2={height}
+              stroke="#262626"
+              strokeDasharray="2 3"
+              opacity={0.45}
+            />
+          )}
         </CartesianPlot>
         <ChartSelectionOverlay
           width={width}

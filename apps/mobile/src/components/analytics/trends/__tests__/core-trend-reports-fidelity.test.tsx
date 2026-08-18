@@ -87,6 +87,7 @@ describe('metric-specific trend reports', () => {
         selectedPeriod={30}
         onSelectPeriod={jest.fn()}
         onOpenCustomRange={jest.fn()}
+        onOpenProtein={jest.fn()}
       />,
     );
 
@@ -101,9 +102,7 @@ describe('metric-specific trend reports', () => {
         className: expect.stringContaining('text-[20px]'),
       }),
     );
-    expect(
-      screen.getByTestId('macro-donut-svg').props.style.width,
-    ).toBeGreaterThan(100);
+    expect(screen.getByTestId('macro-donut-svg').props.style.width).toBe(142);
     expect(screen.getByTestId('macro-donut-svg').props.style).toEqual(
       expect.objectContaining({
         shadowColor: '#7A9B76',
@@ -116,10 +115,12 @@ describe('metric-specific trend reports', () => {
       expect.objectContaining({ width: 156 }),
     );
     expect(screen.getByTestId('macro-protein-trend-card').props.style).toEqual(
-      expect.objectContaining({ minHeight: 226 }),
+      expect.objectContaining({ minHeight: 228 }),
     );
     expect(screen.getByText('Protein trend')).toBeTruthy();
     expect(screen.getByText(/Recorded value/)).toBeTruthy();
+    expect(screen.getByTestId('macro-protein-trend-heading')).toBeTruthy();
+    expect(screen.getByTestId('macro-protein-trend-action')).toBeTruthy();
   });
 
   it('presents macro percentages as whole values without changing backend facts', async () => {
@@ -307,7 +308,7 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('Aug 4 – Aug 10')).toBeTruthy();
   });
 
-  it('keeps the logging report readable with bounded week labels and coverage context', async () => {
+  it('keeps the 30-day logging report readable without inventing out-of-range day states', async () => {
     const recentCoveragePoints = Array.from({ length: 10 }, (_, index) => {
       const isPartial = index === 7;
       const isUnlogged = index >= 8;
@@ -383,9 +384,10 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('PERIOD PATTERN')).toBeTruthy();
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
     expect(screen.getByText(/1 day still in progress/)).toBeTruthy();
+    expect(screen.queryByText('Outside range')).toBeNull();
     expect(
-      screen.getAllByLabelText('Outside the selected date range'),
-    ).toHaveLength(30);
+      screen.queryAllByLabelText('Outside the selected date range'),
+    ).toHaveLength(0);
     const recentSummary = screen.getByText(/most recent 10 days contain/);
     expect(recentSummary.props.children.at(-2)).toBe('day');
     expect(screen.getByText('24 of 28 elapsed days logged')).toBeTruthy();

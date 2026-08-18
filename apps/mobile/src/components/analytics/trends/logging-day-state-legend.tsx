@@ -2,29 +2,39 @@ import { View } from 'react-native';
 import { AppText } from '@/components/app-text';
 
 export function LoggingDayStateLegend({
-  showOutsideRange = false,
+  showInProgress = false,
 }: {
-  showOutsideRange?: boolean;
+  showInProgress?: boolean;
 }) {
   return (
     <View className="flex-row flex-wrap gap-4">
-      <AppText style={{ color: '#00D66B' }}>Complete</AppText>
-      <AppText style={{ color: '#76DBA0' }}>Partial</AppText>
-      <AppText style={{ color: '#8A8A84' }}>Unlogged</AppText>
-      {showOutsideRange ? (
-        <View className="flex-row items-center gap-1">
-          <View
-            accessible={false}
-            className="h-3 w-3 rounded-[3px]"
-            style={{
-              backgroundColor: '#F7F7F3',
-              borderColor: '#E6E6DF',
-              borderWidth: 1,
-            }}
-          />
-          <AppText style={{ color: '#8A8A84' }}>Outside range</AppText>
-        </View>
+      <LegendItem color="#00B86B" label="Complete" />
+      <LegendItem color="#3FA66A" label="Partial" />
+      <LegendItem color="#6B6B65" label="Unlogged" />
+      {showInProgress ? (
+        <LegendItem color="#D99000" markerColor="#B66B00" label="In progress" />
       ) : null}
+    </View>
+  );
+}
+
+function LegendItem({
+  color,
+  markerColor = color,
+  label,
+}: {
+  color: string;
+  markerColor?: string;
+  label: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-1.5">
+      <View
+        accessible={false}
+        className="h-2.5 w-2.5 rounded-[3px]"
+        style={{ backgroundColor: markerColor }}
+      />
+      <AppText style={{ color }}>{label}</AppText>
     </View>
   );
 }

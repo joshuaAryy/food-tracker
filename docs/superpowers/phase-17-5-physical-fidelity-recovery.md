@@ -13,6 +13,45 @@ comparisons remain unproven.
 Physical iPhone validation:
 **PENDING USER RE-VALIDATION**.
 
+## 2026-08-18 in-flight correction audit
+
+The current correction is being evaluated against fresh exact-node Figma
+captures, not the earlier zero-discrepancy screenshots. Fresh references were
+downloaded to:
+
+```text
+/tmp/food-tracker-phase17-5-visual-v2/figma-fresh-2026-08-18/
+```
+
+The exact references are `338:276` Complex Insights, `338:720` Macro,
+`338:605` Weight, `338:928` Logging Consistency, `426:159` Hydration, and
+`425:21` Vitamin C. The fresh captures confirm the approved 390pt geometry:
+large first-class detail cards, metric-specific chart layers, visible raw
+observations, and non-red section accents. They supersede earlier claims that
+the existing native captures were sufficient for convergence.
+
+The signed-in iPhone 17 simulator is currently on the authenticated Logging
+Consistency route. The settled UI snapshot contains the 90D report and no
+render error. The simulator log does contain an earlier HTTP 401 from the
+staging `setup/status` request during the authentication handoff; this is being
+tracked separately from the visual correction and is not being treated as a
+successful physical acceptance result.
+
+Current correction acceptance matrix:
+
+| Surface | Exact node | Required current evidence | Status |
+| --- | --- | --- | --- |
+| Complex Insights | `338:276` | fresh native before/after captures plus two independent reviews | pending rebuild |
+| Macro Balance | `338:720` | 124pt-class composition, daily mix, protein trend, fresh native review | pending rebuild |
+| Weight | `338:605` | raw points, sage trend, goal/forecast context, fresh native review | pending rebuild |
+| Logging 30D/90D | `338:928` | intentional period-specific scale and semantics, two-pass review | pending rebuild |
+| Hydration | `426:159` | blue outlined daily vessels/columns, goal line, fresh native review | pending rebuild |
+| Vitamin C | `425:21` | neutral daily observations plus continuous derived trend and range styling | pending rebuild |
+
+No API, schema, shared-contract, dependency, or production changes are
+authorized by this correction. Physical iPhone validation remains a user-only
+checkpoint and stays pending.
+
 This ledger supersedes the prior zero-discrepancy conclusion in
 `phase-17-5-fidelity-capture-ledger.md` based on physical-device evidence. The
 historical ledger is retained.
@@ -466,6 +505,66 @@ the result is close.
   centralized metric formatter; focused coverage now rejects `40.6%`,
   `92.85714285714286`, and `124.4857142857143` presentation leaks while source
   facts remain unchanged.
+
+## Final in-flight correction evidence — 2026-08-18
+
+### Trend continuity and chart system
+
+- The final native review confirmed continuous derived trends across missing
+  dates while raw daily observations remain visibly absent rather than being
+  converted to zero. Vitamin C, Calories, Hydration, and Weight were reviewed
+  with the final chart compositions; Weight additionally shows raw weigh-in
+  dots, a sage smoothed trend, goal context, and an unclipped selected marker.
+- Hybrid and metric-specific compositions are now visible in the reviewed
+  evidence: neutral rounded calorie columns under an ink trend, neutral Vitamin
+  C observation bars with a nutrient trend, blue hydration vessels with
+  detached missing-day markers, and Weight raw points plus trend/goal context.
+  The final independent chart review found no remaining visual severity.
+- Final chart evidence: `native-after-2026-08-18-correction/calories-after.jpg`,
+  `hydration-final.jpg`, `vitamin-c-final.jpg`,
+  `vitamin-c-final-lower.jpg`, and `weight-final.jpg`.
+
+### Logging Consistency and Nutrient Highlights
+
+- The final 30D and 90D captures show the intentionally different geometry,
+  larger reporting presence, readable state markers, truthful in-progress
+  legend treatment, and an explicit meal-coverage summary in both periods.
+  The independent fidelity review found no Major or Moderate discrepancy.
+- The final Complex lower capture and Vitamin C pair show the enlarged
+  Nutrient Highlights gauge/card treatment, explicit reference/unknown states,
+  and the completed contributor section. The independent reviewer found no
+  remaining severity; values and reference availability differ from the Figma
+  fixture because the signed-in Simulator uses the current account data.
+- Final logging evidence: `logging-30d-final-top.jpg`,
+  `logging-30d-final-lower.jpg`, `logging-90d-final-top.jpg`, and
+  `logging-90d-final-lower.jpg`. Complex evidence is
+  `complex-overview-month-after.jpg` and
+  `complex-overview-month-lower-after.jpg`.
+
+### Validation and evidence boundary
+
+- Final automated gates passed under Node `v22.23.0` and pnpm `10.34.3`:
+  root API `94` files / `1,179` tests, mobile Jest `62` suites / `174` tests,
+  and mobile Vitest `53` files / `373` tests. Root lint, typecheck, build,
+  Prisma generate/validate, dedicated `food_tracker_test` migration deploy,
+  and mobile lint/typecheck also passed.
+- `format:check` remains blocked only by 20 pre-existing/untracked protected
+  `.agents`/`.superpowers` artifacts; those paths were not modified.
+- The native Debug Simulator build/run passed on signed-in iPhone 17 with no
+  visible runtime error after settling. Captures are the optimized 368x800
+  Simulator output (approximately 402pt content), not a matched 390/393pt
+  Figma viewport. Physical iPhone operation and acceptance remain pending
+  user re-validation.
+
+### Parallel execution
+
+- Six disjoint Terra implementation workstreams were completed, supplemented
+  by local shared-primitive TDD and two independent final visual reviewers.
+  Workstreams covered chart continuity, Logging Consistency, metric-specific
+  chart compositions/geometry, Weight, Hydration, and Nutrient/Vitamin C plus
+  Complex overview fidelity. No write conflicts or protected-path changes
+  occurred, and the parallel loop shortened the correction cycle without
+  weakening the post-render review gate.
 
 ## Approval boundary
 

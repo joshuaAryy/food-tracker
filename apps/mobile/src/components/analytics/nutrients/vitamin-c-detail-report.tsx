@@ -15,6 +15,8 @@ import {
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { RelatedMetricCard } from './related-metric-card';
 
+const VITAMIN_C_ACCENT = '#5766C7';
+
 function rangeLabel(trend: CanonicalTrendResponse): string {
   if (trend.reference.kind !== 'range') return 'Reference unavailable';
   return `${formatMetricValue(trend.reference.lower)}–${formatMetricValue(trend.reference.upper)} ${trend.reference.unit}`;
@@ -51,6 +53,25 @@ function recordedPeriodSummary(
     return `Average across ${recordedDays} ${dayLabel} is outside your configured range.`;
   }
   return `${recordedDays} ${dayLabel} are available. Reference unavailable.`;
+}
+
+function observationStateLabel(
+  point: CanonicalTrendResponse['points'][number],
+): string {
+  if (point.kind !== 'daily') return 'Recorded period';
+
+  const metricState =
+    point.metricDataState === 'partial' ? 'Partial metric' : 'Recorded metric';
+  const loggingState =
+    point.loggingDayPhase === 'in_progress'
+      ? 'In progress'
+      : point.loggingDayState === 'complete'
+        ? 'Complete day'
+        : point.loggingDayState === 'partial'
+          ? 'Partial day'
+          : 'Unlogged day';
+
+  return `${metricState} · ${loggingState}`;
 }
 
 export function VitaminCDetailReport({
@@ -103,16 +124,17 @@ export function VitaminCDetailReport({
                 trend.reference.unit,
               )}
             </AppText>
-            <AppText variant="caption" className="text-muted">
+            <AppText variant="caption" style={{ color: VITAMIN_C_ACCENT }}>
               {averageStatus(trend)}
             </AppText>
           </View>
           <View className="items-end gap-1">
             <AppText variant="caption" className="text-muted">
-              {trend.reference.kind === 'range' &&
-              trend.reference.source === 'user'
-                ? 'Custom range'
-                : 'Configured range'}
+              {trend.reference.kind === 'range'
+                ? trend.reference.source === 'user'
+                  ? 'Custom range'
+                  : 'Configured range'
+                : 'Reference'}
             </AppText>
             <AppText variant="label">{rangeLabel(trend)}</AppText>
           </View>
@@ -142,9 +164,9 @@ export function VitaminCDetailReport({
             data={points}
             width={Math.max(196, width - 118)}
             height={190}
-            color="#5867C7"
-            barFill="#E0E3EA"
-            barStroke="#E0E3EA"
+            color={VITAMIN_C_ACCENT}
+            barFill="#D2D7E1"
+            barStroke="#C4CBD7"
             selectedBarFill="#858A99"
             selectedBarStroke="#858A99"
             showGrid
@@ -178,7 +200,7 @@ export function VitaminCDetailReport({
                 latestRecordedPoint.value,
                 trend.reference.unit,
               )}{' '}
-              · Recorded metric
+              · {observationStateLabel(latestRecordedPoint)}
             </AppText>
           </View>
         )}

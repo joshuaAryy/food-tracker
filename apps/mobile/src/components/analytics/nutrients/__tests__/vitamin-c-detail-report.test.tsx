@@ -1,4 +1,5 @@
 import type {
+  AnalyticsDailyPoint,
   AnalyticsContributorsResponse,
   CanonicalTrendResponse,
 } from '@food-tracker/shared';
@@ -113,12 +114,12 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByTestId('vitamin-c-chart-card')).toBeTruthy();
     expect(screen.queryByText('Vitamin C trend')).toBeNull();
     expect(screen.getByText(/Recorded metric/)).toBeTruthy();
-    expect(screen.queryByText(/Complete day/)).toBeNull();
+    expect(screen.getByText(/Complete day/)).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).toContain('"r":6');
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286941849');
-    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4292928490');
+    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4292007905');
     expect(JSON.stringify(screen.toJSON())).toContain(
-      '"stroke":{"type":0,"payload":4292928490}',
+      '"stroke":{"type":0,"payload":4291087319}',
     );
   });
 
@@ -185,5 +186,45 @@ describe('Vitamin C detail report fidelity', () => {
     ).toBeTruthy();
     expect(screen.getByText('Related metric')).toBeTruthy();
     expect(screen.queryByText('Minimum · at least 8 mg')).toBeNull();
+  });
+
+  it('presents the selected raw observation with a human date and its distinct metric and logging states', async () => {
+    const partialInProgressPoint: AnalyticsDailyPoint = {
+      kind: 'daily',
+      date: '2026-08-04',
+      loggingDayState: 'partial',
+      loggingDayPhase: 'in_progress',
+      metricDataState: 'partial',
+      value: 124.4857142857143,
+      foodLogCount: 2,
+      metricRecordedLogCount: 2,
+      metricUnknownLogCount: 0,
+    };
+    const screen = await render(
+      <VitaminCDetailReport
+        trend={{
+          ...trend,
+          points: [partialInProgressPoint],
+        }}
+        relatedName="Iron"
+        relatedTrend={null}
+        relatedError={null}
+        contributors={contributors}
+        width={390}
+        simple={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+        onOpenRelated={jest.fn()}
+        onOpenContributors={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Aug 4')).toBeTruthy();
+    expect(
+      screen.getByText('124.5 mg · Partial metric · In progress'),
+    ).toBeTruthy();
+    expect(screen.queryByText('2026-08-04')).toBeNull();
+    expect(screen.queryByText('124.4857142857143 mg')).toBeNull();
   });
 });

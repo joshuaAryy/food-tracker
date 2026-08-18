@@ -10,7 +10,9 @@ import {
   forecastPathWithContinuity,
   pointX,
   pointY,
+  selectionDecorationX,
   uncertaintyPolygonAtOffset,
+  roundedBarPath,
 } from './chart-geometry';
 
 describe('analytics chart geometry', () => {
@@ -22,6 +24,12 @@ describe('analytics chart geometry', () => {
       { index: 2, x: 63, y: 100, width: 24, height: 0 },
     ]);
   });
+
+  it('rounds only the value-facing cap of a bar', () => {
+    expect(
+      roundedBarPath({ index: 0, x: 10, y: 20, width: 24, height: 60 }, 5),
+    ).toBe('M 15 20 Q 10 20 10 25 L 10 80 L 34 80 L 34 25 Q 34 20 29 20 Z');
+  });
   it('decimates labels while keeping both bounds visible', () => {
     expect(decimateLabelIndexes(10, 4)).toEqual([0, 3, 6, 9]);
     expect(decimateLabelIndexes(3, 4)).toEqual([0, 1, 2]);
@@ -30,6 +38,14 @@ describe('analytics chart geometry', () => {
   it('places a selected-date guide on the fixed point timeline', () => {
     expect(pointX(2, 5, 100)).toBe(50);
     expect(pointY(15, { min: 10, max: 20 }, 100)).toBe(50);
+  });
+
+  it('insets endpoint selection decoration without moving raw x-domain values', () => {
+    expect(pointX(0, 3, 100)).toBe(0);
+    expect(pointX(2, 3, 100)).toBe(100);
+    expect(selectionDecorationX(0, 3, 100, 7.5)).toBe(7.5);
+    expect(selectionDecorationX(2, 3, 100, 7.5)).toBe(92.5);
+    expect(selectionDecorationX(1, 3, 100, 7.5)).toBe(50);
   });
 
   it('keeps sparse numeric data as separate path segments', () => {

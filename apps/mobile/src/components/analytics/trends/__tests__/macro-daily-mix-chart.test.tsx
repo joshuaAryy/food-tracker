@@ -16,4 +16,19 @@ describe('MacroDailyMixChart', () => {
       'rounded-t-[5px]',
     );
   });
+
+  it('does not render a daily-value segment when its authoritative value is missing', async () => {
+    const screen = await render(
+      <MacroDailyMixChart
+        days={[{ date: '2026-08-03', protein: null, carbs: 49, fat: null }]}
+      />,
+    );
+
+    expect(screen.getByLabelText('Aug 3 macro composition')).toBeTruthy();
+    expect(screen.getAllByTestId('macro-daily-mix-segment-carbs')).toHaveLength(
+      1,
+    );
+    expect(screen.queryByTestId('macro-daily-mix-segment-protein')).toBeNull();
+    expect(screen.queryByTestId('macro-daily-mix-segment-fat')).toBeNull();
+  });
 });

@@ -79,6 +79,10 @@ export function WeightReport({
     rollingValues !== undefined &&
     rollingValues.filter((value) => value !== null && Number.isFinite(value))
       .length >= 2;
+  const chartWidth = Math.max(196, width - 118);
+  const availableForecast =
+    trend.forecast?.kind === 'available' ? trend.forecast : null;
+  const finalForecastPoint = availableForecast?.points.at(-1);
   const recentWeighIns = trend.points
     .filter((point) => point.kind === 'daily')
     .slice(-20);
@@ -130,11 +134,11 @@ export function WeightReport({
             <View
               testID="weight-trend-chart"
               className="relative"
-              style={{ height: 190 }}
+              style={{ height: 190, width: chartWidth }}
             >
               <LineTrendChart
                 data={points}
-                width={Math.max(196, width - 118)}
+                width={chartWidth}
                 height={190}
                 color="#789776"
                 areaColor="#789776"
@@ -152,9 +156,10 @@ export function WeightReport({
               />
               {targetY === null ? null : (
                 <View
+                  testID="weight-goal-reference"
                   pointerEvents="none"
                   className="absolute right-1"
-                  style={{ top: Math.max(0, targetY - 12) }}
+                  style={{ top: Math.max(0, targetY - 12), right: -4 }}
                 >
                   <AppText variant="caption" className="text-sage">
                     Goal {formatMetricWithUnit(target, 'lb')}
@@ -177,7 +182,8 @@ export function WeightReport({
         </View>
         <View
           testID="weight-chart-x-labels"
-          className="flex-row justify-between pr-8"
+          className="flex-row justify-between"
+          style={{ width: chartWidth }}
         >
           <AppText variant="caption" className="text-muted">
             {formatPresentationDate(trend.resolvedRange.startDate)}
@@ -258,6 +264,26 @@ export function WeightReport({
           </AppText>
         </View>
       </AppCard>
+      {availableForecast === null || finalForecastPoint === undefined ? null : (
+        <AppCard
+          elevated
+          testID="weight-forecast"
+          className="gap-2 bg-module p-[18px]"
+        >
+          <AppText variant="caption" className="font-bold text-muted">
+            Weight forecast
+          </AppText>
+          <AppText variant="heading" className="text-[20px] leading-7">
+            {formatMetricValue(finalForecastPoint.lower)}–
+            {formatMetricWithUnit(finalForecastPoint.upper, 'lb')}
+          </AppText>
+          <AppText variant="caption" className="text-muted">
+            Seven-day estimate after{' '}
+            {formatPresentationDate(availableForecast.todayDate)}. Raw weigh-ins
+            and the goal reference remain separate from this derived projection.
+          </AppText>
+        </AppCard>
+      )}
       {trend.forecast?.kind === 'unavailable' ? (
         <ForecastUnavailableCard metric="weight" />
       ) : null}

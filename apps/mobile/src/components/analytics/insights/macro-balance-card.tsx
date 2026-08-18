@@ -24,6 +24,23 @@ function trendData(section: AnalyticsReportSectionState | undefined) {
   );
 }
 
+function trendPreview(section: AnalyticsReportSectionState | undefined) {
+  if (section?.data === null || section?.data === undefined) return null;
+  const data = trendData(section);
+  const rollingValues = section.data.rollingTrend?.values;
+  const hasRollingValues =
+    rollingValues !== undefined &&
+    rollingValues.length === data.length &&
+    rollingValues.some((value) => value !== null && Number.isFinite(value));
+  if (hasRollingValues) return { data, trendValues: rollingValues };
+  if (
+    data.some((point) => point.value !== null && Number.isFinite(point.value))
+  ) {
+    return { data, trendValues: undefined };
+  }
+  return null;
+}
+
 export function MacroBalanceCard({
   overview,
   energyAverage,
@@ -31,6 +48,7 @@ export function MacroBalanceCard({
   onOpenTrend,
   onRetry,
   compact = false,
+  presentation = 'simple',
   markerColor,
 }: {
   overview: AnalyticsReportOverviewState<'macros'> | undefined;
@@ -39,10 +57,13 @@ export function MacroBalanceCard({
   onOpenTrend: () => void;
   onRetry: () => void;
   compact?: boolean;
+  presentation?: 'simple' | 'complex';
   markerColor?: string;
 }) {
   const { width } = useWindowDimensions();
   const data = overview?.data ?? null;
+  const isComplexOverview = presentation === 'complex' && !compact;
+  const preview = trendPreview(proteinTrend);
   return (
     <View
       testID="simple-insights-section-macro-balance"
@@ -70,8 +91,18 @@ export function MacroBalanceCard({
             elevated
             compact={compact}
             testID="macro-balance-card"
-            className="gap-3 rounded-[20px] p-[18px]"
-            style={compact ? { minHeight: 236 } : undefined}
+            className={
+              isComplexOverview
+                ? 'gap-3 justify-between rounded-[20px] p-[18px]'
+                : 'gap-3 rounded-[20px] p-[18px]'
+            }
+            style={
+              isComplexOverview
+                ? { minHeight: 316 }
+                : compact
+                  ? { minHeight: 236 }
+                  : undefined
+            }
           >
             <AppText variant="caption" className="text-muted">
               REPORT · Period composition
@@ -130,29 +161,28 @@ export function MacroBalanceCard({
               </View>
             </View>
             <View className="gap-1 border-t border-line pt-3">
-              <View className="flex-row items-center gap-3">
-                <AppText variant="caption" className="shrink text-muted">
-                  TREND · Protein
+              {preview === null ? (
+                <AppText variant="caption" className="text-muted">
+                  Protein trend unavailable
                 </AppText>
-                {proteinTrend?.data === null ||
-                proteinTrend?.data === undefined ? (
-                  <AppText variant="caption" className="text-muted">
-                    Unavailable
+              ) : (
+                <View className="flex-row items-center gap-3">
+                  <AppText variant="caption" className="shrink text-muted">
+                    TREND · Protein
                   </AppText>
-                ) : (
                   <View className="min-w-0 flex-1 items-end">
                     <LineTrendChart
-                      data={trendData(proteinTrend)}
+                      data={preview.data}
                       width={Math.min(176, Math.max(150, width - 214))}
-                      height={50}
+                      height={isComplexOverview ? 64 : 50}
                       color="#C9242D"
                       connectTrendGaps
-                      trendValues={proteinTrend.data.rollingTrend?.values}
+                      trendValues={preview.trendValues}
                       accessibilityLabel="Protein trend"
                     />
                   </View>
-                )}
-              </View>
+                </View>
+              )}
             </View>
           </AppCard>
         </Pressable>
