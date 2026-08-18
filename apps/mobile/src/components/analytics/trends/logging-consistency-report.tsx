@@ -71,9 +71,10 @@ export function LoggingConsistencyReport({
       if (point.state === 'complete') counts.complete += 1;
       else if (point.state === 'partial') counts.partial += 1;
       else if (point.state === 'unlogged') counts.unlogged += 1;
+      else if (point.state === 'in_progress') counts.inProgress += 1;
       return counts;
     },
-    { complete: 0, partial: 0, unlogged: 0 },
+    { complete: 0, partial: 0, unlogged: 0, inProgress: 0 },
   );
   const loggedDayCount =
     summary === undefined ? null : summary.complete + summary.partial;
@@ -124,7 +125,7 @@ export function LoggingConsistencyReport({
             className="gap-5 p-[18px]"
             style={{ minHeight: layout.dailyCardMinHeight }}
           >
-            <LoggingDayStateLegend />
+            <LoggingDayStateLegend showOutsideRange={selectedPeriod === 30} />
             <HeatmapChart
               points={dailyPoints}
               colorForState={color}
@@ -132,6 +133,8 @@ export function LoggingConsistencyReport({
               cellSize={layout.cellSize}
               cellGap={layout.cellGap}
               minHeight={layout.dailyGridMinHeight}
+              minRows={layout.dailyGridRows}
+              showEmptyCells={selectedPeriod === 30}
               testID="logging-consistency-heatmap"
               accessibilityLabel="Logging consistency by day"
             />
@@ -151,37 +154,15 @@ export function LoggingConsistencyReport({
                 The most recent {recentDailyPoints.length} days contain{' '}
                 {recentCounts.complete} complete, {recentCounts.partial} partial
                 and {recentCounts.unlogged} unlogged{' '}
-                {dayWord(recentCounts.unlogged)}.
+                {dayWord(recentCounts.unlogged)}
+                {recentCounts.inProgress === 0
+                  ? '.'
+                  : `; ${recentCounts.inProgress} ${dayWord(recentCounts.inProgress)} still in progress.`}
               </AppText>
             )}
           </AppCard>
         </View>
-      ) : (
-        <View className="gap-3">
-          <AppText variant="label" className="text-muted uppercase">
-            PERIOD PATTERN
-          </AppText>
-          <AppCard
-            elevated
-            testID="logging-consistency-period-card"
-            className="gap-5 p-[18px]"
-            style={{ minHeight: layout.periodCardMinHeight }}
-          >
-            <AppText variant="caption" className="text-muted">
-              Weekly completeness keeps the 90-day pattern readable without
-              compressing individual daily cells.
-            </AppText>
-            <BarTrendChart
-              data={aggregatedPoints}
-              width={320}
-              height={layout.periodChartHeight}
-              color="#6F9870"
-              trendValues={trend.rollingTrend?.values}
-              accessibilityLabel="Logging consistency aggregated by week"
-            />
-          </AppCard>
-        </View>
-      )}
+      ) : null}
       <View className="gap-3">
         <AppText
           testID="logging-consistency-meal-section-label"
@@ -243,7 +224,33 @@ export function LoggingConsistencyReport({
           ) : null}
         </AppCard>
       </View>
-      {summary === undefined ? null : (
+      {trend.aggregation === 'daily' ? null : (
+        <View className="gap-3">
+          <AppText variant="label" className="text-muted uppercase">
+            PERIOD PATTERN
+          </AppText>
+          <AppCard
+            elevated
+            testID="logging-consistency-period-card"
+            className="gap-5 p-[18px]"
+            style={{ minHeight: layout.periodCardMinHeight }}
+          >
+            <AppText variant="caption" className="text-muted">
+              Weekly completeness keeps the 90-day pattern readable without
+              compressing individual daily cells.
+            </AppText>
+            <BarTrendChart
+              data={aggregatedPoints}
+              width={320}
+              height={layout.periodChartHeight}
+              color="#6F9870"
+              trendValues={trend.rollingTrend?.values}
+              accessibilityLabel="Logging consistency aggregated by week"
+            />
+          </AppCard>
+        </View>
+      )}
+      {summary === undefined || trend.aggregation !== 'daily' ? null : (
         <View className="gap-3">
           <AppText variant="label" className="text-muted uppercase">
             PERIOD PATTERN

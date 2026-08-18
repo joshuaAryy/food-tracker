@@ -311,6 +311,7 @@ describe('metric-specific trend reports', () => {
     const recentCoveragePoints = Array.from({ length: 10 }, (_, index) => {
       const isPartial = index === 7;
       const isUnlogged = index >= 8;
+      const isInProgress = index === 9;
       return {
         kind: 'daily' as const,
         date: `2026-08-${String(index + 1).padStart(2, '0')}`,
@@ -319,7 +320,9 @@ describe('metric-specific trend reports', () => {
           : isPartial
             ? ('partial' as const)
             : ('complete' as const),
-        loggingDayPhase: 'closed' as const,
+        loggingDayPhase: isInProgress
+          ? ('in_progress' as const)
+          : ('closed' as const),
         metricDataState: isUnlogged
           ? null
           : isPartial
@@ -379,8 +382,12 @@ describe('metric-specific trend reports', () => {
     ).toBeTruthy();
     expect(screen.getByText('PERIOD PATTERN')).toBeTruthy();
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
+    expect(screen.getByText(/1 day still in progress/)).toBeTruthy();
+    expect(
+      screen.getAllByLabelText('Outside the selected date range'),
+    ).toHaveLength(30);
     const recentSummary = screen.getByText(/most recent 10 days contain/);
-    expect(recentSummary.props.children.at(-2)).toBe('days');
+    expect(recentSummary.props.children.at(-2)).toBe('day');
     expect(screen.getByText('24 of 28 elapsed days logged')).toBeTruthy();
     expect(screen.getByText('89%')).toBeTruthy();
   });

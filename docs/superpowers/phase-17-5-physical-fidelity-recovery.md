@@ -197,7 +197,7 @@ the result is close.
 | Complex Insights | `338:276` | Insights / Complex / Overview | `/tmp/food-tracker-phase17-5-visual-v2/figma/complex-insights.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-markers-after-fixes.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-middle-final.png`; `/tmp/food-tracker-phase17-5-visual-v2/complex-insights-current-week-lower-final.png` | 2 fresh independent reviews; compact hierarchy, title, markers, black energy trend, and macro sizing corrected; exact Month state, clean overlay-free capture, and matched 390/393pt viewport remain unproven |
 | Macro Balance | `338:720` | Trends / Macros | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/macros-figma-final.png` | `/tmp/food-tracker-phase17-5-visual-v2/macros-simulator-after-gesture-fix.png` | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/macros-simulator-after-2-native-full.png` | 2 fresh native-resolution independent reviews; enlarged composition ring, Figma palette, rounded daily mix, and added section separation pass with no Major/Moderate findings; Minor roominess, seeded data, and gear-free evidence remain limitations |
 | Weight | `338:605` | Trends / Weight | `/tmp/food-tracker-phase17-5-visual-v2/figma/weight.png` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-after-gesture-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/weight-simulator-current-full-final.png` | 2 independent review passes; smoothed line and sage goal label now visible, gear/viewport remain evidence limitations |
-| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/figma/logging-consistency.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-30d-simulator-current-full-post-hierarchy.png`; `/tmp/food-tracker-phase17-5-visual-v2/logging-90d-current-full.png` | 2 independent review passes; current 30D/90D data differs from Figma seed and 402pt viewport remains |
+| Logging Consistency 30D/90D | `338:928` | Trends / Logging consistency | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/logging-figma-final.png` | `/tmp/food-tracker-phase17-5-visual-v2/logging-consistency-simulator-30d.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/logging-consistency-30d-native-full-final.png`; `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/logging-consistency-90d-native-full-final.png` | Final post-rebuild 30D/90D captures; final independent review approved with no Major/Moderate findings; 90D is internally coherent but lacks an approved 90D Figma frame |
 | Hydration | `426:159` | Trends / Hydration | `/tmp/food-tracker-phase17-5-visual-v2/figma/hydration.png` | authenticated route not captured | `/tmp/food-tracker-phase17-5-visual-v2/hydration-current-detail-seven-day-final.png` | 2 fresh independent reviews; `‹ Overview`, seven-point presentation, and seven-day default corrected; target-state data, clean overlay-free capture, and matched viewport remain limitations |
 | Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full-after-bottom-sheet.jpg` | second fresh independent review: structural/full-width fix passes; Moderate geometry and clean-capture limitations remain because the optimized 368x800 viewport and dev-client overlay are not exact V2 evidence |
 | Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/vitamin-c-figma-final.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/final-fresh/vitamin-c-simulator-after-2-native-full.png` | 2 fresh native-resolution independent reviews; continuous derived trend, truthful missing-day bars, softened grid, neutral observation layer, human-readable dates/values, and 32pt summary metric pass with no Major/Moderate findings; Minor selection/grid emphasis, unavailable reference, and matched viewport remain limitations |
@@ -242,12 +242,13 @@ the result is close.
   against the dedicated `food_tracker_test` database after PostgreSQL was
   restored.
 - Independent read-only visual review has covered Complex Insights, Macro
-  Balance, Weight, Logging Consistency, Water Log, and Vitamin C. The second
-  native-resolution pass now passes Macro and Vitamin C with no Major/Moderate
-  findings; only Minor halo/grid emphasis and the known data/viewport/overlay
-  limitations remain. Macro, Weight, Water Log, and Vitamin C still require
-  clean no-overlay and matched-width evidence; Complex remains blocked by the
-  authenticated account's Week/simple state.
+  Balance, Weight, Logging Consistency, Water Log, and Vitamin C. The final
+  native-resolution Logging pass and the second Macro/Vitamin pass have no
+  Major/Moderate findings. Remaining limitations are Minor halo/grid emphasis,
+  seeded-data differences, missing approved 90D Figma reference, and known
+  viewport/overlay limitations on earlier surfaces. Macro, Weight, Water Log,
+  and Vitamin C still require clean no-overlay and matched-width evidence;
+  Complex remains blocked by the authenticated account's Week/simple state.
 - A final presentation-format audit found and corrected raw selected comparison
   values by routing them through the centralized metric formatter; a noisy
   `129.4857142857143` regression fixture now renders as `129.5`. The custom
@@ -329,17 +330,24 @@ the result is close.
 
 - Old scale: 30D used a compact 22pt-cell heatmap in a 286pt card; 90D used a
   compressed 280x190 pattern.
-- New scale: 30D uses 24pt cells, 8pt gaps, a 312pt grid, a 352pt daily
-  completeness area, and a 376pt meal-coverage area. 90D uses its own 14pt
-  cell/4pt gap composition, a 320x254 period-pattern area, and a 344pt meal
-  coverage minimum.
+- New scale: 30D uses 22pt cells, 8pt gaps, a 292pt grid, a 284pt daily
+  completeness card, and a 354pt meal-coverage card. Its 4x10 presentation
+  fills the approved visual field without changing the 30-day data series.
+  90D uses its own 14pt cell/4pt gap composition, a 320x254 period-pattern
+  area, and a 270pt meal-coverage minimum.
 - 30D and 90D intentionally use different geometry. Complete, partial,
   unlogged, and in_progress semantics are unchanged and remain independent of
   calorie adherence.
 - Evidence: `loggingConsistencyLayout` geometry tests and the focused report
-  fidelity assertions pass; fresh full 30D/90D simulator screenshots remain
-  required after the authenticated analytics state is restored in the local
-  runtime.
+  fidelity assertions pass; final native captures are retained at
+  `final-fresh/logging-consistency-30d-native-full-final.png` and
+  `final-fresh/logging-consistency-90d-native-full-final.png`. The final
+  independent review approved both surfaces with no Major/Moderate findings.
+- The 30D grid now uses a balanced 4x10 presentation without changing the
+  daily data series. Out-of-range presentation slots are outlined and labeled
+  separately; they are not unlogged values. The recent-day copy states the
+  in-progress day independently, and the 90D meal card no longer reserves an
+  oversized empty lower area.
 
 ### Nutrient Highlights
 
@@ -351,7 +359,7 @@ the result is close.
   as zero. Focused Insights coverage passes 3 suites / 9 tests.
 - Remaining discrepancy: the independent Complex review still found the
   overview capture underscaled versus the 390pt Figma reference; the lower
-  Hydration and Logging surfaces require clean post-rebuild evidence.
+  Hydration surface requires clean post-rebuild evidence.
 
 ### Parallel execution
 
@@ -359,8 +367,10 @@ the result is close.
   Terra-level agents: chart continuity; Logging Consistency scale; Nutrient
   Highlights fidelity; and metric-specific chart composition/rounded geometry.
 - Write scopes were disjoint; no merge conflict or protected-path change was
-  required. Two additional Terra-level read-only reviewers then inspected the
-  Complex overview and Vitamin C/Calories captures after implementation.
+  required. Terra-level read-only reviewers inspected the Complex, Macro,
+  Vitamin C, and Logging captures after implementation; the final Logging
+  review approved the corrected 30D/90D screenshots with no Major/Moderate
+  findings.
 - Parallel execution shortened the implementation loop, but screenshots and
   independent review remain the approval gate.
 
@@ -465,12 +475,12 @@ full automated validation, and a pushed branch. Current blockers are the
 matched 390/393pt capture, removal of the development-client overlay from
 evidence, exact authenticated Month/Complex state capture, clean lower-surface
 evidence, sparse-data Macro/Hydration chart comparisons, remaining Macro
-  range/data parity concerns, Vitamin C selected point/data parity concerns, and
-  restoration of completed local setup for fresh analytics screenshots. Water Log's
-implementation now matches the full-width sheet structure, but strict signoff
-still requires a clean matched-width capture without the development-client
-overlay. Vitamin C's source typography fix is validated; its exact data and
-clean viewport evidence remain unresolved.
+range/data parity concerns, Vitamin C selected point/data parity concerns, and
+the lack of an approved 90D Figma frame. Water Log's implementation now matches
+the full-width sheet structure, but strict signoff still requires a clean
+matched-width capture without the development-client overlay. Vitamin C's source
+typography fix is validated; its exact data and clean viewport evidence remain
+unresolved.
 The guarded standalone Release preparation still requires its own disk and
 physical-validation gate; no generated-native cleanup is authorized while
 physical validation remains pending. Physical iPhone operation,
