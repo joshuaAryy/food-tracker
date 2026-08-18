@@ -1,7 +1,7 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
 Status: authenticated simulator runtime evidence is now available; source
-presentation pass 6 is in progress. The onboarding/runtime crash found after
+presentation pass 7 is in progress. The onboarding/runtime crash found after
 the user completed onboarding was fixed, and the rebuilt native app now reaches
 the authenticated Complex walkthrough. The latest implementation pass corrected
 the Complex compact hierarchy, solid section markers, black energy trend, macro
@@ -183,6 +183,18 @@ the result is close.
 | Water Log | `440:28` | Log Water | `/tmp/food-tracker-phase17-5-visual-v2/figma/water-log.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full.png` | `/tmp/food-tracker-phase17-5-visual-v2/water-log-current-full-after-bottom-sheet.jpg` | second fresh independent review: structural/full-width fix passes; Moderate geometry and clean-capture limitations remain because the optimized 368x800 viewport and dev-client overlay are not exact V2 evidence |
 | Vitamin C detail | `425:21` | Trends / Vitamin C / Range | `/tmp/food-tracker-phase17-5-visual-v2/figma/vitamin-c.png` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-simulator-after-navigation-context-fix.jpg` | `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-after-size-fix.png`; `/tmp/food-tracker-phase17-5-visual-v2/vitamin-c-current-lower-after-size-fix.png` | 2 independent reviews; authoritative `Reference unavailable` state, neutral selected-bar treatment, and 32pt summary metric are preserved/corrected, while data parity, selected-point emphasis, matched viewport, and gear-free evidence remain limitations |
 
+### Evidence dimensions and viewport ledger
+
+| Surface | Figma dimensions | Latest simulator dimensions | Logical viewport | Implementation / review iteration |
+| --- | --- | --- | --- | --- |
+| Complex Insights | 390×2760 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+| Macro Balance | 390×1390 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 4 / 3 reviews |
+| Weight | 390×1290 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+| Logging Consistency 30D/90D | 390×1544 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+| Hydration | 390×1450 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+| Water Log | 390×900 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+| Vitamin C detail | 390×1580 px | 1206×2622 px | ≈402×874pt; optimized capture ≈368×800 | 2 / 2 reviews |
+
 ## Implementation evidence before simulator capture
 
 - Presentation-only mobile changes are confined to analytics routes, chart
@@ -202,7 +214,7 @@ the result is close.
   trend shell fidelity 5/5 after the current chart, macro, hydration, and
   compact hierarchy fixes.
 - Final mobile Jest evidence passes 50 suites / 146 tests; the complete mobile
-  Vitest run passes 53 files / 369 tests. Mobile lint and typecheck,
+  Vitest run passes 53 files / 370 tests. Mobile lint and typecheck,
   API lint/typecheck/build, and root lint/typecheck/build also pass.
   Root format check remains blocked by exactly 20 warnings in pre-existing
   protected/ignored artifacts. The required root API test command remains
@@ -330,6 +342,10 @@ the result is close.
 - Reduced the Vitamin C detail summary metric from the oversized 38pt override
   to the approved 32pt treatment; focused coverage guards the presentation
   class while retaining the authoritative metric value and range copy.
+- Routed Simple Insights consistency and report comparison deltas through the
+  centralized metric formatter; focused coverage now rejects `40.6%`,
+  `92.85714285714286`, and `124.4857142857143` presentation leaks while source
+  facts remain unchanged.
 
 ## Approval boundary
 
