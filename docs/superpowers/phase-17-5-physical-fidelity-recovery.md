@@ -198,19 +198,24 @@ the result is close.
   exact metadata dimensions are recorded in the implementation plan and the
   screenshots are retained under the temporary evidence root above.
 - Focused mobile evidence currently passes: Complex Insights boundary 7/7,
-  core trend fidelity 8/8, Trend detail 5/5, and trend shell fidelity 5/5
-  after the current chart, macro, hydration, and compact hierarchy fixes.
-- Final mobile Jest evidence passes 50 suites / 143 tests. Mobile lint and
-  typecheck, API lint/typecheck/build, and root lint/typecheck/build also pass.
+  core trend fidelity 10/10, Vitamin C detail 2/2, Trend detail 5/5, and
+  trend shell fidelity 5/5 after the current chart, macro, hydration, and
+  compact hierarchy fixes.
+- Final mobile Jest evidence passes 50 suites / 146 tests; the complete mobile
+  Vitest run passes 53 files / 369 tests. Mobile lint and typecheck,
+  API lint/typecheck/build, and root lint/typecheck/build also pass.
   Root format check remains blocked by exactly 20 warnings in pre-existing
   protected/ignored artifacts. The required root API test command remains
   blocked before collection by PostgreSQL `P1001` at `localhost:5432` while
   targeting the dedicated `food_tracker_test` database.
 - Independent read-only visual review has now covered Complex Insights, Macro
-  Balance, Weight, and Logging Consistency in two passes. The latest Weight
-  capture now shows the backend-provided smoothed line across sparse raw days.
-  Macro and Weight still require clean no-overlay and matched-width evidence;
-  Complex remains blocked by the authenticated account's Week/simple state.
+  Balance, Weight, Logging Consistency, Water Log, and Vitamin C. Macro has a
+  third review after the compact Protein chart correction; Vitamin C has a
+  second review after the 32pt summary correction. The latest Weight capture
+  now shows the backend-provided smoothed line across sparse raw days. Macro,
+  Weight, Water Log, and Vitamin C still require clean no-overlay and
+  matched-width evidence; Complex remains blocked by the authenticated
+  account's Week/simple state.
 - A final presentation-format audit found and corrected raw selected comparison
   values by routing them through the centralized metric formatter; a noisy
   `129.4857142857143` regression fixture now renders as `129.5`. The custom
