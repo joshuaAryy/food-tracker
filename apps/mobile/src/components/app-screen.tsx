@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/theme/tokens';
 
 interface AppScreenProps extends PropsWithChildren {
+  presentation?: 'default' | 'bottom-sheet';
   scroll?: boolean;
   refreshing?: boolean;
   onRefresh?: (() => void) | undefined;
@@ -25,6 +26,7 @@ interface AppScreenProps extends PropsWithChildren {
 
 export function AppScreen({
   children,
+  presentation = 'default',
   scroll = true,
   refreshing = false,
   onRefresh,
@@ -35,20 +37,46 @@ export function AppScreen({
   keyboardShouldPersistTaps = 'handled',
   testID,
 }: AppScreenProps) {
+  const isBottomSheet = presentation === 'bottom-sheet';
   const content = (
     <View
-      className={`w-full self-center gap-6 px-5 pb-28 pt-4 ${contentClassName}`}
+      className={`w-full self-center gap-6 px-5 ${isBottomSheet ? 'flex-grow pb-4 pt-4' : 'pb-28 pt-4'} ${contentClassName}`}
       style={[{ maxWidth: 480, backgroundColor }, contentStyle]}
     >
       {children}
     </View>
   );
+  const footerContent =
+    footer === undefined ? null : (
+      <View className="px-5 py-3" style={{ backgroundColor }}>
+        <View className="w-full max-w-[480px] self-center">{footer}</View>
+      </View>
+    );
+  const screenContent = isBottomSheet ? (
+    <View
+      className="w-full self-end overflow-hidden rounded-t-[28px]"
+      style={{
+        minHeight: '82%',
+        maxWidth: 480,
+        backgroundColor,
+      }}
+    >
+      {content}
+      {footerContent}
+    </View>
+  ) : (
+    content
+  );
 
   return (
     <SafeAreaView
       className="flex-1"
-      edges={['top']}
-      style={{ backgroundColor }}
+      edges={isBottomSheet ? [] : ['top']}
+      style={{
+        backgroundColor: isBottomSheet
+          ? 'rgba(0, 0, 0, 0.24)'
+          : backgroundColor,
+      }}
     >
       <KeyboardAvoidingView
         className="flex-1"
@@ -58,8 +86,17 @@ export function AppScreen({
           <ScrollView
             testID={testID}
             className="flex-1"
-            style={{ backgroundColor }}
-            contentContainerStyle={{ backgroundColor }}
+            style={{
+              backgroundColor: isBottomSheet ? 'transparent' : backgroundColor,
+            }}
+            contentContainerStyle={
+              isBottomSheet
+                ? [
+                    { backgroundColor: 'transparent' },
+                    { flexGrow: 1, justifyContent: 'flex-end' },
+                  ]
+                : { backgroundColor }
+            }
             contentInsetAdjustmentBehavior="automatic"
             keyboardShouldPersistTaps={keyboardShouldPersistTaps}
             refreshControl={
@@ -73,16 +110,14 @@ export function AppScreen({
             }
             showsVerticalScrollIndicator={false}
           >
-            {content}
+            {screenContent}
           </ScrollView>
         ) : (
-          content
-        )}
-        {footer === undefined ? null : (
-          <View className="px-5 py-3" style={{ backgroundColor }}>
-            <View className="w-full max-w-[480px] self-center">{footer}</View>
+          <View className={isBottomSheet ? 'flex-1 justify-end' : ''}>
+            {screenContent}
           </View>
         )}
+        {isBottomSheet ? null : footerContent}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

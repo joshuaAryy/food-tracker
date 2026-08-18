@@ -235,8 +235,10 @@ export default function WaterLogScreen() {
 
   return (
     <AppScreen
+      presentation="bottom-sheet"
+      testID="water-log-bottom-sheet"
       backgroundColor="#FFFFFF"
-      contentClassName="gap-6 rounded-t-[28px] bg-white pb-8 pt-4"
+      contentClassName="gap-6 bg-white"
       footer={
         <View className="gap-2">
           <AppButton

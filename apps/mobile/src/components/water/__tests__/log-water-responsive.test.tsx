@@ -112,4 +112,15 @@ describe('Log Water responsive fidelity', () => {
       screen.getByRole('button', { name: 'Close water logger' }),
     ).toBeTruthy();
   });
+
+  it('renders the add form in an explicit bottom-sheet layout', async () => {
+    const screen = await render(<WaterLogScreen />);
+    const sheet = await screen.findByTestId('water-log-bottom-sheet');
+
+    expect(sheet.props.contentContainerStyle).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ flexGrow: 1, justifyContent: 'flex-end' }),
+      ]),
+    );
+  });
 });

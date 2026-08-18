@@ -72,12 +72,10 @@ export default function RootLayout() {
           <Stack.Screen
             name="water-log"
             options={{
-              presentation: 'formSheet',
+              presentation: 'transparentModal',
+              animation: 'slide_from_bottom',
               gestureEnabled: true,
-              sheetAllowedDetents: [0.85],
-              sheetInitialDetentIndex: 0,
-              sheetGrabberVisible: false,
-              sheetCornerRadius: 28,
+              contentStyle: { backgroundColor: 'transparent' },
             }}
           />
           <Stack.Screen
