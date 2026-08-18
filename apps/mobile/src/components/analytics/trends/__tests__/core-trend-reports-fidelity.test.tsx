@@ -224,12 +224,36 @@ describe('metric-specific trend reports', () => {
   });
 
   it('keeps the logging report readable with bounded week labels and coverage context', async () => {
+    const recentCoveragePoints = Array.from({ length: 10 }, (_, index) => {
+      const isPartial = index === 7;
+      const isUnlogged = index >= 8;
+      return {
+        kind: 'daily' as const,
+        date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+        loggingDayState: isUnlogged
+          ? ('unlogged' as const)
+          : isPartial
+            ? ('partial' as const)
+            : ('complete' as const),
+        loggingDayPhase: 'closed' as const,
+        metricDataState: isUnlogged
+          ? null
+          : isPartial
+            ? ('partial' as const)
+            : ('recorded' as const),
+        value: isUnlogged ? null : 1000,
+        foodLogCount: isUnlogged ? 0 : 1,
+        metricRecordedLogCount: isUnlogged ? 0 : 1,
+        metricUnknownLogCount: 0,
+      };
+    });
     const screen = await render(
       <LoggingConsistencyReport
         trend={{
           ...base,
           trackingMode: 'simple',
           primaryMetric: 'loggingConsistency',
+          points: recentCoveragePoints,
           loggingSummary: {
             complete: 21,
             partial: 3,
@@ -271,6 +295,8 @@ describe('metric-specific trend reports', () => {
     ).toBeTruthy();
     expect(screen.getByText('PERIOD PATTERN')).toBeTruthy();
     expect(screen.getByText(/most recent 10 days contain/)).toBeTruthy();
+    const recentSummary = screen.getByText(/most recent 10 days contain/);
+    expect(recentSummary.props.children.at(-2)).toBe('days');
     expect(screen.getByText(/24 logged days/)).toBeTruthy();
     expect(screen.getByText('89%')).toBeTruthy();
   });

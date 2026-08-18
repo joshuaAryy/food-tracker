@@ -24,6 +24,10 @@ function weekdayLabel(date: string): string {
     .slice(0, 1);
 }
 
+function dayWord(count: number): string {
+  return count === 1 ? 'day' : 'days';
+}
+
 export function LoggingConsistencyReport({
   trend,
   simple,
@@ -136,7 +140,8 @@ export function LoggingConsistencyReport({
               <AppText variant="caption" className="text-muted">
                 The most recent {recentDailyPoints.length} days contain{' '}
                 {recentCounts.complete} complete, {recentCounts.partial} partial
-                and {recentCounts.unlogged} unlogged day.
+                and {recentCounts.unlogged} unlogged{' '}
+                {dayWord(recentCounts.unlogged)}.
               </AppText>
             )}
           </AppCard>

@@ -294,6 +294,9 @@ the result is close.
 - Defaulted Hydration detail to a seven-day query, retained only the final
   seven chart points as a presentation window, aligned the visible date range
   with those points, and changed the back label to `‹ Overview`.
+- Normalized the Logging Consistency recent-day summary so sparse simulator
+  states use the correct singular or plural `day` label; the live 30D state now
+  reads `6 unlogged days` and has a focused regression assertion.
 
 ## Approval boundary
 
