@@ -135,6 +135,44 @@ describe('metric-specific trend reports', () => {
     expect(screen.queryByText('30.8%')).toBeNull();
   });
 
+  it('keeps the Protein trend reference range visible in the detailed report', async () => {
+    const screen = await render(
+      <MacrosReport
+        trend={{
+          ...base,
+          trackingMode: 'complex',
+          primaryMetric: 'macroComposition',
+          macroComposition: { protein: 120, carbs: 240, fat: 60 },
+          macroPercentages: { protein: 24, carbs: 49, fat: 27 },
+          macroAverageEnergy: 2184.4,
+        }}
+        width={390}
+        simple={false}
+        proteinTrend={{
+          ...base,
+          primaryMetric: 'protein',
+          reference: {
+            kind: 'range',
+            lower: 110,
+            upper: 150,
+            unit: 'g',
+            source: 'user',
+          },
+          rollingTrend: {
+            window: 7,
+            values: base.points.map((point) => point.value),
+          },
+        }}
+        proteinTrendLoading={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+      />,
+    );
+
+    expect(JSON.stringify(screen.toJSON())).toContain('RNSVGLinearGradient');
+  });
+
   it('renders the Figma macro composition hierarchy and vertical daily mix', async () => {
     const screen = await render(
       <MacrosReport

@@ -48,6 +48,27 @@ export function MacrosReport({
   );
   const latestProtein =
     latestProteinIndex < 0 ? null : (proteinPoints[latestProteinIndex] ?? null);
+  const proteinReference = proteinTrend?.reference;
+  const proteinTarget =
+    proteinReference !== undefined &&
+    (proteinReference.kind === 'target' ||
+      proteinReference.kind === 'minimum' ||
+      proteinReference.kind === 'limit')
+      ? proteinReference.value
+      : null;
+  const proteinReferenceRange =
+    proteinReference?.kind === 'range'
+      ? {
+          lower: proteinReference.lower,
+          upper: proteinReference.upper,
+        }
+      : null;
+  const proteinRollingValues = proteinTrend?.rollingTrend?.values;
+  const hasProteinRollingTrend =
+    proteinRollingValues !== undefined &&
+    proteinRollingValues.filter(
+      (value) => value !== null && Number.isFinite(value),
+    ).length >= 2;
   return (
     <View testID="macros-report" className="gap-4">
       {showPeriodControls ? (
@@ -122,18 +143,17 @@ export function MacrosReport({
               data={proteinPoints}
               width={Math.max(260, width - 76)}
               color="#C9242D"
+              trendValues={
+                hasProteinRollingTrend ? proteinRollingValues : undefined
+              }
+              connectTrendGaps={hasProteinRollingTrend}
               initialSelectedIndex={
                 latestProteinIndex < 0 ? null : latestProteinIndex
               }
               showSelectionTooltip={false}
               showSelectionDescription={false}
-              reference={
-                proteinTrend.reference.kind === 'target' ||
-                proteinTrend.reference.kind === 'minimum' ||
-                proteinTrend.reference.kind === 'limit'
-                  ? proteinTrend.reference.value
-                  : null
-              }
+              reference={proteinTarget}
+              referenceRange={proteinReferenceRange}
               accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
             />
             {latestProtein === null ? null : (
