@@ -52,7 +52,10 @@ export function MacroBalanceSummary({
               </AppText>
             </View>
             <AppText variant="caption" className="font-semibold tabular-nums">
-              {formatMetricValue(percentages[item.key])}%
+              {formatMetricValue(percentages[item.key], {
+                maximumFractionDigits: 0,
+              })}
+              %
             </AppText>
           </View>
         ))}

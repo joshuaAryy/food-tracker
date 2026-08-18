@@ -106,6 +106,35 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText(/Recorded value/)).toBeTruthy();
   });
 
+  it('presents macro percentages as whole values without changing backend facts', async () => {
+    const screen = await render(
+      <MacrosReport
+        trend={{
+          ...base,
+          trackingMode: 'complex',
+          primaryMetric: 'macroComposition',
+          macroComposition: { protein: 120, carbs: 240, fat: 60 },
+          macroPercentages: { protein: 26.5, carbs: 42.7, fat: 30.8 },
+          macroAverageEnergy: 1945.4,
+        }}
+        width={390}
+        simple={false}
+        proteinTrend={base}
+        proteinTrendLoading={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('27%')).toBeTruthy();
+    expect(screen.getByText('43%')).toBeTruthy();
+    expect(screen.getByText('31%')).toBeTruthy();
+    expect(screen.queryByText('26.5%')).toBeNull();
+    expect(screen.queryByText('42.7%')).toBeNull();
+    expect(screen.queryByText('30.8%')).toBeNull();
+  });
+
   it('renders the Figma macro composition hierarchy and vertical daily mix', async () => {
     const screen = await render(
       <MacrosReport
