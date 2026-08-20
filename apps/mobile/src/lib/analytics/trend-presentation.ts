@@ -19,8 +19,6 @@ export function coreTrendPresentation(
   if (metric === 'loggingConsistency') {
     return aggregation === 'daily' ? 'logging_heatmap' : 'bars_with_trend';
   }
-  if (metric === 'calories' || metric === 'hydration') {
-    return 'bars_with_trend';
-  }
-  return 'line';
+  if (metric === 'hydration') return 'bars_with_trend';
+  return 'bars_with_trend';
 }

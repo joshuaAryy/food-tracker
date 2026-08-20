@@ -13,6 +13,7 @@ import {
   formatPresentationDateRange,
 } from '@/lib/date-time';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
+import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
 import { RelatedMetricCard } from './related-metric-card';
 
 const VITAMIN_C_ACCENT = '#5766C7';
@@ -162,7 +163,7 @@ export function VitaminCDetailReport({
         <View testID="vitamin-c-bar-trend">
           <BarTrendChart
             data={points}
-            width={Math.max(196, width - 118)}
+            width={Math.max(280, width - 40)}
             height={190}
             color={VITAMIN_C_ACCENT}
             barFill="#D2D7E1"
@@ -172,6 +173,12 @@ export function VitaminCDetailReport({
             showGrid
             gridOpacity={0.45}
             trendValues={trend.rollingTrend?.values}
+            reference={
+              trend.reference.kind === 'range' ||
+              trend.reference.kind === 'none'
+                ? null
+                : trend.reference.value
+            }
             initialSelectedIndex={latestRecordedIndex}
             showSelectionTooltip={false}
             showSelectionDescription={false}
@@ -183,6 +190,10 @@ export function VitaminCDetailReport({
                   }
                 : null
             }
+            showAxes
+            periodDays={selectedPeriod ?? undefined}
+            unit={trend.reference.unit}
+            referenceLabel={axisReferenceLabel(trend.reference) ?? undefined}
             accessibilityLabel={`Vitamin C trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
           />
         </View>

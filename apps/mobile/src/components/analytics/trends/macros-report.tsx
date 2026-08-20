@@ -8,6 +8,7 @@ import {
   formatPresentationDateRange,
 } from '@/lib/date-time';
 import { formatMetricWithUnit } from '@/lib/reporting-ui';
+import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
 import { MacroBalanceSummary } from './macro-balance-summary';
 import { MacroDailyMixChart } from './macro-daily-mix-chart';
 import { TrendPeriodPills } from './trend-period-pills';
@@ -169,6 +170,13 @@ export function MacrosReport({
                 showSelectionDescription={false}
                 reference={proteinTarget}
                 referenceRange={proteinReferenceRange}
+                showAxes
+                showGrid
+                periodDays={selectedPeriod ?? undefined}
+                unit={proteinTrend.reference.unit}
+                referenceLabel={
+                  axisReferenceLabel(proteinTrend.reference) ?? undefined
+                }
                 accessibilityLabel={`Protein trend for ${formatPresentationDateRange(proteinTrend.resolvedRange.startDate, proteinTrend.resolvedRange.endDate)}`}
               />
               {latestProtein === null ? null : (

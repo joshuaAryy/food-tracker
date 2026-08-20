@@ -7,6 +7,7 @@ import { BarTrendChart } from '@/components/analytics/charts/bar-trend-chart';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDateRange } from '@/lib/date-time';
+import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
 import { CaloriesForecastCard } from './calories-forecast-card';
 import { CaloriesSummaryCard } from './calories-summary-card';
 import { TrendContributorsCard } from './trend-contributors-card';
@@ -91,7 +92,25 @@ export function CaloriesReport({
           height={170}
           color="#0E0E0E"
           barFill="#F3F4EF"
+          reference={
+            trend.reference.kind === 'range' || trend.reference.kind === 'none'
+              ? null
+              : trend.reference.value
+          }
+          referenceRange={
+            trend.reference.kind === 'range'
+              ? {
+                  lower: trend.reference.lower,
+                  upper: trend.reference.upper,
+                }
+              : null
+          }
           trendValues={trend.rollingTrend?.values}
+          showAxes
+          showGrid
+          periodDays={selectedPeriod ?? undefined}
+          unit={trend.reference.unit}
+          referenceLabel={axisReferenceLabel(trend.reference) ?? undefined}
           accessibilityLabel={`Calories trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
         />
         <AppText variant="caption" className="text-muted">

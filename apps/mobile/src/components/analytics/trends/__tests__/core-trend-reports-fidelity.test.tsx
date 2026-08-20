@@ -52,7 +52,7 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('lb')).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286093174');
     expect(JSON.stringify(screen.toJSON())).toContain('"opacity":0.16');
-    expect(JSON.stringify(screen.toJSON())).toContain('"y1":95');
+    expect(screen.getByTestId('chart-grid-1000')).toBeTruthy();
     expect(screen.getAllByText('130').length).toBeGreaterThan(0);
     expect(
       screen.getByText(

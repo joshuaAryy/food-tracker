@@ -220,7 +220,7 @@ describe('Vitamin C detail report fidelity', () => {
       />,
     );
 
-    expect(screen.getByText('Aug 4')).toBeTruthy();
+    expect(screen.getAllByText('Aug 4').length).toBeGreaterThan(0);
     expect(
       screen.getByText('124.5 mg · Partial metric · In progress'),
     ).toBeTruthy();

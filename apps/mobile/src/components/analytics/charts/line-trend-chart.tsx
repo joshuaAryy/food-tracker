@@ -14,6 +14,7 @@ import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
 import { formatMetricValue } from '@/lib/reporting-ui';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
+import { numericAxisTicks } from '@/lib/analytics/chart-axis';
 import {
   pointX,
   pointY,
@@ -29,6 +30,7 @@ import { referenceBand } from '@/lib/analytics/reference-geometry';
 import { ChartFrame } from './chart-frame';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
 import { CartesianPlot } from './cartesian-plot';
+import { ChartAxes, chartPlotWidth } from './chart-axes';
 
 export interface LineTrendDatum {
   date: string;
@@ -50,6 +52,10 @@ interface LineTrendChartProps {
   initialSelectedIndex?: number | null | undefined;
   showSelectionTooltip?: boolean | undefined;
   showSelectionDescription?: boolean | undefined;
+  showAxes?: boolean | undefined;
+  periodDays?: number | undefined;
+  unit?: string | undefined;
+  referenceLabel?: string | undefined;
   accessibilityLabel: string;
 }
 
@@ -69,12 +75,17 @@ export function LineTrendChart({
   initialSelectedIndex = null,
   showSelectionTooltip = true,
   showSelectionDescription = true,
+  showAxes = false,
+  periodDays,
+  unit = '',
+  referenceLabel,
   accessibilityLabel,
 }: LineTrendChartProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(
     initialSelectedIndex,
   );
   const selectedIndexRef = useRef<number | null>(initialSelectedIndex);
+  const plotWidth = chartPlotWidth(width, showAxes);
   const domain = useMemo(
     () =>
       fixedDomain(
@@ -101,13 +112,13 @@ export function LineTrendChart({
         : smoothLinePath(
             trendValues ?? data.map((point) => point.value),
             domain,
-            { width, height },
+            { width: plotWidth, height },
             {
               connectGaps:
                 trendValues !== undefined && connectTrendGaps !== false,
             },
           ),
-    [connectTrendGaps, data, domain, height, trendValues, width],
+    [connectTrendGaps, data, domain, height, plotWidth, trendValues],
   );
   const areaValues = trendValues ?? data.map((point) => point.value);
   const firstAreaIndex = areaValues.findIndex(
@@ -123,16 +134,18 @@ export function LineTrendChart({
     firstAreaIndex < 0 ||
     lastAreaIndex < 0
       ? ''
-      : `${path} L ${pointX(lastAreaIndex, areaValues.length, width)} ${height} L ${pointX(firstAreaIndex, areaValues.length, width)} ${height} Z`;
+      : `${path} L ${pointX(lastAreaIndex, areaValues.length, plotWidth)} ${height} L ${pointX(firstAreaIndex, areaValues.length, plotWidth)} ${height} Z`;
 
   const selected =
     selectedIndex === null ? null : (data[selectedIndex] ?? null);
   const selectedX =
-    selectedIndex === null ? null : pointX(selectedIndex, data.length, width);
+    selectedIndex === null
+      ? null
+      : pointX(selectedIndex, data.length, plotWidth);
   const selectedDecorationX =
     selectedIndex === null
       ? null
-      : selectionDecorationX(selectedIndex, data.length, width, 7.5);
+      : selectionDecorationX(selectedIndex, data.length, plotWidth, 7.5);
   const rangeBand =
     domain === null ? null : referenceBand(referenceRange, domain, height);
   const rangeGradientId = `trend-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -152,156 +165,268 @@ export function LineTrendChart({
           : `${formatPresentationDate(selected.date)}: ${selected.value === null ? 'No recorded value' : formatMetricValue(selected.value)}`
       }
     >
-      <View className="relative">
-        <CartesianPlot
-          width={width}
+      {showAxes ? (
+        <ChartAxes
+          dates={data.map((point) => point.date)}
+          domain={domain}
           height={height}
-          pointCount={data.length}
-          selectedIndex={null}
+          periodDays={periodDays}
+          referenceLabel={referenceLabel}
+          unit={unit}
+          width={width}
         >
-          {rangeBand === null ? null : (
-            <Defs>
-              <LinearGradient id={rangeGradientId} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={color} stopOpacity={0.02} />
-                <Stop offset="0.24" stopColor={color} stopOpacity={0.12} />
-                <Stop offset="0.76" stopColor={color} stopOpacity={0.12} />
-                <Stop offset="1" stopColor={color} stopOpacity={0.02} />
-              </LinearGradient>
-            </Defs>
-          )}
-          {showGrid
-            ? [0, 0.25, 0.5, 0.75, 1].map((fraction) => (
-                <Line
-                  key={`grid-${fraction}`}
-                  x1={0}
-                  x2={width}
-                  y1={fraction * height}
-                  y2={fraction * height}
-                  stroke="#E4E4E0"
-                  strokeWidth={1}
-                  opacity={0.9}
-                />
-              ))
-            : null}
-          {rangeBand === null ? null : (
-            <Rect
-              x={0}
-              y={Math.max(0, rangeBand.y - 10)}
-              width={width}
-              height={Math.min(height, rangeBand.height + 20)}
-              fill={`url(#${rangeGradientId})`}
-              opacity={0.75}
-            />
-          )}
-          {rangeBand === null ? null : (
-            <Rect
-              x={0}
-              y={Math.max(0, rangeBand.y - 4)}
-              width={width}
-              height={Math.min(height, rangeBand.height + 8)}
-              fill={color}
-              opacity={0.035}
-            />
-          )}
-          {domain !== null && reference !== null ? (
-            <Line
-              x1={0}
-              x2={width}
-              y1={referenceLineY(reference, domain, height)}
-              y2={referenceLineY(reference, domain, height)}
-              stroke={color}
-              strokeDasharray="4 4"
-              opacity={0.35}
-            />
-          ) : null}
-          {path === '' ? null : (
-            <>
-              {areaPath === '' || areaColor === undefined ? null : (
-                <Path d={areaPath} fill={areaColor} opacity={0.16} />
-              )}
-              <Path d={path} fill="none" stroke={color} strokeWidth={3} />
-            </>
-          )}
-          {showRawPoints && domain !== null
-            ? data.map((point, index) => {
-                if (point.value === null || !Number.isFinite(point.value))
-                  return null;
-                const x = pointX(index, data.length, width);
-                const y = pointY(point.value, domain, height);
-                return (
-                  <Circle
-                    key={point.date}
-                    cx={x}
-                    cy={y}
-                    r={3}
-                    fill="#FFFFFF"
-                    stroke={color}
-                    strokeWidth={2}
-                  />
-                );
-              })
-            : null}
-          {selected !== null &&
-          selected.value !== null &&
-          selectedDecorationX !== null &&
-          domain !== null ? (
-            <Circle
-              cx={selectedDecorationX}
-              cy={pointY(selected.value, domain, height)}
-              r={6}
-              fill="#FFFFFF"
-              stroke={color}
-              strokeWidth={3}
-            />
-          ) : null}
-          {selectedDecorationX === null ? null : (
-            <Line
-              x1={selectedDecorationX}
-              x2={selectedDecorationX}
-              y1={0}
-              y2={height}
-              stroke="#262626"
-              strokeDasharray="2 3"
-              opacity={0.45}
-            />
-          )}
-        </CartesianPlot>
-        <ChartSelectionOverlay
-          width={width}
+          <LineTrendPlot
+            data={data}
+            domain={domain}
+            height={height}
+            plotWidth={plotWidth}
+            color={color}
+            areaColor={areaColor}
+            path={path}
+            areaPath={areaPath}
+            reference={reference}
+            referenceRange={referenceRange}
+            rangeBand={rangeBand}
+            rangeGradientId={rangeGradientId}
+            showGrid={showGrid}
+            showRawPoints={showRawPoints}
+            selectedIndex={selectedIndex}
+            selected={selected}
+            selectedDecorationX={selectedDecorationX}
+            selectIndex={selectIndex}
+            selectedX={selectedX}
+            showSelectionTooltip={showSelectionTooltip}
+          />
+        </ChartAxes>
+      ) : (
+        <LineTrendPlot
+          data={data}
+          domain={domain}
           height={height}
-          onScrub={(x) => {
-            const index = selectedIndexForScrubX(x, data.length, width);
-            if (index !== null) selectIndex(index);
-          }}
-          onAccessibilityStep={(direction) => {
-            if (data.length === 0) return;
-            const currentIndex = selectedIndexRef.current ?? 0;
-            const delta = direction === 'increment' ? 1 : -1;
-            selectIndex(
-              Math.max(0, Math.min(data.length - 1, currentIndex + delta)),
-            );
-          }}
+          plotWidth={plotWidth}
+          color={color}
+          areaColor={areaColor}
+          path={path}
+          areaPath={areaPath}
+          reference={reference}
+          referenceRange={referenceRange}
+          rangeBand={rangeBand}
+          rangeGradientId={rangeGradientId}
+          showGrid={showGrid}
+          showRawPoints={showRawPoints}
+          selectedIndex={selectedIndex}
+          selected={selected}
+          selectedDecorationX={selectedDecorationX}
+          selectIndex={selectIndex}
+          selectedX={selectedX}
+          showSelectionTooltip={showSelectionTooltip}
         />
-        {!showSelectionTooltip ||
-        selected === null ||
-        selectedX === null ? null : (
-          <View
-            pointerEvents="none"
-            className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"
-            style={{
-              left: Math.max(0, Math.min(width - 96, selectedX - 48)),
-            }}
-          >
-            <AppText variant="caption" className="text-white">
-              {formatPresentationDate(selected.date)}
-              {'\n'}
-              {selected.value === null
-                ? 'No recorded value'
-                : formatMetricValue(selected.value)}
-            </AppText>
-          </View>
-        )}
-      </View>
+      )}
     </ChartFrame>
+  );
+}
+
+function LineTrendPlot({
+  data,
+  domain,
+  height,
+  plotWidth,
+  color,
+  areaColor,
+  path,
+  areaPath,
+  reference,
+  referenceRange,
+  rangeBand,
+  rangeGradientId,
+  showGrid,
+  showRawPoints,
+  selectedIndex,
+  selected,
+  selectedDecorationX,
+  selectIndex,
+  selectedX,
+  showSelectionTooltip,
+}: {
+  data: readonly LineTrendDatum[];
+  domain: ReturnType<typeof fixedDomain>;
+  height: number;
+  plotWidth: number;
+  color: string;
+  areaColor?: string | undefined;
+  path: string;
+  areaPath: string;
+  reference: number | null;
+  referenceRange: { lower: number; upper: number } | null;
+  rangeBand: ReturnType<typeof referenceBand>;
+  rangeGradientId: string;
+  showGrid: boolean;
+  showRawPoints: boolean;
+  selectedIndex: number | null;
+  selected: LineTrendDatum | null;
+  selectedDecorationX: number | null;
+  selectIndex: (index: number) => void;
+  selectedX: number | null;
+  showSelectionTooltip: boolean;
+}) {
+  const gridTicks =
+    domain === null
+      ? []
+      : numericAxisTicks(
+          { minimum: domain.min, maximum: domain.max },
+          { includeZero: domain.min === 0 },
+        );
+  return (
+    <>
+      <CartesianPlot
+        width={plotWidth}
+        height={height}
+        pointCount={data.length}
+        selectedIndex={null}
+      >
+        {rangeBand === null ? null : (
+          <Defs>
+            <LinearGradient id={rangeGradientId} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={color} stopOpacity={0.02} />
+              <Stop offset="0.24" stopColor={color} stopOpacity={0.12} />
+              <Stop offset="0.76" stopColor={color} stopOpacity={0.12} />
+              <Stop offset="1" stopColor={color} stopOpacity={0.02} />
+            </LinearGradient>
+          </Defs>
+        )}
+        {showGrid && domain !== null
+          ? gridTicks.map((tick) => (
+              <Line
+                key={`grid-${tick}`}
+                testID={`chart-grid-${tick}`}
+                x1={0}
+                x2={plotWidth}
+                y1={pointY(tick, domain, height)}
+                y2={pointY(tick, domain, height)}
+                stroke="#E4E4E0"
+                strokeWidth={1}
+                opacity={0.9}
+              />
+            ))
+          : null}
+        {rangeBand === null ? null : (
+          <Rect
+            x={0}
+            y={Math.max(0, rangeBand.y - 10)}
+            width={plotWidth}
+            height={Math.min(height, rangeBand.height + 20)}
+            fill={`url(#${rangeGradientId})`}
+            opacity={0.75}
+          />
+        )}
+        {rangeBand === null ? null : (
+          <Rect
+            x={0}
+            y={Math.max(0, rangeBand.y - 4)}
+            width={plotWidth}
+            height={Math.min(height, rangeBand.height + 8)}
+            fill={color}
+            opacity={0.035}
+          />
+        )}
+        {domain !== null && reference !== null ? (
+          <Line
+            x1={0}
+            x2={plotWidth}
+            y1={referenceLineY(reference, domain, height)}
+            y2={referenceLineY(reference, domain, height)}
+            stroke={color}
+            strokeDasharray="4 4"
+            opacity={0.35}
+          />
+        ) : null}
+        {path === '' ? null : (
+          <>
+            {areaPath === '' || areaColor === undefined ? null : (
+              <Path d={areaPath} fill={areaColor} opacity={0.16} />
+            )}
+            <Path d={path} fill="none" stroke={color} strokeWidth={3} />
+          </>
+        )}
+        {showRawPoints && domain !== null
+          ? data.map((point, index) => {
+              if (point.value === null || !Number.isFinite(point.value))
+                return null;
+              const x = pointX(index, data.length, plotWidth);
+              const y = pointY(point.value, domain, height);
+              return (
+                <Circle
+                  key={point.date}
+                  cx={x}
+                  cy={y}
+                  r={3}
+                  fill="#FFFFFF"
+                  stroke={color}
+                  strokeWidth={2}
+                />
+              );
+            })
+          : null}
+        {selected !== null &&
+        selected.value !== null &&
+        selectedDecorationX !== null &&
+        domain !== null ? (
+          <Circle
+            cx={selectedDecorationX}
+            cy={pointY(selected.value, domain, height)}
+            r={6}
+            fill="#FFFFFF"
+            stroke={color}
+            strokeWidth={3}
+          />
+        ) : null}
+        {selectedDecorationX === null ? null : (
+          <Line
+            x1={selectedDecorationX}
+            x2={selectedDecorationX}
+            y1={0}
+            y2={height}
+            stroke="#262626"
+            strokeDasharray="2 3"
+            opacity={0.45}
+          />
+        )}
+      </CartesianPlot>
+      <ChartSelectionOverlay
+        width={plotWidth}
+        height={height}
+        onScrub={(x) => {
+          const index = selectedIndexForScrubX(x, data.length, plotWidth);
+          if (index !== null) selectIndex(index);
+        }}
+        onAccessibilityStep={(direction) => {
+          if (data.length === 0) return;
+          const currentIndex = selectedIndex ?? 0;
+          const delta = direction === 'increment' ? 1 : -1;
+          selectIndex(
+            Math.max(0, Math.min(data.length - 1, currentIndex + delta)),
+          );
+        }}
+      />
+      {!showSelectionTooltip ||
+      selected === null ||
+      selectedX === null ? null : (
+        <View
+          pointerEvents="none"
+          className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"
+          style={{
+            left: Math.max(0, Math.min(plotWidth - 96, selectedX - 48)),
+          }}
+        >
+          <AppText variant="caption" className="text-white">
+            {formatPresentationDate(selected.date)}
+            {'\n'}
+            {selected.value === null
+              ? 'No recorded value'
+              : formatMetricValue(selected.value)}
+          </AppText>
+        </View>
+      )}
+    </>
   );
 }

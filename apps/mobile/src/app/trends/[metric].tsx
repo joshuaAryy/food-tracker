@@ -55,6 +55,7 @@ import {
   initialAnalyticsResource,
 } from '@/lib/analytics/analytics-resource';
 import { coreTrendPresentation } from '@/lib/analytics/trend-presentation';
+import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
 import {
   metricCoverageMessage,
   referenceMessage,
@@ -782,6 +783,14 @@ export default function TrendDetailScreen() {
                 color="#C9242D"
                 trendValues={trend.rollingTrend?.values}
                 reference={referenceValue(trend)}
+                referenceRange={referenceRange(trend)}
+                showAxes
+                showGrid
+                periodDays={selectedRelativePeriod ?? undefined}
+                unit={definition.unit}
+                referenceLabel={
+                  axisReferenceLabel(trend.reference) ?? undefined
+                }
                 accessibilityLabel={`${definition.displayName} trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
               />
             ) : (
@@ -792,6 +801,13 @@ export default function TrendDetailScreen() {
                 trendValues={trend.rollingTrend?.values}
                 reference={referenceValue(trend)}
                 referenceRange={referenceRange(trend)}
+                showAxes
+                showGrid
+                periodDays={selectedRelativePeriod ?? undefined}
+                unit={definition.unit}
+                referenceLabel={
+                  axisReferenceLabel(trend.reference) ?? undefined
+                }
                 showRawPoints={presentation === 'weight_line'}
                 accessibilityLabel={`${definition.displayName} trend for ${formatPresentationDateRange(trend.resolvedRange.startDate, trend.resolvedRange.endDate)}`}
               />

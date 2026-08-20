@@ -118,7 +118,7 @@ describe('Trend detail screen', () => {
       await screen.findByLabelText('Calories trend for Jul 6 – Aug 4'),
     ).toBeTruthy();
     expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
-      expect.objectContaining({ width: 280 }),
+      expect.objectContaining({ width: 232 }),
     );
     expect(screen.getByText('Average 1,846 kcal')).toBeTruthy();
   });
@@ -168,7 +168,7 @@ describe('Trend detail screen', () => {
       backgroundColor: '#FFFFFF',
     });
     expect(screen.getByLabelText('Inspect chart values').props.style).toEqual(
-      expect.objectContaining({ width: 350 }),
+      expect.objectContaining({ width: 302 }),
     );
   });
 });
