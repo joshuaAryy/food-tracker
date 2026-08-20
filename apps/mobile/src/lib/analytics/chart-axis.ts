@@ -50,7 +50,11 @@ export function numericAxisTicks(
   const maximum = options.includeZero ? Math.max(0, upper) : upper;
   const range = maximum - minimum;
   const step = niceStep(range / (targetCount - 1));
-  const start = Math.floor(minimum / step) * step;
+  const roundedStart = Math.floor(minimum / step) * step;
+  const start =
+    options.includeZero || minimum <= 0 || roundedStart !== 0
+      ? roundedStart
+      : minimum;
   const end = Math.ceil(maximum / step) * step;
   const ticks: number[] = [];
   for (let value = start; value <= end + step / 1000; value += step) {

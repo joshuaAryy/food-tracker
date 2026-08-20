@@ -51,6 +51,16 @@ describe('analytics chart axes', () => {
     ).toEqual([78, 80, 82, 84]);
   });
 
+  it('does not round a positive nonzero floor down to zero', () => {
+    const ticks = numericAxisTicks(
+      { minimum: 130, maximum: 2200 },
+      { includeZero: false, targetCount: 4 },
+    );
+
+    expect(ticks[0]).toBe(130);
+    expect(ticks).not.toContain(0);
+  });
+
   it('labels reference semantics instead of exposing an unlabeled line', () => {
     expect(
       axisReferenceLabel({

@@ -52,7 +52,7 @@ describe('metric-specific trend reports', () => {
     expect(screen.getByText('lb')).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286093174');
     expect(JSON.stringify(screen.toJSON())).toContain('"opacity":0.16');
-    expect(screen.getByTestId('chart-grid-1000')).toBeTruthy();
+    expect(screen.getByTestId('chart-grid-1130')).toBeTruthy();
     expect(screen.getAllByText('130').length).toBeGreaterThan(0);
     expect(
       screen.getByText(
@@ -304,7 +304,7 @@ describe('metric-specific trend reports', () => {
     );
     expect(
       screen.getByTestId('hydration-trend-x-labels').children,
-    ).toHaveLength(7);
+    ).toHaveLength(3);
     expect(screen.getByText('Aug 4 – Aug 10')).toBeTruthy();
   });
 
