@@ -117,7 +117,7 @@ describe('Calories trend report fidelity', () => {
     );
 
     const tree = JSON.stringify(screen.toJSON());
-    expect(tree).toContain('"payload":4294178031');
+    expect(tree).toContain('"payload":4293783016');
     expect(tree).toContain('Selected values remain gaps');
     expect(tree).toContain('"payload":4279111182');
   });

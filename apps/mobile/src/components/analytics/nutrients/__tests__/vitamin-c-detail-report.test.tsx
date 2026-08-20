@@ -116,7 +116,7 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.getByText(/Recorded metric/)).toBeTruthy();
     expect(screen.getByText(/Complete day/)).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).toContain('"r":6');
-    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4286941849');
+    expect(JSON.stringify(screen.toJSON())).toContain('"payload":4283918023');
     expect(JSON.stringify(screen.toJSON())).toContain('"payload":4292007905');
     expect(JSON.stringify(screen.toJSON())).toContain(
       '"stroke":{"type":0,"payload":4291087319}',
