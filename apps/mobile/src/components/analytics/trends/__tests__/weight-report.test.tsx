@@ -51,9 +51,8 @@ describe('WeightReport', () => {
     expect(screen.getByTestId('weight-trend-chart').props.style).toEqual(
       expect.objectContaining({ height: 190, width: 272 }),
     );
-    expect(screen.getByTestId('weight-chart-x-labels').props.style).toEqual(
-      expect.objectContaining({ width: 272 }),
-    );
+    expect(screen.getByTestId('chart-y-axis')).toBeTruthy();
+    expect(screen.getByTestId('chart-x-axis')).toBeTruthy();
     expect(screen.getByTestId('weight-goal-reference').props.style).toEqual(
       expect.objectContaining({ right: -4 }),
     );

@@ -7,6 +7,7 @@ import {
   formatPresentationDate,
   formatPresentationDateRange,
 } from '@/lib/date-time';
+import { numericAxisTicks } from '@/lib/analytics/chart-axis';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import { pointY, referenceLineY } from '@/lib/analytics/chart-geometry';
 import { formatMetricWithUnit } from '@/lib/reporting-ui';
@@ -46,7 +47,9 @@ function HydrationDailyVesselPlot({
           ...baseDomain,
           max: Math.max(baseDomain.max, goal ?? 0) * 1.3,
         };
-  const slotWidth = width / Math.max(data.length, 1);
+  const axisGutter = 42;
+  const plotWidth = Math.max(180, width - axisGutter);
+  const slotWidth = plotWidth / Math.max(data.length, 1);
   const vesselWidth = Math.min(20, Math.max(12, slotWidth * 0.48));
   const plotHeight = HYDRATION_PLOT_HEIGHT - HYDRATION_PLOT_INSET * 2;
   const baseline =
@@ -61,23 +64,53 @@ function HydrationDailyVesselPlot({
     selected === null || selected.value === null || domain === null
       ? null
       : HYDRATION_PLOT_INSET + pointY(selected.value, domain, plotHeight);
+  const yTicks =
+    domain === null
+      ? []
+      : numericAxisTicks(
+          { minimum: domain.min, maximum: domain.max },
+          { includeZero: true, targetCount: 4 },
+        );
 
   return (
     <View
       testID="hydration-daily-vessel-plot"
+      className="flex-row"
       style={{ width, height: HYDRATION_PLOT_HEIGHT }}
     >
+      <View
+        testID="hydration-y-axis"
+        className="w-[42px] justify-between pr-1"
+        style={{ height: HYDRATION_PLOT_HEIGHT }}
+      >
+        <AppText variant="caption" className="text-[10px] text-muted">
+          L
+        </AppText>
+        <View className="flex-1 justify-between">
+          {[...yTicks].reverse().map((tick) => (
+            <AppText
+              key={tick}
+              variant="caption"
+              className="text-right text-[10px] text-muted"
+            >
+              {formatMetricWithUnit(tick / 1000, 'L', {
+                maximumFractionDigits: 1,
+              }).replace(' L', '')}
+            </AppText>
+          ))}
+        </View>
+      </View>
       <Svg
-        width={width}
+        width={plotWidth}
         height={HYDRATION_PLOT_HEIGHT}
-        viewBox={`0 0 ${width} ${HYDRATION_PLOT_HEIGHT}`}
+        viewBox={`0 0 ${plotWidth} ${HYDRATION_PLOT_HEIGHT}`}
         accessibilityLabel="Daily explicit hydration totals"
       >
         {[0.5, 0.75].map((fraction) => (
           <Line
             key={`hydration-grid-${fraction}`}
             x1={0}
-            x2={width}
+            x2={plotWidth}
             y1={HYDRATION_PLOT_HEIGHT * fraction}
             y2={HYDRATION_PLOT_HEIGHT * fraction}
             stroke="#E4E8E5"
@@ -88,7 +121,7 @@ function HydrationDailyVesselPlot({
           <Line
             testID="hydration-goal-reference"
             x1={0}
-            x2={width}
+            x2={plotWidth}
             y1={HYDRATION_PLOT_INSET + referenceLineY(goal, domain, plotHeight)}
             y2={HYDRATION_PLOT_INSET + referenceLineY(goal, domain, plotHeight)}
             stroke={HYDRATION_BLUE}
@@ -215,6 +248,11 @@ export function HydrationReport({
       ? null
       : recordedWeekdayPoints.filter((point) => point.value >= goal * 0.75)
           .length;
+  const xLabelIndexes = [
+    0,
+    Math.floor(Math.max(weekdayPoints.length - 1, 0) / 2),
+    Math.max(weekdayPoints.length - 1, 0),
+  ].filter((index, position, indexes) => indexes.indexOf(index) === position);
   return (
     <View testID="hydration-report" className="gap-4">
       <HydrationTargetCard
@@ -259,16 +297,17 @@ export function HydrationReport({
           testID="hydration-trend-x-labels"
           className="flex-row justify-between px-1"
         >
-          {weekdayPoints.map((point) => (
-            <AppText key={point.date} variant="caption" className="text-muted">
-              {new Intl.DateTimeFormat('en-US', {
-                weekday: 'short',
-                timeZone: 'UTC',
-              })
-                .format(new Date(`${point.date}T12:00:00.000Z`))
-                .slice(0, 1)}
-            </AppText>
-          ))}
+          {weekdayPoints.map((point, index) =>
+            xLabelIndexes.includes(index) ? (
+              <AppText
+                key={point.date}
+                variant="caption"
+                className="text-muted"
+              >
+                {formatPresentationDate(point.date)}
+              </AppText>
+            ) : null,
+          )}
         </View>
         {latestPoint === null ? null : (
           <View className="flex-row justify-between border-t border-border pt-3">

@@ -50,6 +50,9 @@ describe('HydrationReport', () => {
         stroke: expect.objectContaining({ payload: 4281563847 }),
       }),
     );
+    expect(screen.getByTestId('hydration-y-axis')).toBeTruthy();
+    expect(screen.getByText('Aug 4')).toBeTruthy();
+    expect(screen.getAllByText('Aug 10').length).toBeGreaterThan(0);
     expect(screen.getByTestId('hydration-missing-observation-2')).toBeTruthy();
     expect(screen.queryByTestId('hydration-daily-vessel-2')).toBeNull();
     expect(screen.getByTestId('hydration-missing-observation-2').props).toEqual(
@@ -93,7 +96,7 @@ describe('HydrationReport', () => {
       />,
     );
 
-    const plotWidth = 272;
+    const plotWidth = 230;
     const marker = screen.getByTestId('hydration-selected-observation').props;
     const finalVessel = screen.getByTestId('hydration-daily-vessel-6').props;
 
