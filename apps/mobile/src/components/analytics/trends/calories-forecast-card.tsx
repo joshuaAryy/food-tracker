@@ -9,10 +9,14 @@ import { formatMetricValue } from '@/lib/reporting-ui';
 export function CaloriesForecastCard({
   forecast,
   historical = [],
+  historicalDates = [],
+  periodDays,
   width = 300,
 }: {
   forecast: AnalyticsForecast | undefined;
   historical?: readonly (number | null)[];
+  historicalDates?: readonly string[];
+  periodDays?: number | undefined;
   width?: number;
 }) {
   if (forecast?.kind === 'available') {
@@ -35,8 +39,12 @@ export function CaloriesForecastCard({
         )}
         <ForecastChart
           historical={historical}
+          historicalDates={historicalDates}
           forecast={forecast.points}
           width={width}
+          showAxes
+          periodDays={periodDays}
+          unit="kcal"
           accessibilityLabel="Calories forecast"
         />
       </AppCard>

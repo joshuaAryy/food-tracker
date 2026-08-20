@@ -15,19 +15,33 @@ import {
 import { ChartFrame } from './chart-frame';
 import { CartesianPlot } from './cartesian-plot';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
+import { ChartAxes, chartPlotWidth } from './chart-axes';
 import { formatMetricValue } from '@/lib/reporting-ui';
 
 export function ForecastChart({
   historical,
+  historicalDates,
   forecast,
   width,
   height = 180,
+  showAxes = false,
+  periodDays,
+  unit = '',
   accessibilityLabel,
 }: {
   historical: readonly (number | null)[];
-  forecast: readonly { value: number; lower: number; upper: number }[];
+  historicalDates?: readonly string[] | undefined;
+  forecast: readonly {
+    date?: string | undefined;
+    value: number;
+    lower: number;
+    upper: number;
+  }[];
   width: number;
   height?: number;
+  showAxes?: boolean | undefined;
+  periodDays?: number | undefined;
+  unit?: string | undefined;
   accessibilityLabel: string;
 }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -46,6 +60,15 @@ export function ForecastChart({
   if (domain === null)
     return <ChartFrame accessibilityLabel={accessibilityLabel} />;
   const pointCount = historical.length + forecast.length;
+  const dates = [
+    ...(historicalDates ?? []),
+    ...forecast.map((point) => point.date ?? ''),
+  ];
+  const hasDateAxis =
+    showAxes &&
+    historicalDates?.length === historical.length &&
+    forecast.every((point) => point.date !== undefined);
+  const plotWidth = chartPlotWidth(width, hasDateAxis);
   const selectIndex = useCallback((nextIndex: number) => {
     if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -62,13 +85,64 @@ export function ForecastChart({
   const historicalPath = linePath(
     [...historical, ...forecast.map(() => null)],
     domain,
-    { width, height },
+    { width: plotWidth, height },
   );
   const forecastPath = forecastPathWithContinuity(
     historical,
     forecast.map((point) => point.value),
     domain,
-    { width, height },
+    { width: plotWidth, height },
+  );
+  const chart = (
+    <View>
+      <CartesianPlot
+        width={plotWidth}
+        height={height}
+        pointCount={pointCount}
+        todayIndex={historical.length === 0 ? null : historical.length - 1}
+        selectedIndex={selectedIndex}
+      >
+        <Polygon
+          points={uncertaintyPolygonAtOffset(
+            forecast,
+            domain,
+            { width: plotWidth, height },
+            { startIndex: historical.length, totalPointCount: pointCount },
+          )}
+          fill="#C9242D"
+          opacity={0.12}
+        />
+        <Path d={historicalPath} fill="none" stroke="#C9242D" strokeWidth={3} />
+        <Path
+          d={forecastPath}
+          fill="none"
+          stroke="#C9242D"
+          strokeWidth={3}
+          strokeDasharray="6 5"
+        />
+      </CartesianPlot>
+      <ChartSelectionOverlay
+        width={plotWidth}
+        height={height}
+        onScrub={(x) => {
+          const index = selectedIndexForScrubX(x, pointCount, plotWidth);
+          if (index !== null) selectIndex(index);
+        }}
+        onAccessibilityStep={(direction) => {
+          if (pointCount === 0) return;
+          const current = selectedIndexRef.current ?? 0;
+          selectIndex(
+            Math.max(
+              0,
+              Math.min(
+                pointCount - 1,
+                current + (direction === 'increment' ? 1 : -1),
+              ),
+            ),
+          );
+        }}
+      />
+    </View>
   );
   return (
     <ChartFrame
@@ -79,60 +153,20 @@ export function ForecastChart({
           : `${selectedIndex < historical.length ? 'Historical' : 'Estimated'} value: ${selectedValue === null ? 'No recorded value' : formatMetricValue(selectedValue)}`
       }
     >
-      <View>
-        <CartesianPlot
-          width={width}
+      {hasDateAxis ? (
+        <ChartAxes
+          dates={dates}
+          domain={domain}
           height={height}
-          pointCount={pointCount}
-          todayIndex={historical.length === 0 ? null : historical.length - 1}
-          selectedIndex={selectedIndex}
+          periodDays={periodDays}
+          unit={unit}
+          width={width}
         >
-          <Polygon
-            points={uncertaintyPolygonAtOffset(
-              forecast,
-              domain,
-              { width, height },
-              { startIndex: historical.length, totalPointCount: pointCount },
-            )}
-            fill="#C9242D"
-            opacity={0.12}
-          />
-          <Path
-            d={historicalPath}
-            fill="none"
-            stroke="#C9242D"
-            strokeWidth={3}
-          />
-          <Path
-            d={forecastPath}
-            fill="none"
-            stroke="#C9242D"
-            strokeWidth={3}
-            strokeDasharray="6 5"
-          />
-        </CartesianPlot>
-        <ChartSelectionOverlay
-          width={width}
-          height={height}
-          onScrub={(x) => {
-            const index = selectedIndexForScrubX(x, pointCount, width);
-            if (index !== null) selectIndex(index);
-          }}
-          onAccessibilityStep={(direction) => {
-            if (pointCount === 0) return;
-            const current = selectedIndexRef.current ?? 0;
-            selectIndex(
-              Math.max(
-                0,
-                Math.min(
-                  pointCount - 1,
-                  current + (direction === 'increment' ? 1 : -1),
-                ),
-              ),
-            );
-          }}
-        />
-      </View>
+          {chart}
+        </ChartAxes>
+      ) : (
+        chart
+      )}
     </ChartFrame>
   );
 }

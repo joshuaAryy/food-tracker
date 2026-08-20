@@ -152,6 +152,8 @@ export function CaloriesReport({
         <CaloriesForecastCard
           forecast={trend.forecast}
           historical={points.map((point) => point.value)}
+          historicalDates={points.map((point) => point.date)}
+          periodDays={selectedPeriod ?? undefined}
           width={Math.max(260, width - 76)}
         />
       )}

@@ -746,8 +746,12 @@ export default function TrendDetailScreen() {
             ) : trend.forecast?.kind === 'available' ? (
               <ForecastChart
                 historical={dailyPoints.map((point) => point.value)}
+                historicalDates={dailyPoints.map((point) => point.date)}
                 forecast={trend.forecast.points}
                 width={Math.max(280, width - 40)}
+                showAxes
+                periodDays={selectedRelativePeriod ?? undefined}
+                unit={definition.unit}
                 accessibilityLabel={`${definition.displayName} estimated seven-day projection after ${formatPresentationDate(trend.forecast.todayDate, { includeYear: true })}`}
               />
             ) : presentation === 'macro' &&
