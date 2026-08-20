@@ -45,21 +45,20 @@ export function InsightsPeriodSummary({
         />
       ) : (
         <AppCard
+          testID="insights-period-summary-card"
           elevated
           compact={compact}
-          className={compact ? 'gap-2 rounded-[12px] p-3' : 'gap-4 p-[18px]'}
+          className={
+            compact ? 'gap-4 rounded-[20px] p-[18px]' : 'gap-4 p-[18px]'
+          }
+          style={compact ? { minHeight: 154 } : undefined}
         >
           <View className={compact ? 'flex-row gap-3' : 'flex-row gap-4'}>
             <View className="min-w-0 flex-1 gap-1">
               <AppText variant="caption" className="text-muted">
                 Logging streak
               </AppText>
-              <AppText
-                variant="number"
-                className={
-                  compact ? 'text-[24px] leading-7' : 'text-[34px] leading-10'
-                }
-              >
+              <AppText variant="number" className="text-[34px] leading-10">
                 {data.streak.currentDays}{' '}
                 {data.streak.currentDays === 1 ? 'day' : 'days'}
               </AppText>
@@ -68,12 +67,7 @@ export function InsightsPeriodSummary({
               <AppText variant="caption" className="text-muted">
                 Consistency
               </AppText>
-              <AppText
-                variant="number"
-                className={
-                  compact ? 'text-[24px] leading-7' : 'text-[34px] leading-10'
-                }
-              >
+              <AppText variant="number" className="text-[34px] leading-10">
                 {data.consistency === null
                   ? '—'
                   : `${formatMetricValue(data.consistency, {
