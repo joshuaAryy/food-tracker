@@ -43,11 +43,14 @@ describe('MacroChart', () => {
       expect(separator.props.stroke).toMatchObject({ payload: 4294967295 });
       expect(separator.props.strokeWidth).toBe(2);
       expect(
+        Math.hypot(separator.props.x2 - 62, separator.props.y2 - 62),
+      ).toBeCloseTo(54);
+      expect(
         Math.hypot(
           separator.props.x2 - separator.props.x1,
           separator.props.y2 - separator.props.y1,
         ),
-      ).toBeLessThan(14);
+      ).toBeCloseTo(21);
     }
   });
 });

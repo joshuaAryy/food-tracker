@@ -48,10 +48,10 @@ describe('macro chart geometry', () => {
     );
 
     expect(separators).toHaveLength(3);
-    expect(separators[0]).toMatchObject({ x1: 62, y1: 29, x2: 62, y2: 17 });
+    expect(separators[0]).toMatchObject({ x1: 62, y1: 29, x2: 62, y2: 8 });
     for (const separator of separators) {
       expect(Math.hypot(separator.x1 - 62, separator.y1 - 62)).toBeCloseTo(33);
-      expect(Math.hypot(separator.x2 - 62, separator.y2 - 62)).toBeCloseTo(45);
+      expect(Math.hypot(separator.x2 - 62, separator.y2 - 62)).toBeCloseTo(54);
     }
   });
 

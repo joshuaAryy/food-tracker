@@ -41,7 +41,7 @@ export function macroSeparatorLines(
 ) {
   const center = size / 2;
   const innerRadius = radius - strokeWidth / 2 - 1;
-  const outerRadius = radius + 1;
+  const outerRadius = radius + strokeWidth / 2;
   let fractionOffset = 0;
 
   return segments.flatMap((segment) => {
