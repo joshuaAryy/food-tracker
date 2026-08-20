@@ -163,7 +163,7 @@ describe('Insights overview pin boundary', () => {
     await screen.findByTestId('complex-insights-overview');
     expect(
       screen.getByTestId('complex-insights-overview').props.className,
-    ).toContain('gap-4');
+    ).toContain('gap-7');
     expect(screen.getByText('Insights').props.className).toContain(
       'text-[22px]',
     );
@@ -185,6 +185,53 @@ describe('Insights overview pin boundary', () => {
         name: 'Open pinned view: Protein · 30D',
       }),
     ).toBeNull();
+  });
+
+  it('routes Complex mode to the expanded, phase-aware logging preview', async () => {
+    (api.analytics.insights as jest.Mock).mockResolvedValueOnce(
+      v2Report(
+        complexInsightsFixture,
+        overviewWith({
+          loggingConsistency: {
+            status: 'available',
+            fetchedAt,
+            data: {
+              completeDayCount: 1,
+              partialDayCount: 1,
+              unloggedDayCount: 1,
+              inProgressDayCount: 1,
+              eligibleLoggedDayCount: 2,
+              eligibleTotalDayCount: 3,
+              streak: { currentDays: 1, longestDays: 2 },
+              days: [
+                {
+                  date: '2026-08-16',
+                  loggingDayState: 'complete',
+                  loggingDayPhase: 'closed',
+                },
+                {
+                  date: '2026-08-17',
+                  loggingDayState: 'partial',
+                  loggingDayPhase: 'closed',
+                },
+                {
+                  date: '2026-08-18',
+                  loggingDayState: 'unlogged',
+                  loggingDayPhase: 'in_progress',
+                },
+              ],
+            },
+          },
+        }),
+      ) as never,
+    );
+
+    const screen = await render(<InsightsScreen />);
+
+    expect(await screen.findByLabelText('Aug 18: in_progress')).toBeTruthy();
+    expect(
+      screen.getByTestId('logging-consistency-heatmap-grid').props.style,
+    ).toEqual(expect.objectContaining({ width: 292, gap: 8 }));
   });
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {

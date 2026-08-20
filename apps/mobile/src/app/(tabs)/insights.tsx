@@ -349,7 +349,6 @@ export default function InsightsScreen() {
               onOverviewRetry={(overview) =>
                 void loadReporting(period, false, null, overview)
               }
-              compact
             />
           ) : complexTab === 'nutrients' ? (
             <ComplexInsightsNutrients

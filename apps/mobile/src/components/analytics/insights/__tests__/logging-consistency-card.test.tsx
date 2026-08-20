@@ -1,5 +1,8 @@
 import { render, userEvent } from '@/test/render';
-import { LoggingConsistencyCard } from '../logging-consistency-card';
+import {
+  LoggingConsistencyCard,
+  loggingConsistencyPreviewLayout,
+} from '../logging-consistency-card';
 
 const fetchedAt = '2026-08-20T12:00:00.000Z';
 
@@ -46,8 +49,23 @@ describe('LoggingConsistencyCard', () => {
 
     expect(screen.getByLabelText('Aug 16: complete')).toBeTruthy();
     expect(screen.getByLabelText('Aug 17: partial')).toBeTruthy();
-    expect(screen.getByLabelText('Aug 18: unlogged')).toBeTruthy();
+    expect(screen.getByLabelText('Aug 18: in_progress')).toBeTruthy();
     expect(screen.getByText(/Current day remains in progress/)).toBeTruthy();
+  });
+
+  it('keeps the enlarged preview inside the content width on a 320pt phone', () => {
+    expect(loggingConsistencyPreviewLayout(390)).toEqual({
+      columns: 10,
+      cellSize: 22,
+      cellGap: 8,
+      width: 292,
+    });
+    expect(loggingConsistencyPreviewLayout(320)).toEqual({
+      columns: 10,
+      cellSize: 17,
+      cellGap: 8,
+      width: 242,
+    });
   });
 
   it('keeps the section-scoped retry callback for unavailable logging data', async () => {

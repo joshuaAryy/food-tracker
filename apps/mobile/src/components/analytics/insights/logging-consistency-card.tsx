@@ -1,5 +1,5 @@
 import type { AnalyticsOverviewLoggingConsistency } from '@food-tracker/shared';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { HeatmapChart } from '@/components/analytics/charts/heatmap-chart';
@@ -9,15 +9,42 @@ import type { HeatmapState } from '@/lib/analytics/heatmap-geometry';
 import { AnalyticsSectionError } from './analytics-section-error';
 
 function heatmapState(
-  state: AnalyticsOverviewLoggingConsistency['days'][number]['loggingDayState'],
+  day: AnalyticsOverviewLoggingConsistency['days'][number],
 ): HeatmapState {
-  return state;
+  return day.loggingDayPhase === 'in_progress'
+    ? 'in_progress'
+    : day.loggingDayState;
 }
 
 function colorForState(state: HeatmapState): string {
   if (state === 'complete') return '#00D66B';
   if (state === 'partial') return '#76DBA0';
+  if (state === 'in_progress') return '#D99000';
   return '#E4E8E0';
+}
+
+export function loggingConsistencyPreviewLayout(width: number): {
+  columns: number;
+  cellSize: number;
+  cellGap: number;
+  width: number;
+} {
+  const columns = 10;
+  const cellGap = 8;
+  const contentWidth = Math.max(0, Math.min(width, 480) - 78);
+  const cellSize = Math.max(
+    12,
+    Math.min(
+      22,
+      Math.floor((contentWidth - (columns - 1) * cellGap) / columns),
+    ),
+  );
+  return {
+    columns,
+    cellSize,
+    cellGap,
+    width: columns * cellSize + (columns - 1) * cellGap,
+  };
 }
 
 export function LoggingConsistencyCard({
@@ -35,6 +62,8 @@ export function LoggingConsistencyCard({
 }) {
   const data = overview?.data ?? null;
   const isComplexOverview = presentation === 'complex' && !compact;
+  const { width } = useWindowDimensions();
+  const previewLayout = loggingConsistencyPreviewLayout(width);
   return (
     <View
       testID="simple-insights-section-logging-consistency"
@@ -73,13 +102,13 @@ export function LoggingConsistencyCard({
           <HeatmapChart
             points={data.days.map((day) => ({
               date: day.date,
-              state: heatmapState(day.loggingDayState),
+              state: heatmapState(day),
             }))}
             colorForState={colorForState}
             accessibilityLabel="Logging consistency calendar"
-            columns={isComplexOverview ? 10 : 14}
-            cellSize={isComplexOverview ? 22 : 14}
-            cellGap={isComplexOverview ? 8 : 4}
+            columns={isComplexOverview ? previewLayout.columns : 14}
+            cellSize={isComplexOverview ? previewLayout.cellSize : 14}
+            cellGap={isComplexOverview ? previewLayout.cellGap : 4}
             testID="logging-consistency-heatmap"
           />
           <AppText variant="caption" className="text-muted">

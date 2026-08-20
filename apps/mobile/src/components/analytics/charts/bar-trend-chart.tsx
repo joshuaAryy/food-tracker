@@ -479,6 +479,9 @@ function BarTrendPlot({
           className="absolute -top-3 rounded-[12px] bg-ink px-3 py-2"
           style={{
             left: Math.max(0, Math.min(plotWidth - 96, selectedX - 48)),
+            ...(chartStyle?.tooltipAccent === undefined
+              ? {}
+              : { backgroundColor: chartStyle.tooltipAccent }),
           }}
         >
           <AppText variant="caption" className="text-white">
