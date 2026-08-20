@@ -26,12 +26,15 @@ Gate 3 notes below; those notes are retained as prior evidence.
   `loggingDayPhase` preserves the distinct `in_progress` state. Simple/compact
   states and unavailable, unknown, empty, and error semantics remain covered.
 - Figma nodes reviewed for this change: Complex Overview `338:276`, Macros
-  `338:720`, Calories `338:469`, and Logging Consistency `338:928` in
-  `GFLStsF0ADwaizoVKGeLny`.
+  `338:720`, Calories `338:469`, Logging Consistency `338:928`, and Nutrient
+  Library `424:21` in `GFLStsF0ADwaizoVKGeLny`.
 - Final visual review: the Energy preview now uses the unified trend style,
   subtle dashed reference bounds, and a light Complex-mode chart surface; the
-  heavy gray range treatment was removed. The independent reviewer confirmed
-  the targeted discrepancy is resolved in the fresh 368x800 capture.
+  heavy gray range treatment was removed. Calories now has a quiet in-chart
+  reference band, Logging Consistency uses a balanced single-row weekly
+  preview, and Nutrient Library limits attention to prioritized exceptions.
+  The independent reviewer confirmed no remaining Major, Moderate, or Minor
+  discrepancy in the fresh targeted captures.
 
 ### Current runtime and account boundary
 
@@ -48,12 +51,30 @@ The resulting fixture contains 560 food logs, 106 weights, 485 water logs,
 6754 nutrient rows, four saved views, and one pinned view; read-only checks
 confirmed current-day, 7D, 30D, and 90D coverage plus special nutrients.
 
+### Fresh runtime review surfaces
+
+The authenticated iPhone 17 Simulator pass reviewed the current staging data
+through the real navigation path. Fresh screenshots are retained outside the
+repository under `/tmp/`: Complex Overview sections, Calories 30D, Protein
+30D, Sodium 30D, Vitamin C 30D, Macros 30D, Hydration, Logging Consistency,
+the nutrient library, and Other Recorded Nutrients. The final targeted files
+include `phase-17-5-calories-30d-final-after-opacity.jpg` and
+`phase-17-5-logging-consistency-final-after-layout.jpg`. The latter nutrient
+capture shows Caffeine recorded while Alcohol, Oxalate, and Phytate remain
+intentionally unrecorded.
+
+The current-date evidence includes Aug 20, current-week Aug 14–20, and
+Calories 30D Jul 22–Aug 20. The independent visual review found no remaining
+Major, Moderate, or Minor discrepancy in the reviewed surfaces; the only
+limitation is the 368x800/approximately-402pt viewport, which is not exact
+390/393 evidence.
+
 ### Current automated evidence
 
 - Node `v22.23.0`; pnpm `10.34.3`; PostgreSQL container `food-tracker-postgres`
   running on localhost:5432.
 - Mobile Vitest: 55 files / 387 tests passed.
-- Mobile Jest: 67 suites / 196 tests passed.
+- Mobile Jest: 67 suites / 197 tests passed.
 - API focused changed-boundary tests: 3 files / 19 tests passed.
 - API full suite: 95 files / 1,181 tests passed against `food_tracker_test`.
 - Prisma generate/validate, root lint, typecheck, build, API/shared/mobile
@@ -65,18 +86,19 @@ confirmed current-day, 7D, 30D, and 90D coverage plus special nutrients.
 
 ## Environment
 
-- Device: iPhone 17e, iOS 27.0, 390-point logical-width class.
+- Device: iPhone 17, iOS 27.0, 390-point logical-width class; the captured
+  runtime output was 368x800 (approximately 402pt) and is not exact 390/393
+  evidence.
 - Native project: `apps/mobile/ios/FoodTracker.xcworkspace`.
 - Runtime: authenticated native Simulator app with the staging Metro bundle;
   the seeded-data checkpoint used the real staging API and Firebase session.
 - API target: existing Railway staging service; no production target used.
 - Latest staging deployment: `719f9469-52dd-46cd-8eb5-b9392711601b` (`SUCCESS`);
   `/health` returned 200 with `{"status":"ok"}` after rollout.
-- Automated runtime evidence: the fresh Release app installed on the current
-  iPhone 17e Simulator, preserved the authenticated staging session, loaded the
-  deterministic QA data, and returned a schema-valid Insights response after
-  the staging analytics boundary fix. No password, Firebase token, or UID was
-  printed.
+- Automated runtime evidence: the authenticated native Simulator app loaded
+  the deterministic staging QA data through the staging Metro bundle and
+  returned schema-valid Insights and trend responses. No password, Firebase
+  token, or UID was printed.
 - Physical iPhone validation: intentionally not performed.
 
 ## Reference captures
@@ -184,6 +206,10 @@ Local reference files are kept outside the repository under
   in period-local logging streak facts. The minimal backend fix was deployed
   and the canonical schema diagnostic then returned `success: true` with no
   metric errors.
+- The fresh 2026-08-20 runtime pass then reviewed the full Overview composition,
+  Calories/Protein/Sodium/Vitamin C detail charts, Macro composition and daily
+  mix, Hydration, Logging Consistency, nutrient categories, special metrics,
+  and intentional empty states.
 
 ## Closeout boundary
 
@@ -191,4 +217,6 @@ The Release artifact was rebuilt with Xcode 27, installed and launched on the
 current Simulator, and rechecked after the final source changes. The account
 remained authenticated against staging throughout; no credentials were
 requested or exposed. A physical iPhone run, Personal Team signing, and any
-production distribution remain outside this automated Gate 3 claim.
+production distribution remain outside this automated Gate 3 claim. The latest
+fresh visual pass used the same booted Simulator with the authenticated
+staging Metro bundle; its 368x800 captures remain approximate evidence only.

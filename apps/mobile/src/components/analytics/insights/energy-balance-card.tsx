@@ -155,7 +155,7 @@ export function EnergyBalanceCard({
               {statusCopy(data)}
             </AppText>
             <View
-              className={`gap-1 rounded-[10px] p-1.5 ${isComplexOverview ? 'bg-module' : 'bg-module-muted'}`}
+              className={`gap-1 rounded-[10px] p-1.5 ${isComplexOverview ? 'bg-[#F7F7F4]' : 'bg-module-muted'}`}
             >
               {preview === null ? (
                 <AppText variant="caption" className="text-muted">

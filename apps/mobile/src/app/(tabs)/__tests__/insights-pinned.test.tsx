@@ -231,7 +231,7 @@ describe('Insights overview pin boundary', () => {
     expect(await screen.findByLabelText('Aug 18: in_progress')).toBeTruthy();
     expect(
       screen.getByTestId('logging-consistency-heatmap-grid').props.style,
-    ).toEqual(expect.objectContaining({ width: 292, gap: 8 }));
+    ).toEqual(expect.objectContaining({ width: 244, gap: 8 }));
   });
 
   it('renders a canonical nullable aggregate as a gap rather than a zero-filled report value', async () => {

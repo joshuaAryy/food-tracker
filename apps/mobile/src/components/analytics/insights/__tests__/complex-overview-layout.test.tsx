@@ -200,14 +200,14 @@ describe('Complex Insights overview layout', () => {
       />,
     );
     expect(logging.getByTestId('logging-consistency-card').props.style).toEqual(
-      expect.objectContaining({ minHeight: 284 }),
+      expect.objectContaining({ minHeight: 208 }),
     );
     const heatmapGrid = logging.getByTestId('logging-consistency-heatmap-grid');
     expect(heatmapGrid.props.style).toEqual(
-      expect.objectContaining({ gap: 8, width: 292 }),
+      expect.objectContaining({ gap: 8, width: 244 }),
     );
     expect(heatmapGrid.props.children[0].props.style).toEqual(
-      expect.objectContaining({ height: 22, width: 22 }),
+      expect.objectContaining({ height: 28, width: 28 }),
     );
   });
 

@@ -262,6 +262,7 @@ export function NutrientLibrary({
         ),
     [definitions, details],
   );
+  const visibleAttentionEntries = attentionEntries.slice(0, 2);
 
   if (loading) {
     return (
@@ -369,7 +370,7 @@ export function NutrientLibrary({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Search nutrients"
-          className="h-11 w-11 items-center justify-center rounded-full bg-module active:opacity-70"
+          className="h-11 w-11 items-center justify-center rounded-full bg-module-muted active:opacity-70"
           onPress={() => setSearchOpen(true)}
         >
           <AppText variant="heading" className="text-[20px] leading-6">
@@ -388,7 +389,7 @@ export function NutrientLibrary({
                 No nutrient needs attention in this period.
               </AppText>
             ) : (
-              attentionEntries.map(({ definition, detail }) => (
+              visibleAttentionEntries.map(({ definition, detail }) => (
                 <AttentionRow
                   key={definition.key}
                   definition={definition}
@@ -397,6 +398,11 @@ export function NutrientLibrary({
                 />
               ))
             )}
+            {attentionEntries.length > visibleAttentionEntries.length ? (
+              <AppText variant="caption" className="px-2 pb-1 pt-2 text-muted">
+                Only high-priority exceptions appear here.
+              </AppText>
+            ) : null}
           </AppCard>
         </View>
       ) : null}

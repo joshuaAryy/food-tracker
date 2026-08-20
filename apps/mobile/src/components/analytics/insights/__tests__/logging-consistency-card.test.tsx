@@ -68,6 +68,15 @@ describe('LoggingConsistencyCard', () => {
     });
   });
 
+  it('uses a balanced single-row layout for a current-week preview', () => {
+    expect(loggingConsistencyPreviewLayout(390, 7)).toEqual({
+      columns: 7,
+      cellSize: 28,
+      cellGap: 8,
+      width: 244,
+    });
+  });
+
   it('keeps the section-scoped retry callback for unavailable logging data', async () => {
     const onRetry = jest.fn();
     const screen = await render(

@@ -303,6 +303,10 @@ function BarTrendPlot({
   const referenceColor = chartStyle?.reference.color ?? color;
   const referenceOpacity = chartStyle?.reference.opacity ?? 0.35;
   const referenceStrokeWidth = chartStyle?.reference.strokeWidth ?? 1;
+  const boundsBand =
+    domain !== null && referenceTreatment === 'bounds'
+      ? referenceBand(referenceRange, domain, height)
+      : null;
   const gridTicks =
     domain === null
       ? []
@@ -361,6 +365,17 @@ function BarTrendPlot({
             height={Math.min(height, rangeBand.height + 8)}
             fill={color}
             opacity={0.035}
+          />
+        )}
+        {boundsBand === null ? null : (
+          <Rect
+            testID="reference-range-band"
+            x={0}
+            y={boundsBand.y}
+            width={plotWidth}
+            height={boundsBand.height}
+            fill={referenceColor}
+            opacity={0.13}
           />
         )}
         {domain !== null &&

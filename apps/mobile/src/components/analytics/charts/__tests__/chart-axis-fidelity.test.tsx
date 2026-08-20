@@ -89,6 +89,7 @@ describe('detailed chart axes', () => {
     );
     expect(screen.getByTestId('reference-bound-lower')).toBeTruthy();
     expect(screen.getByTestId('reference-bound-upper')).toBeTruthy();
+    expect(screen.getByTestId('reference-range-band')).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).not.toContain(
       'RNSVGLinearGradient',
     );

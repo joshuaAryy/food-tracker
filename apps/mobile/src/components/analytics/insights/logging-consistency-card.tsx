@@ -23,19 +23,23 @@ function colorForState(state: HeatmapState): string {
   return '#E4E8E0';
 }
 
-export function loggingConsistencyPreviewLayout(width: number): {
+export function loggingConsistencyPreviewLayout(
+  width: number,
+  pointCount = 31,
+): {
   columns: number;
   cellSize: number;
   cellGap: number;
   width: number;
 } {
-  const columns = 10;
+  const isShortPeriod = pointCount <= 7;
+  const columns = isShortPeriod ? 7 : 10;
   const cellGap = 8;
   const contentWidth = Math.max(0, Math.min(width, 480) - 78);
   const cellSize = Math.max(
     12,
     Math.min(
-      22,
+      isShortPeriod ? 28 : 22,
       Math.floor((contentWidth - (columns - 1) * cellGap) / columns),
     ),
   );
@@ -63,7 +67,10 @@ export function LoggingConsistencyCard({
   const data = overview?.data ?? null;
   const isComplexOverview = presentation === 'complex' && !compact;
   const { width } = useWindowDimensions();
-  const previewLayout = loggingConsistencyPreviewLayout(width);
+  const previewLayout = loggingConsistencyPreviewLayout(
+    width,
+    data?.days.length,
+  );
   return (
     <View
       testID="simple-insights-section-logging-consistency"
@@ -93,7 +100,11 @@ export function LoggingConsistencyCard({
                 ? 'gap-3 justify-between rounded-[20px] p-[18px]'
                 : 'gap-3 p-[18px]'
           }
-          style={isComplexOverview ? { minHeight: 284 } : undefined}
+          style={
+            isComplexOverview
+              ? { minHeight: data.days.length <= 7 ? 208 : 284 }
+              : undefined
+          }
         >
           <AppText variant="caption" className="text-muted">
             REPORT · {data.completeDayCount} complete · {data.partialDayCount}{' '}

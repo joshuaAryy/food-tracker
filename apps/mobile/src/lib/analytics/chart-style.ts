@@ -35,7 +35,7 @@ const STYLE_BY_FAMILY: Record<AnalyticsChartStyleFamily, AnalyticsChartStyle> =
         strokeWidth: 1,
       },
       trend: { color: colors.light.ink, width: 2.75 },
-      reference: { color: colors.light.ink, opacity: 0.42, strokeWidth: 1.25 },
+      reference: { color: colors.light.ink, opacity: 0.56, strokeWidth: 1.5 },
       referenceTreatment: 'bounds',
       selected: {
         fill: colors.light.ink,
