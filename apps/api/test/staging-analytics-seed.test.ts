@@ -24,6 +24,47 @@ describe('staging analytics QA fixture', () => {
     expect(first.profile.birthDate).toBe('1992-06-15');
   });
 
+  it('reaches the anchor date with supported nutrient coverage across chart states', () => {
+    const first = buildStagingAnalyticsFixture({ anchorDate: '2026-08-20' });
+    const second = buildStagingAnalyticsFixture({ anchorDate: '2026-08-20' });
+    const nutrientKeys = new Set(
+      first.foodLogNutrients.map((entry) => entry.nutrientKey),
+    );
+    const latestDate = <T extends { localDate: string }>(entries: T[]) =>
+      entries.reduce(
+        (latest, entry) =>
+          entry.localDate > latest ? entry.localDate : latest,
+        entries[0]!.localDate,
+      );
+
+    expect(first).toEqual(second);
+    expect(first.historyDays).toBeGreaterThanOrEqual(181);
+    expect(latestDate(first.foodLogs)).toBe('2026-08-20');
+    expect(latestDate(first.waterLogs)).toBe('2026-08-20');
+    expect(latestDate(first.weightLogs)).toBe('2026-08-20');
+    expect(
+      first.foodLogs
+        .filter((log) => log.localDate === '2026-08-20')
+        .every((log) =>
+          [log.calories, log.carbs, log.fat, log.protein, log.fiber].every(
+            (amount) => amount > 0,
+          ),
+        ),
+    ).toBe(true);
+    expect([...nutrientKeys]).toEqual(
+      expect.arrayContaining([
+        'starch',
+        'solubleFiber',
+        'saturatedFat',
+        'leucine',
+        'vitaminC',
+        'calcium',
+        'caffeine',
+        'omega3',
+      ]),
+    );
+  });
+
   it('creates complete, partial, unlogged, and in-progress fixture days', () => {
     const fixture = buildStagingAnalyticsFixture({ anchorDate: '2026-08-12' });
     const states = classifyFixtureDays(fixture);

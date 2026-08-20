@@ -164,6 +164,9 @@ const MICRO_NUTRIENTS: readonly {
   base: number;
   variation: number;
 }[] = [
+  { nutrientKey: 'starch', unit: 'g', base: 44, variation: 10 },
+  { nutrientKey: 'solubleFiber', unit: 'g', base: 2.5, variation: 0.8 },
+  { nutrientKey: 'saturatedFat', unit: 'g', base: 7, variation: 2.5 },
   { nutrientKey: 'vitaminC', unit: 'mg', base: 30, variation: 9 },
   { nutrientKey: 'potassium', unit: 'mg', base: 430, variation: 80 },
   { nutrientKey: 'calcium', unit: 'mg', base: 210, variation: 40 },
@@ -172,6 +175,7 @@ const MICRO_NUTRIENTS: readonly {
   { nutrientKey: 'leucine', unit: 'g', base: 2.8, variation: 0.5 },
   { nutrientKey: 'isoleucine', unit: 'g', base: 1.6, variation: 0.3 },
   { nutrientKey: 'omega3', unit: 'g', base: 0.45, variation: 0.25 },
+  { nutrientKey: 'caffeine', unit: 'mg', base: 130, variation: 50 },
 ];
 
 function assertIsoDate(value: string): void {
