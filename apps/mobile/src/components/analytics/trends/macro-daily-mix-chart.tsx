@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
+import { macroColors } from '@/lib/analytics/macro-geometry';
 
 type DailyMix = {
   date: string;
@@ -10,12 +11,6 @@ type DailyMix = {
 };
 
 const BAR_HEIGHT = 150;
-
-const segmentColors = {
-  protein: '#C9242D',
-  carbs: '#33B866',
-  fat: '#FFAD8F',
-} as const;
 
 function weekdayLabel(date: string): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -70,7 +65,7 @@ export function MacroDailyMixChart({ days }: { days: readonly DailyMix[] }) {
                     className="min-h-[2px] flex-1 border-b border-white"
                     style={{
                       flex: value,
-                      backgroundColor: segmentColors[key],
+                      backgroundColor: macroColors[key],
                     }}
                   />
                 ),

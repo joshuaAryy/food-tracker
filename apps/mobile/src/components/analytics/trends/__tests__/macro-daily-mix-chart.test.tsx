@@ -1,4 +1,5 @@
 import { render } from '@/test/render';
+import { macroColors } from '@/lib/analytics/macro-geometry';
 import { MacroDailyMixChart } from '../macro-daily-mix-chart';
 
 describe('MacroDailyMixChart', () => {
@@ -30,5 +31,25 @@ describe('MacroDailyMixChart', () => {
     );
     expect(screen.queryByTestId('macro-daily-mix-segment-protein')).toBeNull();
     expect(screen.queryByTestId('macro-daily-mix-segment-fat')).toBeNull();
+  });
+
+  it('uses the shared macro identities for daily segment colors', async () => {
+    const screen = await render(
+      <MacroDailyMixChart
+        days={[{ date: '2026-08-03', protein: 24, carbs: 49, fat: 27 }]}
+      />,
+    );
+
+    expect(
+      screen.getByTestId('macro-daily-mix-segment-protein').props.style,
+    ).toEqual(
+      expect.objectContaining({ backgroundColor: macroColors.protein }),
+    );
+    expect(
+      screen.getByTestId('macro-daily-mix-segment-carbs').props.style,
+    ).toEqual(expect.objectContaining({ backgroundColor: macroColors.carbs }));
+    expect(
+      screen.getByTestId('macro-daily-mix-segment-fat').props.style,
+    ).toEqual(expect.objectContaining({ backgroundColor: macroColors.fat }));
   });
 });

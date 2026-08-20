@@ -1,19 +1,16 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Rect } from 'react-native-svg';
+import Svg, { Circle, Line, Rect } from 'react-native-svg';
 import { AppText } from '@/components/app-text';
 import {
+  macroColors,
+  macroDonutGeometry,
   macroSegments,
+  macroSeparatorLines,
   stackedMacroSegments,
   type MacroKey,
 } from '@/lib/analytics/macro-geometry';
 import { ChartFrame } from './chart-frame';
-
-const macroColors: Record<MacroKey, string> = {
-  protein: '#C9242D',
-  carbs: '#33B866',
-  fat: '#FFAD8F',
-};
 
 export function MacroChart({
   values,
@@ -32,13 +29,20 @@ export function MacroChart({
 }) {
   const segments = useMemo(() => macroSegments(values), [values]);
   const stackedSegments = useMemo(() => stackedMacroSegments(values), [values]);
-  const radius = Math.round(size * 0.355);
-  const strokeWidth = Math.round(size * 0.16);
-  const centerRadius = Math.round(radius - strokeWidth / 2);
-  const centerDiameter = centerRadius * 2;
+  const geometry = useMemo(() => macroDonutGeometry(size), [size]);
+  const separatorLines = useMemo(
+    () =>
+      macroSeparatorLines(
+        segments,
+        size,
+        geometry.radius,
+        geometry.strokeWidth,
+      ),
+    [geometry.radius, geometry.strokeWidth, segments, size],
+  );
   const centerValueSize = size >= 112 ? 22 : 14;
   const centerLabelSize = size >= 112 ? 12 : 10;
-  const circumference = 2 * Math.PI * radius;
+  const circumference = 2 * Math.PI * geometry.radius;
   const stackedTotal = stackedSegments.at(-1)?.end ?? 0;
   if (variant === 'stacked_bar') {
     return (
@@ -91,7 +95,7 @@ export function MacroChart({
             testID="macro-donut-halo"
             cx={size / 2}
             cy={size / 2}
-            r={radius + size * 0.14}
+            r={geometry.radius + size * 0.14}
             fill="#F3F4EF"
             opacity={0.9}
           />
@@ -103,10 +107,10 @@ export function MacroChart({
                 testID={`macro-donut-segment-${segment.key}`}
                 cx={size / 2}
                 cy={size / 2}
-                r={radius}
+                r={geometry.radius}
                 fill="none"
                 stroke={macroColors[segment.key]}
-                strokeWidth={strokeWidth}
+                strokeWidth={geometry.strokeWidth}
                 strokeDasharray={`${length} ${circumference - length}`}
                 strokeDashoffset={-offset}
                 strokeLinecap="butt"
@@ -117,11 +121,21 @@ export function MacroChart({
             offset += length;
             return circle;
           })}
+          {separatorLines.map((separator, index) => (
+            <Line
+              key={index}
+              testID="macro-donut-separator"
+              {...separator}
+              stroke="#FFFFFF"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          ))}
           <Circle
             testID="macro-donut-center-disc"
             cx={size / 2}
             cy={size / 2}
-            r={centerRadius}
+            r={geometry.centerRadius}
             fill="#FFFFFF"
           />
         </Svg>
@@ -131,8 +145,10 @@ export function MacroChart({
             pointerEvents="none"
             className="absolute items-center justify-center self-center"
             style={{
-              width: centerDiameter,
-              height: centerDiameter,
+              left: geometry.centerLabelBounds.x,
+              top: geometry.centerLabelBounds.y,
+              width: geometry.centerLabelBounds.width,
+              height: geometry.centerLabelBounds.height,
               paddingHorizontal: 2,
             }}
           >
