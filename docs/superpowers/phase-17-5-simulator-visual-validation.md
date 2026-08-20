@@ -1,7 +1,60 @@
 # Phase 17.5 Simulator Visual Validation Ledger
 
-Status: Gate 3 Simulator/Figma checkpoint complete; physical iPhone validation
-remains user-only and pending.
+Status: Chart-system implementation and automated validation complete; the
+fresh exact-viewport Simulator capture and authorized staging reseed remain
+open. Physical iPhone status: **PENDING USER RE-VALIDATION**.
+
+## 2026-08-20 chart-system update
+
+This entry supersedes the current-evidence interpretation of the historical
+Gate 3 notes below; those notes are retained as prior evidence.
+
+- Starting implementation baseline: `9ab7304`.
+- Final implementation commit: `ab0e9e7`.
+- Chart system: `chartStyleForMetric` now centralizes family identity, raw-bar
+  emphasis, trend treatment, reference bounds, selected state, and tooltip
+  accent. Direct daily-hybrid callers use the resolver, while hydration,
+  weight, logging consistency, and Macro compositions retain their specialized
+  renderers.
+- Macro: donut and daily-mix charts share one palette and geometry module;
+  controlled white radial separators preserve segment boundaries without
+  creating oversized gaps.
+- Overview: Complex cards preserve the approved minimum geometry, and Logging
+  Consistency uses a materially larger heatmap preview. Simple/compact states
+  and unavailable, unknown, empty, and error semantics remain covered.
+- Figma nodes reviewed for this change: Complex Overview `338:276`, Macros
+  `338:720`, Calories `338:469`, and Logging Consistency `338:928` in
+  `GFLStsF0ADwaizoVKGeLny`.
+
+### Current runtime and account boundary
+
+The XcodeBuildMCP audit found only the already booted iPhone 17 on iOS 27.0.
+Its current semantic snapshot was a pre-existing Macros screen, and its
+optimized screenshot was `368x800`; that is not fresh 390/393 evidence and is
+not counted as a validation capture. A fresh native build/install was not
+performed because the generated `apps/mobile/ios` workspace was not present in
+the working tree at audit time. No 402-point or 368-point artifact substitutes
+for the required 390/393 review.
+
+The deterministic fixture and safety tests pass for anchor `2026-08-20`, but
+the guarded staging reset was not run: the required explicit existing
+Firebase-linked QA UID or email was not supplied in this task context. No
+account was created, guessed, or reseeded.
+
+### Current automated evidence
+
+- Node `v22.23.0`; pnpm `10.34.3`; PostgreSQL container `food-tracker-postgres`
+  running on localhost:5432.
+- Mobile Vitest: 55 files / 387 tests passed.
+- Mobile Jest: 67 suites / 193 tests passed.
+- API focused changed-boundary tests: 3 files / 19 tests passed.
+- API full suite: 95 files / 1,181 tests passed against `food_tracker_test`.
+- Prisma generate/validate, root lint, typecheck, build, API/shared/mobile
+  typecheck/lint/build, `git diff --check`, and owned-file Prettier checks
+  passed.
+- Repository-wide `format:check` remains red only because it scans 25
+  pre-existing generated/protected `.agents`/`.superpowers` artifacts; those
+  paths were not modified.
 
 ## Environment
 
