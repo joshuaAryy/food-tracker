@@ -1,5 +1,6 @@
 import { render } from '@/test/render';
 import { initialAnalyticsReportResource } from '@/lib/analytics/analytics-report-resource';
+import { simpleInsightsFixture } from '@/test-fixtures/analytics-fixtures';
 import { ComplexInsightsOverview } from '../complex-insights-overview';
 import { EnergyBalanceCard } from '../energy-balance-card';
 import { HydrationInsightsCard } from '../hydration-insights-card';
@@ -259,16 +260,42 @@ describe('Complex Insights overview layout', () => {
           data: {
             highlights: [
               {
-                metric: 'vitaminC',
-                value: 96,
-                unit: 'mg',
-                availability: 'recorded',
+                metric: 'fiber' as const,
+                value: 28,
+                unit: 'g' as const,
+                availability: 'recorded' as const,
                 reference: {
-                  kind: 'none',
-                  unit: 'mg',
-                  reason: 'not_configured',
+                  kind: 'minimum' as const,
+                  value: 30,
+                  unit: 'g' as const,
+                  source: 'derived' as const,
                 },
-                status: 'unknown',
+                status: 'below_minimum' as const,
+              },
+              {
+                metric: 'sodium' as const,
+                value: 1800,
+                unit: 'mg' as const,
+                availability: 'recorded' as const,
+                reference: {
+                  kind: 'limit' as const,
+                  value: 2300,
+                  unit: 'mg' as const,
+                  source: 'default' as const,
+                },
+                status: 'within_limit' as const,
+              },
+              {
+                metric: 'vitaminC',
+                value: null,
+                unit: 'mg' as const,
+                availability: 'unknown' as const,
+                reference: {
+                  kind: 'none' as const,
+                  unit: 'mg',
+                  reason: 'not_configured' as const,
+                },
+                status: 'unknown' as const,
               },
             ],
           },
@@ -276,7 +303,9 @@ describe('Complex Insights overview layout', () => {
         onRetry={jest.fn()}
       />,
     );
-    expect(nutrients.getByText('Reference unavailable')).toBeTruthy();
+    expect(
+      nutrients.getByLabelText(/Vitamin C.*Reference unavailable/),
+    ).toBeTruthy();
 
     const hydration = await render(
       <HydrationInsightsCard
@@ -296,8 +325,18 @@ describe('Complex Insights overview layout', () => {
             },
           },
           trend: {
-            data: { summary: { numericDayCount: 2 } },
-          } as never,
+            status: 'available' as const,
+            fetchedAt,
+            error: null,
+            retryable: false,
+            data: {
+              ...simpleInsightsFixture.sections.hydration,
+              summary: {
+                ...simpleInsightsFixture.sections.hydration.summary,
+                numericDayCount: 2,
+              },
+            },
+          },
           onLogWater: jest.fn(),
           onOpenTrend: jest.fn(),
           onRetry: jest.fn(),
