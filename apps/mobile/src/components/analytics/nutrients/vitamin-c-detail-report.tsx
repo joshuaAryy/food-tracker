@@ -19,8 +19,10 @@ import { RelatedMetricCard } from './related-metric-card';
 const VITAMIN_C_ACCENT = '#5766C7';
 
 function rangeLabel(trend: CanonicalTrendResponse): string {
-  if (trend.reference.kind !== 'range') return 'Reference unavailable';
-  return `${formatMetricValue(trend.reference.lower)}–${formatMetricValue(trend.reference.upper)} ${trend.reference.unit}`;
+  if (trend.reference.kind === 'range') {
+    return `${formatMetricValue(trend.reference.lower)}–${formatMetricValue(trend.reference.upper)} ${trend.reference.unit}`;
+  }
+  return axisReferenceLabel(trend.reference) ?? 'Reference unavailable';
 }
 
 function averageStatus(trend: CanonicalTrendResponse): string {
@@ -32,6 +34,18 @@ function averageStatus(trend: CanonicalTrendResponse): string {
     trend.interpretation?.kind === 'above_range'
   ) {
     return 'average · outside your range';
+  }
+  if (trend.interpretation?.kind === 'below_minimum') {
+    return 'average · below your minimum';
+  }
+  if (trend.interpretation?.kind === 'meets_minimum') {
+    return 'average · meets your minimum';
+  }
+  if (trend.interpretation?.kind === 'above_limit') {
+    return 'average · above your limit';
+  }
+  if (trend.interpretation?.kind === 'within_limit') {
+    return 'average · within your limit';
   }
   return 'average · reference unavailable';
 }
@@ -52,6 +66,18 @@ function recordedPeriodSummary(
     trend.interpretation?.kind === 'above_range'
   ) {
     return `Average across ${recordedDays} ${dayLabel} is outside your configured range.`;
+  }
+  if (trend.interpretation?.kind === 'below_minimum') {
+    return `Average across ${recordedDays} ${dayLabel} is below your configured minimum.`;
+  }
+  if (trend.interpretation?.kind === 'meets_minimum') {
+    return `Average across ${recordedDays} ${dayLabel} meets your configured minimum.`;
+  }
+  if (trend.interpretation?.kind === 'above_limit') {
+    return `Average across ${recordedDays} ${dayLabel} is above your configured limit.`;
+  }
+  if (trend.interpretation?.kind === 'within_limit') {
+    return `Average across ${recordedDays} ${dayLabel} is within your configured limit.`;
   }
   return `${recordedDays} ${dayLabel} are available. Reference unavailable.`;
 }

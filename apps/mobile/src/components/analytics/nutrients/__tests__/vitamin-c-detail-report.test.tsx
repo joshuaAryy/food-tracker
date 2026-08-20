@@ -227,4 +227,44 @@ describe('Vitamin C detail report fidelity', () => {
     expect(screen.queryByText('2026-08-04')).toBeNull();
     expect(screen.queryByText('124.4857142857143 mg')).toBeNull();
   });
+
+  it('keeps a canonical minimum reference visible instead of calling it unavailable', async () => {
+    const screen = await render(
+      <VitaminCDetailReport
+        trend={{
+          ...trend,
+          reference: {
+            kind: 'minimum',
+            value: 90,
+            unit: 'mg',
+            source: 'default',
+          },
+          interpretation: {
+            kind: 'meets_minimum',
+            message: 'Recorded average meets the configured minimum.',
+          },
+        }}
+        relatedName="Iron"
+        relatedTrend={null}
+        relatedError={null}
+        contributors={contributors}
+        width={390}
+        simple={false}
+        selectedPeriod={30}
+        onSelectPeriod={jest.fn()}
+        onOpenCustomRange={jest.fn()}
+        onOpenRelated={jest.fn()}
+        onOpenContributors={jest.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText('Minimum · 90 mg').length).toBeGreaterThan(0);
+    expect(screen.getByText('average · meets your minimum')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Average across 24 recorded days meets your configured minimum.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Reference unavailable')).toBeNull();
+  });
 });
