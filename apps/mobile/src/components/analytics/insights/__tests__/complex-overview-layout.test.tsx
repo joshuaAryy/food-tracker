@@ -1,17 +1,62 @@
 import { render } from '@/test/render';
+import { initialAnalyticsReportResource } from '@/lib/analytics/analytics-report-resource';
+import { ComplexInsightsOverview } from '../complex-insights-overview';
 import { EnergyBalanceCard } from '../energy-balance-card';
 import { HydrationInsightsCard } from '../hydration-insights-card';
 import { LoggingConsistencyCard } from '../logging-consistency-card';
 import { MacroBalanceCard } from '../macro-balance-card';
+import { NutrientHighlightsCard } from '../nutrient-highlights-card';
 import { WeightDirectionCard } from '../weight-direction-card';
 
 function complexPresentation<Props extends object>(props: Props): Props {
   return { ...props, presentation: 'complex' } as Props;
 }
 
+function sectionTestIds(node: unknown, ids: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    node.forEach((child) => sectionTestIds(child, ids));
+    return ids;
+  }
+  if (node === null || typeof node !== 'object') return ids;
+
+  const rendered = node as {
+    props?: { testID?: unknown };
+    children?: unknown;
+  };
+  if (
+    typeof rendered.props?.testID === 'string' &&
+    rendered.props.testID.startsWith('simple-insights-section-')
+  ) {
+    ids.push(rendered.props.testID);
+  }
+  sectionTestIds(rendered.children, ids);
+  return ids;
+}
+
 const fetchedAt = '2026-08-18T12:00:00.000Z';
 
 describe('Complex Insights overview layout', () => {
+  it('keeps the seven approved overview sections in report order', async () => {
+    const screen = await render(
+      <ComplexInsightsOverview
+        resource={{ ...initialAnalyticsReportResource(), period: 'month' }}
+        onExploreTrends={jest.fn()}
+        onLogWater={jest.fn()}
+        onOverviewRetry={jest.fn()}
+      />,
+    );
+
+    expect(sectionTestIds(screen.toJSON())).toEqual([
+      'simple-insights-section-period-summary',
+      'simple-insights-section-energy-balance',
+      'simple-insights-section-macro-balance',
+      'simple-insights-section-nutrient-highlights',
+      'simple-insights-section-hydration',
+      'simple-insights-section-weight-direction',
+      'simple-insights-section-logging-consistency',
+    ]);
+  });
+
   it('reserves the Figma reporting surfaces instead of collapsing to content height', async () => {
     const energy = await render(
       <EnergyBalanceCard
@@ -45,6 +90,7 @@ describe('Complex Insights overview layout', () => {
     expect(energy.getByTestId('energy-balance-card').props.style).toEqual(
       expect.objectContaining({ minHeight: 294 }),
     );
+    expect(energy.getByText('Energy trend unavailable')).toBeTruthy();
 
     const macro = await render(
       <MacroBalanceCard
@@ -111,6 +157,7 @@ describe('Complex Insights overview layout', () => {
     expect(weight.getByTestId('weight-direction-card').props.style).toEqual(
       expect.objectContaining({ minHeight: 250 }),
     );
+    expect(weight.getByText('Forecast unavailable')).toBeTruthy();
 
     const logging = await render(
       <LoggingConsistencyCard
@@ -152,11 +199,15 @@ describe('Complex Insights overview layout', () => {
       />,
     );
     expect(logging.getByTestId('logging-consistency-card').props.style).toEqual(
-      expect.objectContaining({ minHeight: 260 }),
+      expect.objectContaining({ minHeight: 284 }),
     );
-    expect(
-      logging.getByTestId('logging-consistency-heatmap-grid').props.style,
-    ).toEqual(expect.objectContaining({ width: 162 }));
+    const heatmapGrid = logging.getByTestId('logging-consistency-heatmap-grid');
+    expect(heatmapGrid.props.style).toEqual(
+      expect.objectContaining({ gap: 8, width: 292 }),
+    );
+    expect(heatmapGrid.props.children[0].props.style).toEqual(
+      expect.objectContaining({ height: 22, width: 22 }),
+    );
   });
 
   it('uses the Figma hydration vessel footprint without changing logged totals', async () => {
@@ -195,5 +246,64 @@ describe('Complex Insights overview layout', () => {
       { transform: [{ scaleX: 26 / 18 }, { scaleY: 36 / 32 }] },
     );
     expect(screen.getByText('1.6 L')).toBeTruthy();
+  });
+
+  it('keeps nutrient no-reference and hydration no-today-data states explicit', async () => {
+    const nutrients = await render(
+      <NutrientHighlightsCard
+        overview={{
+          status: 'available',
+          fetchedAt,
+          error: null,
+          retryable: false,
+          data: {
+            highlights: [
+              {
+                metric: 'vitaminC',
+                value: 96,
+                unit: 'mg',
+                availability: 'recorded',
+                reference: {
+                  kind: 'none',
+                  unit: 'mg',
+                  reason: 'not_configured',
+                },
+                status: 'unknown',
+              },
+            ],
+          },
+        }}
+        onRetry={jest.fn()}
+      />,
+    );
+    expect(nutrients.getByText('Reference unavailable')).toBeTruthy();
+
+    const hydration = await render(
+      <HydrationInsightsCard
+        {...complexPresentation({
+          overview: {
+            status: 'available' as const,
+            fetchedAt,
+            error: null,
+            retryable: false,
+            data: {
+              today: '2026-08-18',
+              timezone: 'America/Toronto',
+              total: null,
+              goal: 2000,
+              status: 'unknown' as const,
+              trendSection: 'hydration' as const,
+            },
+          },
+          trend: {
+            data: { summary: { numericDayCount: 2 } },
+          } as never,
+          onLogWater: jest.fn(),
+          onOpenTrend: jest.fn(),
+          onRetry: jest.fn(),
+        })}
+      />,
+    );
+    expect(hydration.getByText('No water logged today')).toBeTruthy();
   });
 });
