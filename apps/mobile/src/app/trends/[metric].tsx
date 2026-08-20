@@ -60,6 +60,7 @@ import {
 } from '@/lib/analytics/analytics-resource';
 import { coreTrendPresentation } from '@/lib/analytics/trend-presentation';
 import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import {
   metricCoverageMessage,
   referenceMessage,
@@ -789,6 +790,7 @@ export default function TrendDetailScreen() {
                 data={dailyPoints}
                 width={Math.max(280, width - 40)}
                 color="#C9242D"
+                chartStyle={chartStyleForMetric(metric)}
                 trendValues={trend.rollingTrend?.values}
                 reference={referenceValue(trend)}
                 referenceRange={referenceRange(trend)}

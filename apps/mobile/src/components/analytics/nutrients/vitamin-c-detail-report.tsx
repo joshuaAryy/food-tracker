@@ -14,6 +14,7 @@ import {
 } from '@/lib/date-time';
 import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
 import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { RelatedMetricCard } from './related-metric-card';
 
 const VITAMIN_C_ACCENT = '#5766C7';
@@ -192,6 +193,7 @@ export function VitaminCDetailReport({
             width={Math.max(280, width - 40)}
             height={190}
             color={VITAMIN_C_ACCENT}
+            chartStyle={chartStyleForMetric('vitaminC')}
             barFill="#D2D7E1"
             barStroke="#C4CBD7"
             selectedBarFill="#858A99"

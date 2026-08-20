@@ -105,6 +105,24 @@ describe('Trend detail screen', () => {
     );
   });
 
+  it('uses the protein chart family for generic nutrient bar trends', async () => {
+    mockRouteParams = { metric: 'protein' };
+    jest.spyOn(api.analytics, 'trend').mockResolvedValue({
+      ...trendResponse,
+      primaryMetric: 'protein',
+      reference: { kind: 'target', value: 120, unit: 'g', source: 'user' },
+    } as never);
+
+    const screen = await render(<TrendDetailScreen />);
+
+    expect(
+      await screen.findByLabelText('Protein trend for Jul 6 – Aug 4'),
+    ).toBeTruthy();
+    expect(screen.getByTestId('raw-bar-0').props.fill).toEqual(
+      expect.objectContaining({ payload: 0xffdde7d8 }),
+    );
+  });
+
   it('renders the exact canonical 30-day fixture at compact width', async () => {
     mockWindowDimensions = {
       ...analyticsStateFixtures.layouts.compact320,

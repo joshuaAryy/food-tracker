@@ -10,6 +10,7 @@ import {
   Rect,
   Stop,
 } from 'react-native-svg';
+import type { AnalyticsChartStyle } from '@/lib/analytics/chart-style';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
 import { formatMetricValue } from '@/lib/reporting-ui';
@@ -40,6 +41,7 @@ export function BarTrendChart({
   width,
   height = 180,
   color,
+  chartStyle,
   barFill,
   barStroke,
   trendValues,
@@ -63,6 +65,7 @@ export function BarTrendChart({
   width: number;
   height?: number;
   color: string;
+  chartStyle?: AnalyticsChartStyle | undefined;
   barFill?: string | undefined;
   barStroke?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
@@ -128,7 +131,9 @@ export function BarTrendChart({
       ? null
       : selectionDecorationX(selectedIndex, data.length, plotWidth, 7.5);
   const rangeBand =
-    domain === null ? null : referenceBand(referenceRange, domain, height);
+    domain === null || chartStyle?.referenceTreatment !== undefined
+      ? null
+      : referenceBand(referenceRange, domain, height);
   const rangeGradientId = `bar-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
   const trendPath = useMemo(
     () =>
@@ -177,11 +182,13 @@ export function BarTrendChart({
               height={height}
               plotWidth={plotWidth}
               color={color}
+              chartStyle={chartStyle}
               barFill={barFill}
               barStroke={barStroke}
               trendPath={trendPath}
               bars={bars}
               reference={reference}
+              referenceRange={referenceRange}
               rangeBand={rangeBand}
               rangeGradientId={rangeGradientId}
               showGrid={showGrid}
@@ -205,11 +212,13 @@ export function BarTrendChart({
             height={height}
             plotWidth={plotWidth}
             color={color}
+            chartStyle={chartStyle}
             barFill={barFill}
             barStroke={barStroke}
             trendPath={trendPath}
             bars={bars}
             reference={reference}
+            referenceRange={referenceRange}
             rangeBand={rangeBand}
             rangeGradientId={rangeGradientId}
             showGrid={showGrid}
@@ -235,11 +244,13 @@ function BarTrendPlot({
   height,
   plotWidth,
   color,
+  chartStyle,
   barFill,
   barStroke,
   trendPath,
   bars,
   reference,
+  referenceRange,
   rangeBand,
   rangeGradientId,
   showGrid,
@@ -258,11 +269,13 @@ function BarTrendPlot({
   height: number;
   plotWidth: number;
   color: string;
+  chartStyle?: AnalyticsChartStyle | undefined;
   barFill?: string | undefined;
   barStroke?: string | undefined;
   trendPath: string;
   bars: ReturnType<typeof barRects>;
   reference: number | null;
+  referenceRange: { lower: number; upper: number } | null;
   rangeBand: ReturnType<typeof referenceBand>;
   rangeGradientId: string;
   showGrid: boolean;
@@ -276,6 +289,20 @@ function BarTrendPlot({
   selectedX: number | null;
   showSelectionTooltip: boolean;
 }) {
+  const rawFill = chartStyle?.raw.fill ?? barFill ?? color;
+  const rawStroke = chartStyle?.raw.stroke ?? barStroke ?? color;
+  const rawOpacity = chartStyle?.raw.opacity;
+  const rawStrokeWidth = chartStyle?.raw.strokeWidth ?? 1;
+  const trendColor = chartStyle?.trend.color ?? color;
+  const trendWidth = chartStyle?.trend.width ?? 2.5;
+  const selectedFill = chartStyle?.selected.fill ?? selectedBarFill ?? rawFill;
+  const selectedStroke =
+    chartStyle?.selected.stroke ?? selectedBarStroke ?? rawStroke;
+  const selectedOpacity = chartStyle?.selected.opacity ?? 1;
+  const referenceTreatment = chartStyle?.referenceTreatment ?? 'line';
+  const referenceColor = chartStyle?.reference.color ?? color;
+  const referenceOpacity = chartStyle?.reference.opacity ?? 0.35;
+  const referenceStrokeWidth = chartStyle?.reference.strokeWidth ?? 1;
   const gridTicks =
     domain === null
       ? []
@@ -336,41 +363,72 @@ function BarTrendPlot({
             opacity={0.035}
           />
         )}
-        {domain !== null && reference !== null ? (
+        {domain !== null &&
+        reference !== null &&
+        referenceTreatment !== 'none' ? (
           <Line
+            testID="reference-line"
             x1={0}
             x2={plotWidth}
             y1={referenceLineY(reference, domain, height)}
             y2={referenceLineY(reference, domain, height)}
-            stroke={color}
+            stroke={referenceColor}
             strokeDasharray="4 4"
-            opacity={0.35}
+            strokeWidth={referenceStrokeWidth}
+            opacity={referenceOpacity}
           />
+        ) : null}
+        {domain !== null &&
+        referenceRange !== null &&
+        referenceTreatment === 'bounds' ? (
+          <>
+            <Line
+              testID="reference-bound-lower"
+              x1={0}
+              x2={plotWidth}
+              y1={referenceLineY(referenceRange.lower, domain, height)}
+              y2={referenceLineY(referenceRange.lower, domain, height)}
+              stroke={referenceColor}
+              strokeDasharray="3 4"
+              strokeWidth={referenceStrokeWidth}
+              opacity={referenceOpacity}
+            />
+            <Line
+              testID="reference-bound-upper"
+              x1={0}
+              x2={plotWidth}
+              y1={referenceLineY(referenceRange.upper, domain, height)}
+              y2={referenceLineY(referenceRange.upper, domain, height)}
+              stroke={referenceColor}
+              strokeDasharray="3 4"
+              strokeWidth={referenceStrokeWidth}
+              opacity={referenceOpacity}
+            />
+          </>
         ) : null}
         {bars.map((bar) => (
           <Path
             key={bar.index}
+            testID={`raw-bar-${bar.index}`}
             d={roundedBarPath(bar, 4)}
-            fill={barFill ?? color}
-            {...(selectedIndex === bar.index && selectedBarFill !== undefined
-              ? { fill: selectedBarFill }
-              : {})}
-            {...(barFill === undefined
-              ? {}
-              : { stroke: barStroke ?? color, strokeWidth: 1 })}
+            fill={selectedIndex === bar.index ? selectedFill : rawFill}
+            stroke={selectedIndex === bar.index ? selectedStroke : rawStroke}
+            strokeWidth={selectedIndex === bar.index ? 2 : rawStrokeWidth}
             opacity={
-              selectedIndex === null || selectedIndex === bar.index ? 1 : 0.55
+              selectedIndex === bar.index
+                ? selectedOpacity
+                : (rawOpacity ?? (selectedIndex === null ? 1 : 0.55))
             }
-            {...(selectedIndex === bar.index
-              ? {
-                  stroke: selectedBarStroke ?? barStroke ?? color,
-                  strokeWidth: 2,
-                }
-              : {})}
           />
         ))}
         {trendPath === '' ? null : (
-          <Path d={trendPath} fill="none" stroke={color} strokeWidth={2.5} />
+          <Path
+            testID="trend-path"
+            d={trendPath}
+            fill="none"
+            stroke={trendColor}
+            strokeWidth={trendWidth}
+          />
         )}
         {selected === null ||
         selected.value === null ||
@@ -380,7 +438,7 @@ function BarTrendPlot({
             cx={selectedDecorationX}
             cy={pointY(selected.value, domain, height)}
             r={6}
-            fill={color}
+            fill={selectedFill}
             stroke="#FFFFFF"
             strokeWidth={3}
           />

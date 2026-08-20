@@ -6,6 +6,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDate } from '@/lib/date-time';
 import { loggingConsistencyLayout } from '@/lib/analytics/heatmap-geometry';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { LoggingDayStateLegend } from './logging-day-state-legend';
 import { TrendPeriodPills } from './trend-period-pills';
 
@@ -256,6 +257,7 @@ export function LoggingConsistencyReport({
               width={320}
               height={layout.periodChartHeight}
               color="#6F9870"
+              chartStyle={chartStyleForMetric('loggingConsistency')}
               trendValues={trend.rollingTrend?.values}
               accessibilityLabel="Logging consistency aggregated by week"
             />

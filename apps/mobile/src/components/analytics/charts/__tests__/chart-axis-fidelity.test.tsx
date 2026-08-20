@@ -1,4 +1,5 @@
 import { render } from '@/test/render';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { BarTrendChart } from '../bar-trend-chart';
 import { LineTrendChart } from '../line-trend-chart';
 
@@ -55,5 +56,41 @@ describe('detailed chart axes', () => {
 
     expect(screen.getByTestId('chart-x-axis')).toBeTruthy();
     expect(JSON.stringify(screen.toJSON())).not.toContain('"index":1,"x"');
+  });
+
+  it('renders a styled hybrid chart with quiet raw bars and two range bounds', async () => {
+    const style = chartStyleForMetric('calories');
+    const screen = await render(
+      <BarTrendChart
+        data={data}
+        width={300}
+        height={140}
+        color="#C9242D"
+        chartStyle={style}
+        trendValues={[110, 140, 190]}
+        referenceRange={{ lower: 90, upper: 180 }}
+        accessibilityLabel="Styled calories trend"
+      />,
+    );
+
+    expect(screen.getByTestId('raw-bar-0').props).toEqual(
+      expect.objectContaining({
+        fill: expect.objectContaining({ payload: 0xffedede8 }),
+        stroke: expect.objectContaining({ payload: 0xffc9c9c2 }),
+        opacity: style.raw.opacity,
+      }),
+    );
+    expect(screen.queryByTestId('raw-bar-1')).toBeNull();
+    expect(screen.getByTestId('trend-path').props).toEqual(
+      expect.objectContaining({
+        stroke: expect.objectContaining({ payload: 0xff0e0e0e }),
+        strokeWidth: style.trend.width,
+      }),
+    );
+    expect(screen.getByTestId('reference-bound-lower')).toBeTruthy();
+    expect(screen.getByTestId('reference-bound-upper')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).not.toContain(
+      'RNSVGLinearGradient',
+    );
   });
 });

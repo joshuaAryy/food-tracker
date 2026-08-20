@@ -8,6 +8,7 @@ import { AppCard } from '@/components/app-card';
 import { AppText } from '@/components/app-text';
 import { formatPresentationDateRange } from '@/lib/date-time';
 import { axisReferenceLabel } from '@/lib/analytics/chart-axis';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { CaloriesForecastCard } from './calories-forecast-card';
 import { CaloriesSummaryCard } from './calories-summary-card';
 import { TrendContributorsCard } from './trend-contributors-card';
@@ -91,6 +92,7 @@ export function CaloriesReport({
           width={Math.max(280, width - 40)}
           height={170}
           color="#0E0E0E"
+          chartStyle={chartStyleForMetric('calories')}
           barFill="#F3F4EF"
           reference={
             trend.reference.kind === 'range' || trend.reference.kind === 'none'
