@@ -10,7 +10,7 @@ This entry supersedes the current-evidence interpretation of the historical
 Gate 3 notes below; those notes are retained as prior evidence.
 
 - Starting implementation baseline: `9ab7304`.
-- Final implementation commit: `ab0e9e7`.
+- Final implementation commit: `7b1814c`.
 - Chart system: `chartStyleForMetric` now centralizes family identity, raw-bar
   emphasis, trend treatment, reference bounds, selected state, and tooltip
   accent. Direct daily-hybrid callers use the resolver, while hydration,
@@ -20,8 +20,10 @@ Gate 3 notes below; those notes are retained as prior evidence.
   controlled white radial separators preserve segment boundaries without
   creating oversized gaps.
 - Overview: Complex cards preserve the approved minimum geometry, and Logging
-  Consistency uses a materially larger heatmap preview. Simple/compact states
-  and unavailable, unknown, empty, and error semantics remain covered.
+  Consistency uses a materially larger, responsive heatmap preview. The
+  production Complex route reaches the expanded presentation, and
+  `loggingDayPhase` preserves the distinct `in_progress` state. Simple/compact
+  states and unavailable, unknown, empty, and error semantics remain covered.
 - Figma nodes reviewed for this change: Complex Overview `338:276`, Macros
   `338:720`, Calories `338:469`, and Logging Consistency `338:928` in
   `GFLStsF0ADwaizoVKGeLny`.
@@ -46,7 +48,7 @@ account was created, guessed, or reseeded.
 - Node `v22.23.0`; pnpm `10.34.3`; PostgreSQL container `food-tracker-postgres`
   running on localhost:5432.
 - Mobile Vitest: 55 files / 387 tests passed.
-- Mobile Jest: 67 suites / 193 tests passed.
+- Mobile Jest: 67 suites / 195 tests passed.
 - API focused changed-boundary tests: 3 files / 19 tests passed.
 - API full suite: 95 files / 1,181 tests passed against `food_tracker_test`.
 - Prisma generate/validate, root lint, typecheck, build, API/shared/mobile
