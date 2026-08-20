@@ -93,4 +93,32 @@ describe('detailed chart axes', () => {
       'RNSVGLinearGradient',
     );
   });
+
+  it('applies the unified style to line previews without a heavy range band', async () => {
+    const style = chartStyleForMetric('calories');
+    const screen = await render(
+      <LineTrendChart
+        data={data}
+        width={300}
+        height={140}
+        color="#C9242D"
+        chartStyle={style}
+        trendValues={[110, 140, 190]}
+        referenceRange={{ lower: 90, upper: 180 }}
+        accessibilityLabel="Styled calories preview"
+      />,
+    );
+
+    expect(screen.getByTestId('trend-path').props).toEqual(
+      expect.objectContaining({
+        stroke: expect.objectContaining({ payload: 0xff0e0e0e }),
+        strokeWidth: style.trend.width,
+      }),
+    );
+    expect(screen.getByTestId('reference-bound-lower')).toBeTruthy();
+    expect(screen.getByTestId('reference-bound-upper')).toBeTruthy();
+    expect(JSON.stringify(screen.toJSON())).not.toContain(
+      'RNSVGLinearGradient',
+    );
+  });
 });

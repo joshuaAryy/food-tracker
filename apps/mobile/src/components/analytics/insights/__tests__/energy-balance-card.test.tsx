@@ -3,6 +3,7 @@ import type {
   AnalyticsReportOverviewState,
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { caloriesTrendFixture } from '@/test-fixtures/analytics-fixtures';
 import { render } from '@/test/render';
 import { EnergyBalanceCard } from '../energy-balance-card';
@@ -59,7 +60,9 @@ describe('EnergyBalanceCard', () => {
     );
 
     const preview = screen.getByLabelText('Energy balance trend');
-    expect(JSON.stringify(preview)).toContain('"strokeWidth":3');
+    expect(JSON.stringify(preview)).toContain(
+      `"strokeWidth":${chartStyleForMetric('calories').trend.width}`,
+    );
     expect(screen.getByText('14 days')).toBeTruthy();
     expect(screen.queryByText('14D')).toBeNull();
   });

@@ -15,6 +15,7 @@ import { formatPresentationDate } from '@/lib/date-time';
 import { formatMetricValue } from '@/lib/reporting-ui';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
 import { numericAxisTicks } from '@/lib/analytics/chart-axis';
+import type { AnalyticsChartStyle } from '@/lib/analytics/chart-style';
 import {
   pointX,
   pointY,
@@ -42,6 +43,7 @@ interface LineTrendChartProps {
   width: number;
   height?: number;
   color: string;
+  chartStyle?: AnalyticsChartStyle | undefined;
   areaColor?: string | undefined;
   trendValues?: readonly (number | null)[] | undefined;
   connectTrendGaps?: boolean | undefined;
@@ -65,6 +67,7 @@ export function LineTrendChart({
   width,
   height = 180,
   color,
+  chartStyle,
   areaColor,
   trendValues,
   connectTrendGaps,
@@ -147,8 +150,16 @@ export function LineTrendChart({
       ? null
       : selectionDecorationX(selectedIndex, data.length, plotWidth, 7.5);
   const rangeBand =
-    domain === null ? null : referenceBand(referenceRange, domain, height);
+    domain === null || chartStyle?.referenceTreatment !== undefined
+      ? null
+      : referenceBand(referenceRange, domain, height);
   const rangeGradientId = `trend-range-${color.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const referenceTreatment = chartStyle?.referenceTreatment ?? 'line';
+  const trendColor = chartStyle?.trend.color ?? color;
+  const trendWidth = chartStyle?.trend.width ?? 3;
+  const referenceColor = chartStyle?.reference.color ?? color;
+  const referenceOpacity = chartStyle?.reference.opacity ?? 0.35;
+  const referenceStrokeWidth = chartStyle?.reference.strokeWidth ?? 1;
   const selectIndex = useCallback((nextIndex: number) => {
     if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -181,10 +192,17 @@ export function LineTrendChart({
             height={height}
             plotWidth={plotWidth}
             color={color}
+            trendColor={trendColor}
+            trendWidth={trendWidth}
+            referenceColor={referenceColor}
+            referenceOpacity={referenceOpacity}
+            referenceStrokeWidth={referenceStrokeWidth}
+            referenceTreatment={referenceTreatment}
             areaColor={areaColor}
             path={path}
             areaPath={areaPath}
             reference={reference}
+            referenceRange={referenceRange}
             rangeBand={rangeBand}
             rangeGradientId={rangeGradientId}
             showGrid={showGrid}
@@ -204,10 +222,17 @@ export function LineTrendChart({
           height={height}
           plotWidth={plotWidth}
           color={color}
+          trendColor={trendColor}
+          trendWidth={trendWidth}
+          referenceColor={referenceColor}
+          referenceOpacity={referenceOpacity}
+          referenceStrokeWidth={referenceStrokeWidth}
+          referenceTreatment={referenceTreatment}
           areaColor={areaColor}
           path={path}
           areaPath={areaPath}
           reference={reference}
+          referenceRange={referenceRange}
           rangeBand={rangeBand}
           rangeGradientId={rangeGradientId}
           showGrid={showGrid}
@@ -230,10 +255,17 @@ function LineTrendPlot({
   height,
   plotWidth,
   color,
+  trendColor,
+  trendWidth,
+  referenceColor,
+  referenceOpacity,
+  referenceStrokeWidth,
+  referenceTreatment,
   areaColor,
   path,
   areaPath,
   reference,
+  referenceRange,
   rangeBand,
   rangeGradientId,
   showGrid,
@@ -250,10 +282,17 @@ function LineTrendPlot({
   height: number;
   plotWidth: number;
   color: string;
+  trendColor: string;
+  trendWidth: number;
+  referenceColor: string;
+  referenceOpacity: number;
+  referenceStrokeWidth: number;
+  referenceTreatment: 'none' | 'line' | 'bounds';
   areaColor?: string | undefined;
   path: string;
   areaPath: string;
   reference: number | null;
+  referenceRange: { lower: number; upper: number } | null;
   rangeBand: ReturnType<typeof referenceBand>;
   rangeGradientId: string;
   showGrid: boolean;
@@ -325,23 +364,61 @@ function LineTrendPlot({
             opacity={0.035}
           />
         )}
-        {domain !== null && reference !== null ? (
+        {domain !== null &&
+        reference !== null &&
+        referenceTreatment !== 'none' ? (
           <Line
+            testID="reference-line"
             x1={0}
             x2={plotWidth}
             y1={referenceLineY(reference, domain, height)}
             y2={referenceLineY(reference, domain, height)}
-            stroke={color}
+            stroke={referenceColor}
             strokeDasharray="4 4"
-            opacity={0.35}
+            strokeWidth={referenceStrokeWidth}
+            opacity={referenceOpacity}
           />
+        ) : null}
+        {domain !== null &&
+        referenceRange !== null &&
+        referenceTreatment === 'bounds' ? (
+          <>
+            <Line
+              testID="reference-bound-lower"
+              x1={0}
+              x2={plotWidth}
+              y1={referenceLineY(referenceRange.lower, domain, height)}
+              y2={referenceLineY(referenceRange.lower, domain, height)}
+              stroke={referenceColor}
+              strokeDasharray="3 4"
+              strokeWidth={referenceStrokeWidth}
+              opacity={referenceOpacity}
+            />
+            <Line
+              testID="reference-bound-upper"
+              x1={0}
+              x2={plotWidth}
+              y1={referenceLineY(referenceRange.upper, domain, height)}
+              y2={referenceLineY(referenceRange.upper, domain, height)}
+              stroke={referenceColor}
+              strokeDasharray="3 4"
+              strokeWidth={referenceStrokeWidth}
+              opacity={referenceOpacity}
+            />
+          </>
         ) : null}
         {path === '' ? null : (
           <>
             {areaPath === '' || areaColor === undefined ? null : (
               <Path d={areaPath} fill={areaColor} opacity={0.16} />
             )}
-            <Path d={path} fill="none" stroke={color} strokeWidth={3} />
+            <Path
+              testID="trend-path"
+              d={path}
+              fill="none"
+              stroke={trendColor}
+              strokeWidth={trendWidth}
+            />
           </>
         )}
         {showRawPoints && domain !== null

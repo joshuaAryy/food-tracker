@@ -8,6 +8,7 @@ import type {
   AnalyticsReportOverviewState,
   AnalyticsReportSectionState,
 } from '@/lib/analytics/analytics-report-resource';
+import { chartStyleForMetric } from '@/lib/analytics/chart-style';
 import { AnalyticsSectionError } from './analytics-section-error';
 import { formatMetricWithUnit, formatMetricValue } from '@/lib/reporting-ui';
 
@@ -153,7 +154,9 @@ export function EnergyBalanceCard({
             <AppText variant="caption" style={{ color: statusColor(data) }}>
               {statusCopy(data)}
             </AppText>
-            <View className="gap-1 rounded-[10px] bg-module-muted p-1.5">
+            <View
+              className={`gap-1 rounded-[10px] p-1.5 ${isComplexOverview ? 'bg-module' : 'bg-module-muted'}`}
+            >
               {preview === null ? (
                 <AppText variant="caption" className="text-muted">
                   Energy trend unavailable
@@ -164,6 +167,7 @@ export function EnergyBalanceCard({
                   width={Math.max(220, width - 76)}
                   height={compact ? 48 : 72}
                   color="#0E0E0E"
+                  chartStyle={chartStyleForMetric('calories')}
                   connectTrendGaps
                   trendValues={preview.trendValues}
                   referenceRange={

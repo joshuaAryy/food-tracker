@@ -1,8 +1,8 @@
 # Phase 17.5 Simulator Visual Validation Ledger
 
-Status: Chart-system implementation and automated validation complete; the
-fresh exact-viewport Simulator capture and authorized staging reseed remain
-open. Physical iPhone status: **PENDING USER RE-VALIDATION**.
+Status: Chart-system implementation, guarded staging reseed, and approximate
+Simulator visual review complete. Fresh exact 390/393 evidence remains open.
+Physical iPhone status: **PENDING USER RE-VALIDATION**.
 
 ## 2026-08-20 chart-system update
 
@@ -10,7 +10,8 @@ This entry supersedes the current-evidence interpretation of the historical
 Gate 3 notes below; those notes are retained as prior evidence.
 
 - Starting implementation baseline: `9ab7304`.
-- Final implementation commit: `7b1814c`.
+- Final implementation commits: `1489e92` plus the follow-up Energy preview
+  treatment fix in the current closeout commit.
 - Chart system: `chartStyleForMetric` now centralizes family identity, raw-bar
   emphasis, trend treatment, reference bounds, selected state, and tooltip
   accent. Direct daily-hybrid callers use the resolver, while hydration,
@@ -27,28 +28,32 @@ Gate 3 notes below; those notes are retained as prior evidence.
 - Figma nodes reviewed for this change: Complex Overview `338:276`, Macros
   `338:720`, Calories `338:469`, and Logging Consistency `338:928` in
   `GFLStsF0ADwaizoVKGeLny`.
+- Final visual review: the Energy preview now uses the unified trend style,
+  subtle dashed reference bounds, and a light Complex-mode chart surface; the
+  heavy gray range treatment was removed. The independent reviewer confirmed
+  the targeted discrepancy is resolved in the fresh 368x800 capture.
 
 ### Current runtime and account boundary
 
-The XcodeBuildMCP audit found only the already booted iPhone 17 on iOS 27.0.
-Its current semantic snapshot was a pre-existing Macros screen, and its
-optimized screenshot was `368x800`; that is not fresh 390/393 evidence and is
-not counted as a validation capture. A fresh native build/install was not
-performed because the generated `apps/mobile/ios` workspace was not present in
-the working tree at audit time. No 402-point or 368-point artifact substitutes
-for the required 390/393 review.
+The generated workspace was discovered, built, installed, and launched on the
+booted iPhone 17 Simulator running iOS 27.0. The authenticated app loaded the
+current staging fixture and was reviewed through the real Insights route. The
+fresh optimized captures are `368x800` (approximately 402pt) and therefore are
+not counted as required 390/393 evidence. No 402-point or 368-point artifact
+substitutes for that required review.
 
-The deterministic fixture and safety tests pass for anchor `2026-08-20`, but
-the guarded staging reset was not run: the required explicit existing
-Firebase-linked QA UID or email was not supplied in this task context. No
-account was created, guessed, or reseeded.
+The guarded staging reset/reseed ran only for the explicitly verified existing
+Firebase-linked account `testacct4653@gmail.com`, anchored at `2026-08-20`.
+The resulting fixture contains 560 food logs, 106 weights, 485 water logs,
+6754 nutrient rows, four saved views, and one pinned view; read-only checks
+confirmed current-day, 7D, 30D, and 90D coverage plus special nutrients.
 
 ### Current automated evidence
 
 - Node `v22.23.0`; pnpm `10.34.3`; PostgreSQL container `food-tracker-postgres`
   running on localhost:5432.
 - Mobile Vitest: 55 files / 387 tests passed.
-- Mobile Jest: 67 suites / 195 tests passed.
+- Mobile Jest: 67 suites / 196 tests passed.
 - API focused changed-boundary tests: 3 files / 19 tests passed.
 - API full suite: 95 files / 1,181 tests passed against `food_tracker_test`.
 - Prisma generate/validate, root lint, typecheck, build, API/shared/mobile
@@ -62,10 +67,10 @@ account was created, guessed, or reseeded.
 
 - Device: iPhone 17e, iOS 27.0, 390-point logical-width class.
 - Native project: `apps/mobile/ios/FoodTracker.xcworkspace`.
-- Runtime: authenticated standalone Release Simulator bundle; no Metro dependency
-  was used for the seeded-data checkpoint.
+- Runtime: authenticated native Simulator app with the staging Metro bundle;
+  the seeded-data checkpoint used the real staging API and Firebase session.
 - API target: existing Railway staging service; no production target used.
-- Latest staging deployment: `4557bf89-1275-49d8-85d1-c62cfbdb227d` (`SUCCESS`);
+- Latest staging deployment: `719f9469-52dd-46cd-8eb5-b9392711601b` (`SUCCESS`);
   `/health` returned 200 with `{"status":"ok"}` after rollout.
 - Automated runtime evidence: the fresh Release app installed on the current
   iPhone 17e Simulator, preserved the authenticated staging session, loaded the
