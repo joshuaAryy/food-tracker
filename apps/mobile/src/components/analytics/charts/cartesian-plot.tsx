@@ -37,6 +37,7 @@ export function CartesianPlot({
       {children}
       {selectedX === null ? null : (
         <Line
+          testID="comparison-selected-guide"
           x1={selectedX}
           x2={selectedX}
           y1={0}

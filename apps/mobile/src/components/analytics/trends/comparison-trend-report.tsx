@@ -81,10 +81,18 @@ export function ComparisonTrendReport({
           <AppText variant="label">{strategySubtitle(strategy)}</AppText>
         </View>
         <View className="flex-row flex-wrap gap-3">
-          <AppText variant="caption">
+          <AppText
+            testID="comparison-primary-legend"
+            variant="caption"
+            style={{ color: '#C9242D' }}
+          >
             ● {primaryDefinition.displayName} · {primaryDefinition.unit}
           </AppText>
-          <AppText variant="caption" className="text-[#7A9B76]">
+          <AppText
+            testID="comparison-secondary-legend"
+            variant="caption"
+            style={{ color: '#7A9B76' }}
+          >
             ● {comparisonDefinition.displayName} · {comparisonDefinition.unit}
           </AppText>
         </View>

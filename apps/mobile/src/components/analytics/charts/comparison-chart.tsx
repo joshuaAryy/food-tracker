@@ -20,6 +20,9 @@ import { ChartFrame } from './chart-frame';
 import { ChartSelectionOverlay } from './chart-selection-overlay';
 import { CartesianPlot } from './cartesian-plot';
 
+const PRIMARY_SERIES_COLOR = '#C9242D';
+const COMPARISON_SERIES_COLOR = '#7A9B76';
+
 export interface ComparisonChartDatum {
   date: string;
   value: number | null;
@@ -80,16 +83,22 @@ export function ComparisonChart({
         <View className="flex-row items-stretch gap-2">
           <AxisLabels
             axis={primaryAxis}
-            color="#C9242D"
+            color={PRIMARY_SERIES_COLOR}
             normalized={strategy === 'reference_normalized'}
           />
           <View className="relative flex-1 gap-1">
             <View className="flex-row justify-between gap-2">
-              <AppText variant="caption" className="text-[#C9242D]">
+              <AppText
+                variant="caption"
+                style={{ color: PRIMARY_SERIES_COLOR }}
+              >
                 {primaryAxisLabel}
               </AppText>
               {strategy === 'dual_axis' ? (
-                <AppText variant="caption" className="text-[#7A9B76]">
+                <AppText
+                  variant="caption"
+                  style={{ color: COMPARISON_SERIES_COLOR }}
+                >
                   {comparisonAxisLabel}
                 </AppText>
               ) : null}
@@ -101,6 +110,7 @@ export function ComparisonChart({
               selectedIndex={selectedIndex}
             >
               <Path
+                testID="comparison-primary-series"
                 d={smoothLinePath(
                   comparisonValues(primary, strategy),
                   primaryDomain,
@@ -110,17 +120,18 @@ export function ComparisonChart({
                   },
                 )}
                 fill="none"
-                stroke="#C9242D"
+                stroke={PRIMARY_SERIES_COLOR}
                 strokeWidth={3}
               />
               <Path
+                testID="comparison-secondary-series"
                 d={smoothLinePath(
                   comparisonValues(comparison, strategy),
                   comparisonDomain,
                   { width: plotWidth, height },
                 )}
                 fill="none"
-                stroke="#7A9B76"
+                stroke={COMPARISON_SERIES_COLOR}
                 strokeWidth={3}
               />
             </CartesianPlot>
@@ -147,9 +158,10 @@ export function ComparisonChart({
                 );
               }}
             />
+            <ComparisonXAxis dates={primary.map((point) => point.date)} />
           </View>
           {strategy === 'dual_axis' ? (
-            <AxisLabels axis={comparisonAxis} color="#7A9B76" />
+            <AxisLabels axis={comparisonAxis} color={COMPARISON_SERIES_COLOR} />
           ) : null}
         </View>
         {selectedValues === null ? null : (
@@ -171,6 +183,43 @@ export function ComparisonChart({
         )}
       </View>
     </ChartFrame>
+  );
+}
+
+function ComparisonXAxis({ dates }: { dates: readonly string[] }) {
+  const indexes = comparisonTickIndexes(dates.length);
+  return (
+    <View
+      testID="comparison-chart-x-axis"
+      className="flex-row justify-between pt-1"
+    >
+      {indexes.map((index) => {
+        const date = dates[index];
+        return date === undefined ? null : (
+          <AppText
+            key={`${date}-${index}`}
+            variant="caption"
+            className="text-[10px] text-muted"
+          >
+            {formatPresentationDate(date)}
+          </AppText>
+        );
+      })}
+    </View>
+  );
+}
+
+function comparisonTickIndexes(length: number): number[] {
+  if (length <= 0) return [];
+  const indexes = [
+    0,
+    Math.round((length - 1) / 4),
+    Math.round((length - 1) / 2),
+    Math.round(((length - 1) * 3) / 4),
+    length - 1,
+  ];
+  return indexes.filter(
+    (index, position) => indexes.indexOf(index) === position,
   );
 }
 
