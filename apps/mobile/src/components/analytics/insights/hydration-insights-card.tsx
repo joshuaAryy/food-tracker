@@ -38,14 +38,24 @@ export function HydrationInsightsCard({
   markerColor?: string;
 }) {
   const data = overview?.data ?? null;
+  const goal = data?.goal ?? null;
   const vesselFills =
-    data === null ? [] : hydrationVesselFillLevels(data.total, data.goal);
+    data === null || goal === null
+      ? []
+      : hydrationVesselFillLevels(data.total, goal);
   const fullVesselCount = vesselFills.filter((fill) => fill === 1).length;
   const isComplexOverview = presentation === 'complex' && !compact;
+  const recordedHydrationDays = trend?.data?.summary.numericDayCount ?? 0;
   const vesselSummary =
-    data === null || data.total === null
-      ? 'Water data unavailable'
-      : `${fullVesselCount} of 8 glasses`;
+    data === null
+      ? 'Hydration data unavailable'
+      : goal === null
+        ? 'Hydration goal unavailable'
+        : data.total === null
+          ? recordedHydrationDays > 0
+            ? 'No water logged today'
+            : 'No hydration history yet'
+          : `${fullVesselCount} of 8 glasses`;
   return (
     <View
       testID="simple-insights-section-hydration"
@@ -89,11 +99,17 @@ export function HydrationInsightsCard({
               {liters(data.total)}
             </AppText>
             <AppText variant="caption" className="text-muted">
-              of{' '}
-              {formatMetricValue(data.goal / 1000, {
-                maximumFractionDigits: 1,
-              })}{' '}
-              L goal
+              {goal === null ? (
+                'Goal unavailable'
+              ) : (
+                <>
+                  of{' '}
+                  {formatMetricValue(goal / 1000, {
+                    maximumFractionDigits: 1,
+                  })}{' '}
+                  L goal
+                </>
+              )}
             </AppText>
           </View>
           <View
@@ -179,7 +195,7 @@ export function HydrationInsightsCard({
           </Pressable>
           {trend?.data === null || trend?.data === undefined ? null : (
             <AppText variant="caption" className="text-muted">
-              {trend.data.summary.numericDayCount} recorded hydration days
+              {recordedHydrationDays} recorded hydration days
             </AppText>
           )}
         </AppCard>

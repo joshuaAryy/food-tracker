@@ -28,7 +28,14 @@ export function ReportingSectionHeading({
             borderRadius: 12,
             backgroundColor: markerColor,
           }}
-        />
+        >
+          <ReportingIcon
+            name={icon}
+            size={24}
+            badgeColor={markerColor}
+            testID={`reporting-icon-${icon}`}
+          />
+        </View>
       )}
       <View className="min-w-0 flex-1 gap-0.5">
         <AppText

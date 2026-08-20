@@ -64,7 +64,7 @@ export function LoggingConsistencyCard({
                 ? 'gap-3 justify-between rounded-[20px] p-[18px]'
                 : 'gap-3 p-[18px]'
           }
-          style={isComplexOverview ? { minHeight: 230 } : undefined}
+          style={isComplexOverview ? { minHeight: 260 } : undefined}
         >
           <AppText variant="caption" className="text-muted">
             REPORT · {data.completeDayCount} complete · {data.partialDayCount}{' '}
@@ -77,6 +77,10 @@ export function LoggingConsistencyCard({
             }))}
             colorForState={colorForState}
             accessibilityLabel="Logging consistency calendar"
+            columns={isComplexOverview ? 7 : 14}
+            cellSize={isComplexOverview ? 18 : 14}
+            cellGap={isComplexOverview ? 6 : 4}
+            testID="logging-consistency-heatmap"
           />
           <AppText variant="caption" className="text-muted">
             Current day remains in progress; nutrient availability does not

@@ -152,8 +152,11 @@ describe('Complex Insights overview layout', () => {
       />,
     );
     expect(logging.getByTestId('logging-consistency-card').props.style).toEqual(
-      expect.objectContaining({ minHeight: 230 }),
+      expect.objectContaining({ minHeight: 260 }),
     );
+    expect(
+      logging.getByTestId('logging-consistency-heatmap-grid').props.style,
+    ).toEqual(expect.objectContaining({ width: 162 }));
   });
 
   it('uses the Figma hydration vessel footprint without changing logged totals', async () => {
