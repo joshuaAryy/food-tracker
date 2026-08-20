@@ -166,15 +166,25 @@ export function ComparisonChart({
         </View>
         {selectedValues === null ? null : (
           <View className="rounded-[12px] bg-ink px-3 py-2">
-            <AppText variant="caption" className="text-white">
+            <AppText
+              testID="comparison-selected-date"
+              variant="caption"
+              className="text-white"
+            >
               {formatPresentationDate(selectedValues.date)}
             </AppText>
             <View className="flex-row flex-wrap gap-x-4 gap-y-1">
-              <AppText variant="caption" className="text-white">
+              <AppText
+                variant="caption"
+                style={{ color: PRIMARY_SERIES_COLOR }}
+              >
                 {primaryAxisLabel}:{' '}
                 {formatSelectedValue(selectedValues.primaryValue)}
               </AppText>
-              <AppText variant="caption" className="text-white">
+              <AppText
+                variant="caption"
+                style={{ color: COMPARISON_SERIES_COLOR }}
+              >
                 {comparisonAxisLabel}:{' '}
                 {formatSelectedValue(selectedValues.comparisonValue)}
               </AppText>

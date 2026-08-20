@@ -69,8 +69,16 @@ describe('comparison report fidelity', () => {
       });
     });
 
-    expect(screen.getByText('Aug 2')).toBeTruthy();
+    expect(screen.getByTestId('comparison-selected-date')).toHaveTextContent(
+      'Aug 2',
+    );
     expect(screen.getByText('Protein · g: 90')).toBeTruthy();
     expect(screen.getByText('Weight · lb: 129.5')).toBeTruthy();
+    expect(screen.getByText('Protein · g: 90').props.style).toEqual(
+      expect.objectContaining({ color: '#C9242D' }),
+    );
+    expect(screen.getByText('Weight · lb: 129.5').props.style).toEqual(
+      expect.objectContaining({ color: '#7A9B76' }),
+    );
   });
 });
