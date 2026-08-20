@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Path, Polygon } from 'react-native-svg';
+import { Line, Path, Polygon } from 'react-native-svg';
 import { fixedDomain } from '@/lib/analytics/chart-domain';
+import { numericAxisTicks } from '@/lib/analytics/chart-axis';
 import {
   forecastPathWithContinuity,
   linePath,
+  pointY,
   uncertaintyPolygonAtOffset,
 } from '@/lib/analytics/chart-geometry';
 import {
@@ -69,6 +71,10 @@ export function ForecastChart({
     historicalDates?.length === historical.length &&
     forecast.every((point) => point.date !== undefined);
   const plotWidth = chartPlotWidth(width, hasDateAxis);
+  const gridTicks = numericAxisTicks(
+    { minimum: domain.min, maximum: domain.max },
+    { includeZero: false },
+  );
   const selectIndex = useCallback((nextIndex: number) => {
     if (shouldAnnounceSelectionChange(selectedIndexRef.current, nextIndex)) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -102,6 +108,21 @@ export function ForecastChart({
         todayIndex={historical.length === 0 ? null : historical.length - 1}
         selectedIndex={selectedIndex}
       >
+        {hasDateAxis
+          ? gridTicks.map((tick) => (
+              <Line
+                key={`forecast-grid-${tick}`}
+                testID={`forecast-chart-grid-${tick}`}
+                x1={0}
+                x2={plotWidth}
+                y1={pointY(tick, domain, height)}
+                y2={pointY(tick, domain, height)}
+                stroke="#E4E4E0"
+                strokeWidth={1}
+                opacity={0.7}
+              />
+            ))
+          : null}
         <Polygon
           points={uncertaintyPolygonAtOffset(
             forecast,

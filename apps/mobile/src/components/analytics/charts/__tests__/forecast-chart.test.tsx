@@ -34,6 +34,9 @@ describe('ForecastChart', () => {
 
     expect(screen.getByTestId('chart-y-axis')).toBeTruthy();
     expect(screen.getByTestId('chart-x-axis')).toBeTruthy();
+    expect(
+      screen.getAllByTestId(/^forecast-chart-grid-/).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText('kcal')).toBeTruthy();
     expect(screen.getByText('Aug 1')).toBeTruthy();
     expect(screen.getByText('Aug 3')).toBeTruthy();
