@@ -49,7 +49,11 @@ import {
   analyticsCache,
   ANALYTICS_CACHE_KEYS,
 } from '@/lib/analytics/analytics-cache-runtime';
-import { resolveTrendQuery } from '@/lib/analytics/trend-routing';
+import {
+  pairedTrendQuery,
+  resolveTrendQuery,
+  trendRouteForMetric,
+} from '@/lib/analytics/trend-routing';
 import {
   analyticsResourceReducer,
   initialAnalyticsResource,
@@ -694,16 +698,16 @@ export default function TrendDetailScreen() {
             onOpenRelated={() => {
               const relatedMetric = trend.relatedMetrics[0];
               if (relatedMetric === undefined) return;
-              const { comparisonMetric: _comparisonMetric, ...relatedQuery } =
-                activeQuery;
-              void _comparisonMetric;
               router.push({
-                pathname: `/trends/${relatedMetric}`,
+                pathname: trendRouteForMetric(metric),
                 params: {
-                  query: trendQueryRouteParam({
-                    ...relatedQuery,
-                    primaryMetric: relatedMetric,
-                  }),
+                  query: trendQueryRouteParam(
+                    pairedTrendQuery({
+                      query: activeQuery,
+                      primaryMetric: metric,
+                      comparisonMetric: relatedMetric,
+                    }),
+                  ),
                 },
               } as never);
             }}
@@ -873,18 +877,16 @@ export default function TrendDetailScreen() {
                     comparisonTrend={nutrientComparisonTrend}
                     relatedError={relatedTrendError}
                     onOpenRelated={(relatedMetric) => {
-                      const {
-                        comparisonMetric: _comparisonMetric,
-                        ...relatedQuery
-                      } = activeQuery;
-                      void _comparisonMetric;
                       router.push({
-                        pathname: `/trends/${relatedMetric}`,
+                        pathname: trendRouteForMetric(metric),
                         params: {
-                          query: trendQueryRouteParam({
-                            ...relatedQuery,
-                            primaryMetric: relatedMetric,
-                          }),
+                          query: trendQueryRouteParam(
+                            pairedTrendQuery({
+                              query: activeQuery,
+                              primaryMetric: metric,
+                              comparisonMetric: relatedMetric,
+                            }),
+                          ),
                         },
                       } as never);
                     }}

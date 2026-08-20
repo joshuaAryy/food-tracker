@@ -15,6 +15,22 @@ export function trendRouteForMetric(metric: AnalyticsMetricKey): string {
   return `/trends/${metric}`;
 }
 
+export function pairedTrendQuery({
+  query,
+  primaryMetric,
+  comparisonMetric,
+}: {
+  query: TrendQueryInput;
+  primaryMetric: AnalyticsMetricKey;
+  comparisonMetric: AnalyticsMetricKey;
+}): TrendQueryInput {
+  return {
+    ...query,
+    primaryMetric,
+    comparisonMetric,
+  };
+}
+
 export function resolveTrendQuery({
   metric,
   restoredQuery,

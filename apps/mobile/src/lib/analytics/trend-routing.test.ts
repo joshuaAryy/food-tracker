@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  pairedTrendQuery,
   resolveTrendQuery,
   simpleTrendMetrics,
   trendRouteForMetric,
@@ -52,4 +53,43 @@ describe('trend routing', () => {
       coverageFilter: 'complete_only',
     });
   });
+
+  it.each([
+    ['iron', 'vitaminC'],
+    ['sodium', 'potassium'],
+  ] as const)(
+    'opens %s with %s as its paired comparison',
+    (primary, secondary) => {
+      const query = pairedTrendQuery({
+        query: {
+          primaryMetric: primary,
+          period: {
+            kind: 'custom',
+            startDate: '2026-06-01',
+            endDate: '2026-08-01',
+          },
+          aggregation: 'weekly',
+          visualization: 'smoothed_line',
+          showReference: false,
+          coverageFilter: 'complete_only',
+        },
+        primaryMetric: primary,
+        comparisonMetric: secondary,
+      });
+
+      expect(query).toEqual({
+        primaryMetric: primary,
+        comparisonMetric: secondary,
+        period: {
+          kind: 'custom',
+          startDate: '2026-06-01',
+          endDate: '2026-08-01',
+        },
+        aggregation: 'weekly',
+        visualization: 'smoothed_line',
+        showReference: false,
+        coverageFilter: 'complete_only',
+      });
+    },
+  );
 });
