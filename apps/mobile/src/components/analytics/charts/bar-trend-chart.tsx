@@ -182,7 +182,6 @@ export function BarTrendChart({
               trendPath={trendPath}
               bars={bars}
               reference={reference}
-              referenceRange={referenceRange}
               rangeBand={rangeBand}
               rangeGradientId={rangeGradientId}
               showGrid={showGrid}
@@ -211,7 +210,6 @@ export function BarTrendChart({
             trendPath={trendPath}
             bars={bars}
             reference={reference}
-            referenceRange={referenceRange}
             rangeBand={rangeBand}
             rangeGradientId={rangeGradientId}
             showGrid={showGrid}
@@ -242,7 +240,6 @@ function BarTrendPlot({
   trendPath,
   bars,
   reference,
-  referenceRange,
   rangeBand,
   rangeGradientId,
   showGrid,
@@ -266,7 +263,6 @@ function BarTrendPlot({
   trendPath: string;
   bars: ReturnType<typeof barRects>;
   reference: number | null;
-  referenceRange: { lower: number; upper: number } | null;
   rangeBand: ReturnType<typeof referenceBand>;
   rangeGradientId: string;
   showGrid: boolean;

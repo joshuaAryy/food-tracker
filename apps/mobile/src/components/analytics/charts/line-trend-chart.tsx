@@ -185,7 +185,6 @@ export function LineTrendChart({
             path={path}
             areaPath={areaPath}
             reference={reference}
-            referenceRange={referenceRange}
             rangeBand={rangeBand}
             rangeGradientId={rangeGradientId}
             showGrid={showGrid}
@@ -209,7 +208,6 @@ export function LineTrendChart({
           path={path}
           areaPath={areaPath}
           reference={reference}
-          referenceRange={referenceRange}
           rangeBand={rangeBand}
           rangeGradientId={rangeGradientId}
           showGrid={showGrid}
@@ -236,7 +234,6 @@ function LineTrendPlot({
   path,
   areaPath,
   reference,
-  referenceRange,
   rangeBand,
   rangeGradientId,
   showGrid,
@@ -257,7 +254,6 @@ function LineTrendPlot({
   path: string;
   areaPath: string;
   reference: number | null;
-  referenceRange: { lower: number; upper: number } | null;
   rangeBand: ReturnType<typeof referenceBand>;
   rangeGradientId: string;
   showGrid: boolean;
