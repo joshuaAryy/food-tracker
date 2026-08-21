@@ -976,3 +976,35 @@ physically accepted on 2026-08-21 at `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`
   micronutrient analytics, Slice E configuration/custom range/comparison, Slice
   F saved/pinned views and reporting integration, and Slice G forecasts,
   state/responsive hardening, and documentation closeout.
+
+## TD-029: Bounded Execution And Evidence-Based Visual Validation
+
+Status: Adopted from the Phase 17.5 closeout on 2026-08-21
+
+- The repository supports single-threaded, agent-assisted, and selectively
+  parallel execution. Agents are optional tools, not a required architecture.
+  Single-threaded work is preferred for small, sequential, coupled, or
+  documentation-only changes.
+- Delegation is appropriate only for bounded, independent, reviewable work
+  that materially reduces wall-clock time. Default active delegation is about
+  2–3 workers, with a soft maximum of 4; duplicate investigations and
+  one-agent-per-file decomposition are discouraged.
+- Reasoning intensity starts at the lowest capable level. Higher-cost tiers are
+  exceptions for a named unresolved blocker, with Terra Max reserved for a
+  narrow, genuinely difficult question after lower-cost investigation.
+- Visual-fidelity work uses separate implementation, automated validation,
+  real-runtime capture, independent-review, and user-owned physical-acceptance
+  gates. A test, source inspection, old screenshot, nearby viewport, or
+  unproven runtime state cannot stand in for a missing gate.
+- Deterministic, current-date staging fixtures and an explicitly verified
+  Firebase-linked account are preferred for analytics UI checks. Screenshots
+  must come from the real app with the backend target, authentication state,
+  seed state, and viewport recorded.
+- Simulator evidence is useful for repeatable navigation and broad comparison,
+  but physical signing, installation, connectivity, and device acceptance
+  remain external user-owned checkpoints. Missing external prerequisites are
+  recorded as blocked or pending; documentation must not convert them into
+  implied completion.
+- Closeout records truth over optimism: state what was proven, what remains
+  unavailable, what caused waste, and which next action belongs to the user or
+  another external system.

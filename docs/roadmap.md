@@ -706,6 +706,13 @@ because of the CoreSimulator/runtime environment. Broader Simulator evidence
 was completed, and the unavailable exact viewport was non-blocking after the
 user's physical iPhone review passed.
 
+Phase 17.5 also established reusable execution guidance: choose single-threaded
+work by default, delegate only independent bounded tasks, cap concurrency and
+reasoning cost, separate implementation/automated/runtime/review/physical
+gates, use deterministic staging evidence, and record external blockers
+without substituting invalid proof. These rules apply to future phases without
+requiring agents.
+
 ## Phase 17 (historical remote roadmap) — Deployment and Security Foundations — Superseded
 
 The repository-side portion of this infrastructure scope was reprioritized into

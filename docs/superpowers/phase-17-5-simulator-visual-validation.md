@@ -19,6 +19,16 @@ further requested visual changes. Exact 390pt and approximately 393pt
 Simulator evidence remains unavailable and is recorded as an environment
 limitation, not a completion blocker.
 
+## Workflow closeout note
+
+This ledger remains the automated/runtime evidence record; it does not replace
+the user-owned physical gate. Future visual recovery should reuse the exact
+Figma-node ledger, deterministic staging fixture, real-runtime screenshots,
+independent review, and explicit viewport/account/backend checks. It should
+not repeat broad self-approval, treat nearby widths as exact evidence, or keep
+delegated reviewers and high-cost workers active after their bounded question
+is answered.
+
 ## 2026-08-20 chart-system update
 
 This entry supersedes the current-evidence interpretation of the historical

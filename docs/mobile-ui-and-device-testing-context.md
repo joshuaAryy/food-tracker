@@ -92,6 +92,34 @@ git status --short --branch
 For documentation-only work, the requester may explicitly narrow validation,
 but do not claim broader validation than was run.
 
+## Visual Validation Execution Model
+
+Phase 17.5 established a reusable visual-validation loop:
+
+1. Inspect the exact authoritative Figma node and define the discrepancy.
+2. Implement the smallest source change that preserves backend facts and
+   approved semantics.
+3. Run focused and required automated checks.
+4. Navigate the real app with declared authentication, staging target, seed
+   state, and viewport; capture screenshots.
+5. Use an independent review to compare runtime evidence with Figma, then
+   recapture after any Major or Moderate finding.
+6. Hand off physical signing, installation, and iPhone acceptance to the user.
+
+Simulator capture is valuable for repeatable navigation, seeded data, and
+screen-to-Figma comparison, but it does not prove physical connectivity,
+signing, safe-area behavior, or standalone operation. Exact viewport requests
+must use the requested width: a nearby 368px/approximately-402pt capture is
+not 390pt or approximately 393pt evidence. If a required simulator runtime
+cannot boot, install, authenticate, or reach the declared backend, record that
+viewport as unavailable instead of substituting a nearby screenshot.
+
+Use an explicitly verified existing Firebase-linked staging account and a
+deterministic current-date analytics fixture for UI checks. Do not create a
+random QA account, bypass authentication, reseed unrelated data, or expose
+credentials. Keep Simulator evidence and user-operated physical validation
+separate in the ledger.
+
 ## Product And Visual Direction
 
 Product identity: "Simple tracking, serious insight."

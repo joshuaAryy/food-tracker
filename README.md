@@ -75,6 +75,22 @@ because of the CoreSimulator/runtime environment; broader Simulator evidence
 and physical iPhone acceptance completed the phase. Phase 18 — Additional Food
 Providers — is next.
 
+## Execution Philosophy
+
+Work is normally executed in one thread with small, reviewable changes. Agent
+assistance and parallel delegation are supported when a task is genuinely
+independent and the result can be inspected, but agents are optional and are
+not required for ordinary development. Prefer bounded concurrency and
+lower-cost reasoning first; escalate only for a concrete blocker.
+
+Validation is deterministic and evidence-based: use the declared test
+database, explicit staging fixtures, and the real runtime for mobile visual
+checks. Visual work progresses through implementation, automated validation,
+runtime capture, and independent review before any user-owned physical-device
+acceptance. Missing simulators, signing, accounts, or hosted services remain
+explicit blocked or pending checkpoints; nearby screenshots and source
+inspection do not substitute for them.
+
 ## Current Limitations
 
 - Apple sign-in is disabled for free development through the typed

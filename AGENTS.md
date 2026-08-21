@@ -240,7 +240,10 @@ Requirements:
 - An unsupported-engine warning makes the run invalid.
 - Do not skip tests because PostgreSQL is unavailable.
 - Report exact errors instead of vague summaries.
-- Documentation-only branches still require the complete baseline sequence.
+- Documentation-only branches normally use the complete baseline sequence, but
+  an explicitly scoped docs-only closeout may narrow validation to changed-file
+  formatting, local-link/command checks, `git diff --check`, and repository
+  state. Report the unrun source checks rather than implying they passed.
 - Root `build` currently verifies the shared package and API TypeScript build;
   it is not a complete native mobile bundle validation.
 - Manual checks supplement automated tests; they do not replace them.
@@ -313,6 +316,61 @@ Codex MUST:
 - Never force-push, delete branches, or perform destructive Git operations
   without the required verification and authorization.
 - Finish with what changed, why, risks, and the next practical step.
+
+## 9.1 Execution Style And Delegation
+
+The repository supports ordinary single-threaded work, agent-assisted work,
+and bounded parallel delegation. Agents are optional accelerators, not a
+required architecture or a measure of task quality.
+
+Choose the execution mode from the work:
+
+- Stay single-threaded for small changes, tightly coupled work, documentation
+  passes, sequential debugging, shared-state edits, and any task whose next
+  step depends immediately on the current result.
+- Delegate only a bounded, reviewable task that materially reduces wall-clock
+  time. Good examples are independent test coverage, a disjoint documentation
+  audit, or one self-contained visual comparison.
+- Do not delegate tiny edits, duplicate investigations, architecture decisions,
+  physical-device acceptance, signing, credentials, or external-state actions.
+- Reuse an existing worker when the context is valuable. Do not create an agent
+  for every file or metric family.
+
+When delegation is useful, use bounded resources:
+
+- Default to approximately 2–3 active subagents, with a soft maximum of 4.
+- Queue work rather than spawning another worker when an existing result will
+  arrive soon or the tasks share state.
+- Start with the lowest reasonably capable reasoning intensity. Escalate only
+  for a concrete unresolved blocker after lower-cost investigation; Terra or
+  Terra Max is an exception requiring a narrow question and written reason,
+  never a default implementation tier.
+- The coordinator owns scope, duplicate avoidance, integration, and the final
+  evidence review. Delegated output is not self-validating.
+
+### Visual-fidelity execution gates
+
+Visual work is complete only when its applicable gates are separately recorded:
+
+1. Implementation gate: the intended source change is present and approved
+   semantics, contracts, and tokens are preserved.
+2. Automated validation gate: focused and required regression checks pass under
+   the supported runtime.
+3. Runtime capture gate: the real app runs with the declared state, account,
+   backend target, and viewport; screenshots are captured from that runtime.
+4. Independent review gate: a reviewer compares the runtime evidence with the
+   exact authoritative Figma node or acceptance reference and lists findings.
+5. Physical acceptance gate: the user performs any required signing,
+   installation, and physical-device validation. Codex must report this as
+   user-owned and separate from Simulator evidence.
+
+Do not claim a gate from a nearby viewport, an old screenshot, a source-only
+inspection, a test fixture, or a runtime whose boot, install, authentication,
+backend target, or seeded state was not proven. If an external prerequisite is
+missing, record the specific checkpoint as blocked or pending user validation,
+stop claiming downstream progress, and do not mark the phase complete. A
+blocked checkpoint is not permission to substitute invalid evidence or invent
+certainty; continue only with independent in-scope work.
 
 ## 10. Phase Closeout Standard
 

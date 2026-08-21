@@ -39,6 +39,47 @@ The closeout sequence is recorded as follows:
    viewport gap as a completion blocker.
 6. Phase 17.5 physical visual acceptance passed.
 
+## Reusable execution lessons
+
+### What worked
+
+- Explicitly separated implementation, automated validation, runtime capture,
+  independent review, and physical acceptance. This made each claim auditable
+  and prevented a passing test suite from being mistaken for visual sign-off.
+- Used the exact final Figma nodes, a deterministic current-date staging
+  fixture, and a verified existing Firebase-linked account. This made repeated
+  captures comparable without inventing data or credentials.
+- Checked the runtime API target, boot/install state, authentication, and seed
+  state before judging charts. Review cycles became shorter once the first
+  failing boundary was proven instead of debugging screenshots speculatively.
+- Batched implementation changes by chart family and composition, then used a
+  single independent review pass for the resulting capture set. Targeted fixes
+  were recaptured instead of reopening completed visual work.
+
+### What caused waste
+
+- The first broad automated Simulator conclusion was too permissive and did
+  not expose every physical-device discrepancy.
+- Nearby 368px/approximately-402pt evidence was repeatedly tempting to treat
+  as required 390/393 evidence. It is useful context, but it is not a valid
+  substitute.
+- Disposable simulator attempts were costly when boot, install, and
+  authenticated seeded state had not first been proven usable.
+- Excessive parallel delegation and unnecessarily high reasoning intensity can
+  consume limits faster than the work benefits. Independent review is useful;
+  duplicate agents, tiny delegated tasks, and continuous review workers are
+  not.
+
+### Reuse next time
+
+Use a single coordinator and remain single-threaded unless an independent,
+bounded workstream materially reduces wall-clock time. If delegation is useful,
+prefer approximately 2–3 active workers, reuse context, and start with the
+lowest capable reasoning tier. Escalate only for a named blocker. Mark missing
+simulator runtimes, signing, accounts, or hosted services as blocked or
+pending user validation; never convert an unavailable external checkpoint into
+completion by substituting invalid evidence.
+
 ## 2026-08-18 in-flight correction audit
 
 The current correction is being evaluated against fresh exact-node Figma
