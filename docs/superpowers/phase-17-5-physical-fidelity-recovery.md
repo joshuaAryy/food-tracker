@@ -1,17 +1,43 @@
 # Phase 17.5 physical-fidelity recovery and Visual QA Workflow V2
 
-Status: authenticated simulator source evidence is available; the in-flight
-chart-continuity, scale, diversity, and fidelity correction is implemented and
-the regenerated native Debug build now succeeds. The prior GestureDetector
-failure and the subsequent `Cannot find native module 'ExpoAsset'` runtime
-failure were both isolated; Expo prebuild, CocoaPods, and the serialized native
-rebuild completed successfully. Fresh staging-Metro analytics captures are now
-retained for Macro Balance and Vitamin C at the native iPhone 17 resolution.
-Final visual sign-off remains open because matched 390/393pt evidence, clean
-overlay-free captures, some authenticated target routes, and sparse-data chart
-comparisons remain unproven.
-Physical iPhone validation:
-**PENDING USER RE-VALIDATION**.
+Status: Phase 17.5 visual recovery and closeout complete. Historical
+Simulator/runtime limitations remain documented below; the accepted physical
+device review is the final visual sign-off boundary.
+
+## Final physical acceptance — 2026-08-21
+
+Implementation baseline accepted:
+`e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`.
+
+User-operated physical iPhone validation: **PASS**.
+
+The user explicitly accepted:
+
+- the current Calories gray/reference-range treatment;
+- the current Logging Consistency overview scale and layout;
+- the unified chart system and current nutrient/chart palette behavior;
+- the current Complex Overview composition; and
+- the overall Phase 17.5 visual fidelity.
+
+The user reported no further requested visual changes. Exact 390pt and
+approximately 393pt Simulator evidence remained unavailable because of the
+CoreSimulator/runtime environment. Broader Simulator evidence was completed;
+the exact viewport gap was superseded as a completion blocker by this accepted
+physical-device validation.
+
+## Final visual-recovery boundary
+
+The closeout sequence is recorded as follows:
+
+1. The original automated Simulator convergence was too permissive.
+2. Physical evidence exposed additional visual discrepancies.
+3. Visual QA Workflow V2 and the subsequent physical-feedback loops corrected
+   those discrepancies without changing approved analytics semantics.
+4. Exact 390pt and approximately 393pt Simulator evidence remained unavailable
+   because of CoreSimulator/runtime availability.
+5. The accepted real physical-device review superseded that remaining automated
+   viewport gap as a completion blocker.
+6. Phase 17.5 physical visual acceptance passed.
 
 ## 2026-08-18 in-flight correction audit
 
@@ -584,11 +610,12 @@ the result is close.
   authenticated-account availability. No visual discrepancy was inferred and
   no speculative source fix was made.
 
-## Approval boundary
+## Historical approval boundary (superseded 2026-08-21)
 
-This ledger is not complete until every target has exact screenshots, measured
-geometry, two independent review passes for high-risk screens, focused and
-full automated validation, and a pushed branch. Current blockers are the
+At the time of the in-flight recovery, this ledger was not complete until every
+target had exact screenshots, measured geometry, two independent review passes
+for high-risk screens, focused and full automated validation, and a pushed
+branch. The historical blockers were the
 matched 390/393pt capture, removal of the development-client overlay from
 evidence, exact authenticated Month/Complex state capture, clean lower-surface
 evidence, sparse-data Macro/Hydration chart comparisons, remaining Macro
@@ -599,6 +626,7 @@ matched-width capture without the development-client overlay. Vitamin C's source
 typography fix is validated; its exact data and clean viewport evidence remain
 unresolved.
 The guarded standalone Release preparation still requires its own disk and
-physical-validation gate; no generated-native cleanup is authorized while
-physical validation remains pending. Physical iPhone operation,
-standalone signing, installation, and acceptance remain user-only.
+physical-validation gate. Physical iPhone operation, standalone signing,
+installation, and acceptance remain user-only; the final user-operated
+acceptance is recorded in the closeout section above. Exact 390/393 Simulator
+evidence remains unavailable and is not claimed as passed.

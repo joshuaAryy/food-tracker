@@ -66,10 +66,14 @@ diagnostic redaction, Railway staging, and the completed Phase 17 free-Xcode
 standalone installation. Hosted setup-status, persistence, ownership, provider,
 session, and disposable-account deletion checks passed.
 
-Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is the current
-implementation phase. Phase 17 is complete; Phase 17.5 implementation is in
-progress, with canonical analytics, hydration, saved views, and forecasting
-foundations under active validation.
+Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is complete.
+Phase 17.5 reached its accepted implementation baseline on
+`2026-08-21` at `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`, including the
+canonical analytics, hydration, saved views, forecasting, and physical-device
+visual acceptance gates. Exact 390/393 Simulator evidence remained unavailable
+because of the CoreSimulator/runtime environment; broader Simulator evidence
+and physical iPhone acceptance completed the phase. Phase 18 — Additional Food
+Providers — is next.
 
 ## Current Limitations
 

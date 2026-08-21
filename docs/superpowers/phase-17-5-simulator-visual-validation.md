@@ -1,8 +1,23 @@
 # Phase 17.5 Simulator Visual Validation Ledger
 
-Status: Chart-system implementation, guarded staging reseed, and approximate
-Simulator visual review complete. Fresh exact 390/393 evidence remains open.
-Physical iPhone status: **PENDING USER RE-VALIDATION**.
+Status: Chart-system implementation, guarded staging reseed, and broader
+Simulator visual review complete. Exact 390/393 evidence was unavailable due
+to the CoreSimulator/runtime environment and is non-blocking after accepted
+physical-device validation.
+Physical iPhone status: **PASS — USER ACCEPTED 2026-08-21**.
+
+## Final physical acceptance — 2026-08-21
+
+Implementation baseline accepted: `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`.
+User-operated physical iPhone validation: **PASS**.
+
+The user explicitly accepted the current Calories gray/reference-range
+treatment, the current Logging Consistency overview scale and layout, the
+unified chart system, nutrient/chart palette behavior, the Complex Overview
+composition, and the overall Phase 17.5 visual fidelity. The user reported no
+further requested visual changes. Exact 390pt and approximately 393pt
+Simulator evidence remains unavailable and is recorded as an environment
+limitation, not a completion blocker.
 
 ## 2026-08-20 chart-system update
 
@@ -36,7 +51,7 @@ Gate 3 notes below; those notes are retained as prior evidence.
   The independent reviewer confirmed no remaining Major, Moderate, or Minor
   discrepancy in the fresh targeted captures.
 
-### Current runtime and account boundary
+### Automated runtime and account boundary
 
 The generated workspace was discovered, built, installed, and launched on the
 booted iPhone 17 Simulator running iOS 27.0. The authenticated app loaded the
@@ -216,7 +231,9 @@ Local reference files are kept outside the repository under
 The Release artifact was rebuilt with Xcode 27, installed and launched on the
 current Simulator, and rechecked after the final source changes. The account
 remained authenticated against staging throughout; no credentials were
-requested or exposed. A physical iPhone run, Personal Team signing, and any
-production distribution remain outside this automated Gate 3 claim. The latest
-fresh visual pass used the same booted Simulator with the authenticated
-staging Metro bundle; its 368x800 captures remain approximate evidence only.
+requested or exposed. The automated Gate 3 evidence remains separate from the
+user-operated physical validation recorded above. The latest fresh visual pass
+used the same booted Simulator with the authenticated staging Metro bundle;
+its 368x800 captures remain approximate evidence only. Exact 390/393 evidence
+remained unavailable and was superseded as a completion blocker by the
+accepted physical-device review.

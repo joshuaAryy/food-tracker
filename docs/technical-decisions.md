@@ -918,10 +918,11 @@ stack. The proposed interactive logging-method selector remains future work.
 
 ## TD-028: Phase 17.5 Canonical Analytics, Micronutrients, And Hydration
 
-Status: Locked for Phase 17.5 on 2026-08-08; implementation in progress
+Status: Locked for Phase 17.5 on 2026-08-08; implementation complete and
+physically accepted on 2026-08-21 at `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`
 
-- Phase 17 is complete. Phase 17.5 is the current implementation phase and is
-  named Custom Analytics, Micronutrients, and Hydration. Its approved Figma
+- Phase 17 and Phase 17.5 are complete. Phase 17.5 is named Custom Analytics,
+  Micronutrients, and Hydration. Its approved Figma
   source is file `GFLStsF0ADwaizoVKGeLny`, page `338:21`; final contract
   `517:73` and node index `524:21` outrank hidden or historical drafts.
 - The backend remains the single deterministic owner of analytics facts,

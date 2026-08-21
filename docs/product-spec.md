@@ -188,12 +188,12 @@ summaries. Missing or threshold-unavailable metrics are omitted rather than
 described with backend confidence language. Current targets are used for
 historical reports until reliable goal history exists.
 
-Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is the current
-implementation phase after completed Phase 17. Its implementation has not
-started. It owns custom nutrition and weight graphs, metric selection, approved
-periods and custom ranges, up to two compatible comparisons, Complex saved and
-pinned views, deterministic forecasts, full Complex micronutrient patterns, and
-hydration.
+Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — is complete
+after Phase 17. Its accepted scope includes custom nutrition and weight graphs,
+metric selection, approved periods and custom ranges, up to two compatible
+comparisons, Complex saved and pinned views, deterministic forecasts, full
+Complex micronutrient patterns, and hydration. Phase 18 — Additional Food
+Providers — is next.
 
 Simple remains focused on Calories, Protein, Carbohydrates, Fat, Macro
 Composition, Weight, Hydration, and Logging Consistency across 7D/30D/90D,

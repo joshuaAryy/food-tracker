@@ -5,9 +5,10 @@ future sessions do not need long conversation history.
 
 ## Current Phase
 
-Phase 17 free-Xcode standalone installation is complete. Phase 17.5 — Custom
-Analytics, Micronutrients, and Hydration — is the current implementation phase;
-its feature implementation is in progress. The Phase 15.5 reporting redesign implementation is merged,
+Phase 17 free-Xcode standalone installation and Phase 17.5 — Custom Analytics,
+Micronutrients, and Hydration — are complete. User-operated physical iPhone
+visual acceptance for Phase 17.5 passed on 2026-08-21 at baseline
+`e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`. The Phase 15.5 reporting redesign implementation is merged,
 while accessibility and small-device/native validation remain carryover
 follow-up. Phase 6 established the
 current mobile visual-system blueprint across

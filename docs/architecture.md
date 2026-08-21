@@ -14,8 +14,9 @@ PostgreSQL database
 
 ## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
 
-Phase 17 is complete. Phase 17.5 is the current implementation phase and its
-feature slices are in progress. The approved production source is Figma file
+Phase 17 and Phase 17.5 are complete. Phase 17.5's accepted implementation
+baseline is `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`; user-operated physical
+iPhone visual validation passed on 2026-08-21. The approved production source is Figma file
 `GFLStsF0ADwaizoVKGeLny`, page `338:21`, with final handoff contract `517:73`
 and node index `524:21`. Hidden and older Figma drafts are historical only.
 

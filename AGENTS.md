@@ -48,9 +48,10 @@ The following rules are mandatory:
 - Firebase Authentication is the active identity boundary for current local and
   staging flows. Remaining account-lifecycle work is tracked in Phase 20, and
   clients MUST NOT send `userId`.
-- Phase 17.5 is the current implementation phase after completed Phase 17. Its
-  source of truth is the approved Phase 17.5 plan and the aligned documents
-  listed in that plan. Hydration is in this phase; supplements remain deferred.
+- Phase 17.5 is complete after completed Phase 17. Its source of truth is the
+  approved Phase 17.5 plan and the aligned closeout documents listed in that
+  plan. Hydration is complete in this phase; supplements remain deferred.
+  Phase 18 — Additional Food Providers — is next.
 - Phase 17.5 analytics keeps logging-day completeness separate from selected
   metric coverage. `complete`, `partial`, and `unlogged` describe FoodLog
   behavior; `in_progress` identifies the current local day; `recorded`,

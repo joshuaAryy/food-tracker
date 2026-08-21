@@ -12,8 +12,8 @@ explicitly below and takes precedence over those historical labels.
 
 ```text
 Phase 17 — complete
-Phase 17.5 — current: Custom Analytics, Micronutrients, and Hydration
-Phase 18 — Additional Food Providers
+Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
+Phase 18 — next: Additional Food Providers
 Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
 Phase 20 — Real Accounts and User Isolation
 Phase 21 — Full Complex-Mode Micronutrient Editing
@@ -27,8 +27,11 @@ Phase 28 — Experimental Grocery Recommendations
 Phase 29 — Wearable and Health Data Integration
 ```
 
-Phase 17.5 is the current implementation phase. Its implementation is in
-progress; Task 0 established the documentation/source-of-truth checkpoint.
+Phase 17.5 is complete. Its final implementation baseline is
+`e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`; user-operated physical iPhone
+visual validation passed on 2026-08-21. Exact 390/393 Simulator evidence
+remained unavailable because of the CoreSimulator/runtime environment and was
+superseded as a completion blocker by the accepted physical-device review.
 
 The post-Phase 6 MVP direction is:
 
@@ -543,7 +546,7 @@ recorded in the local Phase 17 entry below.
 ## Historical remote roadmap label — Phase 16 Custom Graphs and Complex Analytics
 
 This old remote label is retained for historical context only. The same product
-scope is now owned by current Phase 17.5 immediately after completed Phase 17;
+scope is now owned by completed Phase 17.5 immediately after completed Phase 17;
 it is not orphaned or unassigned.
 
 - customizable graphs
@@ -615,11 +618,14 @@ after standalone evidence is recorded.
 - The guarded cleanup removed only the ignored generated `apps/mobile/ios/`
   directory after evidence capture.
 
-## Phase 17.5 — Custom Analytics, Micronutrients, and Hydration
+## Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — Complete
 
-This is the current implementation phase after completed Phase 17. Feature
-implementation is in progress; the approved implementation plan establishes
-the A–G sequence for the remaining user-authorized work.
+Phase 17.5 is complete after the automated/staging gate and user-operated
+physical iPhone visual acceptance on 2026-08-21. The accepted implementation
+baseline is `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`. The current Calories
+reference-band treatment, Logging Consistency overview layout, chart system,
+nutrient palette, and Overview composition were explicitly accepted with no
+further requested visual changes.
 
 - Customizable nutrition and weight graphs, metric selection, and 7-day,
   30-day, 90-day, and custom date ranges
@@ -672,6 +678,33 @@ index is `524:21`; hidden or older drafts are historical only.
 The canonical Phase 17.5 Water model is separate from FoodLog and excludes
 water contained in food. `waterTrackingEnabled` remains for compatibility but
 does not gate visibility. Supplements remain deferred.
+
+### Phase 17.5 completion summary — 2026-08-21
+
+- Custom analytics: 7D, 30D, 90D, and custom ranges; backend-owned
+  aggregation, comparisons, saved views, pinned analysis, chart axes/grids,
+  metric-specific chart families, and missing-data semantics.
+- Micronutrients: the Complex nutrient library and detail routes, reference
+  contracts, recorded/partial/unknown coverage, contributors, curated Simple
+  highlights, and authoritative missingness handling.
+- Hydration: Simple and Complex presentation, the default `2000 mL` goal,
+  WaterLog persistence, quick add, Other Amount, editable history, and trend
+  reporting.
+- Forecasting: deterministic/statistical Calories and Weight forecasts with
+  no LLM forecasting.
+- Logging Consistency: complete, partial, unlogged, and current-day
+  `in_progress` meal-behavior semantics independent from calorie adherence.
+- Offline/cache: versioned, user-partitioned analytics cache with section-level
+  stale/error handling and preservation of valid committed analytics after a
+  failed replacement.
+- QA/validation: deterministic current-date staging fixtures, broad nutrient
+  and state coverage, current-week/current-month coverage, automated validation,
+  and accepted physical-device visual review.
+
+Exact 390pt and approximately 393pt Simulator evidence remained unavailable
+because of the CoreSimulator/runtime environment. Broader Simulator evidence
+was completed, and the unavailable exact viewport was non-blocking after the
+user's physical iPhone review passed.
 
 ## Phase 17 (historical remote roadmap) — Deployment and Security Foundations — Superseded
 
