@@ -8,6 +8,24 @@ export type AuthDestination =
   | '/(onboarding)'
   | '/(tabs)/progress';
 
+/**
+ * Root groups registered by the authenticated Stack. Keep this list next to
+ * the matcher so adding a root screen cannot silently create an auth redirect.
+ */
+export const AUTHENTICATED_ROOT_ROUTE_GROUPS: readonly string[] = [
+  '(tabs)',
+  'index',
+  'streaks',
+  'trends',
+  'food-log',
+  'recipes',
+  'photo-log',
+  'barcode-scan',
+  'meal-describe',
+  'weight-log',
+  'water-log',
+];
+
 export function routeForAuthState(state: AuthState): AuthDestination {
   switch (state.status) {
     case 'initializing':
@@ -49,14 +67,7 @@ export function routeMatchesAuthState(
       return group === '(onboarding)';
     case 'signedInReady':
       return (
-        group === '(tabs)' ||
-        group === 'streaks' ||
-        group === 'food-log' ||
-        group === 'recipes' ||
-        group === 'photo-log' ||
-        group === 'barcode-scan' ||
-        group === 'meal-describe' ||
-        group === 'weight-log'
+        group !== undefined && AUTHENTICATED_ROOT_ROUTE_GROUPS.includes(group)
       );
   }
 }

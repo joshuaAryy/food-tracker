@@ -6,6 +6,21 @@ export interface ResponseSchema<T> {
   ) => { success: true; data: T } | { success: false };
 }
 
+export type ResponseParseDiagnosticStage =
+  | 'response_text_read'
+  | 'response_text_read_failed'
+  | 'json_parse_succeeded'
+  | 'json_parse_failed'
+  | 'envelope_parse_succeeded'
+  | 'envelope_parse_failed'
+  | 'canonical_schema_parse_succeeded'
+  | 'canonical_schema_parse_failed';
+
+export type ResponseParseDiagnostic = (
+  stage: ResponseParseDiagnosticStage,
+  status: number,
+) => void;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -100,8 +115,16 @@ export async function parseApiResponse<T>(
     response: Response;
     error: Record<string, unknown>;
   }) => Error,
+  onStage?: ResponseParseDiagnostic,
 ): Promise<T> {
-  const responseText = await response.text();
+  let responseText: string;
+  try {
+    responseText = await response.text();
+  } catch {
+    onStage?.('response_text_read_failed', response.status);
+    throw invalidResponse(response.status);
+  }
+  onStage?.('response_text_read', response.status);
   onDiagnostic?.('response_received', {
     status: response.status,
     contentType: response.headers.get('content-type') ?? 'missing',
@@ -111,7 +134,9 @@ export async function parseApiResponse<T>(
   let payload: unknown;
   try {
     payload = JSON.parse(responseText) as unknown;
+    onStage?.('json_parse_succeeded', response.status);
   } catch {
+    onStage?.('json_parse_failed', response.status);
     onDiagnostic?.('response_json_parse_failed', {
       status: response.status,
     });
@@ -119,11 +144,13 @@ export async function parseApiResponse<T>(
   }
 
   if (!isRecord(payload) || typeof payload.success !== 'boolean') {
+    onStage?.('envelope_parse_failed', response.status);
     onDiagnostic?.('response_envelope_parse_failed', {
       status: response.status,
     });
     throw invalidResponse(response.status);
   }
+  onStage?.('envelope_parse_succeeded', response.status);
 
   const envelope = payload as unknown as ApiResponse<unknown>;
   if (!envelope.success) {
@@ -133,6 +160,7 @@ export async function parseApiResponse<T>(
       typeof envelope.error.message !== 'string' ||
       !isRecord(envelope.error.details)
     ) {
+      onStage?.('envelope_parse_failed', response.status);
       throw invalidResponse(response.status);
     }
     throw (
@@ -145,9 +173,11 @@ export async function parseApiResponse<T>(
 
   const parsed = schema.safeParse(envelope.data);
   if (!parsed.success) {
+    onStage?.('canonical_schema_parse_failed', response.status);
     onDiagnostic?.('response_schema_parse_failed', { status: response.status });
     throw invalidResponse(response.status);
   }
+  onStage?.('canonical_schema_parse_succeeded', response.status);
   onDiagnostic?.('response_schema_parsed', { status: response.status });
   return parsed.data;
 }

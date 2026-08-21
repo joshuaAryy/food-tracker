@@ -23,7 +23,9 @@ export function ScreenHeader({
             {eyebrow}
           </AppText>
         )}
-        <AppText variant="title">{title}</AppText>
+        <AppText variant="title" numberOfLines={1} ellipsizeMode="tail">
+          {title}
+        </AppText>
         {subtitle === undefined ? null : <AppText muted>{subtitle}</AppText>}
       </View>
       {action}

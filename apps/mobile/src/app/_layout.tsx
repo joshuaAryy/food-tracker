@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthBootstrap } from '@/components/auth/auth-bootstrap';
 import { colors } from '@/theme/tokens';
 import '../global.css';
 
 export default function RootLayout() {
   return (
-    <>
+    <GestureHandlerRootView testID="gesture-handler-root" style={{ flex: 1 }}>
       <AuthBootstrap>
         <Stack
           screenOptions={{
@@ -19,6 +20,19 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="index" />
           <Stack.Screen name="streaks" />
+          <Stack.Screen name="trends" />
+          <Stack.Screen
+            name="trends/saved-views"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
+            name="trends/save-view"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
+            name="trends/configure"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
           <Stack.Screen
             name="food-log"
             options={{ presentation: 'modal', gestureEnabled: true }}
@@ -54,6 +68,15 @@ export default function RootLayout() {
           <Stack.Screen
             name="weight-log"
             options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
+            name="water-log"
+            options={{
+              presentation: 'transparentModal',
+              animation: 'slide_from_bottom',
+              gestureEnabled: true,
+              contentStyle: { backgroundColor: 'transparent' },
+            }}
           />
           <Stack.Screen
             name="recipes/index"
@@ -102,6 +125,6 @@ export default function RootLayout() {
         </Stack>
       </AuthBootstrap>
       <StatusBar style="dark" />
-    </>
+    </GestureHandlerRootView>
   );
 }

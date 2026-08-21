@@ -671,6 +671,10 @@ subtle neutral placeholder shapes, and avoid heavy animation.
 
 Status: Superseded on 2026-07-26 by TD-025; retained as historical context
 
+The Phase 19 references in this historical decision describe the earlier
+roadmap numbering. The current roadmap assigns remaining account-lifecycle work
+to Phase 20 after Phase 19 semantic retrieval.
+
 This decision supersedes the provider-specific portions of TD-002 and TD-009;
 those decisions remain in this document as historical context.
 
@@ -911,3 +915,96 @@ idempotent by its nullable unique source relation.
 
 The Food Library reuses the existing four-tab application and Food Log modal
 stack. The proposed interactive logging-method selector remains future work.
+
+## TD-028: Phase 17.5 Canonical Analytics, Micronutrients, And Hydration
+
+Status: Locked for Phase 17.5 on 2026-08-08; implementation complete and
+physically accepted on 2026-08-21 at `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`
+
+- Phase 17 and Phase 17.5 are complete. Phase 17.5 is named Custom Analytics,
+  Micronutrients, and Hydration. Its approved Figma
+  source is file `GFLStsF0ADwaizoVKGeLny`, page `338:21`; final contract
+  `517:73` and node index `524:21` outrank hidden or historical drafts.
+- The backend remains the single deterministic owner of analytics facts,
+  aggregation, completeness, references, comparisons, contributors,
+  interpretations, saved-view validation, and forecasting. Mobile renders
+  validated contracts and does not calculate analytics or recommendation facts.
+- `LoggingDayState` describes only FoodLog behavior: `complete`, `partial`, or
+  `unlogged`. The current local day additionally carries `in_progress` and is
+  not a closed complete day. `MetricDataState` independently describes a
+  selected metric in authoritative FoodLog snapshots: `recorded`, `partial`,
+  or `unknown`. An unlogged day has no metric state. Missing provider nutrient
+  data never changes logging completeness.
+- Unknown is not zero, unlogged is not zero, partial is not complete, and an
+  explicit numeric zero is recorded zero. Historical nutrient snapshots and
+  WeightLogs remain authoritative; missing values remain gaps.
+- The initial Breakfast/Lunch/Dinner completeness rule, with optional
+  Snack/Other, is a centralized, versioned implementation policy supported by
+  the approved meal-coverage design. It is not an immutable nutritional rule;
+  any change requires product evidence and policy-test updates.
+- Complex coverage filters operate on logging completeness only:
+  `all_logged_days` (user-facing “All recorded days”),
+  `complete_and_partial`, and `complete_only`. Metric unknown/partial behavior
+  remains independent after the logging filter. Weekly and monthly buckets
+  retain independent logging and metric counts rather than collapsing mixed
+  days into one state.
+- Target, minimum, limit, and true lower-plus-upper range references are
+  distinct. A true range requires both authoritative bounds; a single target
+  never becomes a fabricated range. Phase 17.5 does not add target-editing UI.
+- Water is a separate Phase 17.5 domain model. The canonical amount/time logger
+  creates Water entries only; hydration uses WaterLogs only and excludes water
+  contained in food. Hydration is visible in both modes with a server-owned
+  `2000 mL/day` initial goal. `waterTrackingEnabled` remains compatible but does
+  not gate visibility. Supplements remain deferred.
+- Saved Complex views support save, open, temporary modify, update, save as new,
+  rename, duplicate, pin, unpin, reorder, and delete. At most one view is
+  pinned; unpin clears `pinnedSavedViewId` and restores the Calories fallback.
+  Relative periods are rolling periods, not frozen historic snapshots.
+- Calories and Weight forecasts are deterministic, independent, backend-owned
+  seven-day projections with solid-history/Today/dotted-projection continuity,
+  rolling-origin backtesting, and eligibility/stability gates. Initial values
+  such as elapsed-day, usable-day, improvement, error, and interval-width
+  thresholds are centralized engineering policy constants, validated by tests
+  and diagnostics, and may change when backtesting justifies it. No LLM
+  generates predictions.
+- Every Phase 17.5 Insights and Trends number/chart must consume canonical
+  missingness and aggregation semantics; legacy zero-filled report behavior
+  must not reach a Phase 17.5 surface even while old endpoints remain
+  temporarily compatible.
+- The implementation order is Slice A analytics foundation, Slice B hydration
+  and canonical logging, Slice C chart system and core trends, Slice D Complex
+  micronutrient analytics, Slice E configuration/custom range/comparison, Slice
+  F saved/pinned views and reporting integration, and Slice G forecasts,
+  state/responsive hardening, and documentation closeout.
+
+## TD-029: Bounded Execution And Evidence-Based Visual Validation
+
+Status: Adopted from the Phase 17.5 closeout on 2026-08-21
+
+- The repository supports single-threaded, agent-assisted, and selectively
+  parallel execution. Agents are optional tools, not a required architecture.
+  Single-threaded work is preferred for small, sequential, coupled, or
+  documentation-only changes.
+- Delegation is appropriate only for bounded, independent, reviewable work
+  that materially reduces wall-clock time. Default active delegation is about
+  2–3 workers, with a soft maximum of 4; duplicate investigations and
+  one-agent-per-file decomposition are discouraged.
+- Reasoning intensity starts at the lowest capable level. Higher-cost tiers are
+  exceptions for a named unresolved blocker, with Terra Max reserved for a
+  narrow, genuinely difficult question after lower-cost investigation.
+- Visual-fidelity work uses separate implementation, automated validation,
+  real-runtime capture, independent-review, and user-owned physical-acceptance
+  gates. A test, source inspection, old screenshot, nearby viewport, or
+  unproven runtime state cannot stand in for a missing gate.
+- Deterministic, current-date staging fixtures and an explicitly verified
+  Firebase-linked account are preferred for analytics UI checks. Screenshots
+  must come from the real app with the backend target, authentication state,
+  seed state, and viewport recorded.
+- Simulator evidence is useful for repeatable navigation and broad comparison,
+  but physical signing, installation, connectivity, and device acceptance
+  remain external user-owned checkpoints. Missing external prerequisites are
+  recorded as blocked or pending; documentation must not convert them into
+  implied completion.
+- Closeout records truth over optimism: state what was proven, what remains
+  unavailable, what caused waste, and which next action belongs to the user or
+  another external system.

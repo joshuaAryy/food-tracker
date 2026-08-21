@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   assertSafeGeneratedIosDirectory,
+  assertRequiredStagingReleaseBranch,
   assertReleaseBundleArtifact,
   buildPreparationCommands,
   cleanupGeneratedIosDirectory,
@@ -386,6 +387,27 @@ afterEach(() => {
 });
 
 describe('staging Release workflow', () => {
+  it.each([
+    'phase-17-5-custom-analytics',
+    'phase-17-free-xcode-standalone',
+    'main',
+  ])('accepts the explicit staging Release branch %s', (branch) => {
+    expect(() =>
+      assertRequiredStagingReleaseBranch('/repository', () => `${branch}\n`),
+    ).not.toThrow();
+  });
+
+  it('rejects an unrelated staging Release branch', () => {
+    expect(() =>
+      assertRequiredStagingReleaseBranch(
+        '/repository',
+        () => 'feature/other\n',
+      ),
+    ).toThrow(
+      'requires an approved Phase 17 staging branch or post-merge main',
+    );
+  });
+
   it('resolves the environment file from the canonical mobile root', () => {
     const paths = resolveWorkflowPaths();
 
@@ -919,13 +941,20 @@ end
     const commands = buildPreparationCommands('/repo');
     expect(commands.map((command) => command.command)).toEqual([
       'corepack',
+      'corepack',
       'pod',
       'open',
     ]);
-    expect(commands[0]?.args).toContain('--clean');
-    expect(commands[0]?.args).toContain('--no-install');
-    expect(commands[1]?.args).toEqual(['install', '--repo-update']);
-    expect(commands[2]?.args).toEqual([
+    expect(commands[0]?.args).toEqual([
+      'pnpm',
+      '--filter',
+      '@food-tracker/shared',
+      'build',
+    ]);
+    expect(commands[1]?.args).toContain('--clean');
+    expect(commands[1]?.args).toContain('--no-install');
+    expect(commands[2]?.args).toEqual(['install', '--repo-update']);
+    expect(commands[3]?.args).toEqual([
       '-a',
       'Xcode',
       '/repo/apps/mobile/ios/FoodTracker.xcworkspace',
@@ -1033,7 +1062,7 @@ end
       isIgnored: () => true,
       isTracked: () => false,
     });
-    expect(order).toEqual(['corepack', 'pod', 'open']);
+    expect(order).toEqual(['corepack', 'corepack', 'pod', 'open']);
     const handoff = readFileSync(
       join(root, 'apps/mobile/ios/.xcode.env.local'),
       'utf8',

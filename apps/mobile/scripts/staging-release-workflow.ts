@@ -199,7 +199,7 @@ function defaultRemoveDirectory(path: string): void {
   rmSync(path, { recursive: true, force: false });
 }
 
-function assertRequiredBranch(
+export function assertRequiredStagingReleaseBranch(
   rootDir: string,
   capture: WorkflowDependencies['captureCommand'],
 ): void {
@@ -208,9 +208,13 @@ function assertRequiredBranch(
     ['branch', '--show-current'],
     rootDir,
   ).trim();
-  if (branch !== 'phase-17-free-xcode-standalone' && branch !== 'main') {
+  if (
+    branch !== 'phase-17-free-xcode-standalone' &&
+    branch !== 'phase-17-5-custom-analytics' &&
+    branch !== 'main'
+  ) {
     throw new Error(
-      'The staging Release workflow requires phase-17-free-xcode-standalone or post-merge main.',
+      'The staging Release workflow requires an approved Phase 17 staging branch or post-merge main.',
     );
   }
 }
@@ -890,6 +894,11 @@ export function buildPreparationCommands(rootDir: string): WorkflowCommand[] {
   return [
     {
       command: 'corepack',
+      args: ['pnpm', '--filter', '@food-tracker/shared', 'build'],
+      cwd: paths.rootDir,
+    },
+    {
+      command: 'corepack',
       args: [
         'pnpm',
         'exec',
@@ -1233,7 +1242,7 @@ export function runStagingReleasePreparation(
   const rootDir = paths.rootDir;
   const envFilePath = options.envFilePath ?? paths.envFilePath;
   const beforeStatus = (options.readStatus ?? defaultReadStatus)(rootDir);
-  assertRequiredBranch(rootDir, options.captureCommand);
+  assertRequiredStagingReleaseBranch(rootDir, options.captureCommand);
   assertNoStagedFiles(rootDir, options.captureCommand);
   if (!options.skipToolchainChecks) {
     validateToolchain(
@@ -1277,7 +1286,7 @@ export function runStagingReleasePreparation(
   if (existsSync(iosDirectory)) assertNoSymlinkedNativeChildren(iosDirectory);
   const run = options.runCommand ?? defaultRunCommand;
   const commands = buildPreparationCommands(rootDir);
-  for (const command of commands.slice(0, 2)) {
+  for (const command of commands.slice(0, 3)) {
     run(command.command, command.args, command.cwd, childEnvironment);
   }
   assertSafeGeneratedIosDirectory(iosDirectory, rootDir, options);
@@ -1301,7 +1310,7 @@ export function runStagingReleasePreparation(
       'Native preparation changed tracked or unrelated Git state.',
     );
   }
-  const openCommand = commands[2];
+  const openCommand = commands[3];
   if (openCommand === undefined)
     throw new Error('Xcode handoff command was not generated.');
   run(openCommand.command, openCommand.args, openCommand.cwd, childEnvironment);

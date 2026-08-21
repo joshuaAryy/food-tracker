@@ -4,11 +4,34 @@ This roadmap records implemented state and intended sequencing. It does not
 override the engineering rules in `AGENTS.md` or locked architecture and schema
 decisions.
 
-The older Phase 16–19 entries below are retained as historical roadmap context.
-Local Phase 16 work reprioritized Firebase Authentication, security foundations,
-and Railway repository readiness ahead of custom graphs and broader deployment.
-Remote documentation may therefore still show the older numbering; actual
-implementation and Git state take precedence.
+Historical remote phase labels are retained only where they explain prior
+planning or implementation history. The current remaining roadmap is listed
+explicitly below and takes precedence over those historical labels.
+
+## Current Roadmap Status
+
+```text
+Phase 17 — complete
+Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
+Phase 18 — next: Additional Food Providers
+Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
+Phase 20 — Real Accounts and User Isolation
+Phase 21 — Full Complex-Mode Micronutrient Editing
+Phase 22 — Recommendation Engine 2.0
+Phase 23 — Water and Supplement Tracking
+Phase 24 — Frontend and Food-Logging Flow Redesign
+Phase 25 — External MVP Beta
+Phase 26 — Offline Logging and Synchronization
+Phase 27 — Frequent Foods, Meal Shortcuts, and Lightweight Saved Meals
+Phase 28 — Experimental Grocery Recommendations
+Phase 29 — Wearable and Health Data Integration
+```
+
+Phase 17.5 is complete. Its final implementation baseline is
+`e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`; user-operated physical iPhone
+visual validation passed on 2026-08-21. Exact 390/393 Simulator evidence
+remained unavailable because of the CoreSimulator/runtime environment and was
+superseded as a completion blocker by the accepted physical-device review.
 
 The post-Phase 6 MVP direction is:
 
@@ -403,22 +426,23 @@ normalization, flexible compatible servings, trusted/estimated mixed review,
 server-authoritative atomic save, History persistence, canonical local reuse,
 and safe Back/Close navigation.
 
-Phase 15 — Streaks and Better Reporting — is implemented on the feature branch;
-physical-device validation and documentation closeout remain before merge.
+Phase 15 — Streaks and Better Reporting — and the Phase 15.5 reporting redesign
+implementation are merged. Reporting accessibility and small-device/native
+validation follow-up remains carryover work.
 
 ## Phase 15 — Streaks and Better Reporting
 
-Implementation scope is locked and in progress. Reporting is calculated on
-demand from authoritative FoodLogs and WeightLogs; no report snapshots or
-schema changes are introduced. Physical iPhone validation is still required
-before this phase can be marked complete.
+The reporting implementation is merged. Reporting is calculated on demand from
+authoritative FoodLogs and WeightLogs; no report snapshots or schema changes
+are introduced. Accessibility and small-device/native validation follow-up
+remains open before reporting closeout is treated as fully complete.
 
 ### Phase 15.5 — Approved Figma Reporting Implementation
 
-Phase 15.5 is an implementation-only visual convergence pass. The approved
-Figma masters are locked for production implementation and remain open until
-the code, focused and database-backed tests, native validation, and physical
-iPhone visual approval all pass.
+Phase 15.5 was an implementation-only visual convergence pass. The approved
+Figma masters remain the production visual source of truth. Automated coverage
+passed and the implementation was merged; native validation and physical-iPhone
+visual follow-up remain carryover work.
 
 - Figma file: `GFLStsF0ADwaizoVKGeLny`
 - Product masters: Progress `200:3146`, Insights 390 `200:3228`, Insights
@@ -449,7 +473,7 @@ iPhone visual approval all pass.
 - Simple-mode focused nutrients and deeper Complex-mode available nutrients
 - charts, custom ranges, notifications, exports, and historical goal versioning remain deferred
 
-### Phase 15.5.1 — Reporting Goal And Terminology Polish — In progress
+### Phase 15.5.1 — Reporting Goal And Terminology Polish — Implemented; validation follow-up remains
 
 This tightly scoped follow-up preserves the approved Progress, Insights, and
 Streak layouts while closing the reporting data and copy gaps. The existing
@@ -468,9 +492,9 @@ unrecorded nutrients, recorded zeroes, and invalid denominators remain distinct.
 
 The only user-facing tracking mode names are `Simple` and `Complex`. The stored
 `simple`/`complex` enum remains unchanged to avoid an unnecessary migration.
-No new visual design work is included. Completion remains gated on focused and
-full automated validation, native simulator parity, and final physical-device
-visual approval.
+No new visual design work is included. The implementation and automated
+validation are complete; native simulator parity and final physical-device
+visual approval remain follow-up validation.
 
 ## Local Phase 16 — Firebase Authentication And Railway Readiness
 
@@ -519,10 +543,11 @@ recorded in the local Phase 17 entry below.
   provider approval. The local Phase 17 standalone Release installation is
   complete; paid external distribution remains deferred.
 
-## Phase 16 (historical remote roadmap) — Custom Graphs and Complex Analytics
+## Historical remote roadmap label — Phase 16 Custom Graphs and Complex Analytics
 
-This scope remains a valid future product area but is not the active local Phase
-16 implementation.
+This old remote label is retained for historical context only. The same product
+scope is now owned by completed Phase 17.5 immediately after completed Phase 17;
+it is not orphaned or unassigned.
 
 - customizable graphs
 - metric selection
@@ -593,6 +618,101 @@ after standalone evidence is recorded.
 - The guarded cleanup removed only the ignored generated `apps/mobile/ios/`
   directory after evidence capture.
 
+## Phase 17.5 — Custom Analytics, Micronutrients, and Hydration — Complete
+
+Phase 17.5 is complete after the automated/staging gate and user-operated
+physical iPhone visual acceptance on 2026-08-21. The accepted implementation
+baseline is `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`. The current Calories
+reference-band treatment, Logging Consistency overview layout, chart system,
+nutrient palette, and Overview composition were explicitly accepted with no
+further requested visual changes.
+
+- Customizable nutrition and weight graphs, metric selection, and 7-day,
+  30-day, 90-day, and custom date ranges
+- Comparisons of up to two compatible metrics, saved graph preferences, and
+  one primary pinned Complex view
+- Long-term calorie, protein, carbohydrate, fat, weight, micronutrient,
+  caffeine, sodium, fiber, and sugar patterns
+- Hydration analytics and canonical amount/time Water logging in Simple and
+  Complex mode; the initial server-owned hydration goal is `2000 mL/day`
+- Simple focused analytics versus Complex full-catalog exploration,
+  comparisons, custom ranges, coverage filters, contributors, and saved views
+- Accessible, responsive mobile graph behavior, including 320pt support
+
+Analytics uses two orthogonal states: `LoggingDayState` describes FoodLog
+behavior (`complete`, `partial`, `unlogged`, with the current local day marked
+`in_progress`), while `MetricDataState` describes selected-metric availability
+(`recorded`, `partial`, or `unknown`). Unknown is never zero, unlogged is never
+zero, missing nutrient/provider data never downgrades logging completeness, and
+recorded zero is numeric zero. The initial core-meal classification is a
+centralized/versioned implementation policy, not an immutable product rule.
+The Complex coverage enum is internally `all_logged_days`,
+`complete_and_partial`, or `complete_only`; the first retains the approved
+user-facing label “All recorded days.” Weekly and monthly buckets preserve
+independent logging and metric counts rather than collapsing mixed states.
+
+Target, minimum, limit, and true lower-plus-upper range references remain
+distinct. A true range requires both authoritative bounds; a single target is
+never fabricated into a range. Phase 17.5 does not add target-editing UI.
+
+Calories and Weight forecasts are deterministic, backend-owned, statistically
+independent, seven-day projections with rolling backtesting and eligibility and
+stability gates. Initial thresholds are centralized engineering policy
+constants, not immutable product requirements, and unstable or insufficient
+data produces an unavailable state.
+
+The approved implementation decomposition is:
+
+- Slice A — Analytics domain foundation
+- Slice B — Hydration persistence and canonical logging
+- Slice C — Reusable chart system and core trends
+- Slice D — Complex micronutrient analytics
+- Slice E — Configuration, custom range, and comparison
+- Slice F — Saved/pinned views and reporting integration
+- Slice G — Forecasts and state/responsive hardening
+
+The production Figma source is file `GFLStsF0ADwaizoVKGeLny`, page `338:21`.
+The final implementation contract is `517:73`, and the final production-node
+index is `524:21`; hidden or older drafts are historical only.
+
+The canonical Phase 17.5 Water model is separate from FoodLog and excludes
+water contained in food. `waterTrackingEnabled` remains for compatibility but
+does not gate visibility. Supplements remain deferred.
+
+### Phase 17.5 completion summary — 2026-08-21
+
+- Custom analytics: 7D, 30D, 90D, and custom ranges; backend-owned
+  aggregation, comparisons, saved views, pinned analysis, chart axes/grids,
+  metric-specific chart families, and missing-data semantics.
+- Micronutrients: the Complex nutrient library and detail routes, reference
+  contracts, recorded/partial/unknown coverage, contributors, curated Simple
+  highlights, and authoritative missingness handling.
+- Hydration: Simple and Complex presentation, the default `2000 mL` goal,
+  WaterLog persistence, quick add, Other Amount, editable history, and trend
+  reporting.
+- Forecasting: deterministic/statistical Calories and Weight forecasts with
+  no LLM forecasting.
+- Logging Consistency: complete, partial, unlogged, and current-day
+  `in_progress` meal-behavior semantics independent from calorie adherence.
+- Offline/cache: versioned, user-partitioned analytics cache with section-level
+  stale/error handling and preservation of valid committed analytics after a
+  failed replacement.
+- QA/validation: deterministic current-date staging fixtures, broad nutrient
+  and state coverage, current-week/current-month coverage, automated validation,
+  and accepted physical-device visual review.
+
+Exact 390pt and approximately 393pt Simulator evidence remained unavailable
+because of the CoreSimulator/runtime environment. Broader Simulator evidence
+was completed, and the unavailable exact viewport was non-blocking after the
+user's physical iPhone review passed.
+
+Phase 17.5 also established reusable execution guidance: choose single-threaded
+work by default, delegate only independent bounded tasks, cap concurrency and
+reasoning cost, separate implementation/automated/runtime/review/physical
+gates, use deterministic staging evidence, and record external blockers
+without substituting invalid proof. These rules apply to future phases without
+requiring agents.
+
 ## Phase 17 (historical remote roadmap) — Deployment and Security Foundations — Superseded
 
 The repository-side portion of this infrastructure scope was reprioritized into
@@ -634,8 +754,8 @@ engineering smoke build, not the external MVP beta.
 
 ## Phase 18 — Additional Food Providers
 
-This is the next phase-level scope after Phase 17 is merged. No Phase 18
-implementation slice is started by this closeout.
+This follows Phase 17.5. No Phase 18 implementation slice is started by this
+closeout.
 
 - evaluate provider options
 - improve Canadian food coverage
@@ -645,136 +765,120 @@ implementation slice is started by this closeout.
 - provider-neutral normalization
 - deduplication
 - source attribution
+- source-quality review
 - caching
+- fallback behavior
 - failure handling
 - legal terms, cost, quotas, and rate-limit review
 
-## Phase 19 (historical remote roadmap) — Real Accounts and User Isolation
-
-The account scope was reprioritized into local Phase 16. Durable legal consent
-and broader TestFlight readiness remain deferred.
-
-- account registration
-- sign-in and sign-out
-- persistent sessions
-- server-side authentication verification
-- recovery behaviour
-- authentication and authorization boundaries
-- strict resource ownership
-- user-isolation regression coverage
-- secure staging and production configuration
-
-Authentication determines who the user is. Authorization determines which
-resources the user may access.
-
-## Phase 20 — Semantic Search, Typo Handling and Expanded Retrieval
+## Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
 
 - typo tolerance
-- spelling correction
-- aliases
+- synonyms
+- word-order differences
+- preparation and food-form understanding
+- expanded candidate retrieval
 - semantic similarity
+- deterministic post-retrieval ranking
+- safeguards against irrelevant semantic matches
 - embeddings
 - vector-assisted candidate retrieval
-- compound-food understanding
-- unusual phrase handling
-- expanded result retrieval
-- pagination or cursor-based loading
-- incremental result chunks
-- source-aware search
-- deterministic ranking and trust gates
 
 Semantic systems retrieve candidates; they do not independently decide that a
-candidate is trusted. Backend retrieval and pagination belong in this phase.
-The dedicated search page and final visual interaction belong in Phase 24.
+candidate is trusted. AI must not directly query the database, become the
+nutrition authority, or bypass trusted candidate review. The dedicated search
+page and final visual interaction belong in Phase 24.
 
-## Phase 21 — Water and Supplement Tracking
+## Phase 20 — Real Accounts and User Isolation
 
-Water and supplements remain separate domain models.
+- Firebase authentication, identity mapping, protected routing, and hosted
+  staging foundations already exist from Phase 16; this phase is the remaining
+  product account lifecycle and isolation work.
+- account deletion
+- identity-provider linking and conflict handling
+- account recovery
+- durable consent and legal readiness
+- provider and session management
+- expanded user-isolation regression coverage
+- remaining pre-beta account requirements
+
+Authentication determines who the user is. Authorization determines which
+resources that user may access. Both boundaries remain required.
+
+Apple Sign In remains deferred or disabled until its provider and native
+capability requirements are deliberately reopened.
+
+## Phase 21 — Full Complex-Mode Micronutrient Editing
+
+- full supported vitamin and mineral editing
+- caffeine, sodium, fiber, sugars, and other normalized nutrient fields
+- explicit unknown-versus-zero behaviour
+- FoodLog snapshot corrections
+- protection of trusted source FoodItems
+- uncluttered Simple mode
+
+## Phase 22 — Recommendation Engine 2.0
+
+- stronger evidence and confidence
+- richer nutrient-aware recommendation facts
+- prioritization and repetition control
+- different Simple and Complex presentation density
+- optional AI wording over backend-decided facts only
+
+AI must not calculate trends, identify deficits independently, query the
+database, or decide recommendation facts.
+
+## Phase 23 — Water and Supplement Tracking
+
+Phase 17.5 owns the first canonical Water logger and hydration analytics. This
+later phase retains the deferred supplement product scope and any future
+water/supplement integration that is not duplicated by Phase 17.5.
 
 Water:
 
-- quick-add amounts
-- reusable container sizes
-- daily goal and progress
-- History
-- edit and delete
-- reporting and graph integration
+- historical roadmap intent only; do not reimplement the Phase 17.5 Water
+  logger or hydration analytics here
 
 Supplements:
 
 - reusable supplement entries
 - dosage amount and unit
+- serving, schedule, or quantity behavior
 - logged time
 - optional nutrient contribution
 - History
 - edit and delete
 - protection against nutrient double counting
+- reporting and History integration
+- Simple and Complex presentation decisions
 
 Water must not be represented as a fake FoodLog. Supplements must not be
-treated as normal meals or expanded into medication management.
+treated as normal meals or expanded into medication management. The old
+assumption that all Water work waits for Phase 23 is superseded by Phase 17.5;
+this phase remains numbered to preserve the earlier roadmap record.
 
-## Phase 22 — Full Complex-Mode Micronutrient Editing
+## Phase 24 — Frontend and Food-Logging Flow Redesign
 
-- fuller vitamin and mineral control
-- caffeine
-- sodium
-- fiber
-- sugar
-- nutrient search
-- FoodLog-level overrides
-- richer user-created food authoring
-- explicit unknown-versus-zero behaviour
-- protection against accidental mutation of trusted provider records
+This phase is the broader frontend and food-logging flow redesign. It is not an
+authentication login-screen redesign and is not automatically a full rewrite of
+every screen.
 
-## Phase 23 — Recommendation Engine 2.0
-
-This is the last item in the original top-priority feature group, not the final
-phase in the roadmap. It follows water, supplements, and complete Complex-mode
-nutrient editing so recommendations can use the fuller MVP data foundation.
-
-- richer evidence
-- confidence based on data coverage
-- prioritization
-- deduplication
-- recommendation lifecycle
-- improving and resolved states
-- positive reinforcement
-- Simple-mode restraint
-- Complex-mode evidence
-- optional AI wording only after deterministic backend decisions
-
-AI must not independently calculate analytics, identify deficiencies, query the
-database, or decide recommendations.
-
-## Phase 24 — Frontend and Logging-Flow Redesign
-
-This phase reviews the application areas affected by the completed MVP feature
-set. It is broader than search and food logging, but it is not automatically a
-full rewrite of every screen.
-
-- logging-method navigation
-- Food Log entry structure
-- dedicated food search page
-- expanded-search interaction
-- result loading and source presentation
-- reports and graphs
-- water and supplement logging
-- Complex micronutrient editing
-- recommendation presentation
-- information hierarchy
-- navigation and floating actions where needed
-- Simple and Complex mode consistency
-- accessibility fundamentals
-- loading, empty, and error states
-- physical-device usability
+- interactive food-logging method selection
+- improved curved or floating add control
+- sequential logging flows
+- stronger information hierarchy
+- clearer Simple and Complex identities
+- reduction of crowded temporary method-list screens
+- navigation and product polish
 
 The redesign is placed after the required MVP features so it can account for
 the actual product instead of being repeatedly redone after each feature.
 
-## Phase 25 — External TestFlight Beta
+## Phase 25 — External MVP Beta
 
 This is the official MVP completion milestone. The MVP is complete once the
-external TestFlight beta is prepared and distributed.
+external beta, including the paid TestFlight/App Store distribution path, is
+prepared and distributed.
 
 - App Store Connect readiness
 - external tester configuration

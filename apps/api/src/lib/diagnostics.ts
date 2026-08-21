@@ -2,12 +2,19 @@ export interface ServerDiagnostic {
   category: string;
   analysisId?: string;
   requestId?: string;
+  period?: 'week' | 'month';
+  metric?: string;
+  trackingMode?: 'simple' | 'complex';
   status?: number;
   statusClass?: `${2 | 3 | 4 | 5}xx`;
   operation?: string;
   retryable?: boolean;
   elapsedMs?: number;
   errorClass?: string;
+  errorName?: string;
+  errorCode?: string;
+  errorMessage?: string;
+  errorLocation?: string;
   environmentCategory?: string;
   errorCategory?: string;
   itemIndex?: number;
@@ -52,6 +59,19 @@ function safeToken(value: unknown): string | undefined {
     return undefined;
   }
   return value;
+}
+
+function safeText(value: unknown, maximum = 240): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length === 0) return undefined;
+  return normalized.slice(0, maximum);
+}
+
+function safeApplicationLocation(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const match = /^(apps\/api\/src\/[^\s:()]+):(\d+)$/.exec(value);
+  return match === null ? undefined : `${match[1]}:${match[2]}`;
 }
 
 function statusClass(status: unknown): ServerDiagnostic['statusClass'] {
@@ -152,6 +172,15 @@ export function createServerDiagnostic(
   };
   const analysisId = safeToken(details.analysisId);
   const requestId = safeToken(details.requestId);
+  const period =
+    details.period === 'week' || details.period === 'month'
+      ? details.period
+      : undefined;
+  const metric = safeToken(details.metric);
+  const trackingMode =
+    details.trackingMode === 'simple' || details.trackingMode === 'complex'
+      ? details.trackingMode
+      : undefined;
   const responseStatus =
     typeof details.status === 'number' &&
     Number.isInteger(details.status) &&
@@ -161,12 +190,19 @@ export function createServerDiagnostic(
       : undefined;
   const operation = safeToken(details.operation);
   const errorClass = safeToken(details.errorClass);
+  const errorName = safeToken(details.errorName);
+  const errorCode = safeToken(details.errorCode);
+  const errorMessage = safeText(details.errorMessage);
+  const errorLocation = safeApplicationLocation(details.errorLocation);
   const environmentCategory = safeToken(details.environmentCategory);
   const errorCategory = safeToken(details.errorCategory);
   const responseStatusClass = statusClass(details.status);
 
   if (analysisId !== undefined) diagnostic.analysisId = analysisId;
   if (requestId !== undefined) diagnostic.requestId = requestId;
+  if (period !== undefined) diagnostic.period = period;
+  if (metric !== undefined) diagnostic.metric = metric;
+  if (trackingMode !== undefined) diagnostic.trackingMode = trackingMode;
   if (responseStatus !== undefined) diagnostic.status = responseStatus;
   if (responseStatusClass !== undefined) {
     diagnostic.statusClass = responseStatusClass;
@@ -183,6 +219,10 @@ export function createServerDiagnostic(
     diagnostic.elapsedMs = Math.round(details.elapsedMs);
   }
   if (errorClass !== undefined) diagnostic.errorClass = errorClass;
+  if (errorName !== undefined) diagnostic.errorName = errorName;
+  if (errorCode !== undefined) diagnostic.errorCode = errorCode;
+  if (errorMessage !== undefined) diagnostic.errorMessage = errorMessage;
+  if (errorLocation !== undefined) diagnostic.errorLocation = errorLocation;
   if (environmentCategory !== undefined) {
     diagnostic.environmentCategory = environmentCategory;
   }

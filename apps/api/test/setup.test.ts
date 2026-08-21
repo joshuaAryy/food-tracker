@@ -172,7 +172,7 @@ describe('setup API', () => {
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
       },
-      preferences: setupInput.preferences,
+      preferences: { ...setupInput.preferences, dailyWaterGoalMl: 2000 },
       calculatedTargets: {
         targetCalories: expect.any(Number),
         targetProteinGrams: expect.any(Number),
@@ -421,6 +421,7 @@ describe('setup API', () => {
     expect(response.body.data.preferences).toEqual({
       mode: 'complex',
       waterTrackingEnabled: true,
+      dailyWaterGoalMl: 2000,
     });
     expect(
       await prisma.trackingPreference.findUnique({

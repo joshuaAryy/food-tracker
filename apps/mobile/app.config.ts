@@ -79,6 +79,12 @@ export function createAppConfig(
     plugins: [
       'expo-router',
       [
+        'expo-dev-client',
+        {
+          toolsButton: false,
+        },
+      ],
+      [
         'expo-camera',
         {
           cameraPermission:

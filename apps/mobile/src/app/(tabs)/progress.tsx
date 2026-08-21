@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import type {
@@ -29,6 +29,13 @@ import {
 } from '@/components/skeleton';
 import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  caloriesTrendRoute,
+  insightsRoute,
+  loggingConsistencyTrendRoute,
+  trendRouteForProgressMetric,
+  weightTrendRoute,
+} from '@/lib/analytics/progress-trend-routing';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { trackingModeLabel } from '@/lib/reporting-ui';
@@ -177,8 +184,11 @@ export default function ProgressScreen() {
   const [dailyNutrientsError, setDailyNutrientsError] = useState<string | null>(
     null,
   );
+  const loadGeneration = useRef(0);
 
   const loadSummary = useCallback(async (asRefresh = false) => {
+    const generation = ++loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current;
     if (asRefresh) {
       setRefreshing(true);
     } else {
@@ -197,6 +207,7 @@ export default function ProgressScreen() {
         api.profile.get(),
         api.trackingPreferences.get(),
       ]);
+      if (!isCurrent()) return;
       setSummary(nextSummary);
       loadedSummary = nextSummary;
       setProfile(nextProfile);
@@ -207,11 +218,13 @@ export default function ProgressScreen() {
         }),
       );
     } catch (loadError) {
+      if (!isCurrent()) return;
       setError(errorMessage(loadError));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
 
+    if (!isCurrent()) return;
     if (loadedSummary === null) {
       setReportingLoading(false);
       setRefreshing(false);
@@ -224,6 +237,7 @@ export default function ProgressScreen() {
         api.analytics.reports({ period: 'week' }),
         api.analytics.dailyNutrients({ date: loadedSummary.date }),
       ]);
+    if (!isCurrent()) return;
 
     if (progressResult.status === 'fulfilled') {
       setReporting(progressResult.value);
@@ -284,8 +298,10 @@ export default function ProgressScreen() {
     setSummary({ ...summary, trackingMode: nextMode });
 
     try {
-      const savedPreferences =
-        await api.trackingPreferences.update(nextPreferences);
+      const savedPreferences = await api.trackingPreferences.update({
+        mode: nextMode,
+        waterTrackingEnabled: preferences.waterTrackingEnabled,
+      });
       setPreferences(savedPreferences);
       setSummary((current) =>
         current === null
@@ -294,15 +310,15 @@ export default function ProgressScreen() {
       );
       markDataChanged();
 
-      try {
-        await syncLauncherIconToMode(savedPreferences.mode);
-      } catch (iconSyncError) {
-        setError(
-          `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
-            iconSyncError,
-          )}`,
-        );
-      }
+      void syncLauncherIconToMode(savedPreferences.mode).catch(
+        (iconSyncError) => {
+          setError(
+            `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
+              iconSyncError,
+            )}`,
+          );
+        },
+      );
     } catch (switchError) {
       setPreferences(previousPreferences);
       setSummary(previousSummary);
@@ -325,6 +341,7 @@ export default function ProgressScreen() {
   return (
     <AppScreen
       refreshing={refreshing}
+      testID="progress-scroll"
       contentClassName="gap-8"
       onRefresh={() => void loadSummary(true)}
     >
@@ -357,7 +374,11 @@ export default function ProgressScreen() {
         <ErrorState title="Couldn’t refresh progress" message={error} />
       )}
 
-      <ProgressCalorieHero summary={summary} weeklyReport={weeklyReport} />
+      <ProgressCalorieHero
+        summary={summary}
+        weeklyReport={weeklyReport}
+        onPress={() => router.push(caloriesTrendRoute() as never)}
+      />
 
       <AppCard elevated className="gap-0">
         <SignalRow
@@ -368,16 +389,22 @@ export default function ProgressScreen() {
           }
           value={entriesLabel}
         />
-        <SignalRow
-          icon="weight"
-          label="Latest weight"
-          detail={
-            summary.latestWeightLb === null
-              ? 'Use + to log weight'
-              : 'Most recent entry'
-          }
-          value={weightValue}
-        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open Weight Trend"
+          onPress={() => router.push(weightTrendRoute() as never)}
+        >
+          <SignalRow
+            icon="weight"
+            label="Latest weight"
+            detail={
+              summary.latestWeightLb === null
+                ? 'Use + to log weight'
+                : 'Most recent entry'
+            }
+            value={weightValue}
+          />
+        </Pressable>
         {modeIsComplex ? (
           <SignalRow
             icon="detail"
@@ -408,7 +435,14 @@ export default function ProgressScreen() {
           weeklyReportError={weeklyReportError}
           dailyNutrientsError={dailyNutrientsError}
           onRetry={() => void loadSummary(true)}
-          onReports={() => router.push('/(tabs)/insights')}
+          onReports={() => router.push(insightsRoute() as never)}
+          onWeeklyMomentum={() =>
+            router.push(loggingConsistencyTrendRoute() as never)
+          }
+          onNutrientPress={(metric) => {
+            if (!modeIsComplex || metric === 'water') return;
+            router.push(trendRouteForProgressMetric(metric) as never);
+          }}
         />
       )}
 

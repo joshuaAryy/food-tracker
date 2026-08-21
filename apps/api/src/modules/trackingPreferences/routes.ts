@@ -23,6 +23,7 @@ trackingPreferencesRouter.get('/', async (_request, response) => {
   sendSuccess(response, {
     mode: preferences.mode,
     waterTrackingEnabled: preferences.waterTrackingEnabled,
+    dailyWaterGoalMl: preferences.dailyWaterGoalMl,
   });
 });
 
@@ -41,6 +42,7 @@ trackingPreferencesRouter.put(
     sendSuccess(response, {
       mode: preferences.mode,
       waterTrackingEnabled: preferences.waterTrackingEnabled,
+      dailyWaterGoalMl: preferences.dailyWaterGoalMl,
     });
   },
 );

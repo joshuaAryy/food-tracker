@@ -292,6 +292,7 @@ describe('mobile reporting presentation helpers', () => {
       },
       periodGoal: null,
       percentage: null,
+      status: 'unknown' as const,
     };
 
     expect(
@@ -340,6 +341,7 @@ describe('mobile reporting presentation helpers', () => {
       },
       periodGoal: 200,
       percentage: 0,
+      status: 'below_minimum' as const,
     };
     const recordedFiber = {
       displayName: 'Fiber',
@@ -356,6 +358,7 @@ describe('mobile reporting presentation helpers', () => {
       },
       periodGoal: null,
       percentage: null,
+      status: 'unknown' as const,
     };
     const proteinReport = {
       proteinTargetGrams: 100,
@@ -455,6 +458,7 @@ describe('mobile reporting presentation helpers', () => {
           goal: report.reportingGoals.fiber,
           periodGoal: 25,
           percentage: 92,
+          status: 'below_minimum' as const,
         },
         report,
       }),
@@ -479,6 +483,7 @@ describe('mobile reporting presentation helpers', () => {
           goal: report.reportingGoals.sugar,
           periodGoal: 50,
           percentage: 120,
+          status: 'above_limit',
         },
         report,
       }),
@@ -503,6 +508,7 @@ describe('mobile reporting presentation helpers', () => {
             goal: report.reportingGoals.sugar,
             periodGoal: 50,
             percentage: 120,
+            status: 'above_limit',
           },
           report,
         }),
@@ -541,6 +547,7 @@ describe('mobile reporting presentation helpers', () => {
           },
           periodGoal: 25,
           percentage: 0,
+          status: 'below_minimum',
         },
       },
     });
@@ -744,15 +751,26 @@ describe('mobile reporting presentation helpers', () => {
   });
 
   it('preserves recommendation metadata, dismissal wording, and flat reports', async () => {
-    const source = await readFile(
+    const insightsSource = await readFile(
       new URL('../../mobile/src/app/(tabs)/insights.tsx', import.meta.url),
       'utf8',
     );
-    expect(source).toContain('High priority');
-    expect(source).toContain('Dismiss recommendation: ${recommendation.title}');
-    expect(source).toContain('No recommendations right now');
-    expect(source).toContain('Refresh');
-    expect(source).not.toContain('RadialProgressRing');
+    const recommendationsSource = await readFile(
+      new URL(
+        '../../mobile/src/components/analytics/insights/recommendations-card.tsx',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(recommendationsSource).toContain('PRIORITY');
+    expect(recommendationsSource).toContain(
+      'Dismiss recommendation: ${recommendation.title}',
+    );
+    expect(recommendationsSource).toContain(
+      'No active recommendations right now',
+    );
+    expect(insightsSource).toContain('Refresh');
+    expect(insightsSource).not.toContain('RadialProgressRing');
   });
 
   it('uses an em dash for unavailable calorie targets', () => {
@@ -982,6 +1000,7 @@ describe('mobile reporting presentation helpers', () => {
           },
           periodGoal: 50,
           percentage: 80,
+          status: 'below_minimum' as const,
         },
         vitaminC: {
           displayName: 'Vitamin C',
@@ -998,6 +1017,7 @@ describe('mobile reporting presentation helpers', () => {
           },
           periodGoal: 180,
           percentage: 44.4,
+          status: 'below_minimum' as const,
         },
       },
     };

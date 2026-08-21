@@ -146,6 +146,36 @@ from the current user's FoodLogs, WeightLogs, timezone, current UserGoal, and
 TrackingPreference. The first WeightLog is the fallback progress baseline when
 an active goal does not provide a reliable starting weight; existing
 `UserProfile.startingWeightLb` is not treated as historical goal versioning.
+
+## Phase 17.5 Analytics And Hydration Semantics
+
+Phase 17.5 uses one canonical deterministic analytics domain over authoritative
+FoodLog nutrient snapshots, WeightLogs, and a separate WaterLog model. It does
+not introduce stored daily summaries as a second source of truth.
+
+Logging-day behavior and selected-metric availability are orthogonal:
+
+- `LoggingDayState` is `complete`, `partial`, or `unlogged`, based only on
+  FoodLog/meal behavior. The current local day additionally has an
+  `in_progress` phase and is not a closed complete day.
+- `MetricDataState` is `recorded`, `partial`, or `unknown`, based only on
+  whether authoritative FoodLog snapshots contain the selected metric.
+- Explicit zero is a recorded numeric zero. Unknown, unlogged, and missing
+  historical values remain gaps. Missing provider data never changes the
+  logging-day state.
+
+The initial Breakfast/Lunch/Dinner classification with optional Snack/Other is
+a centralized/versioned implementation policy, not an immutable product rule.
+Complex coverage filters (`all_logged_days`, `complete_and_partial`, and
+`complete_only`) filter logging behavior only. Daily points may carry both
+dimensions; weekly/monthly buckets retain independent state counts plus the
+numeric aggregate. Logging Consistency and meal-coverage heatmaps use logging
+behavior, while nutrient-coverage heatmaps use metric availability.
+
+WaterLog is separate from FoodLog, accepts canonical amount/time entries, and
+is the only source for hydration totals. Water contained in food is excluded.
+The initial server-owned hydration goal is `2000 mL/day`; the legacy
+`waterTrackingEnabled` preference does not gate hydration visibility.
 # Phase 13 decisions
 
 Saved/favorite remains a SavedFoodItem relation, independent from default

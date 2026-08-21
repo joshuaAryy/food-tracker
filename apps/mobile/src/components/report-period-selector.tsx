@@ -14,14 +14,18 @@ export function ReportPeriodSelector({
   disabled = false,
 }: ReportPeriodSelectorProps) {
   return (
-    <View className="w-full flex-row rounded-full border border-line bg-surface-raised p-1">
+    <View
+      testID="report-period-selector"
+      className="w-[180px] self-start flex-row rounded-full border border-line bg-surface-raised p-1"
+    >
       {(['week', 'month'] as const).map((option) => {
         const selected = option === period;
         const label = option === 'week' ? 'Week' : 'Month';
         return (
           <Pressable
             key={option}
-            accessibilityRole="tab"
+            testID={`report-period-${option}`}
+            accessibilityRole="button"
             accessibilityState={{ selected, disabled }}
             accessibilityLabel={`${label} reports`}
             className={`min-h-10 flex-1 items-center justify-center rounded-full px-4 ${selected ? 'bg-ink' : ''} ${disabled ? 'opacity-50' : ''}`}

@@ -12,6 +12,35 @@ import type {
   TrackingMode,
 } from '@food-tracker/shared';
 import { reportingNutrientGroupForCategory } from '@food-tracker/shared';
+import {
+  formatPresentationDate,
+  formatPresentationDateRange,
+} from './date-time';
+
+export type MetricFormatOptions = Intl.NumberFormatOptions;
+
+export function formatMetricValue(
+  value: number | null | undefined,
+  options: MetricFormatOptions = {},
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return '—';
+  }
+
+  return value.toLocaleString('en-US', {
+    maximumFractionDigits: 1,
+    ...options,
+  });
+}
+
+export function formatMetricWithUnit(
+  value: number | null | undefined,
+  unit: string,
+  options: MetricFormatOptions = {},
+): string {
+  const formatted = formatMetricValue(value, options);
+  return formatted === '—' ? formatted : `${formatted} ${unit}`;
+}
 
 export function availableValue<T>(
   metric: { available: true; value: T } | { available: false },
@@ -485,20 +514,12 @@ export function energyStatusLabel(status: AverageCalorieStatus): string {
 type ReportWindowKind = 'current' | 'previous' | 'equivalent';
 type ReportBoundary = ReportsResponse['current']['boundaries'];
 
-function shortDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(`${value}T12:00:00.000Z`));
-}
-
 function shortRange(startDate: string, endDate: string): string {
-  return `${shortDate(startDate)} – ${shortDate(endDate)}`;
+  return formatPresentationDateRange(startDate, endDate);
 }
 
 function compactShortRange(startDate: string, endDate: string): string {
-  return `${shortDate(startDate)}–${shortDate(endDate)}`;
+  return `${formatPresentationDate(startDate)}–${formatPresentationDate(endDate)}`;
 }
 
 export function reportWindowTitle(
@@ -532,12 +553,12 @@ export function comparisonSentences(
   }
   if (comparison.consistency !== undefined) {
     sentences.push(
-      `Consistency ${comparison.consistency.delta >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.consistency.delta)} percentage points.`,
+      `Consistency ${comparison.consistency.delta >= 0 ? 'increased' : 'decreased'} by ${formatMetricValue(Math.abs(comparison.consistency.delta))} percentage points.`,
     );
   }
   if (comparison.averageProteinGrams !== undefined) {
     sentences.push(
-      `Average protein ${comparison.averageProteinGrams.delta >= 0 ? 'increased' : 'decreased'} by ${Math.abs(comparison.averageProteinGrams.delta)} grams.`,
+      `Average protein ${comparison.averageProteinGrams.delta >= 0 ? 'increased' : 'decreased'} by ${formatMetricValue(Math.abs(comparison.averageProteinGrams.delta))} grams.`,
     );
   }
   return sentences;

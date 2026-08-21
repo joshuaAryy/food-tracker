@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { AppText } from './app-text';
 
 interface WheelAction {
   label: string;
   symbol: string;
-  route?: '/food-log' | '/weight-log';
+  route?: '/food-log' | '/weight-log' | '/water-log';
   position: {
     left: number;
     bottom: number;
@@ -30,6 +30,7 @@ const actions: WheelAction[] = [
   {
     label: 'Water',
     symbol: '≈',
+    route: '/water-log',
     position: { left: 14, bottom: 106 },
   },
   {
@@ -48,7 +49,7 @@ export function FloatingActionWheel() {
       return;
     }
     setOpen(false);
-    router.push(action.route);
+    router.push(action.route as Href);
   };
 
   return (

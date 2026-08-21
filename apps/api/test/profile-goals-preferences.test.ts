@@ -200,6 +200,7 @@ describe('tracking preferences API', () => {
     expect(response.body.data).toEqual({
       mode: 'complex',
       waterTrackingEnabled: true,
+      dailyWaterGoalMl: 2000,
     });
   });
 
@@ -215,6 +216,7 @@ describe('tracking preferences API', () => {
     expect(response.body.data).toEqual({
       mode: 'simple',
       waterTrackingEnabled: true,
+      dailyWaterGoalMl: 2000,
     });
     expect(persisted?.waterTrackingEnabled).toBe(true);
   });

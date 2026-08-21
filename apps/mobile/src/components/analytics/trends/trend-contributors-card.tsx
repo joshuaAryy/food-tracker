@@ -1,0 +1,56 @@
+import { Pressable, View } from 'react-native';
+import type { AnalyticsContributor } from '@food-tracker/shared';
+import { AppCard } from '@/components/app-card';
+import { AppText } from '@/components/app-text';
+import { formatMetricValue } from '@/lib/reporting-ui';
+
+function contributorPercentage(value: number): string {
+  // Canonical API responses use fractions; older local view fixtures use
+  // already-percent values. Keep presentation tolerant of both shapes.
+  return formatMetricValue(value >= 0 && value <= 1 ? value * 100 : value);
+}
+
+export function TrendContributorsCard({
+  contributors,
+  onOpenAll,
+}: {
+  contributors: readonly AnalyticsContributor[];
+  onOpenAll: () => void;
+}) {
+  return (
+    <View className="gap-3">
+      <AppText variant="label">Top contributors</AppText>
+      {contributors.length === 0 ? (
+        <AppText variant="caption" className="text-muted">
+          Contributors are unavailable for this period.
+        </AppText>
+      ) : (
+        <AppCard compact className="gap-0">
+          {contributors.slice(0, 3).map((contributor, index) => (
+            <View
+              key={contributor.foodName}
+              className="flex-row items-center justify-between border-b border-border py-3 last:border-b-0"
+            >
+              <AppText className="min-w-0 flex-1" numberOfLines={1}>
+                {index + 1}. {contributor.foodName}
+              </AppText>
+              <AppText variant="caption" className="text-muted">
+                {contributorPercentage(contributor.percentage)}%
+              </AppText>
+            </View>
+          ))}
+        </AppCard>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="See all contributors"
+        className="min-h-11 self-end justify-center"
+        onPress={onOpenAll}
+      >
+        <AppText variant="caption" className="font-semibold">
+          See all contributors ›
+        </AppText>
+      </Pressable>
+    </View>
+  );
+}

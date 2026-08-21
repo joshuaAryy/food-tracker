@@ -1,6 +1,11 @@
 export * from './constants.js';
 export * from './enums.js';
 export * from './auth.js';
+export * from './analytics-metrics.js';
+export * from './analytics-comparisons.js';
+export * from './analytics-saved-views.js';
+export * from './analytics-trends.js';
+export * from './analytics-insights.js';
 export * from './nutrients.js';
 export * from './reporting.js';
 export * from './reporting-goals.js';
@@ -9,4 +14,5 @@ export * from './schemas.js';
 export * from './serving-resolution.js';
 export * from './serving-text.js';
 export * from './servings.js';
+export * from './water.js';
 export * from './types.js';

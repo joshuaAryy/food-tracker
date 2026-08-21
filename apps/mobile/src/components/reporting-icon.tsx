@@ -16,6 +16,9 @@ export type ReportingIconName =
 interface ReportingIconProps {
   name: ReportingIconName;
   size?: number;
+  badgeColor?: string | undefined;
+  iconColor?: string | undefined;
+  testID?: string | undefined;
 }
 
 const badgeColors: Record<ReportingIconName, string> = {
@@ -272,21 +275,28 @@ function ReportingIconPaths({
   }
 }
 
-export function ReportingIcon({ name, size = 44 }: ReportingIconProps) {
-  const iconColor = iconColors[name];
+export function ReportingIcon({
+  name,
+  size = 44,
+  badgeColor,
+  iconColor,
+  testID,
+}: ReportingIconProps) {
+  const resolvedIconColor = iconColor ?? iconColors[name];
 
   return (
     <View
       accessible={false}
+      testID={testID ?? `reporting-icon-${name}`}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       pointerEvents="none"
       style={{ width: size, height: size }}
     >
       <Svg width={size} height={size} viewBox="0 0 44 44">
-        <Circle cx={22} cy={22} r={22} fill={badgeColors[name]} />
+        <Circle cx={22} cy={22} r={22} fill={badgeColor ?? badgeColors[name]} />
         <G transform="translate(9.68 9.68)">
-          <ReportingIconPaths color={iconColor} name={name} />
+          <ReportingIconPaths color={resolvedIconColor} name={name} />
         </G>
       </Svg>
     </View>

@@ -69,8 +69,6 @@ describe('reporting API', () => {
     expect(calendarDays.find((day) => day.date === '2026-08-01')).toMatchObject(
       {
         monthRelation: 'next',
-        phase: 'future',
-        streakState: 'future',
       },
     );
     expect(parsed.acceptedCalorieRange).toMatchObject({

@@ -8,6 +8,7 @@ import type {
   UserGoal,
   UserProfile,
   WeightLog as PrismaWeightLog,
+  WaterLog as PrismaWaterLog,
 } from '@prisma/client';
 import type {
   AdditionalNutrient,
@@ -19,6 +20,7 @@ import type {
   Recommendation,
   RecommendationType,
   WeightLog,
+  WaterLog,
 } from '@food-tracker/shared';
 import {
   foodItemServingOptionsSchema,
@@ -196,6 +198,16 @@ export function serializeWeightLog(weightLog: PrismaWeightLog): WeightLog {
     loggedAt: weightLog.loggedAt.toISOString(),
     createdAt: weightLog.createdAt.toISOString(),
     updatedAt: weightLog.updatedAt.toISOString(),
+  };
+}
+
+export function serializeWaterLog(waterLog: PrismaWaterLog): WaterLog {
+  return {
+    id: waterLog.id,
+    amountMl: waterLog.amountMl,
+    loggedAt: waterLog.loggedAt.toISOString(),
+    createdAt: waterLog.createdAt.toISOString(),
+    updatedAt: waterLog.updatedAt.toISOString(),
   };
 }
 

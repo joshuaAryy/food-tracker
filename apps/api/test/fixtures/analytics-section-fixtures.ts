@@ -1,0 +1,48 @@
+import type { CanonicalTrendResponse } from '@food-tracker/shared';
+
+export const analyticsSectionDailyPointFixtures = [
+  {
+    kind: 'daily',
+    date: '2026-08-03',
+    loggingDayState: 'complete',
+    loggingDayPhase: 'closed',
+    metricDataState: 'recorded',
+    value: 100,
+    foodLogCount: 3,
+    metricRecordedLogCount: 3,
+    metricUnknownLogCount: 0,
+  },
+  {
+    kind: 'daily',
+    date: '2026-08-04',
+    loggingDayState: 'complete',
+    loggingDayPhase: 'closed',
+    metricDataState: 'unknown',
+    value: null,
+    foodLogCount: 3,
+    metricRecordedLogCount: 0,
+    metricUnknownLogCount: 3,
+  },
+  {
+    kind: 'daily',
+    date: '2026-08-05',
+    loggingDayState: 'partial',
+    loggingDayPhase: 'closed',
+    metricDataState: 'partial',
+    value: 50,
+    foodLogCount: 2,
+    metricRecordedLogCount: 1,
+    metricUnknownLogCount: 1,
+  },
+  {
+    kind: 'daily',
+    date: '2026-08-06',
+    loggingDayState: 'unlogged',
+    loggingDayPhase: 'closed',
+    metricDataState: null,
+    value: null,
+    foodLogCount: 0,
+    metricRecordedLogCount: 0,
+    metricUnknownLogCount: 0,
+  },
+] as const satisfies readonly CanonicalTrendResponse['points'][number][];

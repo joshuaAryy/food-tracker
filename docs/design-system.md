@@ -461,6 +461,27 @@ Stable `react-native-svg` rings and simple rails are allowed for compact
 indicators. Do not add a charting dependency or build fragile pseudo-charts
 from arbitrary View geometry.
 
+### Phase 17.5 analytics chart rules
+
+Phase 17.5 uses reusable low-level chart primitives over the existing
+`react-native-svg`, Gesture Handler, and Reanimated foundations. It does not
+add Victory, Skia, D3, or another chart framework. Pure TypeScript domain and
+geometry helpers remain testable independently from rendering.
+
+Approved chart classes include daily bars with rolling trend, weekly/monthly
+aggregates with longer trends, smoothed lines, raw points, target/range bands,
+limit lines, macro donut and stacked bars, logging and nutrient-coverage
+heatmaps, shared/dual-axis/normalized comparisons, selected-date guides,
+sparse-data gaps, and forecast lines with uncertainty regions. Charts retain
+all underlying points while reducing label density. They preserve readable
+text, roughly 44pt targets, 320pt reflow, and accessible selected-point
+context.
+
+Use the approved semantic palette: Protein `#C9242D`, Carbohydrates
+approximately `#33B866`, Fat `#FFAD8F`, and the established hydration blue.
+Warning/error red remains distinct from macro color. Glow is opt-in semantic
+treatment only; overview/report charts remain quieter than detail Trends.
+
 ## Profile And Settings
 
 Profile should feel like a personal control center, not a generic settings

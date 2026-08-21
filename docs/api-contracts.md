@@ -344,6 +344,101 @@ Request:
 
 `mode` must be `simple` or `complex`. Success `data` uses the tracking-preferences shape above.
 
+### Phase 17.5 analytics contracts
+
+The following implemented contract extension preserves the existing envelope,
+authenticated ownership
+boundary, local-date interpretation, and server-side analytics ownership.
+
+Phase 17.5 exposes one canonical analytics query contract for Insights and
+Trends. The mobile client will not send `userId`, calculate totals, fill
+missing values, calculate contributors, or calculate forecasts. Legacy report
+endpoints may remain temporarily compatible, but their zero-filled unlogged
+values must never be adapted into a Phase 17.5 Insights or Trends response.
+
+The shared contract separates these dimensions:
+
+```ts
+type LoggingDayState = 'complete' | 'partial' | 'unlogged';
+type LoggingDayPhase = 'closed' | 'in_progress';
+type MetricDataState = 'recorded' | 'partial' | 'unknown';
+
+type AnalyticsCoverageFilter =
+  | 'all_logged_days'
+  | 'complete_and_partial'
+  | 'complete_only';
+```
+
+`LoggingDayState` is derived only from FoodLog/meal behavior. The initial
+Breakfast/Lunch/Dinner policy (with optional Snack/Other) is a centralized,
+versioned implementation policy rather than an immutable product rule. The
+current local day carries `loggingDayPhase: "in_progress"` and is not a closed
+complete day. `MetricDataState` is derived only from the selected metric's
+presence in authoritative FoodLog snapshots: all relevant logs recorded,
+some recorded, or none recorded. Explicit zero is recorded zero; unknown is
+not zero; an unlogged day has no metric state. Nutrient/provider absence never
+downgrades logging completeness.
+
+Daily points may contain both dimensions:
+
+```ts
+interface AnalyticsDailyPoint {
+  kind: 'daily';
+  date: string;
+  loggingDayState: LoggingDayState;
+  loggingDayPhase: LoggingDayPhase;
+  metricDataState: MetricDataState | null;
+  value: number | null;
+}
+```
+
+Weekly and monthly points preserve independent counts instead of collapsing a
+mixed bucket into one state:
+
+```ts
+interface AnalyticsAggregatedPoint {
+  kind: 'aggregated';
+  bucketStartDate: string;
+  bucketEndDate: string;
+  value: number | null;
+  loggingCounts: {
+    complete: number;
+    partial: number;
+    inProgress: number;
+    unlogged: number;
+  };
+  metricCounts: { recorded: number; partial: number; unknown: number };
+  numericDayCount: number;
+}
+```
+
+The three Complex coverage filters operate only on logging completeness:
+
+- `all_logged_days` has the user-facing label “All recorded days” and admits
+  complete, partial, and logged in-progress days.
+- `complete_and_partial` admits closed complete and closed partial days.
+- `complete_only` admits only closed logging-complete days.
+
+Metric unknown and partial semantics remain independently enforced after the
+logging filter. Unknown values remain gaps and never participate numerically.
+Hydration uses only separate WaterLog records; water contained in food does not
+count. The server-owned initial hydration goal is `2000 mL/day`, and the legacy
+`waterTrackingEnabled` preference remains for compatibility but does not gate
+hydration visibility.
+
+Phase 17.5 route ownership is:
+
+- `POST /api/v1/analytics/trends/query` for validated canonical daily or
+  aggregated trend facts;
+- `GET /api/v1/analytics/trends/catalog` for mode-filtered metric definitions;
+- `GET /api/v1/analytics/insights` for section results that reuse the same
+  canonical facts;
+- authenticated WaterLog create/list/update/delete and quick-add routes,
+  with all entrypoints using the same persistence path.
+
+Focused API tests establish these contracts. No client-controlled target editor
+is part of Phase 17.5.
+
 ## Food Items
 
 Phase 8 adds local app-owned food database foundation endpoints. These

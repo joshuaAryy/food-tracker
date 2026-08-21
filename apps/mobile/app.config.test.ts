@@ -132,6 +132,7 @@ describe('tracked Expo configuration', () => {
     expect(plugins).toContain('@react-native-firebase/app');
     expect(plugins).toContain('@react-native-firebase/auth');
     expect(plugins).toContain('expo-apple-authentication');
+    expect(plugins).toContainEqual(['expo-dev-client', { toolsButton: false }]);
     expect(plugins).toContainEqual([
       'expo-build-properties',
       { ios: { useFrameworks: 'static' } },

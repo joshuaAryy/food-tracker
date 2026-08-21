@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AuthState } from './auth-state';
-import { routeForAuthState, routeMatchesAuthState } from './auth-routing';
+import {
+  AUTHENTICATED_ROOT_ROUTE_GROUPS,
+  routeForAuthState,
+  routeMatchesAuthState,
+} from './auth-routing';
 
 describe('authentication routing', () => {
   it.each([
@@ -76,5 +80,37 @@ describe('authentication routing', () => {
         ['recipes', 'index'],
       ),
     ).toBe(true);
+  });
+
+  it('keeps every registered authenticated root route and analytics child route in place', () => {
+    expect(AUTHENTICATED_ROOT_ROUTE_GROUPS).toEqual([
+      '(tabs)',
+      'index',
+      'streaks',
+      'trends',
+      'food-log',
+      'recipes',
+      'photo-log',
+      'barcode-scan',
+      'meal-describe',
+      'weight-log',
+      'water-log',
+    ]);
+
+    const ready: AuthState = {
+      status: 'signedInReady',
+      user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
+    };
+    for (const segments of [
+      ['trends'],
+      ['trends', 'calories'],
+      ['trends', 'nutrients'],
+      ['trends', 'saved-views'],
+      ['trends', 'configure'],
+      ['trends', 'custom-range'],
+      ['water-log'],
+    ]) {
+      expect(routeMatchesAuthState(ready, segments)).toBe(true);
+    }
   });
 });

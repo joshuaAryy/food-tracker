@@ -1,0 +1,192 @@
+import { Pressable, useWindowDimensions, View } from 'react-native';
+import { AppCard } from '@/components/app-card';
+import { AppText } from '@/components/app-text';
+import { LineTrendChart } from '@/components/analytics/charts/line-trend-chart';
+import { MacroChart } from '@/components/analytics/charts/macro-chart';
+import { ReportingSectionHeading } from '@/components/reporting-section-heading';
+import type {
+  AnalyticsReportOverviewState,
+  AnalyticsReportSectionState,
+} from '@/lib/analytics/analytics-report-resource';
+import { formatMetricValue, formatMetricWithUnit } from '@/lib/reporting-ui';
+import { AnalyticsSectionError } from './analytics-section-error';
+
+function grams(value: number | null): string {
+  return formatMetricWithUnit(value, 'g', { maximumFractionDigits: 0 });
+}
+
+function trendData(section: AnalyticsReportSectionState | undefined) {
+  return (
+    section?.data?.points.map((point) => ({
+      date: point.kind === 'daily' ? point.date : point.bucketStartDate,
+      value: point.value,
+    })) ?? []
+  );
+}
+
+function trendPreview(section: AnalyticsReportSectionState | undefined) {
+  if (section?.data === null || section?.data === undefined) return null;
+  const data = trendData(section);
+  const rollingValues = section.data.rollingTrend?.values;
+  const hasRollingValues =
+    rollingValues !== undefined &&
+    rollingValues.length === data.length &&
+    rollingValues.some((value) => value !== null && Number.isFinite(value));
+  if (hasRollingValues) return { data, trendValues: rollingValues };
+  if (
+    data.some((point) => point.value !== null && Number.isFinite(point.value))
+  ) {
+    return { data, trendValues: undefined };
+  }
+  return null;
+}
+
+export function MacroBalanceCard({
+  overview,
+  energyAverage,
+  proteinTrend,
+  onOpenTrend,
+  onRetry,
+  compact = false,
+  presentation = 'simple',
+  markerColor,
+}: {
+  overview: AnalyticsReportOverviewState<'macros'> | undefined;
+  energyAverage: number | null;
+  proteinTrend: AnalyticsReportSectionState | undefined;
+  onOpenTrend: () => void;
+  onRetry: () => void;
+  compact?: boolean;
+  presentation?: 'simple' | 'complex';
+  markerColor?: string;
+}) {
+  const { width } = useWindowDimensions();
+  const data = overview?.data ?? null;
+  const isComplexOverview = presentation === 'complex' && !compact;
+  const preview = trendPreview(proteinTrend);
+  return (
+    <View
+      testID="simple-insights-section-macro-balance"
+      className={compact ? 'gap-2' : 'gap-3'}
+    >
+      <ReportingSectionHeading
+        icon="macros"
+        title="Macro balance"
+        compact={compact}
+        markerColor={markerColor}
+      />
+      {data === null ? (
+        <AnalyticsSectionError
+          title="Macro balance"
+          section={overview}
+          onRetry={onRetry}
+        />
+      ) : (
+        <Pressable
+          accessibilityLabel="Open macro trends"
+          accessibilityRole="button"
+          onPress={onOpenTrend}
+        >
+          <AppCard
+            elevated
+            compact={compact}
+            testID="macro-balance-card"
+            className={
+              isComplexOverview
+                ? 'gap-3 justify-between rounded-[20px] p-[18px]'
+                : 'gap-3 rounded-[20px] p-[18px]'
+            }
+            style={
+              isComplexOverview
+                ? { minHeight: 316 }
+                : compact
+                  ? { minHeight: 236 }
+                  : undefined
+            }
+          >
+            <AppText variant="caption" className="text-muted">
+              REPORT · Period composition
+            </AppText>
+            <View className="flex-row items-center gap-4">
+              <MacroChart
+                values={{
+                  protein: data.protein.grams,
+                  carbs: data.carbs.grams,
+                  fat: data.fat.grams,
+                }}
+                size={compact ? 80 : 104}
+                centerValue={
+                  energyAverage === null
+                    ? undefined
+                    : formatMetricValue(energyAverage, {
+                        maximumFractionDigits: 0,
+                      })
+                }
+                centerLabel="kcal avg"
+                accessibilityLabel="Macro balance composition"
+              />
+              <View className="min-w-0 flex-1 gap-2">
+                {[
+                  [
+                    'Protein',
+                    data.protein.grams,
+                    data.protein.percentage,
+                    '#C9242D',
+                  ],
+                  ['Carbs', data.carbs.grams, data.carbs.percentage, '#33B866'],
+                  ['Fat', data.fat.grams, data.fat.percentage, '#FFAD8F'],
+                ].map(([label, value, percentage, color]) => (
+                  <View
+                    key={label as string}
+                    className="flex-row items-center justify-between gap-2"
+                  >
+                    <View className="min-w-0 flex-1 flex-row items-center gap-1.5">
+                      <View
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: color as string }}
+                      />
+                      <AppText variant="caption" numberOfLines={1}>
+                        {label as string} · {grams(value as number | null)}
+                      </AppText>
+                    </View>
+                    <AppText variant="caption" className="text-ink">
+                      {percentage === null
+                        ? '—'
+                        : `${formatMetricValue(percentage as number, {
+                            maximumFractionDigits: 0,
+                          })}%`}
+                    </AppText>
+                  </View>
+                ))}
+              </View>
+            </View>
+            <View className="gap-1 border-t border-line pt-3">
+              {preview === null ? (
+                <AppText variant="caption" className="text-muted">
+                  Protein trend unavailable
+                </AppText>
+              ) : (
+                <View className="flex-row items-center gap-3">
+                  <AppText variant="caption" className="shrink text-muted">
+                    TREND · Protein
+                  </AppText>
+                  <View className="min-w-0 flex-1 items-end">
+                    <LineTrendChart
+                      data={preview.data}
+                      width={Math.min(176, Math.max(150, width - 214))}
+                      height={isComplexOverview ? 64 : 50}
+                      color="#C9242D"
+                      connectTrendGaps
+                      trendValues={preview.trendValues}
+                      accessibilityLabel="Protein trend"
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+          </AppCard>
+        </Pressable>
+      )}
+    </View>
+  );
+}

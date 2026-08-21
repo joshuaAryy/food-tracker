@@ -43,14 +43,29 @@ import type {
   SetupResult,
   SetupStatus,
   TrackingPreferences,
+  TrackingPreferencesResponse,
   WeightLog,
   WeightLogInput,
+  WaterLog,
+  WaterLogInput,
+  WaterLogsQuery,
   PhotoAnalysisResult,
   PhotoAnalysisConfirmationInput,
   PhotoAnalysisConfirmationResponse,
   ProgressResponse,
   ReportsResponse,
   StreakCalendarResponse,
+  CanonicalTrendResponse,
+  TrendQueryInput,
+  AnalyticsPreferenceUpdateInput,
+  AnalyticsPreferenceValue,
+  AnalyticsSavedView,
+  AnalyticsSavedViewCreateInput,
+  AnalyticsSavedViewOrderInput,
+  AnalyticsSavedViewUpdateInput,
+  AnalyticsMetricDefinition,
+  AnalyticsContributorsResponse,
+  CanonicalInsightsResponseWithOverview,
 } from '@food-tracker/shared';
 import {
   goalsSchema,
@@ -58,9 +73,11 @@ import {
   setupPreviewResultSchema,
   setupResultSchema,
   setupStatusSchema,
-  trackingPreferencesSchema,
+  trackingPreferencesResponseSchema,
   photoAnalysisResultSchema,
   photoAnalysisConfirmationResponseSchema,
+  canonicalTrendResponseSchema,
+  canonicalInsightsResponseWithOverviewSchema,
 } from '@food-tracker/shared';
 import { File } from 'expo-file-system';
 import Constants from 'expo-constants';
@@ -73,12 +90,14 @@ import type { NormalizedPhotoImage } from './photo-image-core';
 import {
   parseApiResponse as parseStandardApiResponse,
   sanitizePublicErrorDetails,
+  type ResponseParseDiagnostic,
   type ResponseSchema,
 } from './api-response';
 import { reportDiagnostic } from './safe-diagnostics';
 import { resolveApiRuntimeConfig } from './api-target';
 import { toUserFacingError } from './user-facing-errors';
 import type { ApiAuthSession } from './api-auth-session';
+import { adaptCanonicalInsightsResponseWithOverview } from './analytics/analytics-v1-adapter';
 
 const runtimeExtra = Constants.expoConfig?.extra;
 const resolvedApiRuntime = resolveApiRuntimeConfig(
@@ -198,6 +217,7 @@ async function fetchWithAuth(
 export async function parseApiResponse<T>(
   response: Response,
   schema?: ResponseSchema<T>,
+  onStage?: ResponseParseDiagnostic,
 ): Promise<T> {
   return parseStandardApiResponse(
     response,
@@ -210,6 +230,7 @@ export async function parseApiResponse<T>(
         errorResponse.status,
         sanitizePublicErrorDetails(error.details as Record<string, unknown>),
       ),
+    onStage,
   );
 }
 
@@ -457,6 +478,15 @@ function weightLogsQueryString(query: WeightLogsQuery): string {
   return value === '' ? '' : `?${value}`;
 }
 
+function waterLogsQueryString(query: WaterLogsQuery): string {
+  const params = new URLSearchParams();
+  if (query.date !== undefined) params.set('date', query.date);
+  if (query.startDate !== undefined) params.set('startDate', query.startDate);
+  if (query.endDate !== undefined) params.set('endDate', query.endDate);
+  const value = params.toString();
+  return value === '' ? '' : `?${value}`;
+}
+
 const recommendationList = (status?: RecommendationStatus) =>
   request<{ recommendations: Recommendation[] }>(
     `/recommendations${status === undefined ? '' : `?status=${status}`}`,
@@ -481,6 +511,93 @@ export const api = {
     reports: (query: ReportsQuery) =>
       request<ReportsResponse>(
         `/analytics/reports${reportsQueryString(query)}`,
+      ),
+    trend: (input: TrendQueryInput) =>
+      request<CanonicalTrendResponse>(
+        '/analytics/trends/query',
+        {
+          method: 'POST',
+          body: input,
+        },
+        canonicalTrendResponseSchema as unknown as ResponseSchema<CanonicalTrendResponse>,
+      ),
+    trendCatalog: () =>
+      request<{
+        mode: 'simple' | 'complex';
+        metrics: AnalyticsMetricDefinition[];
+      }>('/analytics/trends/catalog'),
+    contributors: (input: TrendQueryInput, includeAll = false) =>
+      request<AnalyticsContributorsResponse>('/analytics/trends/contributors', {
+        method: 'POST',
+        body: { ...input, ...(includeAll ? { includeAll: true } : {}) },
+      }),
+    insights: (period: 'week' | 'month') =>
+      request<CanonicalInsightsResponseWithOverview>(
+        `/analytics/insights?period=${period}`,
+        {},
+        canonicalInsightsResponseWithOverviewSchema as unknown as ResponseSchema<CanonicalInsightsResponseWithOverview>,
+      ).then((response) => {
+        const adapted = adaptCanonicalInsightsResponseWithOverview(
+          response,
+          new Date().toISOString(),
+        );
+        if (adapted === null) {
+          throw new ApiClientError(
+            'Analytics response could not be read.',
+            'INVALID_RESPONSE',
+            200,
+          );
+        }
+        return adapted;
+      }),
+    preferences: () =>
+      request<{ preferences: AnalyticsPreferenceValue }>(
+        '/analytics/preferences',
+      ).then(({ preferences }) => preferences),
+    updatePreferences: (input: AnalyticsPreferenceUpdateInput) =>
+      request<{ preferences: AnalyticsPreferenceValue }>(
+        '/analytics/preferences',
+        {
+          method: 'PUT',
+          body: input,
+        },
+      ).then(({ preferences }) => preferences),
+    savedViews: () =>
+      request<{ savedViews: AnalyticsSavedView[] }>(
+        '/analytics/saved-views',
+      ).then(({ savedViews }) => savedViews),
+    createSavedView: (input: AnalyticsSavedViewCreateInput) =>
+      request<{ savedView: AnalyticsSavedView }>('/analytics/saved-views', {
+        method: 'POST',
+        body: input,
+      }).then(({ savedView }) => savedView),
+    updateSavedView: (id: string, input: AnalyticsSavedViewUpdateInput) =>
+      request<{ savedView: AnalyticsSavedView }>(
+        `/analytics/saved-views/${id}`,
+        {
+          method: 'PATCH',
+          body: input,
+        },
+      ).then(({ savedView }) => savedView),
+    duplicateSavedView: (id: string) =>
+      request<{ savedView: AnalyticsSavedView }>(
+        `/analytics/saved-views/${id}/duplicate`,
+        { method: 'POST' },
+      ).then(({ savedView }) => savedView),
+    reorderSavedViews: (input: AnalyticsSavedViewOrderInput) =>
+      request<{ savedViews: AnalyticsSavedView[] }>(
+        '/analytics/saved-views/order',
+        {
+          method: 'PUT',
+          body: input,
+        },
+      ).then(({ savedViews }) => savedViews),
+    deleteSavedView: (id: string) =>
+      request<{ id: string; deleted: boolean }>(
+        `/analytics/saved-views/${id}`,
+        {
+          method: 'DELETE',
+        },
       ),
     streakCalendar: (month: string) =>
       request<StreakCalendarResponse>(
@@ -674,6 +791,24 @@ export const api = {
         method: 'DELETE',
       }),
   },
+  waterLogs: {
+    list: (query: WaterLogsQuery = {}) =>
+      request<{ waterLogs: WaterLog[] }>(
+        `/water-logs${waterLogsQueryString(query)}`,
+      ).then(({ waterLogs }) => waterLogs),
+    getById: (id: string) => request<WaterLog>(`/water-logs/${id}`),
+    create: (input: WaterLogInput) =>
+      request<WaterLog>('/water-logs', { method: 'POST', body: input }),
+    update: (id: string, input: WaterLogInput) =>
+      request<WaterLog>(`/water-logs/${id}`, {
+        method: 'PUT',
+        body: input,
+      }),
+    delete: (id: string) =>
+      request<{ id: string; deleted: true }>(`/water-logs/${id}`, {
+        method: 'DELETE',
+      }),
+  },
   recommendations: {
     list: recommendationList,
     generate: () =>
@@ -702,19 +837,19 @@ export const api = {
   },
   trackingPreferences: {
     get: () =>
-      request<TrackingPreferences>(
+      request<TrackingPreferencesResponse>(
         '/tracking-preferences',
         {},
-        trackingPreferencesSchema,
+        trackingPreferencesResponseSchema,
       ),
     update: (preferences: TrackingPreferences) =>
-      request<TrackingPreferences>(
+      request<TrackingPreferencesResponse>(
         '/tracking-preferences',
         {
           method: 'PUT',
           body: preferences,
         },
-        trackingPreferencesSchema,
+        trackingPreferencesResponseSchema,
       ),
   },
   setup: {

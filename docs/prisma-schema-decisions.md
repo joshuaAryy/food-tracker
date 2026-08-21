@@ -20,19 +20,20 @@ approval.
 
 Use a local `User` model in the application database.
 
-Foundation decision, still active until real authentication is implemented:
-- Authentication is mocked.
-- `User.id` may be generated with `uuid()` for the fixed mock user.
-- Do not implement a provider integration through this schema decision.
+The original foundation used a fixed mock user. The current implementation uses
+Firebase Authentication for identity, maps the verified Firebase UID to the
+application-owned `User.id`, and keeps the ownership boundary server-side.
+Remaining account-lifecycle work is tracked in Phase 20.
 
 Long-term:
-- The authentication provider and external identity mapping are selected during
-  Phase 19 planning; `User.id` is not assumed to equal an external identity.
+- The remaining account-lifecycle and isolation work follows Phase 19 semantic
+  retrieval in Phase 20; `User.id` is not assumed to equal an external identity.
 - Do not build custom password authentication.
 - Do not store password credentials in the application database.
 
 The earlier Supabase-specific alignment was a historical decision and is
-superseded by TD-023. The local User ownership model remains unchanged.
+superseded by TD-023 and the implemented Firebase boundary recorded in TD-025.
+The local User ownership model remains unchanged.
 
 ## MVP Models
 
@@ -213,7 +214,7 @@ changes the decision.
 | Field | Prisma/PostgreSQL Decision |
 | --- | --- |
 | `id` | `String`, UUID primary key, `@default(uuid())`, `@db.Uuid` |
-| `email` | nullable `String` for the current mock user boundary |
+| `email` | nullable `String`; Firebase is the identity provider and the API maps its verified UID to this application-owned User |
 | `createdAt` | `DateTime`, `@default(now())`, timestamp with timezone |
 | `updatedAt` | `DateTime`, `@updatedAt`, timestamp with timezone |
 
@@ -269,6 +270,7 @@ Relation:
 | `userId` | `String`, UUID foreign key, unique |
 | `mode` | `TrackingMode` enum |
 | `waterTrackingEnabled` | `Boolean`, default `false` |
+| `dailyWaterGoalMl` | Additive integer with server-owned default `2000` for Phase 17.5 hydration |
 
 Relation:
 - belongs to `User`; delete cascades from `User`
@@ -601,15 +603,20 @@ relations cannot invalidate frozen recipe or mixed-meal snapshots.
 
 ## Future Models
 
-The following models are future-only and must not be added unless explicitly
-approved:
+The following models remain future-only unless the approved Phase 17.5 or later
+implementation explicitly authorizes their migration:
 
 - `RawFoodLog`
 - `ParsedFoodLog`
 - `SavedMeal`
-- `WaterLog`
+- `WaterLog` — Phase 17.5 implemented separate amount/time water record; never a
+  FoodLog substitute
 - `SupplementLog`
 - `MicronutrientLog`
+- `AnalyticsSavedView` — Phase 17.5 implemented user-owned Complex configuration
+  with relative period, metric selection, ordering, and nullable pinned state
+- `AnalyticsPreference` — Phase 17.5 implemented one-per-user preference for the
+  Simple preferred metric and nullable `pinnedSavedViewId`
 - `DailySummary`
 # Phase 13 additive migration
 

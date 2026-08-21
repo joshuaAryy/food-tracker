@@ -17,8 +17,10 @@ import { pendingProviderCredential } from '@/services/pending-provider-state';
 import type { AuthenticationService } from '@/services/auth-service';
 import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
+import { purgeAnalyticsCache } from '@/lib/analytics/analytics-cache-runtime';
 
 interface AuthRuntimeContextValue {
+  userId: string | null;
   markSetupComplete(): void;
   providerIds: string[];
   deleteAccount(): Promise<void>;
@@ -30,6 +32,7 @@ interface AuthRuntimeContextValue {
 const AuthRuntimeContext = createContext<AuthRuntimeContextValue | null>(null);
 
 const unavailableAuthRuntime: AuthRuntimeContextValue = {
+  userId: null,
   markSetupComplete: () => undefined,
   providerIds: [],
   deleteAccount: async () => {
@@ -123,6 +126,16 @@ export function AuthBootstrap({
   const loadRuntimeRef = useRef(loadRuntime);
   const lastRedirectKeyRef = useRef<string | null>(null);
 
+  const purgeCurrentAnalyticsCache = async () => {
+    const state = storeRef.current?.getState().authState;
+    if (state === undefined || !('user' in state)) return;
+    try {
+      await purgeAnalyticsCache(state.user.uid);
+    } catch {
+      // Local cache cleanup never blocks authentication lifecycle actions.
+    }
+  };
+
   useEffect(() => {
     let active = true;
     let stopStore: (() => void) | undefined;
@@ -181,6 +194,7 @@ export function AuthBootstrap({
         };
         setSignOut(() => async () => {
           pendingProviderCredential.clear('signOut');
+          await purgeCurrentAnalyticsCache();
           await store.getState().signOut();
           useAppStore.getState().resetUserData();
         });
@@ -190,6 +204,7 @@ export function AuthBootstrap({
             throw new Error('Account deletion is unavailable.');
           }
           await runtime.deleteAccount();
+          await purgeCurrentAnalyticsCache();
           try {
             await store.getState().signOut();
           } catch {
@@ -276,6 +291,7 @@ export function AuthBootstrap({
           reauthenticateWithPassword === null
             ? unavailableAuthRuntime
             : {
+                userId: 'user' in authState ? authState.user.uid : null,
                 deleteAccount,
                 markSetupComplete,
                 providerIds:

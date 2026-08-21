@@ -3,6 +3,27 @@ export interface LocalDateTimeFields {
   time: string;
 }
 
+export function formatPresentationDate(
+  value: string,
+  options: { includeYear?: boolean } = {},
+): string {
+  const date = new Date(`${value}T12:00:00.000Z`);
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(options.includeYear ? { year: 'numeric' } : {}),
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+export function formatPresentationDateRange(
+  startDate: string,
+  endDate: string,
+): string {
+  if (startDate === endDate) return formatPresentationDate(startDate);
+  return `${formatPresentationDate(startDate)} – ${formatPresentationDate(endDate)}`;
+}
+
 function padded(value: number): string {
   return String(value).padStart(2, '0');
 }
