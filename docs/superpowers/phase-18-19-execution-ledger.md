@@ -30,7 +30,7 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
   retrieval foundation, dataset/index commands, ablation harness, and
   coverage-gated normal search.
-- Focused benchmark/retrieval tests pass: 4 files, 128 tests, including official-column, alias, provider, fuzzy-policy, and index-lifecycle regressions. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
+- Focused benchmark/retrieval tests pass: 4 files, 129 tests, including official-column, alias, provider, fuzzy-policy, semantic timeout/parser, and index-lifecycle regressions. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
 - The permanent benchmark CLI is ready, but no live legacy baseline is claimed until the test database is available.
