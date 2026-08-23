@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { FOOD_RETRIEVAL_CORPUS } from './corpus.js';
+import { compareBaselineToCandidate } from './ablation.js';
 import {
   acceptanceGateViolations,
   deriveAcceptanceGates,
@@ -10,6 +11,7 @@ import type {
   BenchmarkCandidate,
   BenchmarkObservation,
   BenchmarkSnapshot,
+  BenchmarkRunName,
   BenchmarkSplit,
 } from './types.js';
 
@@ -45,22 +47,33 @@ function isObservation(value: unknown): value is BenchmarkObservation {
   );
 }
 
+function isRunName(value: unknown): value is BenchmarkRunName {
+  return (
+    value === 'legacy' ||
+    value === 'datasets' ||
+    value === 'fuzzy' ||
+    value === 'semantic' ||
+    value === 'full_hybrid'
+  );
+}
+
 function readSnapshot(path: string): BenchmarkSnapshot {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+  const runName = isRecord(parsed) ? parsed.name : null;
   if (
     !isRecord(parsed) ||
     parsed.benchmarkVersion !== '2026-08-23' ||
-    parsed.name !== 'legacy' ||
+    !isRunName(runName) ||
     !Array.isArray(parsed.observations) ||
     !parsed.observations.every(isObservation)
   ) {
     throw new Error(
-      'Snapshot must contain benchmarkVersion 2026-08-23, name legacy, and valid observations.',
+      'Snapshot must contain benchmarkVersion 2026-08-23, a supported run name, and valid observations.',
     );
   }
   return {
     benchmarkVersion: '2026-08-23',
-    name: 'legacy',
+    name: runName,
     observations: parsed.observations,
   };
 }
@@ -69,21 +82,24 @@ function printHelp(): void {
   console.log(`Food retrieval benchmark CLI
 
 Usage:
-  pnpm benchmark:food-retrieval -- --snapshot <path> [--split all|development|holdout] [--json]
+  pnpm benchmark:food-retrieval -- --snapshot <legacy-path> [--candidate <candidate-path>] [--split all|development|holdout] [--json]
 
-The snapshot is a recorded legacy run. The CLI never calls PostgreSQL or a
-provider; it evaluates the supplied observations and prints baseline-derived
-acceptance gates.
+Snapshots are recorded runs. With only --snapshot, the CLI evaluates the
+legacy baseline. With --candidate, it additionally reports channel recovery,
+semantic harm, provider expansion, regressions, and latency deltas. The CLI
+never calls PostgreSQL or a provider.
 `);
 }
 
 function parseArgs(args: readonly string[]): {
   snapshotPath: string | null;
+  candidateSnapshotPath: string | null;
   split: BenchmarkSplit | 'all';
   json: boolean;
   help: boolean;
 } {
   let snapshotPath: string | null = null;
+  let candidateSnapshotPath: string | null = null;
   let split: BenchmarkSplit | 'all' = 'all';
   let json = false;
   let help = false;
@@ -99,6 +115,9 @@ function parseArgs(args: readonly string[]): {
     } else if (argument === '--snapshot') {
       snapshotPath = args[index + 1] ?? null;
       index += 1;
+    } else if (argument === '--candidate') {
+      candidateSnapshotPath = args[index + 1] ?? null;
+      index += 1;
     } else if (argument === '--split') {
       const value = args[index + 1];
       index += 1;
@@ -110,7 +129,7 @@ function parseArgs(args: readonly string[]): {
       throw new Error(`Unknown argument: ${argument}`);
     }
   }
-  return { snapshotPath, split, json, help };
+  return { snapshotPath, candidateSnapshotPath, split, json, help };
 }
 
 export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
@@ -123,6 +142,9 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
     throw new Error('--snapshot is required. Use --help for usage.');
   }
   const snapshot = readSnapshot(options.snapshotPath);
+  if (snapshot.name !== 'legacy') {
+    throw new Error('--snapshot must contain the legacy run.');
+  }
   const selectedIds = new Set(
     FOOD_RETRIEVAL_CORPUS.filter(
       (query) => options.split === 'all' || query.split === options.split,
@@ -134,17 +156,41 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
   const metrics = evaluateObservations(observations, FOOD_RETRIEVAL_CORPUS);
   const gates = deriveAcceptanceGates(metrics);
   const violations = acceptanceGateViolations(metrics, gates);
+  const candidateSnapshot =
+    options.candidateSnapshotPath === null
+      ? null
+      : readSnapshot(options.candidateSnapshotPath);
+  if (candidateSnapshot?.name === 'legacy') {
+    throw new Error('--candidate must contain a non-legacy run.');
+  }
+  const comparison =
+    candidateSnapshot === null
+      ? null
+      : compareBaselineToCandidate({
+          baseline: observations,
+          candidate: candidateSnapshot.observations.filter((observation) =>
+            selectedIds.has(observation.queryId),
+          ),
+          corpus: FOOD_RETRIEVAL_CORPUS.filter((query) =>
+            selectedIds.has(query.id),
+          ),
+        });
   const report = {
     benchmarkVersion: '2026-08-23',
     split: options.split,
     metrics,
     gates,
     violations,
+    ...(comparison === null ? {} : { comparison }),
   };
   if (options.json) {
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log(`Legacy baseline (${options.split})`);
+    console.log(
+      comparison === null
+        ? `Legacy baseline (${options.split})`
+        : `Legacy-to-candidate comparison (${options.split})`,
+    );
     console.log(`Queries: ${metrics.queryCount}`);
     console.log(
       `Top-1/3/5: ${metrics.topK.top1.hits}/${metrics.topK.top3.hits}/${metrics.topK.top5.hits}`,
@@ -153,6 +199,14 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
     console.log(
       `Acceptance gate violations: ${violations.join(', ') || 'none'}`,
     );
+    if (comparison !== null) {
+      console.log(
+        `Fuzzy/semantic recovery: ${comparison.fuzzyMissRecovery.hits}/${comparison.fuzzyMissRecovery.total} / ${comparison.semanticMissRecovery.hits}/${comparison.semanticMissRecovery.total}`,
+      );
+      console.log(
+        `Semantic bad Top-1: ${comparison.semanticBadTop1.hits}/${comparison.semanticBadTop1.total}; Top-1 regressions: ${comparison.top1Regression.hits}/${comparison.top1Regression.total}`,
+      );
+    }
   }
   return violations.length === 0 ? 0 : 2;
 }

@@ -1,6 +1,12 @@
 export const FOOD_RETRIEVAL_BENCHMARK_VERSION = '2026-08-23' as const;
 
 export type BenchmarkSplit = 'development' | 'holdout';
+export type BenchmarkRunName =
+  | 'legacy'
+  | 'datasets'
+  | 'fuzzy'
+  | 'semantic'
+  | 'full_hybrid';
 
 export type BenchmarkQueryClass =
   | 'exact'
@@ -157,6 +163,6 @@ export interface RetrievalComparison {
 
 export interface BenchmarkSnapshot {
   benchmarkVersion: typeof FOOD_RETRIEVAL_BENCHMARK_VERSION;
-  name: 'legacy';
+  name: BenchmarkRunName;
   observations: readonly BenchmarkObservation[];
 }

@@ -39,6 +39,12 @@ Run a recorded legacy snapshot with:
 corepack pnpm --filter @food-tracker/api benchmark:food-retrieval -- --snapshot /path/to/legacy.json
 ```
 
+Compare a recorded candidate run against that baseline with:
+
+```bash
+corepack pnpm --filter @food-tracker/api benchmark:food-retrieval -- --snapshot /path/to/legacy.json --candidate /path/to/full-hybrid.json --json
+```
+
 The report includes Top-1/3/5, safety, duplicates, trusted selections,
 provider coverage, latency, external calls, normal-search coverage, and miss
 sets. `deriveAcceptanceGates` sets retrieval floors from the observed baseline

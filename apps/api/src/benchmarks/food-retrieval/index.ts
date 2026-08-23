@@ -20,6 +20,7 @@ export {
   type BenchmarkMetrics,
   type BenchmarkObservation,
   type BenchmarkRun,
+  type BenchmarkRunName,
   type BenchmarkSnapshot,
   type BenchmarkSplit,
   type BenchmarkQueryTag,
