@@ -30,6 +30,9 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
   retrieval foundation, dataset/index commands, ablation harness, and
   coverage-gated normal search.
+- Commit `aed95f5` centralizes Unicode normalization and candidate assembly
+  across normal and AI/photo retrieval while preserving mode-specific channel
+  acquisition; it is pushed to `origin/phase-18-19-hybrid-food-retrieval`.
 - Focused benchmark/retrieval tests pass: 4 files, 130 tests, including official-column, alias, provider, shared candidate-generation, fuzzy-policy, semantic timeout/parser, and index-lifecycle regressions. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
 - The permanent 120-query corpus now explicitly tags misspellings, abbreviations, descriptive semantics, preparation/form, compounds, regional terminology, ambiguous/messy fragments, and barcodes while retaining the 80/40 development/holdout split.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
@@ -43,5 +46,10 @@ Protected state: preserved; no protected paths staged or modified
 - Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
 - Full `pnpm test` remains blocked at Prisma migration deploy with `P1001` because no PostgreSQL server is reachable at `localhost:5432`; no migration or persistent import claim is made.
 - Root `format:check` remains red only on pre-existing protected `.agents/`/`.superpowers/` files; all changed non-protected files pass targeted Prettier checks.
+- Fresh verification under Node `v22.23.0` and pnpm `10.34.3`: `prisma:generate`,
+  `prisma:validate`, `lint`, `typecheck`, `build`, focused retrieval tests
+  (4 files, 130 tests), and `git diff --check` pass. Root `format:check`
+  reports only the protected `.agents/`/`.superpowers/` formatting set.
+- Fresh full `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/food_tracker_test corepack pnpm test` remains blocked before test discovery by Prisma `P1001` (`localhost:5432` unreachable); no full-suite, migration-deploy, persistence-import, or live benchmark claim is made.
 - Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.
