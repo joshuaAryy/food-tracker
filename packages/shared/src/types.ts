@@ -217,6 +217,16 @@ export interface FoodItem {
   sourceProvider: FoodSourceProvider | null;
   sourceId: string | null;
   sourceUpdatedAt: string | null;
+  authoritativeAliases?: string[];
+  sourceRegion?: string | null;
+  rankingSource?:
+    | 'recent'
+    | 'saved'
+    | 'custom'
+    | 'app_curated'
+    | 'reference'
+    | 'cached_external'
+    | 'barcode_cached';
   isSaved: boolean;
   defaultServing?: FoodItemDefaultServing | null;
   servingQuantity: number | null;
@@ -270,6 +280,7 @@ export type AiFoodCandidateMatchReason =
   | 'saved'
   | 'custom'
   | 'app'
+  | 'reference'
   | 'cached_external'
   | 'barcode_cached'
   | 'usda_fdc';
@@ -308,6 +319,11 @@ export interface AiFoodParseFoodItemCandidate {
   matchReason: AiFoodCandidateMatchReason;
   confidence: AiFoodCandidateConfidence;
   defaultServingMultiplier: number;
+  retrievalEvidence?: {
+    lexical: boolean;
+    fuzzyDistance: number | null;
+    semanticScore: number | null;
+  };
 }
 
 export interface AiFoodParseExternalCandidate {
@@ -318,6 +334,11 @@ export interface AiFoodParseExternalCandidate {
   matchReason: 'usda_fdc';
   confidence: AiFoodCandidateConfidence;
   defaultServingMultiplier: number;
+  retrievalEvidence?: {
+    lexical: boolean;
+    fuzzyDistance: number | null;
+    semanticScore: number | null;
+  };
 }
 
 export type AiFoodParseCandidate =

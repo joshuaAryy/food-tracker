@@ -696,4 +696,52 @@ describe('candidate ranking helper', () => {
     expect(adequate.hasAdequateCandidate).toBe(true);
     expect(adequate.topCandidateAdequate).toBe(false);
   });
+
+  it('uses an exact authoritative alias for deterministic identity', () => {
+    const score = scoreFoodCandidate({
+      query: 'œuf',
+      candidate: candidate({
+        name: 'Egg, chicken, whole, raw',
+        authoritativeAliases: ['Œuf de poule entier cru'],
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.strongIdentityMatch).toBe(true);
+    expect(score.selectionEligible).toBe(true);
+  });
+
+  it('matches accented and unaccented authoritative aliases', () => {
+    const accented = candidate({
+      name: 'Crème fraîche',
+      authoritativeAliases: ['Crème fraîche entière'],
+    });
+    expect(
+      scoreFoodCandidate({ query: 'creme', candidate: accented })
+        .visibleRelevant,
+    ).toBe(true);
+    expect(
+      scoreFoodCandidate({ query: 'crème', candidate: accented })
+        .visibleRelevant,
+    ).toBe(true);
+  });
+
+  it('does not let category-only search metadata create identity', () => {
+    const score = scoreFoodCandidate({
+      query: 'vegetable',
+      candidate: candidate({ name: 'Chicken breast' }),
+    });
+    expect(score.visibleRelevant).toBe(false);
+  });
+
+  it('keeps preparation safeguards active when an alias matches', () => {
+    const score = scoreFoodCandidate({
+      query: 'œuf grilled',
+      candidate: candidate({
+        name: 'Egg, chicken, whole, raw',
+        authoritativeAliases: ['Œuf de poule entier cru'],
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.selectionEligible).toBe(false);
+  });
 });

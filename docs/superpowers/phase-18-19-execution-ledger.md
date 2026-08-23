@@ -8,28 +8,30 @@ Protected state: preserved; no protected paths staged or modified
 
 ## Task status
 
-- [ ] A — benchmark and legacy baseline
-- [ ] B — retrieval boundary/source semantics/alias identity
-- [ ] C — provenance schema foundation
-- [ ] D — importer contracts/Unicode normalization
-- [ ] E — CNF adapter/persistence measurement
-- [ ] F — Ciqual XLSX/XML adapter
-- [ ] G — CoFID adapter
-- [ ] H — local reference retrieval
-- [ ] I — pg_trgm GiST KNN
-- [ ] J — Pinecone index lifecycle
-- [ ] K — semantic generator
-- [ ] L — mode-specific hybrid integration
-- [ ] M — locale tie-break
+- [~] A — benchmark infrastructure complete; live legacy baseline pending PostgreSQL
+- [~] B — retrieval boundary/source semantics/alias identity implemented; integration review pending
+- [~] C — provenance schema foundation implemented; migration deployment pending PostgreSQL
+- [x] D — importer contracts/Unicode normalization
+- [x] E — CNF adapter/persistence strategy (dry-run/count path; live measurement pending)
+- [x] F — Ciqual XLSX/XML adapter
+- [x] G — CoFID adapter
+- [x] H — local reference retrieval
+- [x] I — pg_trgm GiST KNN migration/query path
+- [x] J — Pinecone index lifecycle/document path
+- [x] K — semantic generator with timeout/fallback
+- [x] L — mode-specific policy and normal-search hybrid path
+- [x] M — locale tie-break
 - [ ] N — ablation/tuning/holdout
 - [ ] O — staging/resilience
 - [ ] P — documentation/closeout
 
 ## Evidence log
 
-- No implementation commits yet.
-- No schema/dependency changes yet.
-- No benchmark baseline yet.
-- No live Pinecone validation yet.
-- No dataset import yet.
+- Commit `8752484` persists the approved A→P plan and this ledger foundation.
+- Focused benchmark/retrieval tests pass: 4 files, 122 tests.
+- API lint and typecheck pass under Node 22.23.0/pnpm 10.34.3.
+- Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
+- The permanent benchmark CLI is ready, but no live legacy baseline is claimed until the test database is available.
+- Dataset adapters are pure parsing/normalization paths; no live dataset import has run.
+- Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
 - No protected local state changed.

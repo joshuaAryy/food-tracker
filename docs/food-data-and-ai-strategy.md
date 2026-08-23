@@ -67,6 +67,22 @@ The recommended strategy is:
    - useful for detailed nutrients
    - useful for standardized nutrition data
 
+### Phase 18/19 trusted reference catalog and hybrid retrieval
+
+The combined Phase 18/19 macro phase adds only CNF 2026, ANSES-Ciqual 2025,
+and UK CoFID 2021 as versioned bulk reference catalogs. They are imported
+deterministically into PostgreSQL and never queried as live runtime providers.
+Open Food Facts retains its barcode/materialization role and USDA retains its
+live/cache enrichment role where appropriate.
+
+Reference records use a neutral `reference` ranking class, separate provider
+identity, and optional region. Canonical names and provider-authoritative
+aliases (including Ciqual English, French, and scientific names) are identity
+terms; category and preparation metadata remain retrieval/filter metadata.
+Aliases use deterministic Unicode NFKD/diacritic normalization while display
+names retain their official spelling. PostgreSQL remains nutrition truth;
+Pinecone is a rebuildable, global-only semantic candidate index.
+
 Food search priority should eventually be:
 
 ```text

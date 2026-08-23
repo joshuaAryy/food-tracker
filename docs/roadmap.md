@@ -27,6 +27,10 @@ Phase 28 — Experimental Grocery Recommendations
 Phase 29 — Wearable and Health Data Integration
 ```
 
+Phase 18 and Phase 19 are executed as one combined macro phase named
+**Phase 18/19 — Food Data + Intelligent Retrieval**. The historical labels and
+later phase numbers remain unchanged.
+
 Phase 17.5 is complete. Its final implementation baseline is
 `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`; user-operated physical iPhone
 visual validation passed on 2026-08-21. Exact 390/393 Simulator evidence

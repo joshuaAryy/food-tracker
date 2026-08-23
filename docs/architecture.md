@@ -12,6 +12,21 @@ Prisma ORM
 PostgreSQL database
 ```
 
+## Phase 18/19 Food Retrieval Boundary
+
+Food retrieval is additive: exact/local lexical search, PostgreSQL-native
+trigram KNN typo retrieval, and optional Pinecone semantic retrieval produce a
+candidate union. The existing deterministic evaluator remains authoritative for
+identity, preparation/form, branded suitability, nutrition/loggability,
+servings, user priority, default suitability, confidence, and selection safety.
+
+CNF, Ciqual, and CoFID are versioned global reference data persisted in
+PostgreSQL. Pinecone stores only derived search documents for eligible global
+foods and is never used as nutrition truth. Provider-authoritative aliases are
+kept in a bounded FoodItem alias field and are evaluated independently from
+`searchText`; category/provider metadata, fuzzy distance, and semantic score do
+not manufacture lexical identity.
+
 ## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
 
 Phase 17 and Phase 17.5 are complete. Phase 17.5's accepted implementation

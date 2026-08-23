@@ -9,12 +9,23 @@ export type CandidateSource =
   | 'saved'
   | 'custom'
   | 'app'
+  | 'app_curated'
+  | 'reference'
   | 'cached_external'
   | 'barcode_cached'
   | 'usda_fdc';
 
 export interface RankableFoodCandidate {
   name: string;
+  /** Provider-authoritative identity equivalents; never full searchText. */
+  authoritativeAliases?: readonly string[];
+  sourceRegion?: string | null;
+  sourceProvider?: string | null;
+  retrievalEvidence?: {
+    lexical: boolean;
+    fuzzyDistance: number | null;
+    semanticScore: number | null;
+  };
   brandName: string | null;
   foodType: 'generic' | 'branded';
   source: CandidateSource;
@@ -138,11 +149,18 @@ function uniqueValues(values: string[]): string[] {
 }
 
 export function normalizeText(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/œ/gi, 'oe')
+    .replace(/æ/gi, 'ae')
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/\s+/g, ' ');
 }
 
 export function normalizeToken(value: string): string {
-  const normalized = value.toLocaleLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalized = normalizeText(value).replace(/[^a-z0-9]/g, '');
   if (normalized === 'toasted') return 'toast';
   if (normalized === 'oatmeal') return 'oat';
   if (normalized === 'cookies') return 'cookie';
@@ -322,6 +340,10 @@ function sourceBonus(source: CandidateSource): number {
       return 24;
     case 'app':
       return 18;
+    case 'app_curated':
+      return 18;
+    case 'reference':
+      return 18;
     case 'usda_fdc':
       return 14;
     case 'barcode_cached':
@@ -369,6 +391,16 @@ export function scoreFoodCandidate(input: {
       : `${input.candidate.name} ${input.candidate.brandName}`,
   );
   const nameTokens = meaningfulTokens(input.candidate.name);
+  const authoritativeAliases = (input.candidate.authoritativeAliases ?? [])
+    .map(normalizeText)
+    .filter((alias) => alias.length > 0);
+  const aliasIdentityMatch = authoritativeAliases.some((alias) => {
+    const aliasTokens = meaningfulTokens(alias);
+    return (
+      alias === normalizedQuery ||
+      containsAllTokens(aliasTokens, queryGroups.coreFoodTokens)
+    );
+  });
   const nameDescriptorTokens = descriptorTokens(input.candidate.name);
   const candidateBrandTokens =
     input.candidate.brandName === null
@@ -387,15 +419,25 @@ export function scoreFoodCandidate(input: {
     nameTokens.has(token),
   );
   const hasCoreTokenMatch =
-    coreTokenMatches.length > 0 || foodIntent.identityAliasMatch;
+    coreTokenMatches.length > 0 ||
+    aliasIdentityMatch ||
+    foodIntent.identityAliasMatch;
+  const nonLexicalEvidence =
+    input.candidate.retrievalEvidence?.semanticScore !== null &&
+    input.candidate.retrievalEvidence?.semanticScore !== undefined;
   const allCoreTokensMatch =
     containsAllTokens(nameTokens, queryCoreTokens) ||
+    aliasIdentityMatch ||
     foodIntent.identityAliasMatch;
   const strongHeadMatch =
     queryCoreTokens[0] !== undefined &&
     firstFoodToken(nameTokens) === queryCoreTokens[0];
   const strongIdentityMatch =
-    exact || singularPlural || strongHeadMatch || foodIntent.identityHeadMatch;
+    exact ||
+    singularPlural ||
+    strongHeadMatch ||
+    aliasIdentityMatch ||
+    foodIntent.identityHeadMatch;
   const requestedDescriptorMatches = requestedDescriptorTokens.filter((token) =>
     nameDescriptorTokens.has(token),
   ).length;
@@ -418,6 +460,16 @@ export function scoreFoodCandidate(input: {
   const penalties: string[] = [];
   let score = sourceBonus(input.candidate.source);
   let confidenceScore = 0;
+
+  if (
+    input.candidate.retrievalEvidence?.semanticScore !== null &&
+    input.candidate.retrievalEvidence?.semanticScore !== undefined
+  ) {
+    score += Math.max(
+      0,
+      Math.min(12, input.candidate.retrievalEvidence.semanticScore * 12),
+    );
+  }
 
   if (hasCoreTokenMatch && exact) {
     score += 130;
@@ -448,14 +500,6 @@ export function scoreFoodCandidate(input: {
   score += nutritionBonus(input.candidate);
   score += servingBonus(input.candidate);
 
-  if (
-    input.candidate.source === 'usda_fdc' &&
-    input.candidate.foodType === 'generic' &&
-    !brandedMismatch
-  ) {
-    score += 12;
-  }
-
   if (brandRequested) {
     score += 60;
     confidenceScore += 1;
@@ -485,8 +529,10 @@ export function scoreFoodCandidate(input: {
   }
 
   const visibleRelevant =
-    hasCoreTokenMatch &&
-    (foodIntent.category === null || foodIntent.identityHeadMatch);
+    (hasCoreTokenMatch || nonLexicalEvidence) &&
+    (foodIntent.category === null ||
+      foodIntent.identityHeadMatch ||
+      aliasIdentityMatch);
   const defaultSuitable =
     !brandedMismatch &&
     !hasUnrequestedNegative &&
@@ -599,9 +645,22 @@ export function rankableFromParseCandidate(
   const food = candidateFood(candidate);
   return {
     name: food.name,
+    authoritativeAliases:
+      'authoritativeAliases' in food && Array.isArray(food.authoritativeAliases)
+        ? food.authoritativeAliases
+        : [],
+    sourceRegion: 'sourceRegion' in food ? (food.sourceRegion ?? null) : null,
+    sourceProvider:
+      'sourceProvider' in food ? (food.sourceProvider ?? null) : null,
+    ...(candidate.retrievalEvidence === undefined
+      ? {}
+      : { retrievalEvidence: candidate.retrievalEvidence }),
     brandName: food.brandName,
     foodType: food.foodType,
-    source: candidate.matchReason,
+    source:
+      candidate.matchReason === 'usda_fdc'
+        ? 'reference'
+        : candidate.matchReason,
     calories: food.calories,
     protein: food.protein,
     carbs: food.carbs,
@@ -614,6 +673,17 @@ export function rankableFromParseCandidate(
     servingUnit: food.servingUnit,
     servingWeightGrams: food.servingWeightGrams,
   };
+}
+
+function localeRelevance(candidate: RankableFoodCandidate): number {
+  const region = process.env.FOOD_SEARCH_DEFAULT_REGION?.trim().toUpperCase();
+  if (region === undefined || region.length === 0) return 0;
+  if (
+    candidate.source === 'reference' &&
+    candidate.sourceRegion?.toUpperCase() === region
+  )
+    return 1;
+  return 0;
 }
 
 export function parseCandidateId(candidate: AiFoodParseCandidate): string {
@@ -639,12 +709,16 @@ export function rankParseCandidates(
         },
         score,
         index,
+        localeScore: localeRelevance(rankableFromParseCandidate(candidate)),
       };
     })
     .filter(({ score }) => score.relevant)
     .sort((left, right) => {
       if (right.score.score !== left.score.score) {
         return right.score.score - left.score.score;
+      }
+      if (right.localeScore !== left.localeScore) {
+        return right.localeScore - left.localeScore;
       }
       return left.index - right.index;
     })

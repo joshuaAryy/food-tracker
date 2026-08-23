@@ -6,6 +6,20 @@ All timestamps are stored in UTC. Analytics converts timestamps into the user's 
 
 Normalized values are rounded before storage. Analytics sums stored values.
 
+## Phase 18/19 reference-food provenance
+
+`FoodItem` retains provider identity (`sourceProvider`/`sourceId`), official
+authoritative aliases, source region, ranking class, dataset release, and a
+deterministic source-record hash. CNF, Ciqual, and CoFID use the neutral
+`reference` ranking class even when stored as `app_owned`; genuinely curated
+app foods remain `app_curated`. A partial provider/source identity index prevents
+duplicate ingestion while allowing records without provider identity to coexist.
+
+`FoodDatasetRelease` records source URI/checksum, release status, and import
+counts. Nutrient values remain canonical PostgreSQL values; unknown provider
+values are omitted rather than converted to zero. A reviewed `pg_trgm`
+extension/index supports bounded KNN candidate generation.
+
 ## MVP Tables
 
 ### User

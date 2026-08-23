@@ -55,6 +55,8 @@ import {
   queryVariants,
   rankParseCandidates,
 } from './candidate-ranking.js';
+import { retrieveFuzzyFoodItemIds } from './retrieval/fuzzy.js';
+import { createPineconeSemanticClient } from './retrieval/pinecone.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
 
@@ -385,10 +387,18 @@ function candidateReason(
   hasBarcode: boolean,
   isSaved = false,
   isRecent = false,
+  sourceProvider: string | null = null,
 ): AiFoodCandidateMatchReason {
   if (isRecent) return 'recent';
   if (isSaved) return 'saved';
   if (sourceType === 'user_custom') return 'custom';
+  if (
+    sourceProvider === 'cnf' ||
+    sourceProvider === 'ciqual' ||
+    sourceProvider === 'cofid' ||
+    sourceProvider === 'usda_fdc'
+  )
+    return 'reference';
   if (sourceType === 'app_owned') return 'app';
   return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
@@ -666,10 +676,117 @@ foodItemsRouter.post(
           foodItem.barcodes.length > 0,
           serialized.isSaved,
           foodItem.foodLogs.length > 0,
+          serialized.sourceProvider,
         ),
         confidence: 'low',
         defaultServingMultiplier: 1,
       });
+    }
+
+    if (candidates.length < input.limit) {
+      try {
+        const fuzzyIds = await retrieveFuzzyFoodItemIds({
+          prisma,
+          query: normalizedQuery,
+          limit: Math.max(input.limit * 2, 10),
+        });
+        const fuzzyFoods = await prisma.foodItem.findMany({
+          where: { AND: [visibleFoodWhere(userId), { id: { in: fuzzyIds } }] },
+          include: foodItemInclude(userId),
+        });
+        const byId = new Map(fuzzyFoods.map((food) => [food.id, food]));
+        for (const id of fuzzyIds) {
+          const foodItem = byId.get(id);
+          if (foodItem === undefined || seen.has(foodItem.id)) continue;
+          const serialized = serializeFoodItem(foodItem);
+          seen.add(serialized.id);
+          candidates.push({
+            candidateType: 'food_item',
+            foodItem: {
+              ...serialized,
+              defaultWholeItemServing: defaultWholeItemServingFromOptions(
+                serialized.servingOptions,
+              ),
+            },
+            externalFood: null,
+            rank: candidates.length + 1,
+            matchReason: candidateReason(
+              foodItem.sourceType,
+              foodItem.barcodes.length > 0,
+              serialized.isSaved,
+              foodItem.foodLogs.length > 0,
+              serialized.sourceProvider,
+            ),
+            confidence: 'low',
+            defaultServingMultiplier: 1,
+            retrievalEvidence: {
+              lexical: false,
+              fuzzyDistance: null,
+              semanticScore: null,
+            },
+          });
+        }
+      } catch {
+        // The lexical path remains authoritative if trigram retrieval is unavailable.
+      }
+    }
+
+    const pineconeApiKey = process.env.PINECONE_API_KEY;
+    const pineconeHost = process.env.PINECONE_INDEX_HOST;
+    if (candidates.length < input.limit && pineconeApiKey && pineconeHost) {
+      try {
+        const semantic = createPineconeSemanticClient({
+          apiKey: pineconeApiKey,
+          indexHost: pineconeHost,
+          namespace: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          topK: Math.max(input.limit * 2, 10),
+        });
+        const matches = await semantic.search(normalizedQuery, 350);
+        const semanticIds = matches
+          .map((match) => match.foodItemId)
+          .filter((id) => !seen.has(id));
+        const semanticFoods = await prisma.foodItem.findMany({
+          where: {
+            AND: [visibleFoodWhere(userId), { id: { in: semanticIds } }],
+          },
+          include: foodItemInclude(userId),
+        });
+        const byId = new Map(semanticFoods.map((food) => [food.id, food]));
+        for (const id of semanticIds) {
+          const foodItem = byId.get(id);
+          if (foodItem === undefined || seen.has(id)) continue;
+          const serialized = serializeFoodItem(foodItem);
+          seen.add(id);
+          candidates.push({
+            candidateType: 'food_item',
+            foodItem: {
+              ...serialized,
+              defaultWholeItemServing: defaultWholeItemServingFromOptions(
+                serialized.servingOptions,
+              ),
+            },
+            externalFood: null,
+            rank: candidates.length + 1,
+            matchReason: candidateReason(
+              foodItem.sourceType,
+              foodItem.barcodes.length > 0,
+              serialized.isSaved,
+              foodItem.foodLogs.length > 0,
+              serialized.sourceProvider,
+            ),
+            confidence: 'low',
+            defaultServingMultiplier: 1,
+            retrievalEvidence: {
+              lexical: false,
+              fuzzyDistance: null,
+              semanticScore:
+                matches.find((match) => match.foodItemId === id)?.score ?? null,
+            },
+          });
+        }
+      } catch {
+        // Semantic retrieval is derived and optional; lexical/local search remains usable.
+      }
     }
 
     const usdaConfig = usdaFdcConfig();

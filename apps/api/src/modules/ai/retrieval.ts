@@ -58,8 +58,17 @@ function foodItemInclude(userId: string) {
 function candidateReason(
   sourceType: string,
   hasBarcode: boolean,
+  sourceProvider?: string | null,
 ): AiFoodCandidateMatchReason {
   if (sourceType === 'user_custom') return 'custom';
+  if (
+    sourceProvider === 'cnf' ||
+    sourceProvider === 'ciqual' ||
+    sourceProvider === 'cofid' ||
+    sourceProvider === 'usda_fdc'
+  ) {
+    return 'reference';
+  }
   if (sourceType === 'app_owned') return 'app';
   return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
@@ -177,7 +186,11 @@ export async function retrieveParsedFoodItems(input: {
     for (const foodItem of appFoods) {
       pushCandidate(
         serializeFoodItem(foodItem),
-        candidateReason(foodItem.sourceType, foodItem.barcodes.length > 0),
+        candidateReason(
+          foodItem.sourceType,
+          foodItem.barcodes.length > 0,
+          foodItem.sourceProvider,
+        ),
       );
     }
 
@@ -195,7 +208,11 @@ export async function retrieveParsedFoodItems(input: {
     for (const foodItem of cachedFoods) {
       pushCandidate(
         serializeFoodItem(foodItem),
-        candidateReason(foodItem.sourceType, foodItem.barcodes.length > 0),
+        candidateReason(
+          foodItem.sourceType,
+          foodItem.barcodes.length > 0,
+          foodItem.sourceProvider,
+        ),
       );
     }
 

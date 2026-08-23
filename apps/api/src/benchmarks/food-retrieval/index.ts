@@ -1,0 +1,21 @@
+export { FOOD_RETRIEVAL_CORPUS } from './corpus.js';
+export {
+  acceptanceGateViolations,
+  deriveAcceptanceGates,
+  evaluateObservations,
+} from './metrics.js';
+export { runFoodRetrievalBenchmark } from './harness.js';
+export { evaluateLegacyBaseline, legacySnapshot } from './legacy-baseline.js';
+export {
+  FOOD_RETRIEVAL_BENCHMARK_VERSION,
+  type AcceptanceGates,
+  type BenchmarkCandidate,
+  type BenchmarkEvidence,
+  type BenchmarkMetrics,
+  type BenchmarkObservation,
+  type BenchmarkRun,
+  type BenchmarkSnapshot,
+  type BenchmarkSplit,
+  type CountMetric,
+  type FoodRetrievalBenchmarkQuery,
+} from './types.js';
