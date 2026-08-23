@@ -36,6 +36,8 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `b574084`, `c17b28f`, `7f5515e`, `1f1bf7f`, `4203102`, and `47573d1`
   add baseline-to-candidate recovery/harm comparison, CLI reporting, release
   versioned provider hashes, and consistent ranking/Unicode persistence.
+- Commit `ced18e3` records the contribution checkpoint; the branch now has 27
+  commits beyond `main` and is synchronized with its origin branch.
 - Focused benchmark/retrieval tests pass: 4 files, 131 tests, including official-column, alias, provider, shared candidate-generation, fuzzy-policy, semantic timeout/parser, index-lifecycle, and baseline-to-candidate contribution comparisons. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
 - The permanent 120-query corpus now explicitly tags misspellings, abbreviations, descriptive semantics, preparation/form, compounds, regional terminology, ambiguous/messy fragments, and barcodes while retaining the 80/40 development/holdout split.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
@@ -54,5 +56,9 @@ Protected state: preserved; no protected paths staged or modified
   (4 files, 130 tests), and `git diff --check` pass. Root `format:check`
   reports only the protected `.agents/`/`.superpowers/` formatting set.
 - Fresh full `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/food_tracker_test corepack pnpm test` remains blocked before test discovery by Prisma `P1001` (`localhost:5432` unreachable); no full-suite, migration-deploy, persistence-import, or live benchmark claim is made.
+- The latest required verification repeats the same boundary: Node `v22.23.0`,
+  pnpm `10.34.3`, Prisma generation/validation, lint, typecheck, build, 131
+  focused retrieval tests, and `git diff --check` pass; root `format:check`
+  fails only on protected `.agents/`/`.superpowers/` documents.
 - Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.
