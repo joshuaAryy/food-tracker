@@ -1,5 +1,5 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import { SEMANTIC_INDEX_VERSION, SEMANTIC_MODEL_VERSION } from './pinecone.js';
+import { semanticIndexVersionName, semanticModelVersion } from './pinecone.js';
 
 export interface FoodSearchDocument {
   id: string;
@@ -64,7 +64,7 @@ export function searchDocumentForFood(input: {
 }
 
 export function semanticIndexVersion(): string {
-  return `${SEMANTIC_INDEX_VERSION}:${SEMANTIC_MODEL_VERSION}`;
+  return `${semanticIndexVersionName()}:${semanticModelVersion()}`;
 }
 
 export function versionedNamespace(
@@ -85,7 +85,7 @@ export function buildIndexVersionRecord(input: {
   return {
     indexVersion: semanticIndexVersion(),
     namespace: input.namespace,
-    embeddingModel: SEMANTIC_MODEL_VERSION,
+    embeddingModel: semanticModelVersion(),
     documentFormat: 'food-search-document-v1',
     status: input.status ?? 'building',
     documentCount: input.documentCount,

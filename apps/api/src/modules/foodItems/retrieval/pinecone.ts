@@ -3,6 +3,24 @@ import { Pinecone } from '@pinecone-database/pinecone';
 export const SEMANTIC_INDEX_VERSION = 'food-search-v1';
 export const SEMANTIC_MODEL_VERSION = 'multilingual-e5-large';
 
+export function semanticModelVersion(
+  configured = process.env.PINECONE_EMBEDDING_MODEL,
+): string {
+  const value = configured?.trim();
+  return value === undefined || value.length === 0
+    ? SEMANTIC_MODEL_VERSION
+    : value;
+}
+
+export function semanticIndexVersionName(
+  configured = process.env.PINECONE_SEMANTIC_INDEX_VERSION,
+): string {
+  const value = configured?.trim();
+  return value === undefined || value.length === 0
+    ? SEMANTIC_INDEX_VERSION
+    : value;
+}
+
 export interface SemanticSearchMatch {
   foodItemId: string;
   score: number;
@@ -76,7 +94,7 @@ export async function createSemanticIndex(input: {
     cloud: input.cloud,
     region: input.region,
     embed: {
-      model: SEMANTIC_MODEL_VERSION,
+      model: semanticModelVersion(),
       fieldMap: { text: 'text' },
     },
     waitUntilReady: true,

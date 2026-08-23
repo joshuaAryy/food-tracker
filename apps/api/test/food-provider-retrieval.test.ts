@@ -17,6 +17,8 @@ import {
 import {
   boundedSemanticSearch,
   parseSemanticSearchResponse,
+  semanticIndexVersionName,
+  semanticModelVersion,
 } from '../src/modules/foodItems/retrieval/pinecone.js';
 import {
   acceptFuzzyCandidate,
@@ -357,6 +359,8 @@ describe('hybrid retrieval policy', () => {
   });
 
   it('keeps Pinecone response parsing and timeout degradation bounded', async () => {
+    expect(semanticModelVersion('custom-model')).toBe('custom-model');
+    expect(semanticIndexVersionName('food-search-v2')).toBe('food-search-v2');
     expect(
       parseSemanticSearchResponse({
         result: {

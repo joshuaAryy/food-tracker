@@ -95,7 +95,11 @@ eligible global-only document set to a versioned Pinecone namespace, reconciles
 stale IDs, and records a `FoodSearchIndexVersion` as `ready`. Passing the
 explicit `--activate` flag atomically retires the previous active record and
 marks the new namespace active; runtime active-namespace configuration remains
-an explicit deployment setting.
+an explicit deployment setting. The initial embedding model is
+`multilingual-e5-large`; `PINECONE_EMBEDDING_MODEL` and
+`PINECONE_SEMANTIC_INDEX_VERSION` remain explicit versioned overrides so a
+document/model rebuild can be benchmarked and rolled back without changing
+PostgreSQL nutrition truth.
 
 Food search priority should eventually be:
 
