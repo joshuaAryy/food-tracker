@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
+import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
+import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
+import { mapProviderNutrient } from '../src/modules/foodItems/providers/nutrient-mapping.js';
+import ExcelJS from 'exceljs';
 import { countImportRows } from '../src/modules/foodItems/providers/importer.js';
 import {
   dedupeAliases,
@@ -14,8 +18,27 @@ import {
   decideRetrievalPolicy,
   unionGeneratedCandidates,
 } from '../src/modules/foodItems/retrieval/types.js';
+import {
+  buildIndexVersionRecord,
+  searchDocumentForFood,
+  semanticIndexVersion,
+  staleSearchDocumentIds,
+  versionedNamespace,
+} from '../src/modules/foodItems/retrieval/index-lifecycle.js';
+import {
+  FOOD_DATASET_MANIFESTS,
+  manifestFor,
+} from '../src/modules/foodItems/providers/manifest.js';
 
 describe('provider normalization', () => {
+  it('pins exactly the three approved official datasets', () => {
+    expect(FOOD_DATASET_MANIFESTS.map((entry) => entry.provider)).toEqual([
+      'cnf',
+      'ciqual',
+      'cofid',
+    ]);
+    expect(manifestFor('ciqual', '2025').artifactSha256).toHaveLength(64);
+  });
   it('preserves unknown CNF values instead of converting them to zero', () => {
     const foods = parseCnfCsv({
       foods: 'FoodID,FoodName,FoodGroup\n1,Egg,Eggs\n',
@@ -25,6 +48,82 @@ describe('provider normalization', () => {
     expect(foods).toHaveLength(1);
     expect(foods[0]?.nutrients).toHaveLength(1);
     expect(foods[0]?.nutrients[0]?.key).toBe('calories');
+  });
+
+  it('handles official CNF 2026 column names without guessing ambiguous nutrients', () => {
+    const foods = parseCnfCsv({
+      foods:
+        '\ufeffFood_Code,Food_Description_EN,Food_Description_FR\n1,Egg,Œuf\n',
+      nutrients:
+        '\ufeffNutrient_Code,Nutrient_Unit,Nutrient_Name_EN\n208,kilocalorie,Energy (kilocalories)\n317,Microgram,Selenium\n999,International Unit,Vitamin D (International Units)\n',
+      foodNutrients:
+        'Food_Code,Nutrient_Code,Nutrient_Amount\n1,208,143\n1,317,20\n1,999,400\n',
+    });
+    expect(foods[0]?.name).toBe('Egg');
+    expect(foods[0]?.authoritativeAliases).toEqual(['Œuf']);
+    expect(foods[0]?.nutrients.map((nutrient) => nutrient.key)).toEqual([
+      'calories',
+      'selenium',
+    ]);
+    expect(
+      mapProviderNutrient('Retinol activity equivalents', '20', 'Microgram'),
+    ).toBeNull();
+    expect(
+      mapProviderNutrient('Vitamin D (International Units)', '400', 'IU'),
+    ).toBeNull();
+  });
+
+  it('joins Ciqual English canonical names with French and scientific aliases', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Food composition');
+    sheet.addRow(['alim_code', 'Protein (g)', 'Energy (kcal)']);
+    sheet.addRow(['1001', 12, 143]);
+    const parsed = await parseCiqual({
+      compositionXlsx: Buffer.from(await workbook.xlsx.writeBuffer()),
+      metadataXml:
+        '<root><food alim_code="1001" alim_nom_fr="Œuf de poule" alim_nom_eng="Egg, chicken, whole, raw" alim_nom_sci="Gallus gallus domesticus ovum" /></root>',
+    });
+    expect(parsed[0]?.name).toBe('Egg, chicken, whole, raw');
+    expect(parsed[0]?.authoritativeAliases).toEqual([
+      'Œuf de poule',
+      'Gallus gallus domesticus ovum',
+    ]);
+    expect(parsed[0]?.nutrients.map((nutrient) => nutrient.key)).toEqual([
+      'protein',
+      'calories',
+    ]);
+  });
+
+  it('joins CoFID nutrient worksheets and preserves Tr/N as unknown', async () => {
+    const workbook = new ExcelJS.Workbook();
+    const proximates = workbook.addWorksheet('1.3 Proximates');
+    proximates.addRow([
+      'Food Code',
+      'Food Name',
+      'Description',
+      'Group',
+      'Protein (g)',
+      'Energy (kcal)',
+    ]);
+    proximates.addRow(['13-1', 'Test egg', 'raw', 'Eggs', 12, 143]);
+    const inorganics = workbook.addWorksheet('1.4 Inorganics');
+    inorganics.addRow([
+      'Food Code',
+      'Food Name',
+      'Description',
+      'Group',
+      'Sodium (mg)',
+    ]);
+    inorganics.addRow(['13-1', 'Test egg', 'raw', 'Eggs', 'N']);
+    const parsed = await parseCofid(
+      Buffer.from(await workbook.xlsx.writeBuffer()),
+    );
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]?.nutrients.map((nutrient) => nutrient.key)).toEqual([
+      'protein',
+      'calories',
+    ]);
+    expect(parsed[0]?.servingWeightGrams).toBe(100);
   });
 
   it('normalizes aliases deterministically while retaining display spelling', () => {
@@ -109,5 +208,33 @@ describe('hybrid retrieval policy', () => {
       acceptFuzzyCandidate({ id: 'x', distance: 0.9, kind: 'whole_string' }),
     ).toBe(false);
     expect(fuzzyCandidateQueries('greek yogrt', 10)).toHaveLength(2);
+  });
+
+  it('builds a versioned global search document without nutrient vectors', () => {
+    const document = searchDocumentForFood({
+      id: 'food-1',
+      name: 'Plain yogurt',
+      aliases: ['Yaourt nature'],
+      brandName: null,
+      category: 'Dairy',
+      preparation: 'plain',
+      sourceProvider: 'ciqual',
+      sourceRegion: 'FR',
+      rankingClass: 'reference',
+      datasetRelease: '2025',
+      hasBarcode: false,
+    });
+    expect(document.text).toContain('Yaourt nature');
+    expect(document).not.toHaveProperty('nutrients');
+    expect(versionedNamespace('food-search')).toContain('food-search-');
+    expect(
+      buildIndexVersionRecord({ namespace: 'next', documentCount: 1 }),
+    ).toMatchObject({
+      indexVersion: semanticIndexVersion(),
+      embeddingModel: 'multilingual-e5-large',
+      documentCount: 1,
+      status: 'building',
+    });
+    expect(staleSearchDocumentIds(['a', 'b', 'b'], ['b', 'c'])).toEqual(['a']);
   });
 });

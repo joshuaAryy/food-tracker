@@ -13,6 +13,33 @@ export interface SemanticSearchClient {
   search(query: string, timeoutMs: number): Promise<SemanticSearchMatch[]>;
 }
 
+export async function createSemanticIndex(input: {
+  apiKey: string;
+  name: string;
+  cloud: string;
+  region: string;
+}): Promise<{ host: string; name: string }> {
+  const client = new Pinecone({ apiKey: input.apiKey });
+  const created = await client.createIndexForModel({
+    name: input.name,
+    cloud: input.cloud,
+    region: input.region,
+    embed: {
+      model: SEMANTIC_MODEL_VERSION,
+      fieldMap: { text: 'text' },
+    },
+    waitUntilReady: true,
+  });
+  if (
+    created === undefined ||
+    typeof created !== 'object' ||
+    created.host === undefined
+  ) {
+    throw new Error('Pinecone did not return an index host');
+  }
+  return { host: created.host, name: input.name };
+}
+
 export function createPineconeSemanticClient(input: {
   apiKey: string;
   indexHost: string;
@@ -34,7 +61,7 @@ export function createPineconeSemanticClient(input: {
       );
       const response = await Promise.race([
         index.searchRecords({
-          query: { inputs: { text: `query: ${query}` }, topK: input.topK },
+          query: { inputs: { text: query }, topK: input.topK },
         }),
         timeout,
       ]);

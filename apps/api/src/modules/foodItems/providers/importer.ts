@@ -4,7 +4,10 @@ import {
   type NutrientUnit,
 } from '@prisma/client';
 import { NUTRIENT_CATALOG } from '@food-tracker/shared';
-import type { NormalizedProviderFood } from './normalized.js';
+import {
+  normalizeIdentityText,
+  type NormalizedProviderFood,
+} from './normalized.js';
 
 export interface ImportCounts {
   imported: number;
@@ -89,8 +92,9 @@ export async function persistProviderFoods(input: {
         name: row.name,
         brandName: row.brandName,
         foodType: row.foodType,
-        normalizedName: row.name.toLocaleLowerCase(),
-        normalizedBrandName: row.brandName?.toLocaleLowerCase() ?? null,
+        normalizedName: normalizeIdentityText(row.name),
+        normalizedBrandName:
+          row.brandName === null ? null : normalizeIdentityText(row.brandName),
         searchText: [
           row.name,
           ...row.authoritativeAliases,
@@ -138,6 +142,9 @@ export async function persistProviderFoods(input: {
           nutrientKey: nutrient.key as NutrientKey,
           amount: nutrient.amount,
           unit: nutrient.unit as NutrientUnit,
+          sourceProvider: row.provider,
+          sourceRecordId: row.sourceId,
+          sourceRelease: row.release,
         }));
       if (nutrientRows.length > 0)
         await input.prisma.foodItemNutrient.createMany({

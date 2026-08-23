@@ -675,8 +675,20 @@ export function rankableFromParseCandidate(
   };
 }
 
-function localeRelevance(candidate: RankableFoodCandidate): number {
-  const region = process.env.FOOD_SEARCH_DEFAULT_REGION?.trim().toUpperCase();
+function localeRelevance(
+  candidate: RankableFoodCandidate,
+  explicitRegion?: string | null,
+): number {
+  const explicit = explicitRegion?.trim().toUpperCase();
+  const configured =
+    process.env.FOOD_SEARCH_DEFAULT_REGION?.trim().toUpperCase();
+  const region =
+    (explicit !== undefined && /^[A-Z]{2}$/.test(explicit)
+      ? explicit
+      : undefined) ??
+    (configured !== undefined && /^[A-Z]{2}$/.test(configured)
+      ? configured
+      : undefined);
   if (region === undefined || region.length === 0) return 0;
   if (
     candidate.source === 'reference' &&
@@ -695,6 +707,7 @@ export function parseCandidateId(candidate: AiFoodParseCandidate): string {
 export function rankParseCandidates(
   query: string,
   candidates: AiFoodParseCandidate[],
+  options: { region?: string | null } = {},
 ): AiFoodParseCandidate[] {
   return candidates
     .map((candidate, index) => {
@@ -709,7 +722,10 @@ export function rankParseCandidates(
         },
         score,
         index,
-        localeScore: localeRelevance(rankableFromParseCandidate(candidate)),
+        localeScore: localeRelevance(
+          rankableFromParseCandidate(candidate),
+          options.region,
+        ),
       };
     })
     .filter(({ score }) => score.relevant)

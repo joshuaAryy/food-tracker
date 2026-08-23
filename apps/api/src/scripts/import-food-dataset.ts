@@ -5,6 +5,7 @@ import { parseCnfCsv } from '../modules/foodItems/providers/cnf.js';
 import { parseCiqual } from '../modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../modules/foodItems/providers/cofid.js';
 import { persistProviderFoods } from '../modules/foodItems/providers/importer.js';
+import { manifestFor } from '../modules/foodItems/providers/manifest.js';
 
 function arg(name: string): string {
   const index = process.argv.indexOf(name);
@@ -13,21 +14,44 @@ function arg(name: string): string {
   return value;
 }
 
+function optionalArg(name: string): string | null {
+  const index = process.argv.indexOf(name);
+  return index < 0 ? null : (process.argv[index + 1] ?? null);
+}
+
 async function main(): Promise<void> {
   const provider = arg('--provider') as 'cnf' | 'ciqual' | 'cofid';
   const release = arg('--release');
   const sourceUri = arg('--source-uri');
   const inputPath = arg('--input');
+  const artifactPath = optionalArg('--artifact') ?? inputPath;
   const sha256 = createHash('sha256')
-    .update(await readFile(inputPath))
+    .update(await readFile(artifactPath))
     .digest('hex');
+  const manifest = manifestFor(provider, release);
+  if (sourceUri !== manifest.sourceUrl || sha256 !== manifest.artifactSha256) {
+    throw new Error(
+      `Pinned manifest mismatch for ${provider} ${release}; refusing import.`,
+    );
+  }
   const dryRun = process.argv.includes('--dry-run');
   let rows;
   if (provider === 'cnf') {
     const foods = await readFile(inputPath, 'utf8');
     const nutrients = await readFile(arg('--nutrients'), 'utf8');
     const foodNutrients = await readFile(arg('--food-nutrients'), 'utf8');
-    rows = parseCnfCsv({ foods, nutrients, foodNutrients }, release);
+    const measuresPath = optionalArg('--measures');
+    rows = parseCnfCsv(
+      {
+        foods,
+        nutrients,
+        foodNutrients,
+        ...(measuresPath === null
+          ? {}
+          : { measures: await readFile(measuresPath, 'utf8') }),
+      },
+      release,
+    );
   } else if (provider === 'ciqual') {
     rows = await parseCiqual({
       compositionXlsx: await readFile(inputPath),

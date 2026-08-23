@@ -14,6 +14,11 @@ ALTER TABLE "FoodItem"
   ADD COLUMN "datasetRelease" TEXT,
   ADD COLUMN "sourceRecordHash" TEXT;
 
+ALTER TABLE "FoodItemNutrient"
+  ADD COLUMN "sourceProvider" "FoodSourceProvider",
+  ADD COLUMN "sourceRecordId" TEXT,
+  ADD COLUMN "sourceRelease" TEXT;
+
 UPDATE "FoodItem"
 SET "rankingClass" = CASE
   WHEN "sourceType" = 'cached_external' THEN 'cached_external'::"FoodItemRankingClass"
@@ -27,6 +32,8 @@ CREATE UNIQUE INDEX "FoodItem_provider_source_unique"
   ON "FoodItem"("sourceProvider", "sourceId")
   WHERE "sourceProvider" IS NOT NULL AND "sourceId" IS NOT NULL;
 CREATE INDEX "FoodItem_searchText_trgm_idx" ON "FoodItem" USING GIST ("searchText" gist_trgm_ops);
+CREATE INDEX "FoodItemNutrient_sourceProvider_sourceRelease_idx"
+  ON "FoodItemNutrient"("sourceProvider", "sourceRelease");
 
 CREATE TABLE "FoodDatasetRelease" (
   "id" UUID NOT NULL,
@@ -47,3 +54,19 @@ CREATE TABLE "FoodDatasetRelease" (
 );
 CREATE UNIQUE INDEX "FoodDatasetRelease_provider_release_key" ON "FoodDatasetRelease"("provider", "release");
 CREATE INDEX "FoodDatasetRelease_provider_status_idx" ON "FoodDatasetRelease"("provider", "status");
+
+CREATE TABLE "FoodSearchIndexVersion" (
+  "id" UUID NOT NULL,
+  "indexVersion" TEXT NOT NULL,
+  "namespace" TEXT NOT NULL,
+  "embeddingModel" TEXT NOT NULL,
+  "documentFormat" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "documentCount" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "activatedAt" TIMESTAMPTZ,
+  "retiredAt" TIMESTAMPTZ,
+  CONSTRAINT "FoodSearchIndexVersion_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "FoodSearchIndexVersion_indexVersion_namespace_key" ON "FoodSearchIndexVersion"("indexVersion", "namespace");
+CREATE INDEX "FoodSearchIndexVersion_status_activatedAt_idx" ON "FoodSearchIndexVersion"("status", "activatedAt");

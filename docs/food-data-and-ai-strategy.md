@@ -83,6 +83,17 @@ Aliases use deterministic Unicode NFKD/diacritic normalization while display
 names retain their official spelling. PostgreSQL remains nutrition truth;
 Pinecone is a rebuildable, global-only semantic candidate index.
 
+Import operations are pinned by the provider manifest in
+`apps/api/src/modules/foodItems/providers/manifest.ts`: the CLI requires the
+official source URI and SHA-256 artifact checksum, supports `--dry-run`, and
+reports imported/updated/skipped/rejected counts. CNF accepts the official
+`Food_Name.csv`, `Nutrient_Name.csv`, `Nutrient_Amount.csv`, and optional
+`Measure_Weight_Conversion.csv`; Ciqual requires its XLSX plus official
+`alim_2025_11_03.xml`; CoFID consumes the official workbook. A release remains
+archived until bounded persistence batches complete. `food:reindex` writes an
+eligible global-only document set to a versioned Pinecone namespace; active
+namespace selection remains an explicit deployment configuration.
+
 Food search priority should eventually be:
 
 ```text

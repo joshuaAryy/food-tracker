@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import {
   upsertSearchDocuments,
+  semanticIndexVersion,
+  versionedNamespace,
   type FoodSearchDocument,
   type IndexLifecycleConfig,
 } from '../modules/foodItems/retrieval/index-lifecycle.js';
@@ -15,26 +17,31 @@ async function main(): Promise<void> {
   const required = ['PINECONE_API_KEY', 'PINECONE_INDEX_HOST'];
   for (const key of required)
     if (!process.env[key]) throw new Error(`${key} is required`);
+  const candidateNamespace = versionedNamespace(
+    process.env.PINECONE_CANDIDATE_NAMESPACE ?? 'food-search-next',
+  );
   const config: IndexLifecycleConfig = {
     apiKey: process.env.PINECONE_API_KEY ?? '',
     indexHost: process.env.PINECONE_INDEX_HOST ?? '',
     activeNamespace: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
-    candidateNamespace:
-      process.env.PINECONE_CANDIDATE_NAMESPACE ?? 'food-search-next',
+    candidateNamespace,
     timeoutMs: 5000,
   };
+  const eligibleDocuments = documents.filter(
+    (document) =>
+      document.rankingClass === 'reference' ||
+      document.rankingClass === 'app_curated',
+  );
   await upsertSearchDocuments({
     config,
-    documents: documents.filter(
-      (document) =>
-        document.rankingClass === 'reference' ||
-        document.rankingClass === 'app_curated',
-    ),
+    documents: eligibleDocuments,
   });
   console.log(
     JSON.stringify({
-      indexed: documents.length,
+      indexed: eligibleDocuments.length,
       namespace: config.candidateNamespace,
+      indexVersion: semanticIndexVersion(),
+      activeNamespace: config.activeNamespace,
     }),
   );
 }

@@ -8,6 +8,14 @@ import {
 } from './normalized.js';
 import { mapProviderNutrient } from './nutrient-mapping.js';
 
+function unitFromHeader(header: string): string {
+  const match = header.match(
+    /(?:^|[^\p{L}])(kcal|kj|mg|mcg|µg|ug|g)(?=[^\p{L}]|$)/iu,
+  );
+  if (match === null) return 'g';
+  return match[1]?.toLocaleLowerCase() ?? 'g';
+}
+
 export interface CiqualInput {
   compositionXlsx: Buffer;
   metadataXml: string;
@@ -23,6 +31,14 @@ function xmlRows(
     ignoreAttributes: false,
     attributeNamePrefix: '',
   }).parse(xml) as Record<string, unknown>;
+  const scalarText = (value: unknown): string => {
+    if (typeof value === 'string' || typeof value === 'number')
+      return String(value);
+    if (typeof value !== 'object' || value === null) return '';
+    const record = value as Record<string, unknown>;
+    if (record.missing !== undefined) return '';
+    return scalarText(record['#text'] ?? record.text);
+  };
   const found = new Map<string, { fr: string; eng: string; sci: string }>();
   const visit = (value: unknown) => {
     if (Array.isArray(value)) {
@@ -33,9 +49,9 @@ function xmlRows(
     const record = value as Record<string, unknown>;
     if (record.alim_code !== undefined) {
       found.set(String(record.alim_code), {
-        fr: String(record.alim_nom_fr ?? ''),
-        eng: String(record.alim_nom_eng ?? ''),
-        sci: String(record.alim_nom_sci ?? ''),
+        fr: scalarText(record.alim_nom_fr),
+        eng: scalarText(record.alim_nom_eng),
+        sci: scalarText(record.alim_nom_sci),
       });
     }
     Object.values(record).forEach(visit);
@@ -76,10 +92,23 @@ export async function parseCiqual(
     const name = normalizeDisplayName(names.eng || names.fr);
     if (!name) return;
     const aliases = dedupeAliases(name, [names.fr, names.sci]);
-    const nutrients = headers.flatMap((header) => {
-      const mapped = mapProviderNutrient(header, record[header], 'g');
-      return mapped === null ? [] : [mapped];
-    });
+    const nutrientByKey = new Map<
+      string,
+      ReturnType<typeof mapProviderNutrient>
+    >();
+    for (const header of headers) {
+      const mapped = mapProviderNutrient(
+        header,
+        record[header],
+        unitFromHeader(header),
+      );
+      if (mapped !== null && !nutrientByKey.has(mapped.key)) {
+        nutrientByKey.set(mapped.key, mapped);
+      }
+    }
+    const nutrients = [...nutrientByKey.values()].filter(
+      (nutrient): nutrient is NonNullable<typeof nutrient> => nutrient !== null,
+    );
     result.push({
       provider: 'ciqual',
       release: input.release ?? '2025',

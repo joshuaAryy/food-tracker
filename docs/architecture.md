@@ -27,6 +27,13 @@ kept in a bounded FoodItem alias field and are evaluated independently from
 `searchText`; category/provider metadata, fuzzy distance, and semantic score do
 not manufacture lexical identity.
 
+Reference ingestion uses bounded persistence batches and release visibility:
+the new release remains archived until its deterministic batches complete, then
+the release is activated and older provider releases are archived. The first
+official CNF 2026 parse dry-run (5,993 foods, 147,637 canonical nutrient rows,
+354 MB peak RSS) supports this bounded strategy without a staging table; live
+database mutation timing remains an explicit deployment gate.
+
 ## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
 
 Phase 17 and Phase 17.5 are complete. Phase 17.5's accepted implementation

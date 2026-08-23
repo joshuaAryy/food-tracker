@@ -19,6 +19,15 @@ export interface IndexLifecycleConfig {
   timeoutMs: number;
 }
 
+export interface IndexVersionRecord {
+  indexVersion: string;
+  namespace: string;
+  embeddingModel: string;
+  documentFormat: string;
+  status: 'building' | 'active' | 'retired' | 'failed';
+  documentCount: number;
+}
+
 export function searchDocumentForFood(input: {
   id: string;
   name: string;
@@ -55,6 +64,39 @@ export function semanticIndexVersion(): string {
   return `${SEMANTIC_INDEX_VERSION}:${SEMANTIC_MODEL_VERSION}`;
 }
 
+export function versionedNamespace(
+  baseNamespace: string,
+  version = semanticIndexVersion(),
+): string {
+  return `${baseNamespace}-${version.replace(/[^a-zA-Z0-9-]/g, '-')}`.slice(
+    0,
+    63,
+  );
+}
+
+export function buildIndexVersionRecord(input: {
+  namespace: string;
+  documentCount: number;
+  status?: IndexVersionRecord['status'];
+}): IndexVersionRecord {
+  return {
+    indexVersion: semanticIndexVersion(),
+    namespace: input.namespace,
+    embeddingModel: SEMANTIC_MODEL_VERSION,
+    documentFormat: 'food-search-document-v1',
+    status: input.status ?? 'building',
+    documentCount: input.documentCount,
+  };
+}
+
+export function staleSearchDocumentIds(
+  indexedIds: readonly string[],
+  authoritativeIds: readonly string[],
+): string[] {
+  const current = new Set(authoritativeIds);
+  return [...new Set(indexedIds)].filter((id) => !current.has(id));
+}
+
 export async function upsertSearchDocuments(input: {
   config: IndexLifecycleConfig;
   documents: readonly FoodSearchDocument[];
@@ -68,7 +110,7 @@ export async function upsertSearchDocuments(input: {
     const batch = input.documents.slice(offset, offset + 96);
     await index.upsertRecords({
       records: batch.map((document) => ({
-        _id: document.id,
+        id: document.id,
         text: document.text,
         sourceProvider: document.sourceProvider ?? '',
         sourceRegion: document.sourceRegion ?? '',
@@ -79,4 +121,34 @@ export async function upsertSearchDocuments(input: {
       })),
     });
   }
+}
+
+export async function deleteStaleSearchDocuments(input: {
+  config: IndexLifecycleConfig;
+  staleIds: readonly string[];
+  maxAttempts?: number;
+}): Promise<number> {
+  if (input.staleIds.length === 0) return 0;
+  const client = new Pinecone({ apiKey: input.config.apiKey });
+  const index = client.index({
+    host: input.config.indexHost,
+    namespace: input.config.candidateNamespace,
+  });
+  const maxAttempts = Math.max(1, input.maxAttempts ?? 3);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      for (let offset = 0; offset < input.staleIds.length; offset += 1000) {
+        await index.deleteMany({
+          ids: input.staleIds.slice(offset, offset + 1000),
+        });
+      }
+      return input.staleIds.length;
+    } catch (error) {
+      if (attempt === maxAttempts) throw error;
+      await new Promise((resolve) =>
+        setTimeout(resolve, 100 * 2 ** (attempt - 1)),
+      );
+    }
+  }
+  return 0;
 }

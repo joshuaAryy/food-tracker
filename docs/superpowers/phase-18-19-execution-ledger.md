@@ -30,11 +30,13 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
   retrieval foundation, dataset/index commands, ablation harness, and
   coverage-gated normal search.
-- Focused benchmark/retrieval tests pass: 4 files, 122 tests.
-- API lint and typecheck pass under Node 22.23.0/pnpm 10.34.3.
+- Focused benchmark/retrieval tests pass: 4 files, 128 tests.
+- API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
 - The permanent benchmark CLI is ready, but no live legacy baseline is claimed until the test database is available.
-- Dataset adapters are pure parsing/normalization paths; no live dataset import has run.
+- Official CNF 2026 parse dry-run completed under Node 22: 5,993 foods and 147,637 canonical nutrient rows in 7.2s, peak RSS 354 MB. This supports bounded 250-row persistence batches without introducing staging tables; PostgreSQL mutation/transaction timing remains pending.
+- Official CoFID 2021 parse dry-run completed under Node 22: 2,886 foods and 38,858 canonical nutrient rows in 4.1s, peak RSS 572 MB. This is parse-only evidence; PostgreSQL mutation/transaction timing remains pending.
+- Dataset adapters are pure parsing/normalization paths; no live PostgreSQL dataset import has run.
 - Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
 - Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.

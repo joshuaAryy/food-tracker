@@ -18,7 +18,11 @@ duplicate ingestion while allowing records without provider identity to coexist.
 `FoodDatasetRelease` records source URI/checksum, release status, and import
 counts. Nutrient values remain canonical PostgreSQL values; unknown provider
 values are omitted rather than converted to zero. A reviewed `pg_trgm`
-extension/index supports bounded KNN candidate generation.
+extension/index supports bounded KNN candidate generation. `FoodItemNutrient`
+also retains nullable provider/source-record/release provenance; historical
+`FoodLogNutrient` snapshots remain unchanged. `FoodSearchIndexVersion` records
+the derived Pinecone document/model namespace lifecycle independently of
+nutrition data.
 
 ## MVP Tables
 

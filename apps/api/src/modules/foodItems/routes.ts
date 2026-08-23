@@ -55,7 +55,7 @@ import {
   queryVariants,
   rankParseCandidates,
 } from './candidate-ranking.js';
-import { retrieveFuzzyFoodItemIds } from './retrieval/fuzzy.js';
+import { retrieveFuzzyFoodItemMatches } from './retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from './retrieval/pinecone.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
@@ -703,11 +703,16 @@ foodItemsRouter.post(
 
     if (needsAdditionalCoverage(normalizedQuery, candidates, input.limit)) {
       try {
-        const fuzzyIds = await retrieveFuzzyFoodItemIds({
+        const fuzzyMatches = await retrieveFuzzyFoodItemMatches({
           prisma,
           query: normalizedQuery,
           limit: Math.max(input.limit * 2, 10),
+          userId,
         });
+        const fuzzyIds = fuzzyMatches.map((match) => match.id);
+        const fuzzyDistanceById = new Map(
+          fuzzyMatches.map((match) => [match.id, match.distance]),
+        );
         const fuzzyFoods = await prisma.foodItem.findMany({
           where: { AND: [visibleFoodWhere(userId), { id: { in: fuzzyIds } }] },
           include: foodItemInclude(userId),
@@ -739,7 +744,7 @@ foodItemsRouter.post(
             defaultServingMultiplier: 1,
             retrievalEvidence: {
               lexical: false,
-              fuzzyDistance: null,
+              fuzzyDistance: fuzzyDistanceById.get(id) ?? null,
               semanticScore: null,
             },
           });

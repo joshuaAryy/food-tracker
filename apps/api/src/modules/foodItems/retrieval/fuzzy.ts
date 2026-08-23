@@ -16,17 +16,22 @@ export interface FuzzyCandidateRow {
 export function fuzzyCandidateQueries(
   query: string,
   limit: number,
+  userId: string | null = null,
 ): Prisma.Sql[] {
   const normalized = normalizeText(query);
+  const visibleOwner =
+    userId === null
+      ? Prisma.sql`"userId" IS NULL`
+      : Prisma.sql`("userId" IS NULL OR "userId" = ${userId}::uuid)`;
   return [
     Prisma.sql`SELECT id, searchText <-> ${normalized} AS distance, 'whole_string' AS kind
       FROM "FoodItem"
-      WHERE "archivedAt" IS NULL AND "userId" IS NULL
+      WHERE "archivedAt" IS NULL AND ${visibleOwner}
       ORDER BY searchText <-> ${normalized}
       LIMIT ${Math.max(1, Math.min(limit, 100))}`,
     Prisma.sql`SELECT id, searchText <<-> ${normalized} AS distance, 'strict_word' AS kind
       FROM "FoodItem"
-      WHERE "archivedAt" IS NULL AND "userId" IS NULL
+      WHERE "archivedAt" IS NULL AND ${visibleOwner}
       ORDER BY searchText <<-> ${normalized}
       LIMIT ${Math.max(1, Math.min(limit, 100))}`,
   ];
@@ -44,11 +49,21 @@ export async function retrieveFuzzyFoodItemIds(input: {
   prisma: { $queryRaw<T>(query: Prisma.Sql): Promise<T> };
   query: string;
   limit: number;
+  userId?: string | null;
 }): Promise<string[]> {
+  return (await retrieveFuzzyFoodItemMatches(input)).map((row) => row.id);
+}
+
+export async function retrieveFuzzyFoodItemMatches(input: {
+  prisma: { $queryRaw<T>(query: Prisma.Sql): Promise<T> };
+  query: string;
+  limit: number;
+  userId?: string | null;
+}): Promise<FuzzyCandidateRow[]> {
   const rows = (
     await Promise.all(
-      fuzzyCandidateQueries(input.query, input.limit).map((query) =>
-        input.prisma.$queryRaw<FuzzyCandidateRow[]>(query),
+      fuzzyCandidateQueries(input.query, input.limit, input.userId ?? null).map(
+        (query) => input.prisma.$queryRaw<FuzzyCandidateRow[]>(query),
       ),
     )
   ).flat();
@@ -61,6 +76,5 @@ export async function retrieveFuzzyFoodItemIds(input: {
       seen.add(row.id);
       return true;
     })
-    .slice(0, Math.max(1, Math.min(input.limit, 100)))
-    .map((row) => row.id);
+    .slice(0, Math.max(1, Math.min(input.limit, 100)));
 }
