@@ -934,6 +934,7 @@ export function usdaFoodItemData(
     name: food.name,
     brandName: food.brandName,
     sourceType: 'cached_external',
+    rankingClass: 'cached_external',
     foodType: food.foodType,
     normalizedName,
     normalizedBrandName,

@@ -394,6 +394,7 @@ export function openFoodFactsData(
     name: food.name,
     brandName: food.brandName,
     sourceType: 'cached_external',
+    rankingClass: 'cached_external',
     foodType: 'branded',
     normalizedName,
     normalizedBrandName,
