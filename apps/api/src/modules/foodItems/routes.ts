@@ -403,6 +403,24 @@ function candidateReason(
   return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
 
+function needsAdditionalCoverage(
+  query: string,
+  candidates: AiFoodParseCandidate[],
+  requestedLimit: number,
+): boolean {
+  const topK = rankParseCandidates(query, candidates).slice(
+    0,
+    Math.min(requestedLimit, 3),
+  );
+  const providerDiversity = new Set(
+    topK.map((candidate) => candidate.matchReason),
+  );
+  return (
+    topK.length < Math.min(requestedLimit, 3) ||
+    (topK.length > 1 && providerDiversity.size < 2)
+  );
+}
+
 function usdaExternalCandidate(
   food: NormalizedUsdaFood,
   rank: number,
@@ -683,7 +701,7 @@ foodItemsRouter.post(
       });
     }
 
-    if (candidates.length < input.limit) {
+    if (needsAdditionalCoverage(normalizedQuery, candidates, input.limit)) {
       try {
         const fuzzyIds = await retrieveFuzzyFoodItemIds({
           prisma,
@@ -733,7 +751,11 @@ foodItemsRouter.post(
 
     const pineconeApiKey = process.env.PINECONE_API_KEY;
     const pineconeHost = process.env.PINECONE_INDEX_HOST;
-    if (candidates.length < input.limit && pineconeApiKey && pineconeHost) {
+    if (
+      needsAdditionalCoverage(normalizedQuery, candidates, input.limit) &&
+      pineconeApiKey &&
+      pineconeHost
+    ) {
       try {
         const semantic = createPineconeSemanticClient({
           apiKey: pineconeApiKey,
@@ -787,6 +809,12 @@ foodItemsRouter.post(
       } catch {
         // Semantic retrieval is derived and optional; lexical/local search remains usable.
       }
+    }
+
+    if (!needsAdditionalCoverage(normalizedQuery, candidates, input.limit)) {
+      candidates = rankParseCandidates(normalizedQuery, candidates);
+      sendSuccess(response, { candidates: candidates.slice(0, input.limit) });
+      return;
     }
 
     const usdaConfig = usdaFdcConfig();
