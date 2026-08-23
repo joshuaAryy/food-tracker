@@ -4,10 +4,11 @@ import {
   classifyQueryTokens,
   confidenceForScore,
   queryVariants,
+  rankableFromParseCandidate,
   rankParseCandidates,
   scoreFoodCandidate,
 } from '../src/modules/foodItems/candidate-ranking.js';
-import type { FoodItem } from '@food-tracker/shared';
+import type { AiFoodParseCandidate, FoodItem } from '@food-tracker/shared';
 import {
   assessFoodIntent,
   foodIntentFallbackQuery,
@@ -38,7 +39,7 @@ function candidate(
   };
 }
 
-function foodItemCandidateForRegion(region: string) {
+function foodItemCandidateForRegion(region: string): AiFoodParseCandidate {
   return {
     candidateType: 'food_item' as const,
     foodItem: {
@@ -102,6 +103,15 @@ describe('candidate ranking helper', () => {
       candidate: candidate({ source: 'reference' }),
     });
     expect(usda.score).toBe(reference.score);
+  });
+
+  it('uses persisted ranking source semantics for hydrated app-owned foods', () => {
+    const appOwned = foodItemCandidateForRegion('CA');
+    if (appOwned.candidateType !== 'food_item')
+      throw new Error('expected food item candidate');
+    appOwned.foodItem.rankingSource = 'app_curated';
+    appOwned.matchReason = 'app';
+    expect(rankableFromParseCandidate(appOwned).source).toBe('app_curated');
   });
 
   it('uses explicit validated locale only as a final reference tie-break', () => {

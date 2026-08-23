@@ -639,6 +639,14 @@ export function rankableFromParseCandidate(
   candidate: AiFoodParseCandidate,
 ): RankableFoodCandidate {
   const food = candidateFood(candidate);
+  const matchReason = candidate.matchReason;
+  const prioritySource =
+    matchReason === 'recent' ||
+    matchReason === 'saved' ||
+    matchReason === 'custom' ||
+    matchReason === 'barcode_cached'
+      ? matchReason
+      : undefined;
   return {
     name: food.name,
     authoritativeAliases:
@@ -654,9 +662,13 @@ export function rankableFromParseCandidate(
     brandName: food.brandName,
     foodType: food.foodType,
     source:
-      candidate.matchReason === 'usda_fdc'
-        ? 'reference'
-        : candidate.matchReason,
+      prioritySource ??
+      (candidate.candidateType === 'food_item'
+        ? (candidate.foodItem.rankingSource ??
+          (matchReason === 'usda_fdc' ? 'reference' : matchReason))
+        : matchReason === 'usda_fdc'
+          ? 'reference'
+          : matchReason),
     calories: food.calories,
     protein: food.protein,
     carbs: food.carbs,
