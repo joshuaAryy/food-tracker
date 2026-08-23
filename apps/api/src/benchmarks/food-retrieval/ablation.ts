@@ -86,10 +86,13 @@ export function compareBaselineToCandidate(input: {
   let semanticBadTop1 = 0;
   let providerExpansion = 0;
   let top1Regression = 0;
+  let comparableCount = 0;
+  let providerComparisonCount = 0;
   for (const query of input.corpus) {
     const baseline = baselineById.get(query.id);
     const candidate = candidateById.get(query.id);
     if (baseline === undefined || candidate === undefined) continue;
+    comparableCount += 1;
     if (topKHit(baseline, query, 1) && !topKHit(candidate, query, 1)) {
       top1Regression += 1;
     }
@@ -118,6 +121,7 @@ export function compareBaselineToCandidate(input: {
     }
     const expectedProvider = query.gold.expectedProvider;
     if (expectedProvider !== undefined) {
+      providerComparisonCount += 1;
       const baselineProviderHit = baseline.candidates
         .slice(0, 5)
         .some(
@@ -140,9 +144,9 @@ export function compareBaselineToCandidate(input: {
     candidate: candidateMetrics,
     fuzzyMissRecovery: countMetric(fuzzyRecovery, baselineMisses.length),
     semanticMissRecovery: countMetric(semanticRecovery, baselineMisses.length),
-    semanticBadTop1: countMetric(semanticBadTop1, input.candidate.length),
-    providerExpansion: countMetric(providerExpansion, input.corpus.length),
-    top1Regression: countMetric(top1Regression, input.corpus.length),
+    semanticBadTop1: countMetric(semanticBadTop1, comparableCount),
+    providerExpansion: countMetric(providerExpansion, providerComparisonCount),
+    top1Regression: countMetric(top1Regression, comparableCount),
     latencyDeltaMs: {
       p50: candidateMetrics.latencyMs.p50 - baselineMetrics.latencyMs.p50,
       p95: candidateMetrics.latencyMs.p95 - baselineMetrics.latencyMs.p95,
