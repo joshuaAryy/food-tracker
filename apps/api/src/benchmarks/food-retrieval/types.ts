@@ -9,6 +9,19 @@ export type BenchmarkQueryClass =
   | 'semantic'
   | 'normal';
 
+export type BenchmarkQueryTag =
+  | 'exact_generic'
+  | 'exact_branded'
+  | 'misspelling'
+  | 'abbreviation'
+  | 'semantic_descriptive'
+  | 'preparation_form'
+  | 'compound'
+  | 'regional_terminology'
+  | 'ambiguous'
+  | 'messy_fragment'
+  | 'barcode';
+
 export interface BenchmarkGoldLabel {
   canonicalName: string;
   aliases?: readonly string[];
@@ -21,6 +34,7 @@ export interface FoodRetrievalBenchmarkQuery {
   query: string;
   split: BenchmarkSplit;
   queryClass: BenchmarkQueryClass;
+  tags: readonly BenchmarkQueryTag[];
   gold: BenchmarkGoldLabel;
   normalSearch: boolean;
   requiresSafeDefault: boolean;

@@ -3,7 +3,11 @@
 This directory contains the permanent Phase 18/19 benchmark contract. The
 corpus is versioned as `2026-08-23` and contains 120 reviewed queries: 80
 development queries and 40 holdout queries across exact, preparation, branded,
-semantic, and normal-search classes.
+semantic, and normal-search classes. Each query also carries review tags for
+misspellings, abbreviations, descriptive semantics, preparation/form,
+compounds, regional terminology, ambiguous fragments, messy fragments, and
+barcodes; these tags keep the broader quality corpus visible without weakening
+the stable metric classes.
 
 The harness evaluates recorded observations. It does not call PostgreSQL,
 USDA, Open Food Facts, Pinecone, or any other provider. A retriever adapter can

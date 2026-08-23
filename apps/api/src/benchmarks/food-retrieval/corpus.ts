@@ -1,6 +1,7 @@
 import {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,
   type BenchmarkQueryClass,
+  type BenchmarkQueryTag,
   type FoodRetrievalBenchmarkQuery,
 } from './types.js';
 
@@ -89,23 +90,16 @@ const branded: readonly QueryDefinition[] = [
 
 const semantic: readonly QueryDefinition[] = [
   ['brekkie eggs', 'Egg, whole'],
-  [' avo toast', 'Avocado toast'],
   ['morning porridge', 'Oatmeal, cooked'],
-  ['green veggie trees', 'Broccoli'],
   ['orange fish fillet', 'Salmon'],
   ['bird breast meat', 'Chicken breast'],
   ['cow milk drink', 'Whole milk'],
   ['bean dip mashed chickpeas', 'Hummus'],
-  ['tiny green citrus', 'Lime'],
-  ['red fruit smoothie base', 'Strawberries'],
-  ['grain bowl seed protein', 'Quinoa bowl'],
   ['potato fries air fried', 'French fries, air-fried'],
   ['noodle soup broth', 'Chicken noodle soup'],
-  ['leafy salad green', 'Mixed green salad'],
   ['breakfast cereal rings', 'Cheerios'],
   ['nut spread sandwich filling', 'Peanut butter'],
   ['fermented cabbage side', 'Sauerkraut'],
-  ['fizzy water lemon', 'Lemon sparkling water'],
   ['post workout protein drink', 'Protein shake'],
   ['sweet frozen fruit dessert', 'Fruit sorbet'],
   ['dark leafy vegetable iron', 'Spinach'],
@@ -139,6 +133,13 @@ const normal: readonly QueryDefinition[] = [
   ['tomato pasta', 'Tomato pasta'],
   ['roasted vegetable bowl', 'Roasted vegetable bowl'],
   ['protein oatmeal', 'Protein oatmeal'],
+  ['greek yogrt', 'Greek yogurt, plain'],
+  ['chiken breast', 'Chicken breast'],
+  ['bananna', 'Banana'],
+  ['pb sandwich', 'Peanut butter sandwich'],
+  ['timmies iced capp', 'Iced Capp'],
+  ['poutine', 'Poutine'],
+  ['3017620422003', 'Nutella hazelnut spread'],
 ];
 
 function definitionsFor(
@@ -155,6 +156,34 @@ const definitions = [
   ...definitionsFor('semantic', semantic),
   ...definitionsFor('normal', normal),
 ];
+
+const SPECIAL_TAGS: Readonly<Record<string, readonly BenchmarkQueryTag[]>> = {
+  'greek yogrt': ['misspelling', 'messy_fragment'],
+  'chiken breast': ['misspelling'],
+  bananna: ['misspelling'],
+  'pb sandwich': ['abbreviation', 'messy_fragment'],
+  'timmies iced capp': ['regional_terminology', 'messy_fragment'],
+  poutine: ['regional_terminology'],
+  '3017620422003': ['barcode'],
+  rice: ['ambiguous'],
+  'whole milk': ['ambiguous'],
+  'avocado toast': ['ambiguous'],
+};
+
+function baseTag(queryClass: BenchmarkQueryClass): BenchmarkQueryTag {
+  switch (queryClass) {
+    case 'exact':
+      return 'exact_generic';
+    case 'branded':
+      return 'exact_branded';
+    case 'preparation':
+      return 'preparation_form';
+    case 'semantic':
+      return 'semantic_descriptive';
+    case 'normal':
+      return 'compound';
+  }
+}
 
 export const FOOD_RETRIEVAL_CORPUS: readonly FoodRetrievalBenchmarkQuery[] =
   definitions
@@ -173,15 +202,24 @@ export const FOOD_RETRIEVAL_CORPUS: readonly FoodRetrievalBenchmarkQuery[] =
                     semantic.length
                 ? 'semantic'
                 : 'normal';
+      const tags = [baseTag(queryClass), ...(SPECIAL_TAGS[query] ?? [])].filter(
+        (tag, tagIndex, all) => all.indexOf(tag) === tagIndex,
+      );
       return {
         id: `${queryClass}-${String(index + 1).padStart(3, '0')}`,
         query: query.trim(),
         split: index < 80 ? 'development' : 'holdout',
         queryClass,
+        tags,
         gold: {
           canonicalName,
           expectedProvider:
-            queryClass === 'branded' ? 'open_food_facts' : 'usda_fdc',
+            queryClass === 'branded' || tags.includes('barcode')
+              ? 'open_food_facts'
+              : 'usda_fdc',
+          ...(tags.includes('barcode')
+            ? { expectedSourceId: query.trim() }
+            : {}),
         },
         normalSearch: queryClass === 'normal',
         requiresSafeDefault: queryClass !== 'semantic',

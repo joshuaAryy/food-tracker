@@ -45,6 +45,31 @@ describe('food retrieval benchmark corpus', () => {
         left.id.localeCompare(right.id),
       ),
     );
+    expect(
+      new Set(FOOD_RETRIEVAL_CORPUS.flatMap((query) => query.tags)),
+    ).toEqual(
+      new Set([
+        'exact_generic',
+        'exact_branded',
+        'misspelling',
+        'abbreviation',
+        'semantic_descriptive',
+        'preparation_form',
+        'compound',
+        'regional_terminology',
+        'ambiguous',
+        'messy_fragment',
+        'barcode',
+      ]),
+    );
+    expect(
+      FOOD_RETRIEVAL_CORPUS.find((query) => query.query === 'greek yogrt')
+        ?.tags,
+    ).toContain('misspelling');
+    expect(
+      FOOD_RETRIEVAL_CORPUS.find((query) => query.query === '3017620422003')
+        ?.tags,
+    ).toContain('barcode');
   });
 });
 
