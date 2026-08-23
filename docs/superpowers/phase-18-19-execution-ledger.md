@@ -28,7 +28,8 @@ Protected state: preserved; no protected paths staged or modified
 ## Evidence log
 
 - Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
-  retrieval foundation, dataset/index commands, and ablation harness.
+  retrieval foundation, dataset/index commands, ablation harness, and
+  coverage-gated normal search.
 - Focused benchmark/retrieval tests pass: 4 files, 122 tests.
 - API lint and typecheck pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
