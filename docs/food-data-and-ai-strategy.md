@@ -91,8 +91,11 @@ reports imported/updated/skipped/rejected counts. CNF accepts the official
 `Measure_Weight_Conversion.csv`; Ciqual requires its XLSX plus official
 `alim_2025_11_03.xml`; CoFID consumes the official workbook. A release remains
 archived until bounded persistence batches complete. `food:reindex` writes an
-eligible global-only document set to a versioned Pinecone namespace; active
-namespace selection remains an explicit deployment configuration.
+eligible global-only document set to a versioned Pinecone namespace, reconciles
+stale IDs, and records a `FoodSearchIndexVersion` as `ready`. Passing the
+explicit `--activate` flag atomically retires the previous active record and
+marks the new namespace active; runtime active-namespace configuration remains
+an explicit deployment setting.
 
 Food search priority should eventually be:
 

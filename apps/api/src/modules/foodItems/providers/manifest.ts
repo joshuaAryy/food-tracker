@@ -3,6 +3,7 @@ export interface FoodDatasetManifest {
   release: string;
   sourceUrl: string;
   artifactSha256: string;
+  companionArtifactSha256?: string;
   license: string;
   notes: string;
 }
@@ -25,6 +26,8 @@ export const FOOD_DATASET_MANIFESTS: readonly FoodDatasetManifest[] = [
     sourceUrl: 'https://ciqual.anses.fr/',
     artifactSha256:
       '2c3495c8136d17356c50db410918da2102cb28096cb497c9cdf83c5f8ecb10ba',
+    companionArtifactSha256:
+      'e0b1de25b3039028205e9d54a96892e403e1b313c2efeb41180fabe132627478',
     license: 'Etalab Open Licence',
     notes:
       'Official composition XLSX joined with alim_2025_11_03.xml metadata.',

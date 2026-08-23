@@ -37,6 +37,7 @@ Protected state: preserved; no protected paths staged or modified
 - Official CNF 2026 parse dry-run completed under Node 22: 5,993 foods and 147,637 canonical nutrient rows in 7.2s, peak RSS 354 MB. This supports bounded 250-row persistence batches without introducing staging tables; PostgreSQL mutation/transaction timing remains pending.
 - Official CoFID 2021 parse dry-run completed under Node 22: 2,886 foods and 38,858 canonical nutrient rows in 4.1s, peak RSS 572 MB. This is parse-only evidence; PostgreSQL mutation/transaction timing remains pending.
 - Official Ciqual 2025 parse dry-run completed under Node 22: 3,484 foods and 59,819 canonical nutrient rows in 3.2s, peak RSS 358 MB; English canonical names and French/scientific aliases were read from the official XLSX/XML pair.
+- Manifest-verified dry-run CLI imports completed for all three official releases: CNF 5,993, Ciqual 3,484, and CoFID 2,886 rows; no rejected rows were reported. CNF measure conversion/name files now preserve portion descriptions separately from gram weights.
 - Dataset adapters are pure parsing/normalization paths; no live PostgreSQL dataset import has run.
 - Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
 - Full `pnpm test` remains blocked at Prisma migration deploy with `P1001` because no PostgreSQL server is reachable at `localhost:5432`; no migration or persistent import claim is made.

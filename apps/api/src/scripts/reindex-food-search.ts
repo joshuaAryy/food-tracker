@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
+import { prisma } from '../lib/prisma.js';
 import {
-  upsertSearchDocuments,
+  buildIndexVersionRecord,
+  reconcileSearchDocuments,
   semanticIndexVersion,
   versionedNamespace,
   type FoodSearchDocument,
@@ -32,16 +34,79 @@ async function main(): Promise<void> {
       document.rankingClass === 'reference' ||
       document.rankingClass === 'app_curated',
   );
-  await upsertSearchDocuments({
-    config,
-    documents: eligibleDocuments,
+  const indexVersion = semanticIndexVersion();
+  const versionKey = {
+    indexVersion,
+    namespace: config.candidateNamespace,
+  };
+  const versionRecord = buildIndexVersionRecord({
+    namespace: config.candidateNamespace,
+    documentCount: eligibleDocuments.length,
+    status: 'building',
   });
+  await prisma.foodSearchIndexVersion.upsert({
+    where: { indexVersion_namespace: versionKey },
+    create: versionRecord,
+    update: {
+      embeddingModel: versionRecord.embeddingModel,
+      documentFormat: versionRecord.documentFormat,
+      status: 'building',
+      documentCount: eligibleDocuments.length,
+      activatedAt: null,
+      retiredAt: null,
+    },
+  });
+  let reconciliation;
+  try {
+    reconciliation = await reconcileSearchDocuments({
+      config,
+      documents: eligibleDocuments,
+    });
+  } catch (error) {
+    await prisma.foodSearchIndexVersion.update({
+      where: { indexVersion_namespace: versionKey },
+      data: { status: 'failed' },
+    });
+    throw error;
+  }
+  const activate = process.argv.includes('--activate');
+  if (activate) {
+    await prisma.$transaction([
+      prisma.foodSearchIndexVersion.updateMany({
+        where: {
+          status: 'active',
+          NOT: [
+            {
+              indexVersion: versionKey.indexVersion,
+              namespace: versionKey.namespace,
+            },
+          ],
+        },
+        data: { status: 'retired', retiredAt: new Date() },
+      }),
+      prisma.foodSearchIndexVersion.update({
+        where: { indexVersion_namespace: versionKey },
+        data: {
+          status: 'active',
+          documentCount: reconciliation.indexed,
+          activatedAt: new Date(),
+        },
+      }),
+    ]);
+  } else {
+    await prisma.foodSearchIndexVersion.update({
+      where: { indexVersion_namespace: versionKey },
+      data: { status: 'ready', documentCount: reconciliation.indexed },
+    });
+  }
   console.log(
     JSON.stringify({
-      indexed: eligibleDocuments.length,
+      indexed: reconciliation.indexed,
+      staleDeleted: reconciliation.staleDeleted,
       namespace: config.candidateNamespace,
       indexVersion: semanticIndexVersion(),
       activeNamespace: config.activeNamespace,
+      activated: activate,
     }),
   );
 }

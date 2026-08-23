@@ -44,10 +44,16 @@ describe('provider normalization', () => {
       foods: 'FoodID,FoodName,FoodGroup\n1,Egg,Eggs\n',
       nutrients: 'NutrientID,NutrientName\n1,Protein\n2,Energy\n',
       foodNutrients: 'FoodID,NutrientID,Amount,Unit\n1,1,N,g\n1,2,143,kcal\n',
+      measures:
+        'Food_Code,Measure_Code,Measure_Weight_Conversion\n1,1,52.5\n',
+      measureNames:
+        'Measure_Code,Measure_Description_and_Unit_EN\n1,1 large egg\n',
     });
     expect(foods).toHaveLength(1);
     expect(foods[0]?.nutrients).toHaveLength(1);
     expect(foods[0]?.nutrients[0]?.key).toBe('calories');
+    expect(foods[0]?.servingWeightGrams).toBe(52.5);
+    expect(foods[0]?.servingUnit).toBe('1 large egg');
   });
 
   it('handles official CNF 2026 column names without guessing ambiguous nutrients', () => {

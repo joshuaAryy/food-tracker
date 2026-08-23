@@ -24,7 +24,7 @@ export interface IndexVersionRecord {
   namespace: string;
   embeddingModel: string;
   documentFormat: string;
-  status: 'building' | 'active' | 'retired' | 'failed';
+  status: 'building' | 'ready' | 'active' | 'retired' | 'failed';
   documentCount: number;
 }
 
@@ -151,4 +151,37 @@ export async function deleteStaleSearchDocuments(input: {
     }
   }
   return 0;
+}
+
+export async function reconcileSearchDocuments(input: {
+  config: IndexLifecycleConfig;
+  documents: readonly FoodSearchDocument[];
+}): Promise<{ indexed: number; staleDeleted: number }> {
+  const client = new Pinecone({ apiKey: input.config.apiKey });
+  const index = client.index({
+    host: input.config.indexHost,
+    namespace: input.config.candidateNamespace,
+  });
+  const indexedIds: string[] = [];
+  let paginationToken: string | undefined;
+  do {
+    const page = await index.listPaginated({
+      limit: 1000,
+      ...(paginationToken === undefined ? {} : { paginationToken }),
+    });
+    for (const item of page.vectors ?? []) {
+      if (typeof item.id === 'string') indexedIds.push(item.id);
+    }
+    paginationToken = page.pagination?.next;
+  } while (paginationToken !== undefined);
+  const staleIds = staleSearchDocumentIds(
+    indexedIds,
+    input.documents.map((document) => document.id),
+  );
+  const staleDeleted = await deleteStaleSearchDocuments({
+    config: input.config,
+    staleIds,
+  });
+  await upsertSearchDocuments(input);
+  return { indexed: input.documents.length, staleDeleted };
 }

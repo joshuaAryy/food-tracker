@@ -41,6 +41,7 @@ async function main(): Promise<void> {
     const nutrients = await readFile(arg('--nutrients'), 'utf8');
     const foodNutrients = await readFile(arg('--food-nutrients'), 'utf8');
     const measuresPath = optionalArg('--measures');
+    const measureNamesPath = optionalArg('--measure-names');
     rows = parseCnfCsv(
       {
         foods,
@@ -49,13 +50,28 @@ async function main(): Promise<void> {
         ...(measuresPath === null
           ? {}
           : { measures: await readFile(measuresPath, 'utf8') }),
+        ...(measureNamesPath === null
+          ? {}
+          : { measureNames: await readFile(measureNamesPath, 'utf8') }),
       },
       release,
     );
   } else if (provider === 'ciqual') {
+    const metadataPath = arg('--metadata-xml');
+    const metadataXml = await readFile(metadataPath, 'utf8');
+    if (manifest.companionArtifactSha256 !== undefined) {
+      const metadataSha256 = createHash('sha256')
+        .update(metadataXml)
+        .digest('hex');
+      if (metadataSha256 !== manifest.companionArtifactSha256) {
+        throw new Error(
+          `Pinned companion manifest mismatch for ${provider} ${release}; refusing import.`,
+        );
+      }
+    }
     rows = await parseCiqual({
       compositionXlsx: await readFile(inputPath),
-      metadataXml: await readFile(arg('--metadata-xml'), 'utf8'),
+      metadataXml,
       release,
     });
   } else {
