@@ -6,6 +6,7 @@ import {
   evaluateObservations,
   runFoodRetrievalBenchmark,
   compareAblations,
+  compareBaselineToCandidate,
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
 
@@ -229,6 +230,49 @@ describe('food retrieval benchmark metrics', () => {
 });
 
 describe('food retrieval benchmark harness', () => {
+  it('reports channel recovery, semantic harm, provider expansion, and regressions', () => {
+    const [query] = FOOD_RETRIEVAL_CORPUS;
+    if (query === undefined) throw new Error('benchmark corpus is empty');
+    const baseline = [observation(query.id)];
+    const candidate = [
+      observation(query.id, {
+        candidates: [
+          {
+            id: 'wrong-semantic',
+            name: 'Wrong semantic result',
+            provider: 'usda_fdc',
+            source: 'reference',
+            trusted: false,
+            evidence: 'semantic',
+            matchesExpected: false,
+          },
+          {
+            id: 'right-fuzzy',
+            name: query.gold.canonicalName,
+            provider: query.gold.expectedProvider ?? null,
+            source: 'reference',
+            trusted: false,
+            evidence: 'fuzzy',
+            matchesExpected: true,
+          },
+        ],
+      }),
+    ];
+    const comparison = compareBaselineToCandidate({
+      baseline,
+      candidate,
+      corpus: [query],
+    });
+    expect(comparison.fuzzyMissRecovery).toMatchObject({ hits: 1, total: 1 });
+    expect(comparison.semanticMissRecovery).toMatchObject({
+      hits: 0,
+      total: 1,
+    });
+    expect(comparison.semanticBadTop1).toMatchObject({ hits: 1, total: 1 });
+    expect(comparison.providerExpansion).toMatchObject({ hits: 1, total: 1 });
+    expect(comparison.top1Regression).toMatchObject({ hits: 0, total: 1 });
+  });
+
   it('supports legacy-to-hybrid ablation comparisons', () => {
     const report = compareAblations({
       legacy: [],

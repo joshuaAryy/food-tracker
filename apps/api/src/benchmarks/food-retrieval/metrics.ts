@@ -25,7 +25,7 @@ function normalized(value: string): string {
     .replace(/\s+/g, ' ');
 }
 
-function candidateMatches(
+export function candidateMatchesExpected(
   candidate: BenchmarkCandidate | undefined,
   query: FoodRetrievalBenchmarkQuery | undefined,
 ): boolean {
@@ -50,14 +50,14 @@ function selectedCandidate(
   );
 }
 
-function topKHit(
+export function topKHit(
   observation: BenchmarkObservation,
   query: FoodRetrievalBenchmarkQuery | undefined,
   size: number,
 ): boolean {
   return observation.candidates
     .slice(0, size)
-    .some((candidate) => candidateMatches(candidate, query));
+    .some((candidate) => candidateMatchesExpected(candidate, query));
 }
 
 function percentile(
@@ -173,7 +173,7 @@ export function evaluateObservations(
           .some(
             (candidate) =>
               candidate.provider === provider &&
-              candidateMatches(candidate, query),
+              candidateMatchesExpected(candidate, query),
           )
       ) {
         current.hits += 1;

@@ -109,7 +109,7 @@ Use explicit validated locale, then intentional `FOOD_SEARCH_DEFAULT_REGION`, th
 
 ### N — Ablation, tuning, holdout
 
-Run legacy, datasets, fuzzy, semantic, and full hybrid ablations. Tune only development data. Freeze settings and run holdout once. Evaluate against Task A’s measured gates; do not invent or revise percentages after holdout. Disable semantic if its measured benefit/harm gate fails.
+Run legacy, datasets, fuzzy, semantic, and full hybrid ablations. Compare each candidate run to the recorded legacy observations for fuzzy/semantic miss recovery, semantic bad-top-1 harm, provider expansion, Top-1 regressions, and latency deltas. Tune only development data. Freeze settings and run holdout once. Evaluate against Task A’s measured gates; do not invent or revise percentages after holdout. Disable semantic if its measured benefit/harm gate fails.
 
 ### O — Resilience and Railway staging
 

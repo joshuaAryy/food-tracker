@@ -7,6 +7,7 @@ export {
 export { runFoodRetrievalBenchmark } from './harness.js';
 export {
   compareAblations,
+  compareBaselineToCandidate,
   type AblationReport,
   type RetrievalAblation,
 } from './ablation.js';
@@ -24,4 +25,5 @@ export {
   type BenchmarkQueryTag,
   type CountMetric,
   type FoodRetrievalBenchmarkQuery,
+  type RetrievalComparison,
 } from './types.js';

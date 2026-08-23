@@ -43,5 +43,8 @@ The report includes Top-1/3/5, safety, duplicates, trusted selections,
 provider coverage, latency, external calls, normal-search coverage, and miss
 sets. `deriveAcceptanceGates` sets retrieval floors from the observed baseline
 hit counts and preserves hard zero/one safety gates; it does not invent target
-percentages. The resulting gates are the baseline contract for later retrieval
-tasks. Holdout settings must not be tuned using this corpus split.
+percentages. `compareBaselineToCandidate` additionally reports fuzzy and
+semantic miss recovery, semantic bad-top-1 harm, provider expansion, Top-1
+regressions, and p50/p95 latency deltas. The resulting gates are the baseline
+contract for later retrieval tasks. Holdout settings must not be tuned using
+this corpus split.

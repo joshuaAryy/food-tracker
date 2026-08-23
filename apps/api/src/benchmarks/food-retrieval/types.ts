@@ -141,6 +141,20 @@ export interface BenchmarkRun extends BenchmarkMetrics {
   observations: readonly BenchmarkObservation[];
 }
 
+export interface RetrievalComparison {
+  baseline: BenchmarkMetrics;
+  candidate: BenchmarkMetrics;
+  fuzzyMissRecovery: CountMetric;
+  semanticMissRecovery: CountMetric;
+  semanticBadTop1: CountMetric;
+  providerExpansion: CountMetric;
+  top1Regression: CountMetric;
+  latencyDeltaMs: {
+    p50: number;
+    p95: number;
+  };
+}
+
 export interface BenchmarkSnapshot {
   benchmarkVersion: typeof FOOD_RETRIEVAL_BENCHMARK_VERSION;
   name: 'legacy';
