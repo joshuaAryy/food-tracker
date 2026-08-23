@@ -10,6 +10,10 @@ import {
   normalizeIdentityText,
 } from '../src/modules/foodItems/providers/normalized.js';
 import {
+  boundedSemanticSearch,
+  parseSemanticSearchResponse,
+} from '../src/modules/foodItems/retrieval/pinecone.js';
+import {
   acceptFuzzyCandidate,
   FUZZY_RETRIEVAL_VERSION,
   fuzzyCandidateQueries,
@@ -44,8 +48,7 @@ describe('provider normalization', () => {
       foods: 'FoodID,FoodName,FoodGroup\n1,Egg,Eggs\n',
       nutrients: 'NutrientID,NutrientName\n1,Protein\n2,Energy\n',
       foodNutrients: 'FoodID,NutrientID,Amount,Unit\n1,1,N,g\n1,2,143,kcal\n',
-      measures:
-        'Food_Code,Measure_Code,Measure_Weight_Conversion\n1,1,52.5\n',
+      measures: 'Food_Code,Measure_Code,Measure_Weight_Conversion\n1,1,52.5\n',
       measureNames:
         'Measure_Code,Measure_Description_and_Unit_EN\n1,1 large egg\n',
     });
@@ -226,6 +229,7 @@ describe('hybrid retrieval policy', () => {
       preparation: 'plain',
       sourceProvider: 'ciqual',
       sourceRegion: 'FR',
+      sourceType: 'app_owned',
       rankingClass: 'reference',
       datasetRelease: '2025',
       hasBarcode: false,
@@ -242,5 +246,30 @@ describe('hybrid retrieval policy', () => {
       status: 'building',
     });
     expect(staleSearchDocumentIds(['a', 'b', 'b'], ['b', 'c'])).toEqual(['a']);
+  });
+
+  it('keeps Pinecone response parsing and timeout degradation bounded', async () => {
+    expect(
+      parseSemanticSearchResponse({
+        result: {
+          hits: [
+            { _id: 'food-1', _score: 0.8, fields: { region: 'CA' } },
+            { _score: 0.7 },
+          ],
+        },
+      }),
+    ).toEqual([
+      {
+        foodItemId: 'food-1',
+        score: 0.8,
+        metadata: { region: 'CA' },
+      },
+    ]);
+    await expect(
+      boundedSemanticSearch(
+        new Promise((resolve) => setTimeout(() => resolve('late'), 25)),
+        1,
+      ),
+    ).rejects.toThrow('Pinecone search timeout');
   });
 });

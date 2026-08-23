@@ -13,6 +13,49 @@ export interface SemanticSearchClient {
   search(query: string, timeoutMs: number): Promise<SemanticSearchMatch[]>;
 }
 
+export async function boundedSemanticSearch<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Pinecone search timeout')), timeoutMs),
+  );
+  return Promise.race([operation, timeout]);
+}
+
+export function parseSemanticSearchResponse(
+  response: unknown,
+): SemanticSearchMatch[] {
+  const hits =
+    (
+      response as {
+        result?: {
+          hits?: Array<{
+            _id?: string;
+            _score?: number;
+            fields?: Record<string, unknown>;
+          }>;
+        };
+      }
+    ).result?.hits ?? [];
+  return hits.flatMap((hit) => {
+    if (typeof hit._id !== 'string') return [];
+    return [
+      {
+        foodItemId: hit._id,
+        score: typeof hit._score === 'number' ? hit._score : 0,
+        metadata: Object.fromEntries(
+          Object.entries(hit.fields ?? {})
+            .filter(([, value]) =>
+              ['string', 'number', 'boolean'].includes(typeof value),
+            )
+            .map(([key, value]) => [key, value as string | number | boolean]),
+        ),
+      },
+    ];
+  });
+}
+
 export async function createSemanticIndex(input: {
   apiKey: string;
   name: string;
@@ -53,49 +96,13 @@ export function createPineconeSemanticClient(input: {
   });
   return {
     async search(query, timeoutMs) {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Pinecone search timeout')),
-          timeoutMs,
-        ),
-      );
-      const response = await Promise.race([
+      const response = await boundedSemanticSearch(
         index.searchRecords({
           query: { inputs: { text: query }, topK: input.topK },
         }),
-        timeout,
-      ]);
-      const hits =
-        (
-          response as {
-            result?: {
-              hits?: Array<{
-                _id?: string;
-                _score?: number;
-                fields?: Record<string, unknown>;
-              }>;
-            };
-          }
-        ).result?.hits ?? [];
-      return hits.flatMap((hit) => {
-        if (typeof hit._id !== 'string') return [];
-        return [
-          {
-            foodItemId: hit._id,
-            score: typeof hit._score === 'number' ? hit._score : 0,
-            metadata: Object.fromEntries(
-              Object.entries(hit.fields ?? {})
-                .filter(([, value]) =>
-                  ['string', 'number', 'boolean'].includes(typeof value),
-                )
-                .map(([key, value]) => [
-                  key,
-                  value as string | number | boolean,
-                ]),
-            ),
-          },
-        ];
-      });
+        timeoutMs,
+      );
+      return parseSemanticSearchResponse(response);
     },
   };
 }

@@ -9,13 +9,44 @@ import {
   type IndexLifecycleConfig,
 } from '../modules/foodItems/retrieval/index-lifecycle.js';
 
+function readGlobalDocuments(value: unknown): FoodSearchDocument[] {
+  if (!Array.isArray(value)) throw new Error('Documents JSON must be an array');
+  return value.map((document, index) => {
+    if (typeof document !== 'object' || document === null)
+      throw new Error(`Document ${index} is not an object`);
+    const record = document as Record<string, unknown>;
+    if (record.sourceType !== 'app_owned') {
+      throw new Error(
+        `Document ${index} is not an app-owned global/reference FoodItem`,
+      );
+    }
+    if (
+      'userId' in record ||
+      'ownerUserId' in record ||
+      'private' in record ||
+      'userSpecific' in record
+    ) {
+      throw new Error(`Document ${index} contains private-user metadata`);
+    }
+    if (
+      typeof record.id !== 'string' ||
+      typeof record.text !== 'string' ||
+      (record.rankingClass !== 'reference' &&
+        record.rankingClass !== 'app_curated')
+    ) {
+      throw new Error(`Document ${index} has invalid global search metadata`);
+    }
+    return record as unknown as FoodSearchDocument;
+  });
+}
+
 async function main(): Promise<void> {
   const inputPath = process.argv[2];
   if (inputPath === undefined)
     throw new Error('Usage: reindex-food-search <documents.json>');
-  const documents = JSON.parse(
-    await readFile(inputPath, 'utf8'),
-  ) as FoodSearchDocument[];
+  const documents = readGlobalDocuments(
+    JSON.parse(await readFile(inputPath, 'utf8')) as unknown,
+  );
   const required = ['PINECONE_API_KEY', 'PINECONE_INDEX_HOST'];
   for (const key of required)
     if (!process.env[key]) throw new Error(`${key} is required`);

@@ -6,6 +6,7 @@ export interface FoodSearchDocument {
   text: string;
   sourceProvider: string | null;
   sourceRegion: string | null;
+  sourceType: 'app_owned';
   rankingClass: 'app_curated' | 'reference';
   datasetRelease: string | null;
   hasBarcode: boolean;
@@ -37,6 +38,7 @@ export function searchDocumentForFood(input: {
   preparation: string | null;
   sourceProvider: string | null;
   sourceRegion: string | null;
+  sourceType: 'app_owned';
   rankingClass: 'app_curated' | 'reference';
   datasetRelease: string | null;
   hasBarcode: boolean;
@@ -54,6 +56,7 @@ export function searchDocumentForFood(input: {
       .join(' '),
     sourceProvider: input.sourceProvider,
     sourceRegion: input.sourceRegion,
+    sourceType: input.sourceType,
     rankingClass: input.rankingClass,
     datasetRelease: input.datasetRelease,
     hasBarcode: input.hasBarcode,
@@ -114,6 +117,7 @@ export async function upsertSearchDocuments(input: {
         text: document.text,
         sourceProvider: document.sourceProvider ?? '',
         sourceRegion: document.sourceRegion ?? '',
+        sourceType: document.sourceType,
         rankingClass: document.rankingClass,
         datasetRelease: document.datasetRelease ?? '',
         hasBarcode: document.hasBarcode,
