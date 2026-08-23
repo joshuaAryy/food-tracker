@@ -8,6 +8,7 @@ import {
   type CountMetric,
   type FoodRetrievalBenchmarkQuery,
 } from './types.js';
+import { normalizeFoodIdentityText } from '../../modules/foodItems/text-normalization.js';
 
 function rate(hits: number, total: number): number {
   return total === 0 ? 0 : hits / total;
@@ -18,10 +19,7 @@ function countMetric(hits: number, total: number): CountMetric {
 }
 
 function normalized(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase()
+  return normalizeFoodIdentityText(value)
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { FoodItem } from '@food-tracker/shared';
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
 import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
@@ -8,6 +9,7 @@ import { countImportRows } from '../src/modules/foodItems/providers/importer.js'
 import {
   dedupeAliases,
   normalizeIdentityText,
+  providerSearchText,
 } from '../src/modules/foodItems/providers/normalized.js';
 import {
   boundedSemanticSearch,
@@ -22,6 +24,11 @@ import {
   decideRetrievalPolicy,
   unionGeneratedCandidates,
 } from '../src/modules/foodItems/retrieval/types.js';
+import {
+  appendUniqueCandidate,
+  candidateMatchReason,
+  foodItemCandidate,
+} from '../src/modules/foodItems/retrieval/candidate-generation.js';
 import {
   buildIndexVersionRecord,
   searchDocumentForFood,
@@ -140,6 +147,15 @@ describe('provider normalization', () => {
     expect(dedupeAliases('Crème', ['crème', 'Creme', 'Pâté'])).toEqual([
       'Pâté',
     ]);
+    expect(
+      providerSearchText({
+        name: 'Egg, chicken, whole, raw',
+        authoritativeAliases: ['Œuf de poule entier cru'],
+        brandName: null,
+        category: 'Œufs',
+        preparation: 'cru',
+      }),
+    ).toContain('oeuf de poule entier cru');
   });
 
   it('counts deterministic duplicate and rejected import rows', () => {
@@ -169,6 +185,38 @@ describe('provider normalization', () => {
 });
 
 describe('hybrid retrieval policy', () => {
+  it('shares source classification, alias propagation, and candidate dedupe', () => {
+    const foodItem = {
+      id: 'food-1',
+      name: 'Egg, chicken, whole, raw',
+      authoritativeAliases: ['Œuf de poule entier cru'],
+      sourceType: 'app_owned',
+      sourceProvider: 'ciqual',
+      sourceId: '1001',
+      servingOptions: null,
+    } as FoodItem;
+    const candidate = foodItemCandidate({
+      foodItem,
+      matchReason: candidateMatchReason({
+        sourceType: foodItem.sourceType,
+        sourceProvider: foodItem.sourceProvider,
+        hasBarcode: false,
+      }),
+      rank: 1,
+    });
+    expect(candidate.matchReason).toBe('reference');
+    expect(
+      candidate.candidateType === 'food_item'
+        ? candidate.foodItem.authoritativeAliases
+        : null,
+    ).toEqual(['Œuf de poule entier cru']);
+    const candidates = [] as (typeof candidate)[];
+    const seen = new Set<string>();
+    expect(appendUniqueCandidate({ candidates, seen, candidate })).toBe(true);
+    expect(appendUniqueCandidate({ candidates, seen, candidate })).toBe(false);
+    expect(candidates).toHaveLength(1);
+  });
+
   it('keeps normal search coverage-aware and AI safe-local short-circuiting', () => {
     expect(
       decideRetrievalPolicy({
@@ -195,7 +243,7 @@ describe('hybrid retrieval policy', () => {
     } as never;
     const generated = {
       candidate,
-      identity: { canonicalName: 'Egg', authoritativeAliases: [] },
+      identity: { authoritativeAliases: [] },
       provenance: {
         rankingSource: 'reference' as const,
         sourceProvider: 'cnf' as const,

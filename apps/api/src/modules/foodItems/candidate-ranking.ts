@@ -3,6 +3,7 @@ import type {
   AiFoodParseCandidate,
 } from '@food-tracker/shared';
 import { assessFoodIntent } from './food-intent.js';
+import { normalizeFoodIdentityText } from './text-normalization.js';
 
 export type CandidateSource =
   | 'recent'
@@ -149,14 +150,7 @@ function uniqueValues(values: string[]): string[] {
 }
 
 export function normalizeText(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/œ/gi, 'oe')
-    .replace(/æ/gi, 'ae')
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/g, ' ');
+  return normalizeFoodIdentityText(value);
 }
 
 export function normalizeToken(value: string): string {

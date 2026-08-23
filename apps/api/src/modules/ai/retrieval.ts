@@ -28,6 +28,11 @@ import {
 } from '../foodItems/candidate-ranking.js';
 import { retrieveFuzzyFoodItemMatches } from '../foodItems/retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from '../foodItems/retrieval/pinecone.js';
+import {
+  appendUniqueCandidate,
+  candidateMatchReason,
+  foodItemCandidate,
+} from '../foodItems/retrieval/candidate-generation.js';
 import type { ProviderParsedFoodItem } from './provider.js';
 import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
 
@@ -55,24 +60,6 @@ function foodItemInclude(userId: string) {
       select: { id: true },
     },
   };
-}
-
-function candidateReason(
-  sourceType: string,
-  hasBarcode: boolean,
-  sourceProvider?: string | null,
-): AiFoodCandidateMatchReason {
-  if (sourceType === 'user_custom') return 'custom';
-  if (
-    sourceProvider === 'cnf' ||
-    sourceProvider === 'ciqual' ||
-    sourceProvider === 'cofid' ||
-    sourceProvider === 'usda_fdc'
-  ) {
-    return 'reference';
-  }
-  if (sourceType === 'app_owned') return 'app';
-  return hasBarcode ? 'barcode_cached' : 'cached_external';
 }
 
 function logUsdaRetrievalDiagnostic(
@@ -108,25 +95,15 @@ export async function retrieveParsedFoodItems(input: {
         semanticScore: number | null;
       },
     ) => {
-      if (seen.has(foodItem.id)) return;
-      seen.add(foodItem.id);
-      if (foodItem.sourceProvider !== null && foodItem.sourceId !== null) {
-        seen.add(`${foodItem.sourceProvider}:${foodItem.sourceId}`);
-      }
-      candidates.push({
-        candidateType: 'food_item',
-        foodItem: {
-          ...foodItem,
-          defaultWholeItemServing: defaultWholeItemServingFromOptions(
-            foodItem.servingOptions,
-          ),
-        },
-        externalFood: null,
-        rank: candidates.length + 1,
-        matchReason,
-        confidence: 'low',
-        defaultServingMultiplier: 1,
-        ...(retrievalEvidence === undefined ? {} : { retrievalEvidence }),
+      appendUniqueCandidate({
+        candidates,
+        seen,
+        candidate: foodItemCandidate({
+          foodItem,
+          matchReason,
+          rank: candidates.length + 1,
+          ...(retrievalEvidence === undefined ? {} : { retrievalEvidence }),
+        }),
       });
     };
 
@@ -195,11 +172,11 @@ export async function retrieveParsedFoodItems(input: {
     for (const foodItem of appFoods) {
       pushCandidate(
         serializeFoodItem(foodItem),
-        candidateReason(
-          foodItem.sourceType,
-          foodItem.barcodes.length > 0,
-          foodItem.sourceProvider,
-        ),
+        candidateMatchReason({
+          sourceType: foodItem.sourceType,
+          sourceProvider: foodItem.sourceProvider,
+          hasBarcode: foodItem.barcodes.length > 0,
+        }),
       );
     }
 
@@ -217,11 +194,11 @@ export async function retrieveParsedFoodItems(input: {
     for (const foodItem of cachedFoods) {
       pushCandidate(
         serializeFoodItem(foodItem),
-        candidateReason(
-          foodItem.sourceType,
-          foodItem.barcodes.length > 0,
-          foodItem.sourceProvider,
-        ),
+        candidateMatchReason({
+          sourceType: foodItem.sourceType,
+          sourceProvider: foodItem.sourceProvider,
+          hasBarcode: foodItem.barcodes.length > 0,
+        }),
       );
     }
 
@@ -246,11 +223,11 @@ export async function retrieveParsedFoodItems(input: {
           if (foodItem === undefined || seen.has(foodItem.id)) continue;
           pushCandidate(
             serializeFoodItem(foodItem),
-            candidateReason(
-              foodItem.sourceType,
-              foodItem.barcodes.length > 0,
-              foodItem.sourceProvider,
-            ),
+            candidateMatchReason({
+              sourceType: foodItem.sourceType,
+              sourceProvider: foodItem.sourceProvider,
+              hasBarcode: foodItem.barcodes.length > 0,
+            }),
             {
               lexical: false,
               fuzzyDistance: match.distance,
@@ -293,11 +270,11 @@ export async function retrieveParsedFoodItems(input: {
           if (foodItem === undefined || seen.has(foodItem.id)) continue;
           pushCandidate(
             serializeFoodItem(foodItem),
-            candidateReason(
-              foodItem.sourceType,
-              foodItem.barcodes.length > 0,
-              foodItem.sourceProvider,
-            ),
+            candidateMatchReason({
+              sourceType: foodItem.sourceType,
+              sourceProvider: foodItem.sourceProvider,
+              hasBarcode: foodItem.barcodes.length > 0,
+            }),
             { lexical: false, fuzzyDistance: null, semanticScore: match.score },
           );
         }

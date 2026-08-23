@@ -7,7 +7,7 @@ import type { CandidateSource } from '../candidate-ranking.js';
 export type RetrievalMode = 'normal_search' | 'ai' | 'photo';
 
 export interface CandidateIdentityTerms {
-  canonicalName: string;
+  /** Canonical name is always derived from candidate.foodItem.name. */
   authoritativeAliases: readonly string[];
 }
 

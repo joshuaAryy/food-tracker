@@ -15,7 +15,6 @@ import {
   idParamsSchema,
   classifyServingUnit,
   type ServingUnit,
-  type AiFoodCandidateMatchReason,
   type AiFoodParseCandidate,
 } from '@food-tracker/shared';
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
@@ -57,6 +56,11 @@ import {
 } from './candidate-ranking.js';
 import { retrieveFuzzyFoodItemMatches } from './retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from './retrieval/pinecone.js';
+import {
+  appendUniqueCandidate,
+  candidateMatchReason,
+  foodItemCandidate,
+} from './retrieval/candidate-generation.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
 
@@ -382,27 +386,6 @@ async function visibleFoodItem(id: string, userId: string) {
   });
 }
 
-function candidateReason(
-  sourceType: string,
-  hasBarcode: boolean,
-  isSaved = false,
-  isRecent = false,
-  sourceProvider: string | null = null,
-): AiFoodCandidateMatchReason {
-  if (isRecent) return 'recent';
-  if (isSaved) return 'saved';
-  if (sourceType === 'user_custom') return 'custom';
-  if (
-    sourceProvider === 'cnf' ||
-    sourceProvider === 'ciqual' ||
-    sourceProvider === 'cofid' ||
-    sourceProvider === 'usda_fdc'
-  )
-    return 'reference';
-  if (sourceType === 'app_owned') return 'app';
-  return hasBarcode ? 'barcode_cached' : 'cached_external';
-}
-
 function needsAdditionalCoverage(
   query: string,
   candidates: AiFoodParseCandidate[],
@@ -674,30 +657,20 @@ foodItemsRouter.post(
 
     for (const foodItem of localFoods) {
       const serialized = serializeFoodItem(foodItem);
-      const candidateFoodItem = {
-        ...serialized,
-        defaultWholeItemServing: defaultWholeItemServingFromOptions(
-          serialized.servingOptions,
-        ),
-      };
-      seen.add(serialized.id);
-      if (serialized.sourceProvider !== null && serialized.sourceId !== null) {
-        seen.add(`${serialized.sourceProvider}:${serialized.sourceId}`);
-      }
-      candidates.push({
-        candidateType: 'food_item',
-        foodItem: candidateFoodItem,
-        externalFood: null,
-        rank: candidates.length + 1,
-        matchReason: candidateReason(
-          foodItem.sourceType,
-          foodItem.barcodes.length > 0,
-          serialized.isSaved,
-          foodItem.foodLogs.length > 0,
-          serialized.sourceProvider,
-        ),
-        confidence: 'low',
-        defaultServingMultiplier: 1,
+      appendUniqueCandidate({
+        candidates,
+        seen,
+        candidate: foodItemCandidate({
+          foodItem: serialized,
+          matchReason: candidateMatchReason({
+            sourceType: foodItem.sourceType,
+            sourceProvider: serialized.sourceProvider,
+            hasBarcode: foodItem.barcodes.length > 0,
+            isSaved: serialized.isSaved,
+            isRecent: foodItem.foodLogs.length > 0,
+          }),
+          rank: candidates.length + 1,
+        }),
       });
     }
 
@@ -722,31 +695,25 @@ foodItemsRouter.post(
           const foodItem = byId.get(id);
           if (foodItem === undefined || seen.has(foodItem.id)) continue;
           const serialized = serializeFoodItem(foodItem);
-          seen.add(serialized.id);
-          candidates.push({
-            candidateType: 'food_item',
-            foodItem: {
-              ...serialized,
-              defaultWholeItemServing: defaultWholeItemServingFromOptions(
-                serialized.servingOptions,
-              ),
-            },
-            externalFood: null,
-            rank: candidates.length + 1,
-            matchReason: candidateReason(
-              foodItem.sourceType,
-              foodItem.barcodes.length > 0,
-              serialized.isSaved,
-              foodItem.foodLogs.length > 0,
-              serialized.sourceProvider,
-            ),
-            confidence: 'low',
-            defaultServingMultiplier: 1,
-            retrievalEvidence: {
-              lexical: false,
-              fuzzyDistance: fuzzyDistanceById.get(id) ?? null,
-              semanticScore: null,
-            },
+          appendUniqueCandidate({
+            candidates,
+            seen,
+            candidate: foodItemCandidate({
+              foodItem: serialized,
+              matchReason: candidateMatchReason({
+                sourceType: foodItem.sourceType,
+                sourceProvider: serialized.sourceProvider,
+                hasBarcode: foodItem.barcodes.length > 0,
+                isSaved: serialized.isSaved,
+                isRecent: foodItem.foodLogs.length > 0,
+              }),
+              rank: candidates.length + 1,
+              retrievalEvidence: {
+                lexical: false,
+                fuzzyDistance: fuzzyDistanceById.get(id) ?? null,
+                semanticScore: null,
+              },
+            }),
           });
         }
       } catch {
@@ -783,32 +750,27 @@ foodItemsRouter.post(
           const foodItem = byId.get(id);
           if (foodItem === undefined || seen.has(id)) continue;
           const serialized = serializeFoodItem(foodItem);
-          seen.add(id);
-          candidates.push({
-            candidateType: 'food_item',
-            foodItem: {
-              ...serialized,
-              defaultWholeItemServing: defaultWholeItemServingFromOptions(
-                serialized.servingOptions,
-              ),
-            },
-            externalFood: null,
-            rank: candidates.length + 1,
-            matchReason: candidateReason(
-              foodItem.sourceType,
-              foodItem.barcodes.length > 0,
-              serialized.isSaved,
-              foodItem.foodLogs.length > 0,
-              serialized.sourceProvider,
-            ),
-            confidence: 'low',
-            defaultServingMultiplier: 1,
-            retrievalEvidence: {
-              lexical: false,
-              fuzzyDistance: null,
-              semanticScore:
-                matches.find((match) => match.foodItemId === id)?.score ?? null,
-            },
+          appendUniqueCandidate({
+            candidates,
+            seen,
+            candidate: foodItemCandidate({
+              foodItem: serialized,
+              matchReason: candidateMatchReason({
+                sourceType: foodItem.sourceType,
+                sourceProvider: serialized.sourceProvider,
+                hasBarcode: foodItem.barcodes.length > 0,
+                isSaved: serialized.isSaved,
+                isRecent: foodItem.foodLogs.length > 0,
+              }),
+              rank: candidates.length + 1,
+              retrievalEvidence: {
+                lexical: false,
+                fuzzyDistance: null,
+                semanticScore:
+                  matches.find((match) => match.foodItemId === id)?.score ??
+                  null,
+              },
+            }),
           });
         }
       } catch {

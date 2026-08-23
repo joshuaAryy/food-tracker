@@ -6,6 +6,7 @@ import {
 import { NUTRIENT_CATALOG } from '@food-tracker/shared';
 import {
   normalizeIdentityText,
+  providerSearchText,
   type NormalizedProviderFood,
 } from './normalized.js';
 
@@ -95,15 +96,7 @@ export async function persistProviderFoods(input: {
         normalizedName: normalizeIdentityText(row.name),
         normalizedBrandName:
           row.brandName === null ? null : normalizeIdentityText(row.brandName),
-        searchText: [
-          row.name,
-          ...row.authoritativeAliases,
-          row.brandName,
-          row.category,
-          row.preparation,
-        ]
-          .filter(Boolean)
-          .join(' '),
+        searchText: providerSearchText(row),
         servingQuantity: row.servingQuantity,
         servingUnit: row.servingUnit,
         servingWeightGrams: row.servingWeightGrams,

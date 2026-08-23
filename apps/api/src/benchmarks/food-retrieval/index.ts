@@ -21,6 +21,7 @@ export {
   type BenchmarkRun,
   type BenchmarkSnapshot,
   type BenchmarkSplit,
+  type BenchmarkQueryTag,
   type CountMetric,
   type FoodRetrievalBenchmarkQuery,
 } from './types.js';

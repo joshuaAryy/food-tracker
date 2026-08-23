@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { normalizeFoodIdentityText } from '../text-normalization.js';
 
 export type BulkProvider = 'cnf' | 'ciqual' | 'cofid';
 export type CanonicalNutrientUnit = 'kcal' | 'g' | 'mg' | 'mcg';
@@ -39,14 +40,7 @@ export function normalizeDisplayName(value: string): string {
 }
 
 export function normalizeIdentityText(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/œ/gi, 'oe')
-    .replace(/æ/gi, 'ae')
-    .toLocaleLowerCase()
-    .trim()
-    .replace(/\s+/g, ' ');
+  return normalizeFoodIdentityText(value);
 }
 
 export function dedupeAliases(
@@ -64,6 +58,25 @@ export function dedupeAliases(
     result.push(display);
   }
   return result;
+}
+
+export function providerSearchText(input: {
+  name: string;
+  authoritativeAliases: readonly string[];
+  brandName: string | null;
+  category: string | null;
+  preparation: string | null;
+}): string {
+  return [
+    input.name,
+    ...input.authoritativeAliases,
+    input.brandName,
+    input.category,
+    input.preparation,
+  ]
+    .filter((value): value is string => value !== null && value.trim() !== '')
+    .map(normalizeIdentityText)
+    .join(' ');
 }
 
 export function parseNullableNumber(value: unknown): number | null {

@@ -9,7 +9,7 @@ Protected state: preserved; no protected paths staged or modified
 ## Task status
 
 - [~] A — benchmark infrastructure complete; live legacy baseline pending PostgreSQL
-- [x] B — retrieval boundary/source semantics/alias identity implemented and shared by normal/AI/photo retrieval paths
+- [x] B — retrieval boundary/source semantics/alias identity implemented and shared by normal/AI/photo retrieval paths; candidate assembly and Unicode normalization are centralized
 - [~] C — provenance schema foundation implemented; migration deployment pending PostgreSQL
 - [x] D — importer contracts/Unicode normalization
 - [~] E — CNF adapter/persistence strategy (official parse dry-run complete; live mutation measurement pending)
@@ -30,7 +30,7 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
   retrieval foundation, dataset/index commands, ablation harness, and
   coverage-gated normal search.
-- Focused benchmark/retrieval tests pass: 4 files, 129 tests, including official-column, alias, provider, fuzzy-policy, semantic timeout/parser, and index-lifecycle regressions. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
+- Focused benchmark/retrieval tests pass: 4 files, 130 tests, including official-column, alias, provider, shared candidate-generation, fuzzy-policy, semantic timeout/parser, and index-lifecycle regressions. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
 - The permanent 120-query corpus now explicitly tags misspellings, abbreviations, descriptive semantics, preparation/form, compounds, regional terminology, ambiguous/messy fragments, and barcodes while retaining the 80/40 development/holdout split.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.

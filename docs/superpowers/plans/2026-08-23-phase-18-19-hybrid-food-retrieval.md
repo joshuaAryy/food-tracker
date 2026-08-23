@@ -31,7 +31,7 @@ type CandidateRankingSource =
   | 'cached_external' | 'barcode_cached';
 
 interface CandidateIdentityTerms {
-  canonicalName: string;
+  // Canonical name is derived from candidate.foodItem.name; do not duplicate it.
   authoritativeAliases: readonly string[];
 }
 
@@ -61,6 +61,8 @@ Create the reviewed approximately-120-query corpus, deterministic metrics/harnes
 
 Create the provider-neutral retrieval types, local generator, union, mode-policy interfaces, and provenance-aware ranker input. Distinguish `app_curated` from `reference`. Extend ranker identity input with `CandidateIdentityTerms`; evaluate canonical name and each authoritative alias independently. Keep all existing preparation, negative-descriptor, branded, loggability, eligibility, confidence, and photo safeguards.
 
+Use a focused candidate-generation helper shared by normal and AI/photo paths for source classification, FoodItem hydration, authoritative-alias propagation, serving defaults, and candidate identity keys. Keep acquisition sequencing mode-specific; do not collapse it into one external-channel function.
+
 ### C — Provenance schema foundation
 
 Add `cnf`, `ciqual`, and `cofid`; release/import-run/index-version models; FoodItem release/hash/region/category/aliases fields; FoodItemNutrient source provenance fields; provider/source uniqueness; active-release/index constraints. Add `pg_trgm` and GiST index in a reviewed migration. Do not add staging tables yet.
@@ -83,7 +85,7 @@ Join approved worksheets by Food Code; preserve `Tr`/`N` as unknown; distinguish
 
 ### H — Imported-catalog lexical/reference retrieval
 
-Build search text from canonical name, authoritative aliases, brand, category, and preparation. Rehydrate local candidates with `FoodItem.sourceAliases` into `CandidateIdentityTerms`; never pass full searchText to deterministic identity. Ensure provider/reference ranking and user isolation remain correct.
+Build normalized retrieval text from canonical name, authoritative aliases, brand, category, and preparation while retaining display-spelled aliases separately. Rehydrate local candidates with `FoodItem.sourceAliases` into `CandidateIdentityTerms`; never pass full searchText to deterministic identity. Ensure provider/reference ranking and user isolation remain correct.
 
 ### I — PostgreSQL fuzzy KNN
 
