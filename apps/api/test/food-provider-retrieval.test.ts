@@ -197,6 +197,109 @@ describe('provider normalization', () => {
     });
   });
 
+  it('does not mutate duplicate provider rows twice during persistence', async () => {
+    const createCalls: string[] = [];
+    const row = {
+      provider: 'cnf' as const,
+      release: '2026',
+      sourceId: '1',
+      name: 'Egg',
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic' as const,
+      category: null,
+      preparation: null,
+      region: 'CA',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [],
+      sourceRecordHash: 'x',
+    };
+    const fakePrisma = {
+      foodDatasetRelease: {
+        upsert: async () => undefined,
+        update: async () => undefined,
+      },
+      foodItem: {
+        findFirst: async () => null,
+        create: async () => {
+          createCalls.push('create');
+          return { id: 'food-1' };
+        },
+        updateMany: async () => undefined,
+      },
+      foodItemNutrient: {
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+    };
+    const result = await persistProviderFoods({
+      prisma: fakePrisma as never,
+      rows: [row, row],
+      sourceUri: 'https://example.test/cnf.csv',
+      sourceSha256: 'sha',
+    });
+    expect(createCalls).toEqual(['create']);
+    expect(result).toMatchObject({ imported: 1, skipped: 1 });
+  });
+
+  it('does not persist rows rejected for non-finite nutrient amounts', async () => {
+    const createCalls: string[] = [];
+    const row = {
+      provider: 'cnf' as const,
+      release: '2026',
+      sourceId: 'invalid-nutrient',
+      name: 'Egg',
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic' as const,
+      category: null,
+      preparation: null,
+      region: 'CA',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [
+        {
+          key: 'protein',
+          amount: Number.NaN,
+          unit: 'g' as const,
+          sourceLabel: 'Protein',
+          sourceUnit: 'g',
+          sourceValue: 'tr',
+        },
+      ],
+      sourceRecordHash: 'invalid',
+    };
+    const fakePrisma = {
+      foodDatasetRelease: {
+        upsert: async () => undefined,
+        update: async () => undefined,
+      },
+      foodItem: {
+        findFirst: async () => null,
+        create: async () => {
+          createCalls.push('create');
+          return { id: 'food-1' };
+        },
+        updateMany: async () => undefined,
+      },
+      foodItemNutrient: {
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+    };
+    const result = await persistProviderFoods({
+      prisma: fakePrisma as never,
+      rows: [row],
+      sourceUri: 'https://example.test/cnf.csv',
+      sourceSha256: 'sha',
+    });
+    expect(createCalls).toEqual([]);
+    expect(result).toMatchObject({ imported: 0, skipped: 0, rejected: 1 });
+  });
+
   it('records a failed release when a persistence batch aborts', async () => {
     const statuses: string[] = [];
     const row = {

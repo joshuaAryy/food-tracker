@@ -82,8 +82,21 @@ export async function persistProviderFoods(input: {
     let imported = 0;
     let updated = 0;
     let skipped = counts.skipped;
-    for (let offset = 0; offset < input.rows.length; offset += batchSize) {
-      const batch = input.rows.slice(offset, offset + batchSize);
+    const seenSourceIds = new Set<string>();
+    const rowsToPersist = input.rows.filter((row) => {
+      if (
+        !row.sourceId ||
+        !row.name ||
+        row.nutrients.some((nutrient) => !Number.isFinite(nutrient.amount))
+      )
+        return false;
+      const key = `${row.provider}:${row.sourceId}`;
+      if (seenSourceIds.has(key)) return false;
+      seenSourceIds.add(key);
+      return true;
+    });
+    for (let offset = 0; offset < rowsToPersist.length; offset += batchSize) {
+      const batch = rowsToPersist.slice(offset, offset + batchSize);
       for (const row of batch) {
         if (!row.sourceId || !row.name) continue;
         const existing = await input.prisma.foodItem.findFirst({
