@@ -23,7 +23,7 @@ Protected state: preserved; no protected paths staged or modified
 - [x] M — locale tie-break
 - [~] N — ablation/tuning/holdout pending the measured legacy baseline
 - [~] O — staging/resilience pending PostgreSQL, Pinecone credentials, and Railway execution
-- [~] P — documentation aligned; final closeout pending blocked gates
+- [~] P — phase-status documentation aligned; final closeout pending blocked gates
 
 ## Evidence log
 
