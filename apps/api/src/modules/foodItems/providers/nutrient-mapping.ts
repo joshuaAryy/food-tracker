@@ -37,6 +37,43 @@ const MAPPINGS: Record<string, Mapping> = {
   water: { key: 'water', unit: 'g' },
 };
 
+function mappingForLabel(label: string): Mapping | undefined {
+  const normalized = normalizeIdentityText(label);
+  const exact = MAPPINGS[normalized];
+  if (exact !== undefined) return exact;
+  const required = (key: string): Mapping => {
+    const mapping = MAPPINGS[key];
+    if (mapping === undefined)
+      throw new Error(`Missing nutrient mapping: ${key}`);
+    return mapping;
+  };
+  const candidates: Array<[string, Mapping]> = [
+    ['energy', required('energy')],
+    ['calorie', required('calories')],
+    ['protein', required('protein')],
+    ['carbohydrate', required('carbohydrates')],
+    ['glucide', required('carbohydrates')],
+    ['fat', required('fat')],
+    ['lipide', required('fat')],
+    ['fibre', required('fiber')],
+    ['fiber', required('fiber')],
+    ['sugar', required('sugar')],
+    ['sucre', required('sugar')],
+    ['sodium', required('sodium')],
+    ['calcium', required('calcium')],
+    ['potassium', required('potassium')],
+    ['iron', required('iron')],
+    ['fer', required('iron')],
+    ['magnesium', required('magnesium')],
+    ['phosphor', required('phosphorus')],
+    ['vitamin c', required('vitamin c')],
+    ['vitamin d', required('vitamin d')],
+    ['vitamin b12', required('vitamin b12')],
+    ['cholesterol', required('cholesterol')],
+  ];
+  return candidates.find(([term]) => normalized.includes(term))?.[1];
+}
+
 export function mapProviderNutrient(
   label: string,
   value: unknown,
@@ -44,7 +81,7 @@ export function mapProviderNutrient(
 ): NormalizedProviderNutrient | null {
   const amount = parseNullableNumber(value);
   if (amount === null) return null;
-  const mapping = MAPPINGS[normalizeIdentityText(label)];
+  const mapping = mappingForLabel(label);
   if (mapping === undefined) return null;
   const unit = normalizeIdentityText(sourceUnit);
   let normalizedAmount = amount;
