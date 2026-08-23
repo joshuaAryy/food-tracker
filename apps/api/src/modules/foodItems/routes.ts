@@ -57,6 +57,7 @@ import {
 import { retrieveFuzzyFoodItemMatches } from './retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from './retrieval/pinecone.js';
 import { globalSemanticFoodWhere } from './retrieval/global-scope.js';
+import { resolveActiveSemanticNamespace } from './retrieval/index-lifecycle.js';
 import {
   appendUniqueCandidate,
   candidateMatchReason,
@@ -734,7 +735,10 @@ foodItemsRouter.post(
         const semantic = createPineconeSemanticClient({
           apiKey: pineconeApiKey,
           indexHost: pineconeHost,
-          namespace: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          namespace: await resolveActiveSemanticNamespace({
+            prisma,
+            fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          }),
           topK: Math.max(input.limit * 2, 10),
         });
         const matches = await semantic.search(normalizedQuery, 350);

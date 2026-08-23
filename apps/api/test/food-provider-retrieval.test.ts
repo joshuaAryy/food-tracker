@@ -37,6 +37,7 @@ import {
 import { globalSemanticFoodWhere } from '../src/modules/foodItems/retrieval/global-scope.js';
 import {
   buildIndexVersionRecord,
+  resolveActiveSemanticNamespace,
   searchDocumentForFood,
   semanticIndexVersion,
   staleSearchDocumentIds,
@@ -469,6 +470,29 @@ describe('hybrid retrieval policy', () => {
       status: 'building',
     });
     expect(staleSearchDocumentIds(['a', 'b', 'b'], ['b', 'c'])).toEqual(['a']);
+  });
+
+  it('resolves the active semantic namespace with a safe fallback', async () => {
+    const active = await resolveActiveSemanticNamespace({
+      prisma: {
+        foodSearchIndexVersion: {
+          findFirst: async () => ({ namespace: 'food-search-next-v2' }),
+        },
+      } as never,
+      fallback: 'food-search-v1',
+    });
+    expect(active).toBe('food-search-next-v2');
+    const fallback = await resolveActiveSemanticNamespace({
+      prisma: {
+        foodSearchIndexVersion: {
+          findFirst: async () => {
+            throw new Error('table unavailable');
+          },
+        },
+      } as never,
+      fallback: 'food-search-v1',
+    });
+    expect(fallback).toBe('food-search-v1');
   });
 
   it('keeps Pinecone response parsing and timeout degradation bounded', async () => {

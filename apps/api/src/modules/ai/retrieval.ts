@@ -29,6 +29,7 @@ import {
 import { retrieveFuzzyFoodItemMatches } from '../foodItems/retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from '../foodItems/retrieval/pinecone.js';
 import { globalSemanticFoodWhere } from '../foodItems/retrieval/global-scope.js';
+import { resolveActiveSemanticNamespace } from '../foodItems/retrieval/index-lifecycle.js';
 import {
   appendUniqueCandidate,
   candidateMatchReason,
@@ -254,7 +255,10 @@ export async function retrieveParsedFoodItems(input: {
         const semantic = createPineconeSemanticClient({
           apiKey: pineconeApiKey,
           indexHost: pineconeHost,
-          namespace: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          namespace: await resolveActiveSemanticNamespace({
+            prisma,
+            fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          }),
           topK: 20,
         });
         const matches = await semantic.search(normalizedQuery, 350);

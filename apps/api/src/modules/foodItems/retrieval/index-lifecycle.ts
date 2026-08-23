@@ -1,4 +1,5 @@
 import { Pinecone } from '@pinecone-database/pinecone';
+import type { PrismaClient } from '@prisma/client';
 import { semanticIndexVersionName, semanticModelVersion } from './pinecone.js';
 
 export interface FoodSearchDocument {
@@ -27,6 +28,22 @@ export interface IndexVersionRecord {
   documentFormat: string;
   status: 'building' | 'ready' | 'active' | 'retired' | 'failed';
   documentCount: number;
+}
+
+export async function resolveActiveSemanticNamespace(input: {
+  prisma: Pick<PrismaClient, 'foodSearchIndexVersion'>;
+  fallback: string;
+}): Promise<string> {
+  try {
+    const active = await input.prisma.foodSearchIndexVersion.findFirst({
+      where: { status: 'active' },
+      orderBy: [{ activatedAt: 'desc' }],
+      select: { namespace: true },
+    });
+    return active?.namespace ?? input.fallback;
+  } catch {
+    return input.fallback;
+  }
 }
 
 export function searchDocumentForFood(input: {
