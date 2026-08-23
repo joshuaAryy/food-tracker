@@ -27,11 +27,13 @@ Protected state: preserved; no protected paths staged or modified
 
 ## Evidence log
 
-- Commit `8752484` persists the approved A→P plan and this ledger foundation.
+- Commits `8752484`, `dafd00d`, `f997d90`, and `be5ea85` persist the plan,
+  retrieval foundation, dataset/index commands, and ablation harness.
 - Focused benchmark/retrieval tests pass: 4 files, 122 tests.
 - API lint and typecheck pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
 - The permanent benchmark CLI is ready, but no live legacy baseline is claimed until the test database is available.
 - Dataset adapters are pure parsing/normalization paths; no live dataset import has run.
 - Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
+- Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.
