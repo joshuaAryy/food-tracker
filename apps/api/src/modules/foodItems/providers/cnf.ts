@@ -140,6 +140,7 @@ export function parseCnfCsv(
       ]),
       value(row, ['AlternateName', 'Food_Name_Alternate']),
       value(row, ['FoodNameFrench', 'Food_Name_French', 'Food_Description_FR']),
+      value(row, ['ScientificName', 'Scientific_Name']),
     ]);
     const measure = (measuresByFood.get(sourceId) ?? []).find((candidate) => {
       const grams = parseNullableNumber(
