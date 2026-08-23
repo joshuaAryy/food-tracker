@@ -10,6 +10,7 @@ import {
 import { AppError } from '../../lib/errors.js';
 import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { roundTo } from '../../lib/serializers.js';
+import { normalizeFoodIdentityText } from './text-normalization.js';
 import {
   assessFoodCandidateAdequacy,
   scoreFoodCandidate,
@@ -920,7 +921,7 @@ export function normalizeUsdaFood(payload: unknown): NormalizedUsdaFood | null {
 }
 
 function normalizeText(value: string): string {
-  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+  return normalizeFoodIdentityText(value);
 }
 
 export function usdaFoodItemData(

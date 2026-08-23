@@ -5,6 +5,7 @@ import {
   type NormalizedNutrientKey,
 } from '@food-tracker/shared';
 import { roundTo } from '../../lib/serializers.js';
+import { normalizeFoodIdentityText } from './text-normalization.js';
 
 const OPEN_FOOD_FACTS_PRODUCT_URL =
   'https://world.openfoodfacts.org/api/v3/product';
@@ -381,14 +382,9 @@ export async function fetchOpenFoodFactsProduct(
 export function openFoodFactsData(
   food: NormalizedOpenFoodFactsFood,
 ): Prisma.FoodItemCreateInput {
-  const normalizedName = food.name
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/g, ' ');
+  const normalizedName = normalizeFoodIdentityText(food.name);
   const normalizedBrandName =
-    food.brandName === null
-      ? null
-      : food.brandName.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+    food.brandName === null ? null : normalizeFoodIdentityText(food.brandName);
 
   return {
     name: food.name,
