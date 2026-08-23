@@ -4,8 +4,10 @@ import {
   classifyQueryTokens,
   confidenceForScore,
   queryVariants,
+  rankParseCandidates,
   scoreFoodCandidate,
 } from '../src/modules/foodItems/candidate-ranking.js';
+import type { FoodItem } from '@food-tracker/shared';
 import {
   assessFoodIntent,
   foodIntentFallbackQuery,
@@ -36,7 +38,78 @@ function candidate(
   };
 }
 
+function foodItemCandidateForRegion(region: string) {
+  return {
+    candidateType: 'food_item' as const,
+    foodItem: {
+      id: `food-${region}`,
+      name: 'Plain yogurt',
+      brandName: null,
+      sourceType: 'app_owned' as const,
+      foodType: 'generic' as const,
+      sourceProvider: 'ciqual' as const,
+      sourceId: `ciqual-${region}`,
+      sourceUpdatedAt: null,
+      authoritativeAliases: [],
+      sourceRegion: region,
+      rankingSource: 'reference' as const,
+      isSaved: false,
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      servingOptions: null,
+      calories: 60,
+      protein: 3,
+      carbs: 4,
+      fat: 3,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      additionalNutrients: null,
+      nutrients: {},
+      barcodes: [],
+      createdAt: '',
+      updatedAt: '',
+    } satisfies FoodItem,
+    externalFood: null,
+    rank: 1,
+    matchReason: 'reference' as const,
+    confidence: 'low' as const,
+    defaultServingMultiplier: 1,
+  };
+}
+
 describe('candidate ranking helper', () => {
+  it('gives curated app and reference candidates equal base source quality', () => {
+    const curated = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'app_curated' }),
+    });
+    const reference = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'reference' }),
+    });
+    expect(reference.score).toBe(curated.score);
+  });
+
+  it('uses explicit validated locale only as a final reference tie-break', () => {
+    const ranked = rankParseCandidates(
+      'plain yogurt',
+      [foodItemCandidateForRegion('FR'), foodItemCandidateForRegion('CA')],
+      { region: 'CA' },
+    );
+    expect(ranked[0]?.foodItem?.sourceRegion).toBe('CA');
+  });
+
+  it('ignores invalid locale values and preserves candidate order on a tie', () => {
+    const ranked = rankParseCandidates(
+      'plain yogurt',
+      [foodItemCandidateForRegion('FR'), foodItemCandidateForRegion('CA')],
+      { region: 'Canada' },
+    );
+    expect(ranked[0]?.foodItem?.sourceRegion).toBe('FR');
+  });
+
   it('creates singular and plural query variants', () => {
     expect(queryVariants('eggs')).toEqual(['eggs', 'egg']);
     expect(queryVariants('bananas')).toEqual(['bananas', 'banana']);
