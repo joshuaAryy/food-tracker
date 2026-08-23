@@ -125,6 +125,8 @@ export async function parseCiqual(
       servingWeightGrams: 100,
       nutrients,
       sourceRecordHash: deterministicRecordHash({
+        provider: 'ciqual',
+        release: input.release ?? '2025',
         sourceId,
         record,
         names,

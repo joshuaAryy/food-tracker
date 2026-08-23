@@ -108,6 +108,15 @@ describe('provider normalization', () => {
       'protein',
       'calories',
     ]);
+    const nextRelease = await parseCiqual({
+      compositionXlsx: Buffer.from(await workbook.xlsx.writeBuffer()),
+      metadataXml:
+        '<root><food alim_code="1001" alim_nom_fr="Œuf de poule" alim_nom_eng="Egg, chicken, whole, raw" alim_nom_sci="Gallus gallus domesticus ovum" /></root>',
+      release: '2026',
+    });
+    expect(nextRelease[0]?.sourceRecordHash).not.toBe(
+      parsed[0]?.sourceRecordHash,
+    );
   });
 
   it('joins CoFID nutrient worksheets and preserves Tr/N as unknown', async () => {

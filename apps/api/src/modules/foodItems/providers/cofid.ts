@@ -133,6 +133,8 @@ export async function parseCofid(
         servingWeightGrams: parseNullableNumber(100),
         nutrients,
         sourceRecordHash: deterministicRecordHash({
+          provider: 'cofid',
+          release,
           sourceId,
           food,
           nutrients,
