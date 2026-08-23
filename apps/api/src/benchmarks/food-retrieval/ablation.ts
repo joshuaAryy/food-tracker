@@ -104,7 +104,10 @@ export function compareBaselineToCandidate(input: {
       .slice(1)
       .some(
         (item) =>
-          item.evidence !== 'semantic' && candidateMatchesExpected(item, query),
+          (item.evidence === undefined ||
+            item.evidence === 'exact' ||
+            item.evidence === 'none') &&
+          candidateMatchesExpected(item, query),
       );
     if (
       top?.evidence === 'semantic' &&

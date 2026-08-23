@@ -255,6 +255,15 @@ describe('food retrieval benchmark harness', () => {
             evidence: 'fuzzy',
             matchesExpected: true,
           },
+          {
+            id: 'right-deterministic',
+            name: query.gold.canonicalName,
+            provider: query.gold.expectedProvider ?? null,
+            source: 'reference',
+            trusted: false,
+            evidence: 'none',
+            matchesExpected: true,
+          },
         ],
       }),
     ];
