@@ -17,10 +17,18 @@ export async function boundedSemanticSearch<T>(
   operation: Promise<T>,
   timeoutMs: number,
 ): Promise<T> {
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('Pinecone search timeout')), timeoutMs),
-  );
-  return Promise.race([operation, timeout]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error('Pinecone search timeout')),
+      timeoutMs,
+    );
+  });
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
 }
 
 export function parseSemanticSearchResponse(
