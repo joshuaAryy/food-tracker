@@ -34,6 +34,7 @@ import {
   candidateMatchReason,
   foodItemCandidate,
 } from '../src/modules/foodItems/retrieval/candidate-generation.js';
+import { globalSemanticFoodWhere } from '../src/modules/foodItems/retrieval/global-scope.js';
 import {
   buildIndexVersionRecord,
   searchDocumentForFood,
@@ -350,6 +351,15 @@ describe('provider normalization', () => {
 });
 
 describe('hybrid retrieval policy', () => {
+  it('rehydrates semantic IDs only from the global app-owned catalog', () => {
+    expect(globalSemanticFoodWhere(['food-1'])).toEqual({
+      id: { in: ['food-1'] },
+      userId: null,
+      sourceType: 'app_owned',
+      archivedAt: null,
+    });
+  });
+
   it('shares source classification, alias propagation, and candidate dedupe', () => {
     const foodItem = {
       id: 'food-1',

@@ -28,6 +28,7 @@ import {
 } from '../foodItems/candidate-ranking.js';
 import { retrieveFuzzyFoodItemMatches } from '../foodItems/retrieval/fuzzy.js';
 import { createPineconeSemanticClient } from '../foodItems/retrieval/pinecone.js';
+import { globalSemanticFoodWhere } from '../foodItems/retrieval/global-scope.js';
 import {
   appendUniqueCandidate,
   candidateMatchReason,
@@ -259,9 +260,7 @@ export async function retrieveParsedFoodItems(input: {
         const matches = await semantic.search(normalizedQuery, 350);
         const semanticIds = matches.map((match) => match.foodItemId);
         const semanticFoods = await prisma.foodItem.findMany({
-          where: {
-            AND: [visibleFoodWhere(input.userId), { id: { in: semanticIds } }],
-          },
+          where: globalSemanticFoodWhere(semanticIds),
           include: foodItemInclude(input.userId),
         });
         const byId = new Map(semanticFoods.map((food) => [food.id, food]));
