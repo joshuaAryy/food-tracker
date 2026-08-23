@@ -57,6 +57,34 @@ function isRunName(value: unknown): value is BenchmarkRunName {
   );
 }
 
+export function validateBenchmarkSnapshotCoverage(
+  snapshot: BenchmarkSnapshot,
+  corpus = FOOD_RETRIEVAL_CORPUS,
+): void {
+  const expectedIds = new Set(corpus.map((query) => query.id));
+  const observedIds = snapshot.observations.map(
+    (observation) => observation.queryId,
+  );
+  const observedSet = new Set(observedIds);
+  const duplicateIds = observedIds.filter(
+    (queryId, index) => observedIds.indexOf(queryId) !== index,
+  );
+  const unknownIds = observedIds.filter((queryId) => !expectedIds.has(queryId));
+  const missingIds = [...expectedIds].filter(
+    (queryId) => !observedSet.has(queryId),
+  );
+  if (
+    observedIds.length !== expectedIds.size ||
+    duplicateIds.length > 0 ||
+    unknownIds.length > 0 ||
+    missingIds.length > 0
+  ) {
+    throw new Error(
+      `Snapshot must contain exactly one observation for every benchmark query (expected ${expectedIds.size}; observed ${observedIds.length}; missing ${missingIds.length}; duplicate ${duplicateIds.length}; unknown ${unknownIds.length}).`,
+    );
+  }
+}
+
 function readSnapshot(path: string): BenchmarkSnapshot {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
   const runName = isRecord(parsed) ? parsed.name : null;
@@ -71,11 +99,13 @@ function readSnapshot(path: string): BenchmarkSnapshot {
       'Snapshot must contain benchmarkVersion 2026-08-23, a supported run name, and valid observations.',
     );
   }
-  return {
+  const snapshot: BenchmarkSnapshot = {
     benchmarkVersion: '2026-08-23',
     name: runName,
     observations: parsed.observations,
   };
+  validateBenchmarkSnapshotCoverage(snapshot);
+  return snapshot;
 }
 
 function printHelp(): void {

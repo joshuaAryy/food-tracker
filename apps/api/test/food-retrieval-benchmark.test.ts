@@ -7,6 +7,7 @@ import {
   runFoodRetrievalBenchmark,
   compareAblations,
   compareBaselineToCandidate,
+  validateBenchmarkSnapshotCoverage,
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
 
@@ -230,6 +231,26 @@ describe('food retrieval benchmark metrics', () => {
 });
 
 describe('food retrieval benchmark harness', () => {
+  it('requires a complete, unique snapshot for the permanent corpus', () => {
+    const observations = FOOD_RETRIEVAL_CORPUS.map((query) =>
+      observation(query.id),
+    );
+    expect(() =>
+      validateBenchmarkSnapshotCoverage({
+        benchmarkVersion: FOOD_RETRIEVAL_BENCHMARK_VERSION,
+        name: 'legacy',
+        observations: observations.slice(1),
+      }),
+    ).toThrow(/exactly one observation/);
+    expect(() =>
+      validateBenchmarkSnapshotCoverage({
+        benchmarkVersion: FOOD_RETRIEVAL_BENCHMARK_VERSION,
+        name: 'legacy',
+        observations,
+      }),
+    ).not.toThrow();
+  });
+
   it('reports channel recovery, semantic harm, provider expansion, and regressions', () => {
     const [query] = FOOD_RETRIEVAL_CORPUS;
     if (query === undefined) throw new Error('benchmark corpus is empty');

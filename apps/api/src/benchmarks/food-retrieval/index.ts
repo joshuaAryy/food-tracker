@@ -12,6 +12,7 @@ export {
   type RetrievalAblation,
 } from './ablation.js';
 export { evaluateLegacyBaseline, legacySnapshot } from './legacy-baseline.js';
+export { validateBenchmarkSnapshotCoverage } from './cli.js';
 export {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,
   type AcceptanceGates,
