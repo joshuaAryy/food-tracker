@@ -5,7 +5,10 @@ import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
 import { mapProviderNutrient } from '../src/modules/foodItems/providers/nutrient-mapping.js';
 import ExcelJS from 'exceljs';
-import { countImportRows } from '../src/modules/foodItems/providers/importer.js';
+import {
+  countImportRows,
+  persistProviderFoods,
+} from '../src/modules/foodItems/providers/importer.js';
 import {
   dedupeAliases,
   normalizeIdentityText,
@@ -190,6 +193,54 @@ describe('provider normalization', () => {
       skipped: 1,
       rejected: 0,
     });
+  });
+
+  it('records a failed release when a persistence batch aborts', async () => {
+    const statuses: string[] = [];
+    const row = {
+      provider: 'cnf' as const,
+      release: '2026',
+      sourceId: '1',
+      name: 'Egg',
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic' as const,
+      category: null,
+      preparation: null,
+      region: 'CA',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [],
+      sourceRecordHash: 'x',
+    };
+    const fakePrisma = {
+      foodDatasetRelease: {
+        upsert: async () => undefined,
+        update: async ({ data }: { data: { status: string } }) => {
+          statuses.push(data.status);
+        },
+      },
+      foodItem: {
+        findFirst: async () => null,
+        create: async () => {
+          throw new Error('simulated persistence failure');
+        },
+      },
+      foodItemNutrient: {
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+    };
+    await expect(
+      persistProviderFoods({
+        prisma: fakePrisma as never,
+        rows: [row],
+        sourceUri: 'https://example.test/cnf.csv',
+        sourceSha256: 'sha',
+      }),
+    ).rejects.toThrow('simulated persistence failure');
+    expect(statuses).toEqual(['failed']);
   });
 });
 

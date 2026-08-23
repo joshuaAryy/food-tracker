@@ -38,7 +38,7 @@ Protected state: preserved; no protected paths staged or modified
   versioned provider hashes, and consistent ranking/Unicode persistence.
 - Commit `ced18e3` records the contribution checkpoint; the branch now has 27
   commits beyond `main` and is synchronized with its origin branch.
-- Focused benchmark/retrieval tests pass: 4 files, 131 tests, including official-column, alias, provider, shared candidate-generation, fuzzy-policy, semantic timeout/parser, index-lifecycle, and baseline-to-candidate contribution comparisons. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
+- Focused benchmark/retrieval tests pass: 4 files, 132 tests, including official-column, alias, provider, release-failure audit, shared candidate-generation, fuzzy-policy, semantic timeout/parser, index-lifecycle, and baseline-to-candidate contribution comparisons. The AI/photo fallback path typechecks and remains DB/Pinecone integration-gated.
 - The permanent 120-query corpus now explicitly tags misspellings, abbreviations, descriptive semantics, preparation/form, compounds, regional terminology, ambiguous/messy fragments, and barcodes while retaining the 80/40 development/holdout split.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
