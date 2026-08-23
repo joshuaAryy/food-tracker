@@ -36,15 +36,17 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `b574084`, `c17b28f`, `7f5515e`, `1f1bf7f`, `4203102`, and `47573d1`
   add baseline-to-candidate recovery/harm comparison, CLI reporting, release
   versioned provider hashes, and consistent ranking/Unicode persistence.
-- Commits through `fec4cbc` record the contribution, documentation, locale,
+- Commits through `5c13710` record the contribution, documentation, locale,
   release-audit, and configurable semantic-model checkpoints; the branch is
   synchronized with its origin branch.
-- Focused benchmark/retrieval tests pass: 4 files, 138 tests, including
+- Focused benchmark/retrieval tests pass: 4 files, 139 tests, including
   official-column, alias, provider, release-failure audit, source-neutrality/
   locale tie-breaks, shared candidate-generation, fuzzy-policy, semantic
   timeout/parser, index-lifecycle, baseline-to-candidate contribution
   comparisons, and duplicate/rejected-row persistence guards. The AI/photo
   fallback path typechecks and remains DB/Pinecone integration-gated.
+- Benchmark CLI snapshots now require exactly one observation for every
+  versioned corpus query before baseline or candidate metrics are accepted.
 - Legacy direct `usda_fdc` ranker inputs now use the same neutral base source
   quality as `reference`; final hydrated USDA candidates already use the
   `reference` ranking class.
@@ -69,9 +71,9 @@ Protected state: preserved; no protected paths staged or modified
   `format:check` reports only the protected `.agents/`/`.superpowers/`
   formatting set.
 - Fresh full `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/food_tracker_test corepack pnpm test` remains blocked before test discovery by Prisma `P1001` (`localhost:5432` unreachable); no full-suite, migration-deploy, persistence-import, or live benchmark claim is made.
-- Fresh focused verification for commit `b1deba6` (documented by `5960510`)
+- Fresh focused verification for code checkpoint `5c13710`
   under Node `v22.23.0` and pnpm
-  `10.34.3` passes `lint`, `typecheck`, focused retrieval tests (4 files, 138
+  `10.34.3` passes `lint`, `typecheck`, focused retrieval tests (4 files, 139
   tests), and `git diff --check`; the prior full verification also passed
   `prisma:generate` and `prisma:validate`.
   Root `format:check` fails only on the pre-existing protected
