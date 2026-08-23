@@ -5,6 +5,11 @@ export {
   evaluateObservations,
 } from './metrics.js';
 export { runFoodRetrievalBenchmark } from './harness.js';
+export {
+  compareAblations,
+  type AblationReport,
+  type RetrievalAblation,
+} from './ablation.js';
 export { evaluateLegacyBaseline, legacySnapshot } from './legacy-baseline.js';
 export {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,

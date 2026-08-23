@@ -5,6 +5,7 @@ import {
   deriveAcceptanceGates,
   evaluateObservations,
   runFoodRetrievalBenchmark,
+  compareAblations,
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
 
@@ -203,6 +204,23 @@ describe('food retrieval benchmark metrics', () => {
 });
 
 describe('food retrieval benchmark harness', () => {
+  it('supports legacy-to-hybrid ablation comparisons', () => {
+    const report = compareAblations({
+      legacy: [],
+      datasets: [],
+      fuzzy: [],
+      semantic: [],
+      full_hybrid: [],
+    });
+    expect(report.map((entry) => entry.mode)).toEqual([
+      'legacy',
+      'datasets',
+      'fuzzy',
+      'semantic',
+      'full_hybrid',
+    ]);
+  });
+
   it('runs a selected split in corpus order and preserves supplied observations', async () => {
     const visited: string[] = [];
     const report = await runFoodRetrievalBenchmark({
