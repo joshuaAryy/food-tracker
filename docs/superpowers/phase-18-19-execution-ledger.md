@@ -36,10 +36,10 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `b574084`, `c17b28f`, `7f5515e`, `1f1bf7f`, `4203102`, and `47573d1`
   add baseline-to-candidate recovery/harm comparison, CLI reporting, release
   versioned provider hashes, and consistent ranking/Unicode persistence.
-- Commits through `b495c51` record the contribution, documentation, locale,
+- Commits through `c1916ab` record the contribution, documentation, locale,
   release-audit, and configurable semantic-model checkpoints; the branch is
   synchronized with its origin branch.
-- Focused benchmark/retrieval tests pass: 4 files, 140 tests, including
+- Focused benchmark/retrieval tests pass: 4 files, 141 tests, including
   official-column, alias, provider, release-failure audit, source-neutrality/
   locale tie-breaks, shared candidate-generation, fuzzy-policy, semantic
   timeout/parser, index-lifecycle, baseline-to-candidate contribution
@@ -53,6 +53,9 @@ Protected state: preserved; no protected paths staged or modified
 - Hydrated FoodItems now pass persisted `rankingSource` semantics into the
   deterministic evaluator, while recent/saved/custom/barcode priorities still
   override the stored source class.
+- Pinecone semantic rehydration now admits only active global `app_owned`
+  FoodItems, preventing private or stale user records from entering the
+  semantic candidate pool.
 - The permanent 120-query corpus now explicitly tags misspellings, abbreviations, descriptive semantics, preparation/form, compounds, regional terminology, ambiguous/messy fragments, and barcodes while retaining the 80/40 development/holdout split.
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present but migration deployment is blocked by unavailable PostgreSQL.
@@ -74,9 +77,9 @@ Protected state: preserved; no protected paths staged or modified
   `format:check` reports only the protected `.agents/`/`.superpowers/`
   formatting set.
 - Fresh full `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/food_tracker_test corepack pnpm test` remains blocked before test discovery by Prisma `P1001` (`localhost:5432` unreachable); no full-suite, migration-deploy, persistence-import, or live benchmark claim is made.
-- Fresh focused verification for code checkpoint `b495c51`
+- Fresh focused verification for code checkpoint `c1916ab`
   under Node `v22.23.0` and pnpm
-  `10.34.3` passes `lint`, `typecheck`, focused retrieval tests (4 files, 140
+  `10.34.3` passes `lint`, `typecheck`, focused retrieval tests (4 files, 141
   tests), and `git diff --check`; the prior full verification also passed
   `prisma:generate` and `prisma:validate`.
   Root `format:check` fails only on the pre-existing protected
