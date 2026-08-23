@@ -92,6 +92,18 @@ describe('candidate ranking helper', () => {
     expect(reference.score).toBe(curated.score);
   });
 
+  it('keeps legacy USDA inputs at the neutral reference source quality', () => {
+    const usda = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'usda_fdc' }),
+    });
+    const reference = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'reference' }),
+    });
+    expect(usda.score).toBe(reference.score);
+  });
+
   it('uses explicit validated locale only as a final reference tie-break', () => {
     const ranked = rankParseCandidates(
       'plain yogurt',

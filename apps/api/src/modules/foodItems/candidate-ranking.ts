@@ -339,7 +339,9 @@ function sourceBonus(source: CandidateSource): number {
     case 'reference':
       return 18;
     case 'usda_fdc':
-      return 14;
+      // Preserve legacy inputs while keeping generic USDA reference quality
+      // comparable with imported national composition references.
+      return 18;
     case 'barcode_cached':
       return 8;
     case 'cached_external':
