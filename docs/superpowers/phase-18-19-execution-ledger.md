@@ -36,9 +36,9 @@ Protected state: preserved; no protected paths staged or modified
 - Commits `b574084`, `c17b28f`, `7f5515e`, `1f1bf7f`, `4203102`, and `47573d1`
   add baseline-to-candidate recovery/harm comparison, CLI reporting, release
   versioned provider hashes, and consistent ranking/Unicode persistence.
-- Commits through `5960510` record the contribution, documentation, locale,
-  release-audit, and configurable semantic-model checkpoints; the branch now
-  has 36 commits beyond `main` and is synchronized with its origin branch.
+- Commits through `fec4cbc` record the contribution, documentation, locale,
+  release-audit, and configurable semantic-model checkpoints; the branch is
+  synchronized with its origin branch.
 - Focused benchmark/retrieval tests pass: 4 files, 138 tests, including
   official-column, alias, provider, release-failure audit, source-neutrality/
   locale tie-breaks, shared candidate-generation, fuzzy-policy, semantic
