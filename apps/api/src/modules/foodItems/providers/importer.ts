@@ -100,7 +100,11 @@ export async function persistProviderFoods(input: {
       for (const row of batch) {
         if (!row.sourceId || !row.name) continue;
         const existing = await input.prisma.foodItem.findFirst({
-          where: { sourceProvider: provider, sourceId: row.sourceId },
+          where: {
+            sourceProvider: provider,
+            sourceId: row.sourceId,
+            archivedAt: null,
+          },
         });
         const data = {
           userId: null,

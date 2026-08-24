@@ -23,9 +23,34 @@ END;
 
 CREATE INDEX "FoodItem_sourceProvider_sourceId_idx" ON "FoodItem"("sourceProvider", "sourceId");
 CREATE INDEX "FoodItem_datasetRelease_idx" ON "FoodItem"("datasetRelease");
+
+-- Existing cached external data may contain duplicate source identities. Keep
+-- the earliest active row and archive later duplicates before enforcing active
+-- provider/source uniqueness. Archived history remains available for audit and
+-- never competes with current retrieval or import updates.
+WITH duplicate_rows AS (
+  SELECT
+    "id",
+    row_number() OVER (
+      PARTITION BY "sourceProvider", "sourceId"
+      ORDER BY "createdAt", "id"
+    ) AS duplicate_rank
+  FROM "FoodItem"
+  WHERE "sourceProvider" IS NOT NULL
+    AND "sourceId" IS NOT NULL
+    AND "archivedAt" IS NULL
+)
+UPDATE "FoodItem" AS food
+SET "archivedAt" = CURRENT_TIMESTAMP
+FROM duplicate_rows
+WHERE food."id" = duplicate_rows."id"
+  AND duplicate_rows.duplicate_rank > 1;
+
 CREATE UNIQUE INDEX "FoodItem_provider_source_unique"
   ON "FoodItem"("sourceProvider", "sourceId")
-  WHERE "sourceProvider" IS NOT NULL AND "sourceId" IS NOT NULL;
+  WHERE "sourceProvider" IS NOT NULL
+    AND "sourceId" IS NOT NULL
+    AND "archivedAt" IS NULL;
 CREATE INDEX "FoodItem_searchText_trgm_idx" ON "FoodItem" USING GIST ("searchText" gist_trgm_ops);
 
 CREATE TABLE "FoodDatasetRelease" (

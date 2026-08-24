@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import type { FoodItem } from '@food-tracker/shared';
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
@@ -244,6 +245,68 @@ describe('provider normalization', () => {
     });
     expect(createCalls).toEqual(['create']);
     expect(result).toMatchObject({ imported: 1, skipped: 1 });
+  });
+
+  it('looks up only the active provider row when archived history exists', async () => {
+    let lookup: unknown;
+    const row = {
+      provider: 'cnf' as const,
+      release: '2026',
+      sourceId: 'active-row',
+      name: 'Egg',
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic' as const,
+      category: null,
+      preparation: null,
+      region: 'CA',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [],
+      sourceRecordHash: 'active-hash',
+    };
+    const fakePrisma = {
+      foodDatasetRelease: {
+        upsert: async () => undefined,
+        update: async () => undefined,
+      },
+      foodItem: {
+        findFirst: async ({ where }: { where: unknown }) => {
+          lookup = where;
+          return null;
+        },
+        create: async () => ({ id: 'food-1' }),
+        updateMany: async () => undefined,
+      },
+      foodItemNutrient: {
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+    };
+    await persistProviderFoods({
+      prisma: fakePrisma as never,
+      rows: [row],
+      sourceUri: 'https://example.test/cnf.csv',
+      sourceSha256: 'sha',
+    });
+    expect(lookup).toEqual({
+      sourceProvider: 'cnf',
+      sourceId: 'active-row',
+      archivedAt: null,
+    });
+  });
+
+  it('uses archive-aware provider uniqueness for existing duplicate history', async () => {
+    const migration = await readFile(
+      new URL(
+        '../prisma/migrations/20260823120000_phase_18_19_food_retrieval_foundation/migration.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(migration).toContain('"archivedAt" IS NULL');
+    expect(migration).toContain('FoodItem_provider_source_unique');
   });
 
   it('does not persist rows rejected for non-finite nutrient amounts', async () => {
