@@ -3,7 +3,8 @@
 Plan: `docs/superpowers/plans/2026-08-23-phase-18-19-hybrid-food-retrieval.md`
 Branch: `phase-18-19-hybrid-food-retrieval`
 Baseline: `13e476b`
-Preflight: complete; branch equals `main`; Node 22.23.0; pnpm 10.34.3
+Preflight: complete; branch `phase-18-19-hybrid-food-retrieval` at `b860c61`,
+46 commits ahead of `main`; Node 22.23.0; pnpm 10.34.3
 Protected state: preserved; no protected paths staged or modified
 
 ## Task status
@@ -91,3 +92,22 @@ Protected state: preserved; no protected paths staged or modified
   at `localhost:5432`.
 - Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.
+- After PostgreSQL became available, the dedicated `food_tracker_test` target
+  successfully applied both Phase 18/19 migrations. A direct migration command
+  without `DATABASE_URL` correctly exposed a development-database duplicate
+  (`usda_fdc:2708402`) and failed transactionally; inspection confirmed no
+  Phase 18/19 columns or indexes were left in `food_tracker`, and no cleanup or
+  reset was performed there.
+- Commit `4d086d6` makes provider/source uniqueness archive-aware: the migration
+  archives later active duplicate identities deterministically before creating a
+  partial active-row unique index, and import lookup ignores archived history.
+  Focused retrieval tests now pass 4 files/144 tests.
+- The first full database-backed suite reached migration setup but exhausted
+  host storage during Vitest SSR temp-file creation (`ENOSPC`): 2 suites passed,
+  133 tests executed, and 96 suites failed during setup. The dedicated test
+  database was not reset after this run because Docker Desktop became
+  unresponsive; Docker volumes and the development database remain untouched.
+- Docker Desktop engine recovery is currently blocked by a wedged virtualization
+  process after the host reached 100% capacity. Only regenerable pnpm and Google
+  application caches were removed to recover space; no repository, protected,
+  Docker image, or volume data was removed.
