@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 import type { FoodItem } from '@food-tracker/shared';
+import { prisma } from '../src/lib/prisma.js';
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
 import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
@@ -25,6 +26,7 @@ import {
   acceptFuzzyCandidate,
   FUZZY_RETRIEVAL_VERSION,
   fuzzyCandidateQueries,
+  retrieveFuzzyFoodItemMatches,
 } from '../src/modules/foodItems/retrieval/fuzzy.js';
 import {
   decideRetrievalPolicy,
@@ -307,6 +309,9 @@ describe('provider normalization', () => {
     );
     expect(migration).toContain('"archivedAt" IS NULL');
     expect(migration).toContain('FoodItem_provider_source_unique');
+    expect(migration).toContain('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+    expect(migration).toContain('USING GIST');
+    expect(migration).toContain('gist_trgm_ops(siglen=32)');
   });
 
   it('does not persist rows rejected for non-finite nutrient amounts', async () => {
@@ -583,5 +588,73 @@ describe('hybrid retrieval policy', () => {
         1,
       ),
     ).rejects.toThrow('Pinecone search timeout');
+  });
+});
+
+describe('PostgreSQL fuzzy retrieval', () => {
+  async function createFood(input: {
+    searchText: string;
+    archivedAt?: Date | null;
+  }) {
+    return prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: input.searchText,
+        normalizedName: input.searchText,
+        searchText: input.searchText,
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        archivedAt: input.archivedAt ?? null,
+      },
+    });
+  }
+
+  it('executes quoted camelCase SQL and excludes archived foods', async () => {
+    const active = await createFood({ searchText: 'greek yogurt' });
+    const archived = await createFood({
+      searchText: 'greek yoghurt',
+      archivedAt: new Date(),
+    });
+
+    const matches = await retrieveFuzzyFoodItemMatches({
+      prisma,
+      query: 'greek yogrt',
+      limit: 10,
+    });
+
+    expect(matches.map((match) => match.id)).toContain(active.id);
+    expect(matches.map((match) => match.id)).not.toContain(archived.id);
+  });
+
+  it('executes the strict-word KNN operator and returns strict distance', async () => {
+    const food = await createFood({ searchText: 'yogurtized' });
+    const strictQuery = fuzzyCandidateQueries('yogurt', 10)[1];
+    const rows =
+      await prisma.$queryRaw<
+        Array<{ id: string; distance: number; kind: string }>
+      >(strictQuery);
+    const expected = await prisma.$queryRaw<Array<{ distance: number }>>`
+      SELECT 1 - strict_word_similarity('yogurt', 'yogurtized') AS distance
+    `;
+
+    expect(rows.find((row) => row.id === food.id)?.kind).toBe('strict_word');
+    expect(rows.find((row) => row.id === food.id)?.distance).toBeCloseTo(
+      expected[0]?.distance ?? Number.NaN,
+      5,
+    );
+  });
+
+  it('uses the active-row GiST trigram index contract', async () => {
+    const indexes = await prisma.$queryRaw<Array<{ indexdef: string }>>`
+      SELECT indexdef
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = 'FoodItem'
+        AND indexname = 'FoodItem_searchText_trgm_idx'
+    `;
+    const indexDefinition = indexes[0]?.indexdef ?? '';
+    expect(indexDefinition).toContain('USING gist');
+    expect(indexDefinition).toMatch(/gist_trgm_ops\s*\(siglen='?32'?\)/);
+    expect(indexDefinition).toContain('"archivedAt" IS NULL');
   });
 });

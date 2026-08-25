@@ -24,15 +24,15 @@ export function fuzzyCandidateQueries(
       ? Prisma.sql`"userId" IS NULL`
       : Prisma.sql`("userId" IS NULL OR "userId" = ${userId}::uuid)`;
   return [
-    Prisma.sql`SELECT id, searchText <-> ${normalized} AS distance, 'whole_string' AS kind
+    Prisma.sql`SELECT "id", "searchText" <-> ${normalized} AS distance, 'whole_string' AS kind
       FROM "FoodItem"
       WHERE "archivedAt" IS NULL AND ${visibleOwner}
-      ORDER BY searchText <-> ${normalized}
+      ORDER BY "searchText" <-> ${normalized}
       LIMIT ${Math.max(1, Math.min(limit, 100))}`,
-    Prisma.sql`SELECT id, searchText <<-> ${normalized} AS distance, 'strict_word' AS kind
+    Prisma.sql`SELECT "id", ${normalized} <<<-> "searchText" AS distance, 'strict_word' AS kind
       FROM "FoodItem"
       WHERE "archivedAt" IS NULL AND ${visibleOwner}
-      ORDER BY searchText <<-> ${normalized}
+      ORDER BY ${normalized} <<<-> "searchText"
       LIMIT ${Math.max(1, Math.min(limit, 100))}`,
   ];
 }

@@ -51,7 +51,10 @@ CREATE UNIQUE INDEX "FoodItem_provider_source_unique"
   WHERE "sourceProvider" IS NOT NULL
     AND "sourceId" IS NOT NULL
     AND "archivedAt" IS NULL;
-CREATE INDEX "FoodItem_searchText_trgm_idx" ON "FoodItem" USING GIST ("searchText" gist_trgm_ops);
+CREATE INDEX "FoodItem_searchText_trgm_idx"
+  ON "FoodItem"
+  USING GIST ("searchText" gist_trgm_ops(siglen=32))
+  WHERE "archivedAt" IS NULL;
 
 CREATE TABLE "FoodDatasetRelease" (
   "id" UUID NOT NULL,

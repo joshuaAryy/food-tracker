@@ -5,6 +5,7 @@ import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const loggedAt = '2026-06-15T17:00:00.000Z';
+let candidateFoodCounter = 0;
 
 type CandidateFoodOverrides = {
   name?: string;
@@ -44,7 +45,7 @@ async function trustedCandidateFood(overrides: CandidateFoodOverrides = {}) {
           : overrides.sourceProvider,
       sourceId:
         overrides.sourceId === undefined
-          ? 'candidate-serving-100g'
+          ? `candidate-serving-${++candidateFoodCounter}`
           : overrides.sourceId,
       foodType: 'generic',
       servingQuantity: overrides.servingQuantity ?? 100,
