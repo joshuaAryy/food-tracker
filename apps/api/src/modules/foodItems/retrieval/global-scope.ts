@@ -11,6 +11,7 @@ export interface GlobalSearchFoodRecord {
   name: string;
   brandName: string | null;
   sourceAliases: unknown;
+  searchText: string;
   sourceProvider: string | null;
   sourceRegion: string | null;
   sourceType: string;
@@ -66,6 +67,7 @@ export function globalSearchDocumentForFood(
     id: food.id,
     name: food.name,
     aliases,
+    searchText: food.searchText,
     brandName: food.brandName,
     category: null,
     preparation: null,

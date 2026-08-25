@@ -60,6 +60,7 @@ async function readDatabaseDocuments(): Promise<FoodSearchDocument[]> {
       name: true,
       brandName: true,
       sourceAliases: true,
+      searchText: true,
       sourceProvider: true,
       sourceRegion: true,
       sourceType: true,

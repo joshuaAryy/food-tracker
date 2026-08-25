@@ -50,6 +50,7 @@ export function searchDocumentForFood(input: {
   id: string;
   name: string;
   aliases: readonly string[];
+  searchText?: string | null;
   brandName: string | null;
   category: string | null;
   preparation: string | null;
@@ -65,6 +66,7 @@ export function searchDocumentForFood(input: {
     text: [
       input.name,
       ...input.aliases,
+      input.searchText,
       input.brandName,
       input.category,
       input.preparation,

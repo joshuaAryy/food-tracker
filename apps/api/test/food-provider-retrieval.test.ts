@@ -649,6 +649,8 @@ describe('hybrid retrieval policy', () => {
       name: 'Reference food',
       brandName: null,
       sourceAliases: ['Alias'],
+      searchText:
+        'reference food alias category-only-term preparation-only-term',
       sourceProvider: 'cnf',
       sourceRegion: 'CA',
       sourceType: 'app_owned',
@@ -667,7 +669,10 @@ describe('hybrid retrieval policy', () => {
       { ...base, id: 'usda', sourceProvider: 'usda_fdc' },
     ]);
     expect(documents.map((document) => document.id)).toEqual(['a', 'b']);
+    expect(documents[0]?.text).toContain('Reference food');
     expect(documents[0]?.text).toContain('Alias');
+    expect(documents[0]?.text).toContain('category-only-term');
+    expect(documents[0]?.text).toContain('preparation-only-term');
     expect(documents[0]).not.toHaveProperty('nutrients');
     expect(globalSearchFoodWhere()).toMatchObject({
       userId: null,
