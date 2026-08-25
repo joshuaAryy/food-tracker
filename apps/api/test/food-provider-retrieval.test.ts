@@ -61,7 +61,13 @@ describe('provider normalization', () => {
       'ciqual',
       'cofid',
     ]);
-    expect(manifestFor('ciqual', '2025').artifactSha256).toHaveLength(64);
+    expect(manifestFor('ciqual', '2025')).toMatchObject({
+      sourceUrl: 'https://doi.org/10.57745/RDMHWY',
+      artifactSha256:
+        '5555c572fa3735991298d832d0427788fa69a11b4fd20a5d580d58942369fbb0',
+      companionArtifactSha256:
+        'e0b1de25b3039028205e9d54a96892e403e1b313c2efeb41180fabe132627478',
+    });
   });
   it('preserves unknown CNF values instead of converting them to zero', () => {
     const foods = parseCnfCsv({

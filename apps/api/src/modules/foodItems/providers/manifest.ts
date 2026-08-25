@@ -23,9 +23,9 @@ export const FOOD_DATASET_MANIFESTS: readonly FoodDatasetManifest[] = [
   {
     provider: 'ciqual',
     release: '2025',
-    sourceUrl: 'https://ciqual.anses.fr/',
+    sourceUrl: 'https://doi.org/10.57745/RDMHWY',
     artifactSha256:
-      '2c3495c8136d17356c50db410918da2102cb28096cb497c9cdf83c5f8ecb10ba',
+      '5555c572fa3735991298d832d0427788fa69a11b4fd20a5d580d58942369fbb0',
     companionArtifactSha256:
       'e0b1de25b3039028205e9d54a96892e403e1b313c2efeb41180fabe132627478',
     license: 'Etalab Open Licence',
