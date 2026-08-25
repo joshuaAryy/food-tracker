@@ -6,7 +6,7 @@ import {
   normalizeDisplayName,
   type NormalizedProviderFood,
 } from './normalized.js';
-import { mapProviderNutrient } from './nutrient-mapping.js';
+import { mapCiqualNutrient } from './nutrient-mapping.js';
 
 function unitFromHeader(header: string): string {
   const match = header.match(
@@ -94,10 +94,10 @@ export async function parseCiqual(
     const aliases = dedupeAliases(name, [names.fr, names.sci]);
     const nutrientByKey = new Map<
       string,
-      ReturnType<typeof mapProviderNutrient>
+      ReturnType<typeof mapCiqualNutrient>
     >();
     for (const header of headers) {
-      const mapped = mapProviderNutrient(
+      const mapped = mapCiqualNutrient(
         header,
         record[header],
         unitFromHeader(header),

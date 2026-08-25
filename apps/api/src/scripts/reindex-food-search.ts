@@ -8,6 +8,10 @@ import {
   type FoodSearchDocument,
   type IndexLifecycleConfig,
 } from '../modules/foodItems/retrieval/index-lifecycle.js';
+import {
+  buildGlobalSearchDocuments,
+  globalSearchFoodWhere,
+} from '../modules/foodItems/retrieval/global-scope.js';
 
 function readGlobalDocuments(value: unknown): FoodSearchDocument[] {
   if (!Array.isArray(value)) throw new Error('Documents JSON must be an array');
@@ -36,17 +40,62 @@ function readGlobalDocuments(value: unknown): FoodSearchDocument[] {
     ) {
       throw new Error(`Document ${index} has invalid global search metadata`);
     }
+    if (
+      record.sourceProvider === 'open_food_facts' ||
+      record.sourceProvider === 'usda_fdc'
+    ) {
+      throw new Error(
+        `Document ${index} is a cached external food excluded from the global index`,
+      );
+    }
     return record as unknown as FoodSearchDocument;
   });
 }
 
-async function main(): Promise<void> {
-  const inputPath = process.argv[2];
-  if (inputPath === undefined)
-    throw new Error('Usage: reindex-food-search <documents.json>');
-  const documents = readGlobalDocuments(
+async function readDatabaseDocuments(): Promise<FoodSearchDocument[]> {
+  const foods = await prisma.foodItem.findMany({
+    where: globalSearchFoodWhere(),
+    select: {
+      id: true,
+      name: true,
+      brandName: true,
+      sourceAliases: true,
+      sourceProvider: true,
+      sourceRegion: true,
+      sourceType: true,
+      rankingClass: true,
+      datasetRelease: true,
+      userId: true,
+      archivedAt: true,
+      barcodes: { select: { id: true } },
+    },
+  });
+  return buildGlobalSearchDocuments(foods);
+}
+
+async function readDocuments(): Promise<FoodSearchDocument[]> {
+  const args = process.argv.slice(2);
+  const jsonFlag = args.indexOf('--json');
+  const jsonPath = jsonFlag >= 0 ? args[jsonFlag + 1] : undefined;
+  if (jsonFlag >= 0 && jsonPath === undefined)
+    throw new Error('Usage: food:reindex [--json documents.json] [--activate]');
+  const positionalPath = args.find((argument) => !argument.startsWith('--'));
+  const inputPath = jsonPath ?? positionalPath;
+  if (inputPath === undefined) return readDatabaseDocuments();
+  return readGlobalDocuments(
     JSON.parse(await readFile(inputPath, 'utf8')) as unknown,
   );
+}
+
+async function main(): Promise<void> {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log(
+      'Usage: food:reindex [--activate] [--json documents.json]\n' +
+        'Without --json, derive eligible global search documents from PostgreSQL.',
+    );
+    return;
+  }
+  const documents = await readDocuments();
   const required = ['PINECONE_API_KEY', 'PINECONE_INDEX_HOST'];
   for (const key of required)
     if (!process.env[key]) throw new Error(`${key} is required`);

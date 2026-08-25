@@ -90,8 +90,9 @@ reports imported/updated/skipped/rejected counts. CNF accepts the official
 `Food_Name.csv`, `Nutrient_Name.csv`, `Nutrient_Amount.csv`, and optional
 `Measure_Weight_Conversion.csv`; Ciqual requires its XLSX plus official
 `alim_2025_11_03.xml`; CoFID consumes the official workbook. A release remains
-archived until bounded persistence batches complete. `food:reindex` writes an
-eligible global-only document set to a versioned Pinecone namespace, reconciles
+archived until bounded persistence batches complete. `food:reindex` derives an
+eligible global-only document set directly from PostgreSQL and writes it to a
+versioned Pinecone namespace, reconciles
 stale IDs, and records a `FoodSearchIndexVersion` as `ready`. Passing the
 explicit `--activate` flag atomically retires the previous active record and
 marks the new namespace active; runtime active-namespace configuration remains
@@ -99,7 +100,8 @@ an explicit deployment setting. The initial embedding model is
 `multilingual-e5-large`; `PINECONE_EMBEDDING_MODEL` and
 `PINECONE_SEMANTIC_INDEX_VERSION` remain explicit versioned overrides so a
 document/model rebuild can be benchmarked and rolled back without changing
-PostgreSQL nutrition truth.
+PostgreSQL nutrition truth. A JSON document file remains available only as an
+explicit debug path via `food:reindex --json documents.json`.
 
 Food search priority should eventually be:
 

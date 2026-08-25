@@ -11,6 +11,137 @@ type Mapping = {
   multiplier?: number;
 };
 
+function ciqualHeaderKey(label: string): string {
+  return normalizeIdentityText(label)
+    .replace(/\s*\((?:kcal|kj|mg|mcg|ug|μg|g)(?:\s*100\s*g)?\)\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const CIQUAL_MAPPINGS = new Map<string, Mapping>([
+  // Ciqual's EU kcal field is the preferred energy representation. The kJ,
+  // Jones-factor, and Jones-factor-with-fibres alternatives are intentionally
+  // excluded so column order cannot choose a different canonical value.
+  [
+    ciqualHeaderKey('Energy, Regulation EU No 1169 2011'),
+    { key: 'calories', unit: 'kcal' },
+  ],
+  [
+    ciqualHeaderKey('Energie, Reglement UE N° 1169 2011'),
+    { key: 'calories', unit: 'kcal' },
+  ],
+  [ciqualHeaderKey('Energy'), { key: 'calories', unit: 'kcal' }],
+  [ciqualHeaderKey('Energie'), { key: 'calories', unit: 'kcal' }],
+  [ciqualHeaderKey('Protein'), { key: 'protein', unit: 'g' }],
+  [
+    ciqualHeaderKey('Proteines, N x facteur de Jones'),
+    { key: 'protein', unit: 'g' },
+  ],
+  [ciqualHeaderKey('Carbohydrate'), { key: 'carbs', unit: 'g' }],
+  [ciqualHeaderKey('Glucides'), { key: 'carbs', unit: 'g' }],
+  [ciqualHeaderKey('Fat'), { key: 'fat', unit: 'g' }],
+  [ciqualHeaderKey('Lipides'), { key: 'fat', unit: 'g' }],
+  [ciqualHeaderKey('Sugars'), { key: 'sugar', unit: 'g' }],
+  [ciqualHeaderKey('Sucres'), { key: 'sugar', unit: 'g' }],
+  [ciqualHeaderKey('Fibres'), { key: 'fiber', unit: 'g' }],
+  [ciqualHeaderKey('Fibres alimentaires'), { key: 'fiber', unit: 'g' }],
+  [ciqualHeaderKey('Water'), { key: 'water', unit: 'g' }],
+  [ciqualHeaderKey('Eau'), { key: 'water', unit: 'g' }],
+  [ciqualHeaderKey('Starch'), { key: 'starch', unit: 'g' }],
+  [ciqualHeaderKey('Amidon'), { key: 'starch', unit: 'g' }],
+  [ciqualHeaderKey('Polyols'), { key: 'sugarAlcohol', unit: 'g' }],
+  [ciqualHeaderKey('Polyols totaux'), { key: 'sugarAlcohol', unit: 'g' }],
+  [ciqualHeaderKey('Alcohol'), { key: 'alcohol', unit: 'g' }],
+  [ciqualHeaderKey('Alcool (ethanol)'), { key: 'alcohol', unit: 'g' }],
+  [ciqualHeaderKey('FA saturated'), { key: 'saturatedFat', unit: 'g' }],
+  [ciqualHeaderKey('AG satures'), { key: 'saturatedFat', unit: 'g' }],
+  [ciqualHeaderKey('FA mono'), { key: 'monounsaturatedFat', unit: 'g' }],
+  [
+    ciqualHeaderKey('AG monoinsatures'),
+    { key: 'monounsaturatedFat', unit: 'g' },
+  ],
+  [ciqualHeaderKey('FA poly'), { key: 'polyunsaturatedFat', unit: 'g' }],
+  [
+    ciqualHeaderKey('AG polyinsatures'),
+    { key: 'polyunsaturatedFat', unit: 'g' },
+  ],
+  [ciqualHeaderKey('Cholesterol'), { key: 'cholesterol', unit: 'mg' }],
+  [ciqualHeaderKey('Calcium'), { key: 'calcium', unit: 'mg' }],
+  [ciqualHeaderKey('Chloride'), { key: 'chloride', unit: 'mg' }],
+  [ciqualHeaderKey('Chlorure'), { key: 'chloride', unit: 'mg' }],
+  [ciqualHeaderKey('Copper'), { key: 'copper', unit: 'mg' }],
+  [ciqualHeaderKey('Cuivre'), { key: 'copper', unit: 'mg' }],
+  [ciqualHeaderKey('Iron'), { key: 'iron', unit: 'mg' }],
+  [ciqualHeaderKey('Fer'), { key: 'iron', unit: 'mg' }],
+  [ciqualHeaderKey('Iodine'), { key: 'iodine', unit: 'mcg' }],
+  [ciqualHeaderKey('Iode'), { key: 'iodine', unit: 'mcg' }],
+  [ciqualHeaderKey('Magnesium'), { key: 'magnesium', unit: 'mg' }],
+  [ciqualHeaderKey('Manganese'), { key: 'manganese', unit: 'mg' }],
+  [ciqualHeaderKey('Phosphorus'), { key: 'phosphorus', unit: 'mg' }],
+  [ciqualHeaderKey('Phosphore'), { key: 'phosphorus', unit: 'mg' }],
+  [ciqualHeaderKey('Potassium'), { key: 'potassium', unit: 'mg' }],
+  [ciqualHeaderKey('Selenium'), { key: 'selenium', unit: 'mcg' }],
+  [ciqualHeaderKey('Sodium'), { key: 'sodium', unit: 'mg' }],
+  [ciqualHeaderKey('Zinc'), { key: 'zinc', unit: 'mg' }],
+  // Vitamin A activity equivalents are the preferred total representation;
+  // retinol and beta-carotene are subtypes and are not interchangeable.
+  [
+    ciqualHeaderKey('Vitamin A activity, retinol equivalent'),
+    { key: 'vitaminA', unit: 'mcg' },
+  ],
+  [
+    ciqualHeaderKey('Activite vitaminique A, equivalents retinol'),
+    { key: 'vitaminA', unit: 'mcg' },
+  ],
+  [ciqualHeaderKey('Vitamin D'), { key: 'vitaminD', unit: 'mcg' }],
+  [ciqualHeaderKey('Vitamine D'), { key: 'vitaminD', unit: 'mcg' }],
+  [
+    ciqualHeaderKey('Alpha-tocopherol (vitamine E)'),
+    { key: 'vitaminE', unit: 'mg' },
+  ],
+  [
+    ciqualHeaderKey('Alpha-tocopherol (vitamin E)'),
+    { key: 'vitaminE', unit: 'mg' },
+  ],
+  [ciqualHeaderKey('Vitamin C'), { key: 'vitaminC', unit: 'mg' }],
+  [ciqualHeaderKey('Vitamine C'), { key: 'vitaminC', unit: 'mg' }],
+  [ciqualHeaderKey('Vitamin B1 or Thiamin'), { key: 'thiamine', unit: 'mg' }],
+  [ciqualHeaderKey('Vitamine B1 ou Thiamine'), { key: 'thiamine', unit: 'mg' }],
+  [
+    ciqualHeaderKey('Vitamin B2 or Riboflavin'),
+    { key: 'riboflavin', unit: 'mg' },
+  ],
+  [
+    ciqualHeaderKey('Vitamine B2 ou Riboflavine'),
+    { key: 'riboflavin', unit: 'mg' },
+  ],
+  [ciqualHeaderKey('Vitamin B3 or Niacin'), { key: 'niacin', unit: 'mg' }],
+  [
+    ciqualHeaderKey('Vitamine B3 ou PP ou Niacine'),
+    { key: 'niacin', unit: 'mg' },
+  ],
+  [
+    ciqualHeaderKey('Vitamin B5 or Pantothenic acid'),
+    { key: 'pantothenicAcid', unit: 'mg' },
+  ],
+  [
+    ciqualHeaderKey('Vitamine B5 ou Acide pantothenique'),
+    { key: 'pantothenicAcid', unit: 'mg' },
+  ],
+  [ciqualHeaderKey('Vitamin B6'), { key: 'vitaminB6', unit: 'mg' }],
+  [ciqualHeaderKey('Vitamine B6'), { key: 'vitaminB6', unit: 'mg' }],
+  [ciqualHeaderKey('Vitamin B12'), { key: 'vitaminB12', unit: 'mcg' }],
+  [ciqualHeaderKey('Vitamine B12'), { key: 'vitaminB12', unit: 'mcg' }],
+  [
+    ciqualHeaderKey('Vitamin B9 or total folates'),
+    { key: 'folate', unit: 'mcg' },
+  ],
+  [
+    ciqualHeaderKey('Vitamine B9 ou Folates totaux'),
+    { key: 'folate', unit: 'mcg' },
+  ],
+]);
+
 const MAPPINGS: Record<string, Mapping> = {
   calories: { key: 'calories', unit: 'kcal' },
   energy: { key: 'calories', unit: 'kcal' },
@@ -125,17 +256,27 @@ function mappingForLabel(label: string): Mapping | undefined {
   })?.[1];
 }
 
-export function mapProviderNutrient(
+export function mapCiqualNutrient(
+  label: string,
+  value: unknown,
+  sourceUnit: string,
+): NormalizedProviderNutrient | null {
+  const mapping = CIQUAL_MAPPINGS.get(ciqualHeaderKey(label));
+  if (mapping === undefined) return null;
+  return normalizeMappedNutrient(mapping, label, value, sourceUnit);
+}
+
+function normalizeMappedNutrient(
+  mapping: Mapping,
   label: string,
   value: unknown,
   sourceUnit: string,
 ): NormalizedProviderNutrient | null {
   const amount = parseNullableNumber(value);
   if (amount === null) return null;
-  const mapping = mappingForLabel(label);
-  if (mapping === undefined) return null;
   const unit = normalizeIdentityText(sourceUnit)
     .replace(/^µg$/, 'mcg')
+    .replace(/^μg$/, 'mcg')
     .replace(/^ug$/, 'mcg');
   if (unit === 'international unit' || unit === 'iu') return null;
   let normalizedAmount = amount;
@@ -153,4 +294,14 @@ export function mapProviderNutrient(
     sourceUnit,
     sourceValue: String(value),
   };
+}
+
+export function mapProviderNutrient(
+  label: string,
+  value: unknown,
+  sourceUnit: string,
+): NormalizedProviderNutrient | null {
+  const mapping = mappingForLabel(label);
+  if (mapping === undefined) return null;
+  return normalizeMappedNutrient(mapping, label, value, sourceUnit);
 }

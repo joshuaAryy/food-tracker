@@ -8,7 +8,10 @@ import { retrieveLiveBenchmarkObservation } from '../src/benchmarks/food-retriev
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
 import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
-import { mapProviderNutrient } from '../src/modules/foodItems/providers/nutrient-mapping.js';
+import {
+  mapCiqualNutrient,
+  mapProviderNutrient,
+} from '../src/modules/foodItems/providers/nutrient-mapping.js';
 import ExcelJS from 'exceljs';
 import {
   countImportRows,
@@ -41,6 +44,10 @@ import {
   foodItemCandidate,
 } from '../src/modules/foodItems/retrieval/candidate-generation.js';
 import { globalSemanticFoodWhere } from '../src/modules/foodItems/retrieval/global-scope.js';
+import {
+  buildGlobalSearchDocuments,
+  globalSearchFoodWhere,
+} from '../src/modules/foodItems/retrieval/global-scope.js';
 import {
   buildIndexVersionRecord,
   resolveActiveSemanticNamespace,
@@ -106,6 +113,84 @@ describe('provider normalization', () => {
     expect(
       mapProviderNutrient('Vitamin D (International Units)', '400', 'IU'),
     ).toBeNull();
+  });
+
+  it('maps official Ciqual French columns with explicit semantic preferences', () => {
+    const mapped = (
+      [
+        ['Protéines, N x facteur de Jones (g 100 g)', '12', 'g'],
+        ['Glucides (g 100 g)', '20', 'g'],
+        ['Lipides (g 100 g)', '5', 'g'],
+        ['Sucres (g 100 g)', '4', 'g'],
+        ['Fibres alimentaires (g 100 g)', '3', 'g'],
+        ['Sodium (mg 100 g)', '25', 'mg'],
+      ] as const
+    ).map(([label, value, unit]) => mapCiqualNutrient(label, value, unit));
+    expect(mapped.map((nutrient) => nutrient?.key)).toEqual([
+      'protein',
+      'carbs',
+      'fat',
+      'sugar',
+      'fiber',
+      'sodium',
+    ]);
+    expect(mapped[5]?.unit).toBe('mg');
+
+    expect(
+      mapCiqualNutrient('Sel chlorure de sodium (g 100 g)', '5', 'g'),
+    ).toBeNull();
+    expect(
+      mapCiqualNutrient(
+        'Energie, Règlement UE N° 1169 2011 (kcal 100 g)',
+        143,
+        'kcal',
+      ),
+    ).toMatchObject({ key: 'calories', amount: 143, unit: 'kcal' });
+    expect(
+      mapCiqualNutrient(
+        'Energie, N x facteur Jones, avec fibres (kcal 100 g)',
+        150,
+        'kcal',
+      ),
+    ).toBeNull();
+  });
+
+  it('keeps Ciqual alternative vitamin representations separate and preserves unknowns', () => {
+    expect(
+      mapCiqualNutrient(
+        'Activité vitaminique A, équivalents rétinol (µg 100 g)',
+        400,
+        'µg',
+      ),
+    ).toMatchObject({ key: 'vitaminA', amount: 400, unit: 'mcg' });
+    expect(mapCiqualNutrient('Rétinol (µg 100 g)', 100, 'µg')).toBeNull();
+    expect(mapCiqualNutrient('Vitamine D (µg 100 g)', 2, 'µg')).toMatchObject({
+      key: 'vitaminD',
+    });
+    expect(mapCiqualNutrient('Vitamine D2 (µg 100 g)', 1, 'µg')).toBeNull();
+    expect(
+      mapCiqualNutrient('Vitamine B9 ou Folates totaux (µg 100 g)', 80, 'µg'),
+    ).toMatchObject({ key: 'folate', amount: 80, unit: 'mcg' });
+    expect(
+      mapCiqualNutrient(
+        'Vitamine B9 ou Folates totaux, équivalents folates alimentaires, DFE (µg 100 g)',
+        90,
+        'µg',
+      ),
+    ).toBeNull();
+    expect(mapCiqualNutrient('Vitamine K1 (µg 100 g)', 1, 'µg')).toBeNull();
+    expect(mapCiqualNutrient('Vitamine E (mg 100 g)', 2, 'mg')).toBeNull();
+    expect(
+      mapCiqualNutrient('Alpha-tocophérol (vitamine E) (mg 100 g)', 2, 'mg'),
+    ).toMatchObject({ key: 'vitaminE', amount: 2, unit: 'mg' });
+
+    expect(mapCiqualNutrient('Sodium (mg 100 g)', 0, 'mg')).toMatchObject({
+      key: 'sodium',
+      amount: 0,
+    });
+    expect(mapCiqualNutrient('Sodium (mg 100 g)', 'Tr', 'mg')).toBeNull();
+    expect(mapCiqualNutrient('Sodium (mg 100 g)', 'N', 'mg')).toBeNull();
+    expect(mapCiqualNutrient('Sodium (mg 100 g)', '', 'mg')).toBeNull();
   });
 
   it('joins Ciqual English canonical names with French and scientific aliases', async () => {
@@ -432,9 +517,18 @@ describe('hybrid retrieval policy', () => {
   it('rehydrates semantic IDs only from the global app-owned catalog', () => {
     expect(globalSemanticFoodWhere(['food-1'])).toEqual({
       id: { in: ['food-1'] },
-      userId: null,
-      sourceType: 'app_owned',
-      archivedAt: null,
+      AND: [
+        {
+          userId: null,
+          archivedAt: null,
+          sourceType: 'app_owned',
+          rankingClass: { in: ['reference', 'app_curated'] },
+          OR: [
+            { sourceProvider: null },
+            { sourceProvider: { notIn: ['open_food_facts', 'usda_fdc'] } },
+          ],
+        },
+      ],
     });
   });
 
@@ -547,6 +641,40 @@ describe('hybrid retrieval policy', () => {
       status: 'building',
     });
     expect(staleSearchDocumentIds(['a', 'b', 'b'], ['b', 'c'])).toEqual(['a']);
+  });
+
+  it('derives deterministic eligible global documents and excludes private/cached foods', () => {
+    const base = {
+      id: 'b',
+      name: 'Reference food',
+      brandName: null,
+      sourceAliases: ['Alias'],
+      sourceProvider: 'cnf',
+      sourceRegion: 'CA',
+      sourceType: 'app_owned',
+      rankingClass: 'reference',
+      datasetRelease: '2026',
+      barcodes: [],
+      userId: null,
+      archivedAt: null,
+    } as const;
+    const documents = buildGlobalSearchDocuments([
+      base,
+      { ...base, id: 'a', rankingClass: 'app_curated', sourceProvider: null },
+      { ...base, id: 'private', userId: 'user-1' },
+      { ...base, id: 'archived', archivedAt: new Date() },
+      { ...base, id: 'off', sourceProvider: 'open_food_facts' },
+      { ...base, id: 'usda', sourceProvider: 'usda_fdc' },
+    ]);
+    expect(documents.map((document) => document.id)).toEqual(['a', 'b']);
+    expect(documents[0]?.text).toContain('Alias');
+    expect(documents[0]).not.toHaveProperty('nutrients');
+    expect(globalSearchFoodWhere()).toMatchObject({
+      userId: null,
+      archivedAt: null,
+      sourceType: 'app_owned',
+      rankingClass: { in: ['reference', 'app_curated'] },
+    });
   });
 
   it('resolves the active semantic namespace with a safe fallback', async () => {
