@@ -105,6 +105,21 @@ describe('candidate ranking helper', () => {
     expect(usda.score).toBe(reference.score);
   });
 
+  it.each([
+    { lexical: false, fuzzyDistance: 0.2, semanticScore: null },
+    { lexical: false, fuzzyDistance: null, semanticScore: 0.9 },
+  ] as const)(
+    'does not grant trusted selection from %s evidence alone',
+    (retrievalEvidence) => {
+      const score = scoreFoodCandidate({
+        query: 'banana',
+        candidate: candidate({ retrievalEvidence }),
+      });
+      expect(score.visibleRelevant).toBe(true);
+      expect(score.selectionEligible).toBe(false);
+    },
+  );
+
   it('uses persisted ranking source semantics for hydrated app-owned foods', () => {
     const appOwned = foodItemCandidateForRegion('CA');
     if (appOwned.candidateType !== 'food_item')

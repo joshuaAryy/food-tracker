@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { FoodItem } from '@food-tracker/shared';
 import { prisma } from '../src/lib/prisma.js';
+import { FOOD_RETRIEVAL_CORPUS } from '../src/benchmarks/food-retrieval/corpus.js';
+import { retrieveLiveBenchmarkObservation } from '../src/benchmarks/food-retrieval/live.js';
 import { parseCnfCsv } from '../src/modules/foodItems/providers/cnf.js';
 import { parseCiqual } from '../src/modules/foodItems/providers/ciqual.js';
 import { parseCofid } from '../src/modules/foodItems/providers/cofid.js';
@@ -595,19 +598,96 @@ describe('PostgreSQL fuzzy retrieval', () => {
   async function createFood(input: {
     searchText: string;
     archivedAt?: Date | null;
+    sourceProvider?: 'usda_fdc' | 'cnf';
+    sourceType?: 'app_owned' | 'cached_external';
+    rankingClass?: 'app_curated' | 'reference';
   }) {
     return prisma.foodItem.create({
       data: {
         userId: null,
         name: input.searchText,
-        normalizedName: input.searchText,
-        searchText: input.searchText,
-        sourceType: 'app_owned',
+        normalizedName: input.searchText.toLowerCase(),
+        searchText: input.searchText.toLowerCase(),
+        sourceType: input.sourceType ?? 'app_owned',
         foodType: 'generic',
+        sourceProvider: input.sourceProvider ?? null,
+        sourceId:
+          input.sourceProvider === undefined
+            ? null
+            : `${input.searchText}-${randomUUID()}`,
+        rankingClass: input.rankingClass ?? 'app_curated',
+        calories: 100,
+        protein: 10,
         archivedAt: input.archivedAt ?? null,
       },
     });
   }
+
+  it('runs legacy, dataset, and fuzzy benchmark channels against PostgreSQL', async () => {
+    await createFood({
+      searchText: 'Greek yogurt, plain',
+      sourceProvider: 'usda_fdc',
+      sourceType: 'cached_external',
+      rankingClass: 'reference',
+    });
+    await createFood({
+      searchText: 'Greek yogurt, plain, reference',
+      sourceProvider: 'cnf',
+      sourceType: 'app_owned',
+      rankingClass: 'reference',
+    });
+    const query = FOOD_RETRIEVAL_CORPUS.find(
+      (entry) => entry.query === 'greek yogrt',
+    );
+    if (query === undefined) throw new Error('benchmark query missing');
+    const exactQuery = { ...query, query: 'greek yogurt' };
+
+    const legacyObservation = await retrieveLiveBenchmarkObservation({
+      prisma,
+      query: exactQuery,
+      mode: 'legacy',
+      limit: 100,
+    });
+    const datasetObservation = await retrieveLiveBenchmarkObservation({
+      prisma,
+      query: exactQuery,
+      mode: 'datasets',
+      limit: 100,
+    });
+    const fuzzyObservation = await retrieveLiveBenchmarkObservation({
+      prisma,
+      query,
+      mode: 'fuzzy',
+      limit: 100,
+    });
+
+    expect(
+      legacyObservation.candidates.some(
+        (candidate) =>
+          candidate.provider === 'usda_fdc' &&
+          candidate.name === 'Greek yogurt, plain',
+      ),
+    ).toBe(true);
+    expect(
+      legacyObservation.candidates.some(
+        (candidate) => candidate.provider === 'cnf',
+      ),
+    ).toBe(false);
+    expect(
+      datasetObservation.candidates.some(
+        (candidate) =>
+          candidate.provider === 'cnf' &&
+          candidate.name === 'Greek yogurt, plain, reference',
+      ),
+    ).toBe(true);
+    expect(
+      fuzzyObservation.candidates.find(
+        (candidate) =>
+          candidate.provider === 'usda_fdc' &&
+          candidate.name === 'Greek yogurt, plain',
+      )?.evidence,
+    ).toBe('fuzzy');
+  });
 
   it('executes quoted camelCase SQL and excludes archived foods', async () => {
     const active = await createFood({ searchText: 'greek yogurt' });
@@ -627,8 +707,8 @@ describe('PostgreSQL fuzzy retrieval', () => {
   });
 
   it('executes the strict-word KNN operator and returns strict distance', async () => {
-    const food = await createFood({ searchText: 'strictwordfixture' });
-    const strictQuery = fuzzyCandidateQueries('strictwordfixture', 10)[1];
+    const food = await createFood({ searchText: 'strictwordfixture suffix' });
+    const strictQuery = fuzzyCandidateQueries('strictword', 10)[1];
     if (strictQuery === undefined)
       throw new Error('strict fuzzy query missing');
     const rows =
@@ -636,12 +716,19 @@ describe('PostgreSQL fuzzy retrieval', () => {
         Array<{ id: string; distance: number; kind: string }>
       >(strictQuery);
     const expected = await prisma.$queryRaw<Array<{ distance: number }>>`
-      SELECT 1 - strict_word_similarity('strictwordfixture', 'strictwordfixture') AS distance
+      SELECT 1 - strict_word_similarity('strictword', 'strictwordfixture suffix') AS distance
+    `;
+    const word = await prisma.$queryRaw<Array<{ distance: number }>>`
+      SELECT 1 - word_similarity('strictword', 'strictwordfixture suffix') AS distance
     `;
 
     expect(rows.find((row) => row.id === food.id)?.kind).toBe('strict_word');
     expect(rows.find((row) => row.id === food.id)?.distance).toBeCloseTo(
       expected[0]?.distance ?? Number.NaN,
+      5,
+    );
+    expect(rows.find((row) => row.id === food.id)?.distance).not.toBeCloseTo(
+      word[0]?.distance ?? Number.NaN,
       5,
     );
   });

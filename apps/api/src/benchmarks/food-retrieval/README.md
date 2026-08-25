@@ -54,3 +54,12 @@ semantic miss recovery, semantic bad-top-1 harm, provider expansion, Top-1
 regressions, and p50/p95 latency deltas. The resulting gates are the baseline
 contract for later retrieval tasks. Holdout settings must not be tuned using
 this corpus split.
+
+The live PostgreSQL adapter is available through
+`benchmark:food-retrieval-live`. It supports `legacy`, `datasets`, `fuzzy`,
+`semantic`, and `full_hybrid` modes, seeds only deterministic global benchmark
+rows, and always writes a complete 120-observation snapshot. `--split` is an
+evaluation view, so development and holdout reports can be produced without
+creating partial artifacts. The first measured baseline and frozen-gate
+results are recorded in
+`docs/superpowers/phase-18-19-benchmark-results.md`.

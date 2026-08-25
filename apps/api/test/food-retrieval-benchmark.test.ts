@@ -7,9 +7,11 @@ import {
   runFoodRetrievalBenchmark,
   compareAblations,
   compareBaselineToCandidate,
+  acceptanceGateViolations,
   validateBenchmarkSnapshotCoverage,
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
+import { benchmarkSeedRows } from '../src/benchmarks/food-retrieval/seed.js';
 
 function observation(
   queryId: string,
@@ -72,6 +74,18 @@ describe('food retrieval benchmark corpus', () => {
       FOOD_RETRIEVAL_CORPUS.find((query) => query.query === '3017620422003')
         ?.tags,
     ).toContain('barcode');
+  });
+
+  it('provides deterministic, global benchmark seed identities', () => {
+    const rows = benchmarkSeedRows();
+    expect(rows).toHaveLength(FOOD_RETRIEVAL_CORPUS.length);
+    expect(
+      new Set(rows.map((row) => `${row.provider}:${row.sourceId}`)).size,
+    ).toBe(rows.length);
+    expect(rows.every((row) => row.userId === null)).toBe(true);
+    expect(rows.find((row) => row.query === 'greek yogrt')?.name).toBe(
+      'Greek yogurt, plain',
+    );
   });
 });
 
@@ -193,6 +207,27 @@ describe('food retrieval benchmark metrics', () => {
     expect(gates.maximumUnsafeDefaultSelections).toBe(0);
     expect(gates.baselineMissSets.top1).toEqual(['query-b']);
     expect(gates.classTop1Floors).toEqual({});
+  });
+
+  it('evaluates candidate metrics against baseline-derived gates', () => {
+    const baseline = evaluateObservations([
+      observation('query-a', {
+        candidates: [
+          {
+            id: 'a',
+            name: 'A',
+            provider: null,
+            source: 'reference',
+            trusted: false,
+            matchesExpected: true,
+          },
+        ],
+      }),
+    ]);
+    const candidate = evaluateObservations([observation('query-a')]);
+    expect(
+      acceptanceGateViolations(candidate, deriveAcceptanceGates(baseline)),
+    ).toContain('top1_floor');
   });
 
   it('uses corpus gold labels for class and normal-search coverage', () => {

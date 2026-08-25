@@ -14,6 +14,17 @@ export {
 export { evaluateLegacyBaseline, legacySnapshot } from './legacy-baseline.js';
 export { validateBenchmarkSnapshotCoverage } from './cli.js';
 export {
+  LIVE_BENCHMARK_VERSION,
+  retrieveLiveBenchmarkObservation,
+  type LiveBenchmarkMode,
+  type LiveBenchmarkOptions,
+} from './live.js';
+export {
+  benchmarkSeedRows,
+  seedBenchmarkCatalog,
+  type BenchmarkSeedRow,
+} from './seed.js';
+export {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,
   type AcceptanceGates,
   type BenchmarkCandidate,

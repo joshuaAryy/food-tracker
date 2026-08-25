@@ -542,7 +542,11 @@ export function scoreFoodCandidate(input: {
     !hasUnrequestedNegative &&
     allCoreTokensMatch &&
     allRequestedDescriptorsMatch &&
-    foodIntent.selectionEligible;
+    foodIntent.selectionEligible &&
+    (input.candidate.retrievalEvidence === undefined ||
+      input.candidate.retrievalEvidence.lexical === true ||
+      aliasIdentityMatch ||
+      foodIntent.identityAliasMatch);
 
   return {
     score,

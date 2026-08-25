@@ -18,6 +18,8 @@
     "prisma:validate": "prisma validate",
     "seed:staging-analytics-qa": "tsx src/scripts/seed-staging-analytics-qa.ts",
     "food:import": "tsx src/scripts/import-food-dataset.ts",
+    "benchmark:food-retrieval-live": "tsx src/benchmarks/food-retrieval/live-cli.ts",
+    "benchmark:food-seed": "tsx src/scripts/seed-food-retrieval-benchmark.ts",
     "food:reindex": "tsx src/scripts/reindex-food-search.ts"
   },
   "dependencies": {

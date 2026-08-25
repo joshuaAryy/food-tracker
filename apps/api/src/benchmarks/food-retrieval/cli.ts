@@ -205,12 +205,17 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
             selectedIds.has(query.id),
           ),
         });
+  const candidateViolations =
+    comparison === null
+      ? null
+      : acceptanceGateViolations(comparison.candidate, gates);
   const report = {
     benchmarkVersion: '2026-08-23',
     split: options.split,
     metrics,
     gates,
     violations,
+    candidateViolations,
     ...(comparison === null ? {} : { comparison }),
   };
   if (options.json) {
@@ -227,7 +232,7 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
     );
     console.log(`Top-1 misses: ${metrics.missSets.top1.join(', ') || 'none'}`);
     console.log(
-      `Acceptance gate violations: ${violations.join(', ') || 'none'}`,
+      `Acceptance gate violations: ${(candidateViolations ?? violations).join(', ') || 'none'}`,
     );
     if (comparison !== null) {
       console.log(
@@ -238,7 +243,7 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
       );
     }
   }
-  return violations.length === 0 ? 0 : 2;
+  return (candidateViolations ?? violations).length === 0 ? 0 : 2;
 }
 
 if (process.argv[1] !== undefined) {
