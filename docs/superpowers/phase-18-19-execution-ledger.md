@@ -3,8 +3,8 @@
 Plan: `docs/superpowers/plans/2026-08-23-phase-18-19-hybrid-food-retrieval.md`
 Branch: `phase-18-19-hybrid-food-retrieval`
 Baseline: `13e476b`
-Preflight: complete; branch `phase-18-19-hybrid-food-retrieval` at `f21d9b8`,
-49 commits ahead of `main`; Node 22.23.0; pnpm 10.34.3
+Preflight: complete; branch `phase-18-19-hybrid-food-retrieval` at `0830c33`,
+50 commits ahead of `main`; Node 22.23.0; pnpm 10.34.3
 Protected state: preserved; no protected paths staged or modified
 
 ## Task status
