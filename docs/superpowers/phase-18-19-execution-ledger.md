@@ -3,17 +3,17 @@
 Plan: `docs/superpowers/plans/2026-08-23-phase-18-19-hybrid-food-retrieval.md`
 Branch: `phase-18-19-hybrid-food-retrieval`
 Baseline: `13e476b`
-Preflight: complete; branch `phase-18-19-hybrid-food-retrieval` at `b860c61`,
-46 commits ahead of `main`; Node 22.23.0; pnpm 10.34.3
+Preflight: complete; branch `phase-18-19-hybrid-food-retrieval` at `f21d9b8`,
+49 commits ahead of `main`; Node 22.23.0; pnpm 10.34.3
 Protected state: preserved; no protected paths staged or modified
 
 ## Task status
 
-- [~] A — benchmark infrastructure complete; live legacy baseline pending PostgreSQL
+- [~] A — benchmark infrastructure complete; live legacy baseline still pending a retriever adapter/snapshot
 - [x] B — retrieval boundary/source semantics/alias identity implemented and shared by normal/AI/photo retrieval paths; candidate assembly and Unicode normalization are centralized
-- [~] C — provenance schema foundation implemented; migration deployment pending PostgreSQL
+- [x] C — provenance schema foundation and clean dedicated-test migration deployment
 - [x] D — importer contracts/Unicode normalization
-- [~] E — CNF adapter/persistence strategy (official parse dry-run complete; live mutation measurement pending)
+- [x] E — CNF adapter and live persistence/idempotency measurement
 - [x] F — Ciqual XLSX/XML adapter (official parse dry-run complete)
 - [x] G — CoFID adapter (official parse dry-run complete)
 - [x] H — local reference retrieval
@@ -22,9 +22,9 @@ Protected state: preserved; no protected paths staged or modified
 - [x] K — semantic generator with timeout/fallback
 - [x] L — mode-specific policy and normal-search hybrid path
 - [x] M — locale tie-break
-- [~] N — ablation/tuning/holdout pending the measured legacy baseline
-- [~] O — staging/resilience pending PostgreSQL, Pinecone credentials, and Railway execution
-- [~] P — phase-status documentation aligned; final closeout pending blocked gates
+- [~] N — ablation/tuning/holdout pending a measured legacy baseline
+- [~] O — local resilience complete; Pinecone credentials and Railway execution remain external
+- [~] P — phase-status documentation aligned; final closeout pending benchmark/external gates
 
 ## Evidence log
 
@@ -92,6 +92,44 @@ Protected state: preserved; no protected paths staged or modified
   at `localhost:5432`.
 - Branch commits are pushed to `origin/phase-18-19-hybrid-food-retrieval`; no PR or merge was created.
 - No protected local state changed.
+- Continuation commit `f21d9b8` quotes the Prisma camelCase `"searchText"`
+  identifier in every fuzzy KNN SQL expression, changes strict-word retrieval
+  to PostgreSQL `<<<->`, and aligns the unreleased trigram index with
+  `gist_trgm_ops(siglen=32)` plus the active-row `"archivedAt" IS NULL`
+  predicate. Three PostgreSQL-backed regression tests cover executable SQL,
+  strict distance semantics, archived exclusion, and the live index definition.
+- The dedicated `food_tracker_test` database was rebuilt only after an explicit
+  `_test` URL assertion. All 16 committed migrations applied successfully;
+  `pg_trgm` is installed. Controlled fixtures verified that archived duplicate
+  provider identities coexist while two active identities are rejected by the
+  partial unique index. Whole-string and strict-word `EXPLAIN (ANALYZE,
+  BUFFERS)` both used `FoodItem_searchText_trgm_idx`; PostgreSQL displayed the
+  strict commutator as `<->>>` for the query orientation `normalized <<<->
+  "searchText"`.
+- Focused retrieval validation is now 4 files and 147 tests passing. The fresh
+  full database-backed suite is 98 files and 1,226 tests passing. Two test
+  fixture helpers were made unique under the provider/source invariant, and
+  the server diagnostic source scan now excludes intentional offline
+  benchmark/import CLI entrypoints without weakening runtime diagnostics.
+- Manifest-verified live persistence completed in `food_tracker_test` for all
+  three official releases. CNF 2026 created 5,993 foods and 141,426 supported
+  nutrient rows in 45.34s (peak RSS 377,356,288 bytes); the rerun skipped
+  5,993 rows in 21.30s. Ciqual 2025 created 3,484 foods in 18.62s (peak RSS
+  348,995,584 bytes); the rerun skipped 3,484 in 10.88s. CoFID 2021 created
+  2,886 foods in 15.19s (peak RSS 541,360,128 bytes); the rerun skipped 2,886
+  in 7.70s. All releases are active with zero rejects. Persisted serving
+  coverage is CNF 5,947/5,993, Ciqual 3,484/3,484, and CoFID 2,886/2,886;
+  Ciqual English canonical names retain French and scientific aliases.
+- The development `food_tracker` database was inspected read-only and remains
+  untouched: migration metadata for
+  `20260823120000_phase_18_19_food_retrieval_foundation` is failed with the
+  recorded duplicate `usda_fdc:2708402`, and that duplicate still has count 2.
+  No reset, manual row edit, or `migrate resolve` was performed.
+- A live benchmark baseline, ablations, and holdout were not claimed: the
+  repository contains the permanent corpus/metrics/snapshot CLI but no live
+  retriever-to-snapshot adapter, and no pre-existing reviewed observations are
+  present. Pinecone and Railway remain unvalidated because their credentials
+  are unset in the local environment.
 - After PostgreSQL became available, the dedicated `food_tracker_test` target
   successfully applied both Phase 18/19 migrations. A direct migration command
   without `DATABASE_URL` correctly exposed a development-database duplicate

@@ -627,14 +627,16 @@ describe('PostgreSQL fuzzy retrieval', () => {
   });
 
   it('executes the strict-word KNN operator and returns strict distance', async () => {
-    const food = await createFood({ searchText: 'yogurtized' });
-    const strictQuery = fuzzyCandidateQueries('yogurt', 10)[1];
+    const food = await createFood({ searchText: 'strictwordfixture' });
+    const strictQuery = fuzzyCandidateQueries('strictwordfixture', 10)[1];
+    if (strictQuery === undefined)
+      throw new Error('strict fuzzy query missing');
     const rows =
       await prisma.$queryRaw<
         Array<{ id: string; distance: number; kind: string }>
       >(strictQuery);
     const expected = await prisma.$queryRaw<Array<{ distance: number }>>`
-      SELECT 1 - strict_word_similarity('yogurt', 'yogurtized') AS distance
+      SELECT 1 - strict_word_similarity('strictwordfixture', 'strictwordfixture') AS distance
     `;
 
     expect(rows.find((row) => row.id === food.id)?.kind).toBe('strict_word');
