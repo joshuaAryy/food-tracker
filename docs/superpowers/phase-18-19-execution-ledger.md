@@ -47,7 +47,9 @@ Protected state: preserved; no protected paths staged or modified
   comparisons, and duplicate/rejected-row persistence guards. The AI/photo
   fallback path typechecks and remains DB/Pinecone integration-gated.
 - Benchmark CLI snapshots now require exactly one observation for every
-  versioned corpus query before baseline or candidate metrics are accepted.
+  versioned corpus query in the requested comparison split before baseline or
+  candidate metrics are accepted; full historical snapshots remain filterable
+  for split-scoped comparisons.
 - Legacy direct `usda_fdc` ranker inputs now use the same neutral base source
   quality as `reference`; final hydrated USDA candidates already use the
   `reference` ranking class.
@@ -64,7 +66,7 @@ Protected state: preserved; no protected paths staged or modified
 - API lint, typecheck, and build pass under Node 22.23.0/pnpm 10.34.3.
 - Schema/dependency changes are present and the committed migrations deploy
   cleanly to the dedicated test database. The live benchmark adapter now
-  records complete snapshots and baseline-derived reports.
+  records split-scoped snapshots and baseline-derived reports.
 - Official CNF 2026 parse dry-run completed under Node 22: 5,993 foods and 147,637 canonical nutrient rows in 7.2s, peak RSS 354 MB. This supports bounded 250-row persistence batches without introducing staging tables; PostgreSQL mutation/transaction timing remains pending.
 - Official CoFID 2021 parse dry-run completed under Node 22: 2,886 foods and 38,858 canonical nutrient rows in 4.1s, peak RSS 572 MB. This is parse-only evidence; PostgreSQL mutation/transaction timing remains pending.
 - Official Ciqual 2025 parse dry-run completed under Node 22: 3,484 foods and 59,819 canonical nutrient rows in 3.2s, peak RSS 358 MB; English canonical names and French/scientific aliases were read from the official XLSX/XML pair.

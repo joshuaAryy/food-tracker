@@ -60,32 +60,46 @@ function isRunName(value: unknown): value is BenchmarkRunName {
 export function validateBenchmarkSnapshotCoverage(
   snapshot: BenchmarkSnapshot,
   corpus = FOOD_RETRIEVAL_CORPUS,
+  split: BenchmarkSplit | 'all' = 'all',
 ): void {
-  const expectedIds = new Set(corpus.map((query) => query.id));
+  const allExpectedIds = new Set(corpus.map((query) => query.id));
+  const expectedIds = new Set(
+    corpus
+      .filter((query) => split === 'all' || query.split === split)
+      .map((query) => query.id),
+  );
   const observedIds = snapshot.observations.map(
     (observation) => observation.queryId,
   );
-  const observedSet = new Set(observedIds);
+  const observedForSplit = observedIds.filter((queryId) =>
+    expectedIds.has(queryId),
+  );
+  const observedSet = new Set(observedForSplit);
   const duplicateIds = observedIds.filter(
     (queryId, index) => observedIds.indexOf(queryId) !== index,
   );
-  const unknownIds = observedIds.filter((queryId) => !expectedIds.has(queryId));
+  const unknownIds = observedIds.filter(
+    (queryId) => !allExpectedIds.has(queryId),
+  );
   const missingIds = [...expectedIds].filter(
     (queryId) => !observedSet.has(queryId),
   );
   if (
-    observedIds.length !== expectedIds.size ||
+    observedForSplit.length !== expectedIds.size ||
     duplicateIds.length > 0 ||
     unknownIds.length > 0 ||
     missingIds.length > 0
   ) {
     throw new Error(
-      `Snapshot must contain exactly one observation for every benchmark query (expected ${expectedIds.size}; observed ${observedIds.length}; missing ${missingIds.length}; duplicate ${duplicateIds.length}; unknown ${unknownIds.length}).`,
+      `Snapshot must contain exactly one observation for every ${split} benchmark query (expected ${expectedIds.size}; observed ${observedForSplit.length}; missing ${missingIds.length}; duplicate ${duplicateIds.length}; unknown ${unknownIds.length}).`,
     );
   }
 }
 
-function readSnapshot(path: string): BenchmarkSnapshot {
+function readSnapshot(
+  path: string,
+  split: BenchmarkSplit | 'all',
+): BenchmarkSnapshot {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
   const runName = isRecord(parsed) ? parsed.name : null;
   if (
@@ -104,7 +118,7 @@ function readSnapshot(path: string): BenchmarkSnapshot {
     name: runName,
     observations: parsed.observations,
   };
-  validateBenchmarkSnapshotCoverage(snapshot);
+  validateBenchmarkSnapshotCoverage(snapshot, FOOD_RETRIEVAL_CORPUS, split);
   return snapshot;
 }
 
@@ -171,7 +185,7 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
   if (options.snapshotPath === null) {
     throw new Error('--snapshot is required. Use --help for usage.');
   }
-  const snapshot = readSnapshot(options.snapshotPath);
+  const snapshot = readSnapshot(options.snapshotPath, options.split);
   if (snapshot.name !== 'legacy') {
     throw new Error('--snapshot must contain the legacy run.');
   }
@@ -189,7 +203,7 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
   const candidateSnapshot =
     options.candidateSnapshotPath === null
       ? null
-      : readSnapshot(options.candidateSnapshotPath);
+      : readSnapshot(options.candidateSnapshotPath, options.split);
   if (candidateSnapshot?.name === 'legacy') {
     throw new Error('--candidate must contain a non-legacy run.');
   }

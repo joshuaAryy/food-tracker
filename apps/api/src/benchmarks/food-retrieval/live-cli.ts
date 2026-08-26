@@ -2,11 +2,11 @@ import { writeFile } from 'node:fs/promises';
 import { prisma } from '../../lib/prisma.js';
 import {
   FOOD_RETRIEVAL_CORPUS,
-  evaluateObservations,
   runFoodRetrievalBenchmark,
   retrieveLiveBenchmarkObservation,
   type BenchmarkSnapshot,
   type BenchmarkRunName,
+  type BenchmarkObservation,
   type BenchmarkSplit,
   type LiveBenchmarkMode,
 } from './index.js';
@@ -45,9 +45,23 @@ Usage:
   pnpm benchmark:food-retrieval-live -- --mode legacy --split development --output /tmp/legacy.json
 
 The live adapter reads PostgreSQL FoodItems, applies the selected channel
-ablation, and writes a complete reviewed-corpus snapshot. It never mutates
+ablation, and writes a snapshot for only the selected split. It never mutates
 FoodItems or FoodLogs and never makes bulk-provider runtime calls.
+
+Use a dedicated real-catalog database such as food_tracker_benchmark_test for
+live runs. Ordinary Vitest continues using food_tracker_test and resets it.
 `);
+}
+
+export function benchmarkSnapshotForObservations(
+  mode: BenchmarkRunName,
+  observations: readonly BenchmarkObservation[],
+): BenchmarkSnapshot {
+  return {
+    benchmarkVersion: '2026-08-23',
+    name: mode,
+    observations,
+  };
 }
 
 async function main(): Promise<void> {
@@ -58,12 +72,9 @@ async function main(): Promise<void> {
   const mode = parseMode(argument('--mode', 'legacy'));
   const split = parseSplit(argument('--split', 'all'));
   const output = argument('--output');
-  // Always record a complete corpus snapshot. The split is an evaluation
-  // view, not a reason to write a partial artifact that cannot be validated
-  // or compared later.
-  const fullRun = await runFoodRetrievalBenchmark({
+  const run = await runFoodRetrievalBenchmark({
     corpus: FOOD_RETRIEVAL_CORPUS,
-    split: 'all',
+    split,
     retrieve: (query) =>
       retrieveLiveBenchmarkObservation({
         prisma,
@@ -71,28 +82,7 @@ async function main(): Promise<void> {
         mode,
       }),
   });
-  const selectedIds = new Set(
-    FOOD_RETRIEVAL_CORPUS.filter(
-      (query) => split === 'all' || query.split === split,
-    ).map((query) => query.id),
-  );
-  const run = {
-    split,
-    observations: fullRun.observations.filter((observation) =>
-      selectedIds.has(observation.queryId),
-    ),
-    ...evaluateObservations(
-      fullRun.observations.filter((observation) =>
-        selectedIds.has(observation.queryId),
-      ),
-      FOOD_RETRIEVAL_CORPUS,
-    ),
-  };
-  const snapshot: BenchmarkSnapshot = {
-    benchmarkVersion: '2026-08-23',
-    name: mode as BenchmarkRunName,
-    observations: run.observations,
-  };
+  const snapshot = benchmarkSnapshotForObservations(mode, run.observations);
   if (output === null) {
     console.log(
       JSON.stringify({ mode, split, metrics: run, snapshot }, null, 2),

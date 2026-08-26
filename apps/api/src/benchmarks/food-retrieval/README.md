@@ -58,8 +58,11 @@ this corpus split.
 The live PostgreSQL adapter is available through
 `benchmark:food-retrieval-live`. It supports `legacy`, `datasets`, `fuzzy`,
 `semantic`, and `full_hybrid` modes, seeds only deterministic global benchmark
-rows, and always writes a complete 120-observation snapshot. `--split` is an
-evaluation view, so development and holdout reports can be produced without
-creating partial artifacts. The first measured baseline and frozen-gate
+rows, and writes a snapshot containing only the observations executed for the
+requested split: 80 development, 40 holdout, or 120 for `all`. `--split`
+controls retrieval execution as well as the written artifact; development runs
+never invoke the holdout queries. Use a dedicated real-catalog database such
+as `food_tracker_benchmark_test`; ordinary Vitest continues using
+`food_tracker_test` and resets it. The first measured baseline and frozen-gate
 results are recorded in
 `docs/superpowers/phase-18-19-benchmark-results.md`.

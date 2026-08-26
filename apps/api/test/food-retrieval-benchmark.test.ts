@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,
@@ -12,6 +15,8 @@ import {
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
 import { benchmarkSeedRows } from '../src/benchmarks/food-retrieval/seed.js';
+import { benchmarkSnapshotForObservations } from '../src/benchmarks/food-retrieval/live-cli.js';
+import { runFoodRetrievalBenchmarkCli } from '../src/benchmarks/food-retrieval/cli.js';
 
 function observation(
   queryId: string,
@@ -373,5 +378,191 @@ describe('food retrieval benchmark harness', () => {
       ),
     );
     expect(report.latencyMs.mean).toBe(3);
+  });
+
+  it('executes only the requested split and never touches the other split', async () => {
+    for (const [split, expectedCount] of [
+      ['development', 80],
+      ['holdout', 40],
+      ['all', 120],
+    ] as const) {
+      const visited: string[] = [];
+      const report = await runFoodRetrievalBenchmark({
+        split,
+        corpus: FOOD_RETRIEVAL_CORPUS,
+        retrieve: async (query) => {
+          visited.push(query.id);
+          return observation(query.id);
+        },
+      });
+      const expectedIds = new Set(
+        FOOD_RETRIEVAL_CORPUS.filter(
+          (query) => split === 'all' || query.split === split,
+        ).map((query) => query.id),
+      );
+
+      expect(report.observations).toHaveLength(expectedCount);
+      expect(visited).toHaveLength(expectedCount);
+      expect(new Set(visited)).toEqual(expectedIds);
+      expect(
+        visited.some((queryId) => {
+          const query = FOOD_RETRIEVAL_CORPUS.find(
+            (entry) => entry.id === queryId,
+          );
+          return (
+            query !== undefined && split !== 'all' && query.split !== split
+          );
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('writes snapshots with exactly the observations executed for each split', async () => {
+    for (const [split, expectedCount] of [
+      ['development', 80],
+      ['holdout', 40],
+      ['all', 120],
+    ] as const) {
+      const run = await runFoodRetrievalBenchmark({
+        split,
+        corpus: FOOD_RETRIEVAL_CORPUS,
+        retrieve: (query) => observation(query.id),
+      });
+      const snapshot = benchmarkSnapshotForObservations(
+        'legacy',
+        run.observations,
+      );
+      expect(snapshot.observations).toHaveLength(expectedCount);
+    }
+  });
+
+  it('validates snapshots against the requested split while allowing full snapshots to be filtered', () => {
+    const development = FOOD_RETRIEVAL_CORPUS.filter(
+      (query) => query.split === 'development',
+    ).map((query) => observation(query.id));
+    const holdout = FOOD_RETRIEVAL_CORPUS.filter(
+      (query) => query.split === 'holdout',
+    ).map((query) => observation(query.id));
+    const all = FOOD_RETRIEVAL_CORPUS.map((query) => observation(query.id));
+    const snapshot = (observations: BenchmarkObservation[]) => ({
+      benchmarkVersion: FOOD_RETRIEVAL_BENCHMARK_VERSION,
+      name: 'legacy' as const,
+      observations,
+    });
+
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot(development),
+        FOOD_RETRIEVAL_CORPUS,
+        'development',
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot(holdout),
+        FOOD_RETRIEVAL_CORPUS,
+        'holdout',
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot(all),
+        FOOD_RETRIEVAL_CORPUS,
+        'development',
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot(development.slice(1)),
+        FOOD_RETRIEVAL_CORPUS,
+        'development',
+      ),
+    ).toThrow(/missing/);
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot([...development, development[0]!]),
+        FOOD_RETRIEVAL_CORPUS,
+        'development',
+      ),
+    ).toThrow(/duplicate/);
+    expect(() =>
+      validateBenchmarkSnapshotCoverage(
+        snapshot([...development, observation('unknown-query')]),
+        FOOD_RETRIEVAL_CORPUS,
+        'development',
+      ),
+    ).toThrow(/unknown/);
+  });
+
+  it('accepts split-sized and full snapshots in split-scoped CLI comparisons', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'food-retrieval-split-'));
+    try {
+      const development = FOOD_RETRIEVAL_CORPUS.filter(
+        (query) => query.split === 'development',
+      ).map((query) => observation(query.id));
+      const holdout = FOOD_RETRIEVAL_CORPUS.filter(
+        (query) => query.split === 'holdout',
+      ).map((query) => observation(query.id));
+      const all = FOOD_RETRIEVAL_CORPUS.map((query) => observation(query.id));
+      const toSnapshot = (
+        name: 'legacy' | 'datasets',
+        observations: BenchmarkObservation[],
+      ) =>
+        JSON.stringify({
+          benchmarkVersion: FOOD_RETRIEVAL_BENCHMARK_VERSION,
+          name,
+          observations,
+        });
+      const developmentBaseline = join(directory, 'development-baseline.json');
+      const developmentCandidate = join(
+        directory,
+        'development-candidate.json',
+      );
+      const holdoutBaseline = join(directory, 'holdout-baseline.json');
+      const holdoutCandidate = join(directory, 'holdout-candidate.json');
+      const allBaseline = join(directory, 'all-baseline.json');
+      await writeFile(developmentBaseline, toSnapshot('legacy', development));
+      await writeFile(
+        developmentCandidate,
+        toSnapshot('datasets', development),
+      );
+      await writeFile(holdoutBaseline, toSnapshot('legacy', holdout));
+      await writeFile(holdoutCandidate, toSnapshot('datasets', holdout));
+      await writeFile(allBaseline, toSnapshot('legacy', all));
+
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          developmentBaseline,
+          '--candidate',
+          developmentCandidate,
+          '--split',
+          'development',
+          '--json',
+        ]),
+      ).toBe(0);
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          holdoutBaseline,
+          '--candidate',
+          holdoutCandidate,
+          '--split',
+          'holdout',
+          '--json',
+        ]),
+      ).toBe(0);
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          allBaseline,
+          '--split',
+          'development',
+          '--json',
+        ]),
+      ).toBe(0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

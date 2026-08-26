@@ -61,9 +61,9 @@ remain disabled until the external Pinecone index/credential gate is executed.
 ## Reproduction
 
 The live adapter and seed commands are in
-`apps/api/src/benchmarks/food-retrieval/`. A complete snapshot is always
-written; `--split development|holdout` changes only the reported evaluation
-view. The recorded comparison commands are:
+`apps/api/src/benchmarks/food-retrieval/`. The requested split controls which
+queries execute and which observations are written: development produces 80,
+holdout 40, and `all` 120. The recorded comparison commands are:
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/food_tracker_test \
