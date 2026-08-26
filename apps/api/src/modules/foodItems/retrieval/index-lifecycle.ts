@@ -2,6 +2,21 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import type { PrismaClient } from '@prisma/client';
 import { semanticIndexVersionName, semanticModelVersion } from './pinecone.js';
 
+/** Pinecone list pagination rejects limits of 100 or greater. */
+export const PINECONE_LIST_PAGE_SIZE = 99;
+
+interface PineconeListPage {
+  vectors?: readonly { id?: string | null }[];
+  pagination?: { next?: string | null };
+}
+
+interface PineconeListIndex {
+  listPaginated(options: {
+    limit: number;
+    paginationToken?: string;
+  }): Promise<PineconeListPage>;
+}
+
 export interface FoodSearchDocument {
   id: string;
   text: string;
@@ -176,6 +191,24 @@ export async function deleteStaleSearchDocuments(input: {
   return 0;
 }
 
+export async function listIndexedSearchDocumentIds(
+  index: PineconeListIndex,
+): Promise<string[]> {
+  const indexedIds: string[] = [];
+  let paginationToken: string | undefined;
+  do {
+    const page = await index.listPaginated({
+      limit: PINECONE_LIST_PAGE_SIZE,
+      ...(paginationToken === undefined ? {} : { paginationToken }),
+    });
+    for (const item of page.vectors ?? []) {
+      if (typeof item.id === 'string') indexedIds.push(item.id);
+    }
+    paginationToken = page.pagination?.next ?? undefined;
+  } while (paginationToken !== undefined);
+  return indexedIds;
+}
+
 export async function reconcileSearchDocuments(input: {
   config: IndexLifecycleConfig;
   documents: readonly FoodSearchDocument[];
@@ -185,18 +218,7 @@ export async function reconcileSearchDocuments(input: {
     host: input.config.indexHost,
     namespace: input.config.candidateNamespace,
   });
-  const indexedIds: string[] = [];
-  let paginationToken: string | undefined;
-  do {
-    const page = await index.listPaginated({
-      limit: 1000,
-      ...(paginationToken === undefined ? {} : { paginationToken }),
-    });
-    for (const item of page.vectors ?? []) {
-      if (typeof item.id === 'string') indexedIds.push(item.id);
-    }
-    paginationToken = page.pagination?.next;
-  } while (paginationToken !== undefined);
+  const indexedIds = await listIndexedSearchDocumentIds(index);
   const staleIds = staleSearchDocumentIds(
     indexedIds,
     input.documents.map((document) => document.id),

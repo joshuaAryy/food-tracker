@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   FOOD_RETRIEVAL_BENCHMARK_VERSION,
   FOOD_RETRIEVAL_CORPUS,
@@ -562,6 +562,121 @@ describe('food retrieval benchmark harness', () => {
         ]),
       ).toBe(0);
     } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('reports candidate metrics and misses separately from the legacy baseline', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'food-retrieval-report-'));
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const development = FOOD_RETRIEVAL_CORPUS.filter(
+        (query) => query.split === 'development',
+      );
+      const matchingCandidate = (
+        query: (typeof development)[number],
+        id: string,
+      ) => ({
+        id,
+        name: query.gold.canonicalName,
+        provider: query.gold.expectedProvider ?? null,
+        source: 'reference',
+        trusted: false,
+        matchesExpected: true,
+      });
+      const baselineObservations = development.map((query, index) =>
+        observation(
+          query.id,
+          index < 40
+            ? { candidates: [matchingCandidate(query, `baseline-${query.id}`)] }
+            : {},
+        ),
+      );
+      const candidateObservations = development.map((query, index) => {
+        if (index < 71) {
+          return observation(query.id, {
+            candidates: [matchingCandidate(query, `candidate-${query.id}`)],
+          });
+        }
+        if (index === 71) {
+          return observation(query.id, {
+            candidates: [
+              {
+                ...matchingCandidate(query, `wrong-${query.id}`),
+                matchesExpected: false,
+              },
+              matchingCandidate(query, `candidate-${query.id}`),
+            ],
+          });
+        }
+        return observation(query.id);
+      });
+      const toSnapshot = (
+        name: 'legacy' | 'fuzzy',
+        observations: BenchmarkObservation[],
+      ) =>
+        JSON.stringify({
+          benchmarkVersion: FOOD_RETRIEVAL_BENCHMARK_VERSION,
+          name,
+          observations,
+        });
+      const baselinePath = join(directory, 'baseline.json');
+      const candidatePath = join(directory, 'candidate.json');
+      const failingCandidatePath = join(directory, 'failing-candidate.json');
+      await writeFile(baselinePath, toSnapshot('legacy', baselineObservations));
+      await writeFile(
+        candidatePath,
+        toSnapshot('fuzzy', candidateObservations),
+      );
+      await writeFile(
+        failingCandidatePath,
+        toSnapshot(
+          'fuzzy',
+          development.map((query) => observation(query.id)),
+        ),
+      );
+
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          baselinePath,
+          '--split',
+          'development',
+        ]),
+      ).toBe(0);
+      const baselineOutput = log.mock.calls.flat().join('\n');
+      expect(baselineOutput).toContain('Top-1/3/5: 40/40/40');
+      expect(baselineOutput).not.toContain('Candidate Top-1/3/5');
+
+      log.mockClear();
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          baselinePath,
+          '--candidate',
+          candidatePath,
+          '--split',
+          'development',
+        ]),
+      ).toBe(0);
+      const comparisonOutput = log.mock.calls.flat().join('\n');
+      expect(comparisonOutput).toContain('Baseline Top-1/3/5: 40/40/40');
+      expect(comparisonOutput).toContain('Candidate Top-1/3/5: 71/72/72');
+      expect(comparisonOutput).toContain('Candidate Top-1 misses:');
+      expect(comparisonOutput).not.toMatch(/\nTop-1\/3\/5: 40\/40\/40\n/);
+
+      expect(
+        runFoodRetrievalBenchmarkCli([
+          '--snapshot',
+          baselinePath,
+          '--candidate',
+          failingCandidatePath,
+          '--split',
+          'development',
+        ]),
+      ).toBe(2);
+    } finally {
+      log.mockRestore();
       await rm(directory, { recursive: true, force: true });
     }
   });

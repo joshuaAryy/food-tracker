@@ -241,10 +241,24 @@ export function runFoodRetrievalBenchmarkCli(args: readonly string[]): number {
         : `Legacy-to-candidate comparison (${options.split})`,
     );
     console.log(`Queries: ${metrics.queryCount}`);
-    console.log(
-      `Top-1/3/5: ${metrics.topK.top1.hits}/${metrics.topK.top3.hits}/${metrics.topK.top5.hits}`,
-    );
-    console.log(`Top-1 misses: ${metrics.missSets.top1.join(', ') || 'none'}`);
+    if (comparison === null) {
+      console.log(
+        `Top-1/3/5: ${metrics.topK.top1.hits}/${metrics.topK.top3.hits}/${metrics.topK.top5.hits}`,
+      );
+      console.log(
+        `Top-1 misses: ${metrics.missSets.top1.join(', ') || 'none'}`,
+      );
+    } else {
+      console.log(
+        `Baseline Top-1/3/5: ${metrics.topK.top1.hits}/${metrics.topK.top3.hits}/${metrics.topK.top5.hits}`,
+      );
+      console.log(
+        `Candidate Top-1/3/5: ${comparison.candidate.topK.top1.hits}/${comparison.candidate.topK.top3.hits}/${comparison.candidate.topK.top5.hits}`,
+      );
+      console.log(
+        `Candidate Top-1 misses: ${comparison.candidate.missSets.top1.join(', ') || 'none'}`,
+      );
+    }
     console.log(
       `Acceptance gate violations: ${(candidateViolations ?? violations).join(', ') || 'none'}`,
     );
