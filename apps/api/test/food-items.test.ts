@@ -73,6 +73,8 @@ describe('food items API', () => {
     delete process.env.USDA_FDC_TIMEOUT_MS;
     delete process.env.USDA_FDC_RATE_LIMIT_MAX;
     delete process.env.USDA_FDC_RATE_LIMIT_WINDOW;
+    delete process.env.PINECONE_API_KEY;
+    delete process.env.PINECONE_INDEX_HOST;
   });
 
   it('preserves validated provider serving options when an existing canonical item is reused', async () => {
@@ -1444,6 +1446,94 @@ describe('food items API', () => {
       candidateType: 'food_item',
       foodItem: { id: localFood.id },
     });
+  });
+
+  it('does not expand manual search when lexical results already span providers', async () => {
+    process.env.PINECONE_API_KEY = 'test-pinecone-key';
+    process.env.PINECONE_INDEX_HOST = 'https://pinecone.test';
+    process.env.USDA_FDC_API_KEY = 'test-usda-key';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    for (const sourceProvider of ['cnf', 'ciqual', 'cofid'] as const) {
+      await prisma.foodItem.create({
+        data: {
+          userId: null,
+          name: 'Plain yogurt',
+          normalizedName: 'plain yogurt',
+          searchText: 'plain yogurt',
+          sourceType: 'app_owned',
+          rankingClass: 'reference',
+          sourceProvider,
+          sourceId: `coverage-${sourceProvider}`,
+          sourceRegion: null,
+          foodType: 'generic',
+          calories: 100,
+          protein: 8,
+        },
+      });
+    }
+
+    try {
+      const response = await api
+        .post('/api/v1/food-items/search-candidates')
+        .send({ query: 'plain yogurt', limit: 3 })
+        .expect(200);
+
+      expect(response.body.data.candidates).toHaveLength(3);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.PINECONE_API_KEY;
+      delete process.env.PINECONE_INDEX_HOST;
+      delete process.env.USDA_FDC_API_KEY;
+    }
+  });
+
+  it('keeps Pinecone eligible when manual-search coverage is insufficient', async () => {
+    process.env.PINECONE_API_KEY = 'test-pinecone-key';
+    process.env.PINECONE_INDEX_HOST = 'https://pinecone.test';
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ result: { hits: [] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Plain yogurt',
+        normalizedName: 'plain yogurt',
+        searchText: 'plain yogurt',
+        sourceType: 'app_owned',
+        rankingClass: 'reference',
+        sourceProvider: 'cnf',
+        sourceId: 'coverage-single',
+        sourceRegion: null,
+        foodType: 'generic',
+        calories: 100,
+        protein: 8,
+      },
+    });
+
+    try {
+      await api
+        .post('/api/v1/food-items/search-candidates')
+        .send({ query: 'plain yogurt', limit: 3 })
+        .expect(200);
+      expect(fetchSpy).toHaveBeenCalled();
+    } finally {
+      delete process.env.PINECONE_API_KEY;
+      delete process.env.PINECONE_INDEX_HOST;
+    }
   });
 
   it('keeps local food search results when USDA is unavailable', async () => {

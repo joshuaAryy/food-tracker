@@ -64,6 +64,7 @@ import { resolveActiveSemanticNamespace } from './retrieval/index-lifecycle.js';
 import {
   appendUniqueCandidate,
   candidateMatchReason,
+  coverageSourceKey,
   foodItemCandidate,
 } from './retrieval/candidate-generation.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
@@ -391,7 +392,7 @@ async function visibleFoodItem(id: string, userId: string) {
   });
 }
 
-function needsAdditionalCoverage(
+export function needsAdditionalCoverage(
   query: string,
   candidates: AiFoodParseCandidate[],
   requestedLimit: number,
@@ -400,9 +401,7 @@ function needsAdditionalCoverage(
     0,
     Math.min(requestedLimit, 3),
   );
-  const providerDiversity = new Set(
-    topK.map((candidate) => candidate.matchReason),
-  );
+  const providerDiversity = new Set(topK.map(coverageSourceKey));
   return (
     topK.length < Math.min(requestedLimit, 3) ||
     (topK.length > 1 && providerDiversity.size < 2)

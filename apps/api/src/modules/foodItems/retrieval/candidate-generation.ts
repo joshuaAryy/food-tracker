@@ -65,6 +65,17 @@ export function candidateIdentityKey(candidate: AiFoodParseCandidate): string {
     : `${candidate.externalFood.sourceProvider}:${candidate.externalFood.sourceId}`;
 }
 
+export function coverageSourceKey(candidate: AiFoodParseCandidate): string {
+  const sourceProvider =
+    candidate.candidateType === 'food_item'
+      ? candidate.foodItem.sourceProvider
+      : candidate.externalFood.sourceProvider;
+  if (typeof sourceProvider === 'string' && sourceProvider.trim().length > 0) {
+    return `provider:${sourceProvider}`;
+  }
+  return `source:${candidate.matchReason}`;
+}
+
 export function appendUniqueCandidate(input: {
   candidates: AiFoodParseCandidate[];
   seen: Set<string>;

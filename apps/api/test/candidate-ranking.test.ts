@@ -13,6 +13,8 @@ import {
   assessFoodIntent,
   foodIntentFallbackQuery,
 } from '../src/modules/foodItems/food-intent.js';
+import { coverageSourceKey } from '../src/modules/foodItems/retrieval/candidate-generation.js';
+import { needsAdditionalCoverage } from '../src/modules/foodItems/routes.js';
 
 function candidate(
   overrides: Partial<
@@ -80,7 +82,143 @@ function foodItemCandidateForRegion(region: string): AiFoodParseCandidate {
   };
 }
 
+function regionalFoodItem(): FoodItem {
+  const candidate = foodItemCandidateForRegion('CA');
+  if (candidate.candidateType !== 'food_item') {
+    throw new Error('expected food item candidate');
+  }
+  return candidate.foodItem;
+}
+
 describe('candidate ranking helper', () => {
+  it('uses provider identity for manual-search coverage diversity', () => {
+    const providers = ['cnf', 'ciqual', 'cofid'] as const;
+    const keys = providers.map((sourceProvider, index) =>
+      coverageSourceKey({
+        candidateType: 'food_item',
+        foodItem: {
+          ...regionalFoodItem(),
+          id: `food-${index}`,
+          sourceProvider,
+        },
+        externalFood: null,
+        rank: index + 1,
+        matchReason: 'reference',
+        confidence: 'low',
+        defaultServingMultiplier: 1,
+      }),
+    );
+    expect(keys).toEqual(['provider:cnf', 'provider:ciqual', 'provider:cofid']);
+    expect(new Set(keys)).toHaveLength(3);
+    expect(
+      new Set(
+        (['cnf', 'ciqual', 'ciqual'] as const).map((sourceProvider, index) =>
+          coverageSourceKey({
+            candidateType: 'food_item',
+            foodItem: {
+              ...regionalFoodItem(),
+              id: `duplicate-provider-${index}`,
+              sourceProvider,
+            },
+            externalFood: null,
+            rank: index + 1,
+            matchReason: 'reference',
+            confidence: 'low',
+            defaultServingMultiplier: 1,
+          }),
+        ),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it('keeps provider-less user and app origins distinct for coverage', () => {
+    const candidateFor = (
+      matchReason: AiFoodParseCandidate['matchReason'],
+    ): AiFoodParseCandidate => ({
+      candidateType: 'food_item',
+      foodItem: {
+        ...regionalFoodItem(),
+        id: `food-${matchReason}`,
+        sourceProvider: null,
+      },
+      externalFood: null,
+      rank: 1,
+      matchReason,
+      confidence: 'low',
+      defaultServingMultiplier: 1,
+    });
+    expect(coverageSourceKey(candidateFor('recent'))).toBe('source:recent');
+    expect(coverageSourceKey(candidateFor('saved'))).toBe('source:saved');
+    expect(coverageSourceKey(candidateFor('custom'))).toBe('source:custom');
+    expect(coverageSourceKey(candidateFor('app'))).toBe('source:app');
+  });
+
+  it('uses the minimum top-k rule and provider-aware diversity for coverage', () => {
+    const candidateFor = (
+      sourceProvider: 'cnf' | 'ciqual' | 'cofid' | null,
+      matchReason: AiFoodParseCandidate['matchReason'] = 'reference',
+      index = 1,
+    ): AiFoodParseCandidate => ({
+      candidateType: 'food_item',
+      foodItem: {
+        ...regionalFoodItem(),
+        id: `coverage-food-${index}`,
+        sourceProvider,
+        rankingSource: sourceProvider === null ? 'app_curated' : 'reference',
+      },
+      externalFood: null,
+      rank: index,
+      matchReason,
+      confidence: 'low',
+      defaultServingMultiplier: 1,
+    });
+
+    expect(needsAdditionalCoverage('plain yogurt', [], 3)).toBe(true);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('ciqual', 'reference', 2),
+          candidateFor('cofid', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('cnf', 'reference', 2),
+          candidateFor('cnf', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(true);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('ciqual', 'reference', 2),
+          candidateFor('ciqual', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor(null, 'recent', 1),
+          candidateFor(null, 'saved', 2),
+          candidateFor(null, 'custom', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+  });
   it('gives curated app and reference candidates equal base source quality', () => {
     const curated = scoreFoodCandidate({
       query: 'banana',
