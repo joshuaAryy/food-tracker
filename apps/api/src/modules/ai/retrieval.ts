@@ -27,7 +27,11 @@ import {
   rankParseCandidates,
 } from '../foodItems/candidate-ranking.js';
 import { retrieveFuzzyFoodItemMatches } from '../foodItems/retrieval/fuzzy.js';
-import { createPineconeSemanticClient } from '../foodItems/retrieval/pinecone.js';
+import {
+  createPineconeSemanticClient,
+  semanticSearchTimeoutMs,
+  type SemanticSearchClient,
+} from '../foodItems/retrieval/pinecone.js';
 import { globalSemanticFoodWhere } from '../foodItems/retrieval/global-scope.js';
 import { resolveActiveSemanticNamespace } from '../foodItems/retrieval/index-lifecycle.js';
 import {
@@ -79,6 +83,7 @@ export async function retrieveParsedFoodItems(input: {
   userId: string;
   rateLimitKey: string;
   parsedItems: ProviderParsedFoodItem[];
+  semanticClient?: SemanticSearchClient;
 }): Promise<AiFoodParsedItem[]> {
   const result: AiFoodParsedItem[] = [];
   let semanticCalls = 0;
@@ -247,21 +252,26 @@ export async function retrieveParsedFoodItems(input: {
     if (
       bestTrustedCandidate(normalizedQuery, candidates) === undefined &&
       semanticCalls === 0 &&
-      pineconeApiKey &&
-      pineconeHost
+      (input.semanticClient !== undefined || (pineconeApiKey && pineconeHost))
     ) {
       semanticCalls += 1;
       try {
-        const semantic = createPineconeSemanticClient({
-          apiKey: pineconeApiKey,
-          indexHost: pineconeHost,
-          namespace: await resolveActiveSemanticNamespace({
-            prisma,
-            fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
-          }),
-          topK: 20,
-        });
-        const matches = await semantic.search(normalizedQuery, 350);
+        const semantic =
+          input.semanticClient ??
+          createPineconeSemanticClient({
+            apiKey: pineconeApiKey ?? '',
+            indexHost: pineconeHost ?? '',
+            namespace: await resolveActiveSemanticNamespace({
+              prisma,
+              fallback:
+                process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+            }),
+            topK: 20,
+          });
+        const matches = await semantic.search(
+          normalizedQuery,
+          semanticSearchTimeoutMs(),
+        );
         const semanticIds = matches.map((match) => match.foodItemId);
         const semanticFoods = await prisma.foodItem.findMany({
           where: globalSemanticFoodWhere(semanticIds),

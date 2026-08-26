@@ -2,6 +2,20 @@ import { Pinecone } from '@pinecone-database/pinecone';
 
 export const SEMANTIC_INDEX_VERSION = 'food-search-v1';
 export const SEMANTIC_MODEL_VERSION = 'multilingual-e5-large';
+export const DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS = 500;
+
+export function semanticSearchTimeoutMs(
+  configured = process.env.PINECONE_SEARCH_TIMEOUT_MS,
+): number {
+  const value = configured?.trim();
+  if (value === undefined || value.length === 0) {
+    return DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_SEMANTIC_SEARCH_TIMEOUT_MS;
+}
 
 export function semanticModelVersion(
   configured = process.env.PINECONE_EMBEDDING_MODEL,

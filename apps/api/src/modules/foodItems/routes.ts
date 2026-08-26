@@ -55,7 +55,10 @@ import {
   rankParseCandidates,
 } from './candidate-ranking.js';
 import { retrieveFuzzyFoodItemMatches } from './retrieval/fuzzy.js';
-import { createPineconeSemanticClient } from './retrieval/pinecone.js';
+import {
+  createPineconeSemanticClient,
+  semanticSearchTimeoutMs,
+} from './retrieval/pinecone.js';
 import { globalSemanticFoodWhere } from './retrieval/global-scope.js';
 import { resolveActiveSemanticNamespace } from './retrieval/index-lifecycle.js';
 import {
@@ -741,7 +744,10 @@ foodItemsRouter.post(
           }),
           topK: Math.max(input.limit * 2, 10),
         });
-        const matches = await semantic.search(normalizedQuery, 350);
+        const matches = await semantic.search(
+          normalizedQuery,
+          semanticSearchTimeoutMs(),
+        );
         const semanticIds = matches
           .map((match) => match.foodItemId)
           .filter((id) => !seen.has(id));

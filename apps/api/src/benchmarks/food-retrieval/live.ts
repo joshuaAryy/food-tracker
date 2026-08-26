@@ -18,6 +18,8 @@ import {
 import { retrieveFuzzyFoodItemMatches } from '../../modules/foodItems/retrieval/fuzzy.js';
 import {
   createPineconeSemanticClient,
+  semanticSearchTimeoutMs,
+  type SemanticSearchClient,
   type SemanticSearchMatch,
 } from '../../modules/foodItems/retrieval/pinecone.js';
 import { globalSemanticFoodWhere } from '../../modules/foodItems/retrieval/global-scope.js';
@@ -47,6 +49,7 @@ export interface LiveBenchmarkOptions {
   mode: LiveBenchmarkMode;
   limit?: number;
   region?: string | null;
+  semanticClient?: SemanticSearchClient;
 }
 
 type FoodWithRetrievalRelations = Prisma.FoodItemGetPayload<{
@@ -177,47 +180,58 @@ async function appendSemanticCandidates(input: {
   candidates: AiFoodParseCandidate[];
   seen: Set<string>;
   limit: number;
-}): Promise<boolean> {
+  semanticClient?: SemanticSearchClient;
+}): Promise<{ attempted: boolean }> {
   const apiKey = process.env.PINECONE_API_KEY;
   const host = process.env.PINECONE_INDEX_HOST;
-  if (!apiKey || !host) return false;
-  const client = createPineconeSemanticClient({
-    apiKey,
-    indexHost: host,
-    namespace: await resolveActiveSemanticNamespace({
-      prisma: input.prisma,
-      fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
-    }),
-    topK: input.limit,
-  });
-  const matches: SemanticSearchMatch[] = await client.search(
-    externalSearchQuery(normalizeText(input.query)),
-    350,
-  );
-  const ids = matches
-    .map((match) => match.foodItemId)
-    .filter((id) => !input.seen.has(id));
-  const foods = await input.prisma.foodItem.findMany({
-    where: globalSemanticFoodWhere(ids),
-    include: { barcodes: true, nutrients: true },
-    take: input.limit,
-  });
-  const byId = new Map(foods.map((food) => [food.id, food]));
-  for (const match of matches) {
-    const food = byId.get(match.foodItemId);
-    if (!food) continue;
-    appendFoodCandidate({
-      candidates: input.candidates,
-      seen: input.seen,
-      food: toFoodItem(food),
-      evidence: {
-        lexical: false,
-        fuzzyDistance: null,
-        semanticScore: match.score,
-      },
-    });
+  if (input.semanticClient === undefined && (!apiKey || !host)) {
+    return { attempted: false };
   }
-  return true;
+  let attempted = false;
+  try {
+    const client =
+      input.semanticClient ??
+      createPineconeSemanticClient({
+        apiKey: apiKey ?? '',
+        indexHost: host ?? '',
+        namespace: await resolveActiveSemanticNamespace({
+          prisma: input.prisma,
+          fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+        }),
+        topK: input.limit,
+      });
+    attempted = true;
+    const matches: SemanticSearchMatch[] = await client.search(
+      externalSearchQuery(normalizeText(input.query)),
+      semanticSearchTimeoutMs(),
+    );
+    const ids = matches
+      .map((match) => match.foodItemId)
+      .filter((id) => !input.seen.has(id));
+    const foods = await input.prisma.foodItem.findMany({
+      where: globalSemanticFoodWhere(ids),
+      include: { barcodes: true, nutrients: true },
+      take: input.limit,
+    });
+    const byId = new Map(foods.map((food) => [food.id, food]));
+    for (const match of matches) {
+      const food = byId.get(match.foodItemId);
+      if (!food) continue;
+      appendFoodCandidate({
+        candidates: input.candidates,
+        seen: input.seen,
+        food: toFoodItem(food),
+        evidence: {
+          lexical: false,
+          fuzzyDistance: null,
+          semanticScore: match.score,
+        },
+      });
+    }
+  } catch {
+    // Match production resilience: retain local candidates without fabricating semantic evidence.
+  }
+  return { attempted };
 }
 
 export async function retrieveLiveBenchmarkObservation(
@@ -306,15 +320,17 @@ export async function retrieveLiveBenchmarkObservation(
 
   let pineconeCalls = 0;
   if (input.mode === 'semantic' || input.mode === 'full_hybrid') {
-    pineconeCalls = (await appendSemanticCandidates({
+    const semanticResult = await appendSemanticCandidates({
       prisma: input.prisma,
       query: normalizedQuery,
       candidates,
       seen,
       limit,
-    }))
-      ? 1
-      : 0;
+      ...(input.semanticClient === undefined
+        ? {}
+        : { semanticClient: input.semanticClient }),
+    });
+    pineconeCalls = semanticResult.attempted ? 1 : 0;
   }
 
   const ranked = rankParseCandidates(
