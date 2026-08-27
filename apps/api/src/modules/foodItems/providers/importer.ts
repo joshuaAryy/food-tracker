@@ -30,6 +30,32 @@ export interface ImportProgress {
 
 type ImportProgressReporter = (progress: ImportProgress) => void;
 
+export type RowPersistenceStep =
+  | 'food-item-persisted'
+  | 'nutrients-deleted'
+  | 'nutrients-persisted';
+
+interface RowPersistenceStepEvent {
+  step: RowPersistenceStep;
+  row: NormalizedProviderFood;
+}
+
+type RowPersistenceStepReporter = (event: RowPersistenceStepEvent) => void;
+
+interface ExistingProviderFood {
+  id: string;
+  sourceId: string | null;
+  sourceRecordHash: string | null;
+  nutrients: Array<{
+    nutrientKey: NutrientKey;
+    amount: unknown;
+    unit: NutrientUnit;
+    sourceProvider: string | null;
+    sourceRecordId: string | null;
+    sourceRelease: string | null;
+  }>;
+}
+
 const PERSISTENCE_CONCURRENCY = 8;
 
 function validImportRow(row: NormalizedProviderFood): boolean {
@@ -75,6 +101,128 @@ function uniqueValidRows(
   });
 }
 
+interface CanonicalNutrient {
+  nutrientKey: NutrientKey;
+  amount: number;
+  unit: NutrientUnit;
+  sourceProvider: NormalizedProviderFood['provider'];
+  sourceRecordId: string;
+  sourceRelease: string;
+}
+
+function canonicalNutrients(row: NormalizedProviderFood): CanonicalNutrient[] {
+  const nutrients = new Map<NutrientKey, CanonicalNutrient>();
+  for (const nutrient of row.nutrients) {
+    if (!(nutrient.key in NUTRIENT_CATALOG)) continue;
+    const nutrientKey = nutrient.key as NutrientKey;
+    if (nutrients.has(nutrientKey)) continue;
+    nutrients.set(nutrientKey, {
+      nutrientKey,
+      amount: nutrient.amount,
+      unit: nutrient.unit as NutrientUnit,
+      sourceProvider: row.provider,
+      sourceRecordId: row.sourceId,
+      sourceRelease: row.release,
+    });
+  }
+  return [...nutrients.values()];
+}
+
+function nutrientsMatch(
+  existing: readonly ExistingProviderFood['nutrients'][number][],
+  expected: readonly CanonicalNutrient[],
+): boolean {
+  if (existing.length !== expected.length) return false;
+  const existingByKey = new Map(
+    existing.map((nutrient) => [nutrient.nutrientKey, nutrient]),
+  );
+  return expected.every((nutrient) => {
+    const persisted = existingByKey.get(nutrient.nutrientKey);
+    return (
+      persisted !== undefined &&
+      Number(persisted.amount) === nutrient.amount &&
+      persisted.unit === nutrient.unit &&
+      persisted.sourceProvider === nutrient.sourceProvider &&
+      persisted.sourceRecordId === nutrient.sourceRecordId &&
+      persisted.sourceRelease === nutrient.sourceRelease
+    );
+  });
+}
+
+function foodItemData(row: NormalizedProviderFood) {
+  return {
+    userId: null,
+    name: row.name,
+    brandName: row.brandName,
+    foodType: row.foodType,
+    normalizedName: normalizeIdentityText(row.name),
+    normalizedBrandName:
+      row.brandName === null ? null : normalizeIdentityText(row.brandName),
+    searchText: providerSearchText(row),
+    servingQuantity: row.servingQuantity,
+    servingUnit: row.servingUnit,
+    servingWeightGrams: row.servingWeightGrams,
+    sourceProvider: row.provider,
+    sourceId: row.sourceId,
+    sourceUpdatedAt: new Date(),
+    sourceAliases: row.authoritativeAliases,
+    sourceRegion: row.region,
+    rankingClass: 'reference' as const,
+    datasetRelease: row.release,
+    sourceRecordHash: row.sourceRecordHash,
+    sourceType: 'app_owned' as const,
+    // A building release stays invisible until all bounded batches finish.
+    archivedAt: new Date(),
+  };
+}
+
+async function persistProviderRow(input: {
+  prisma: PrismaClient;
+  row: NormalizedProviderFood;
+  existing: ExistingProviderFood | undefined;
+  onStep?: RowPersistenceStepReporter;
+}): Promise<'imported' | 'updated' | 'skipped'> {
+  const expectedNutrients = canonicalNutrients(input.row);
+  if (
+    input.existing?.sourceRecordHash === input.row.sourceRecordHash &&
+    nutrientsMatch(input.existing.nutrients, expectedNutrients)
+  ) {
+    return 'skipped';
+  }
+
+  await input.prisma.$transaction(async (transaction) => {
+    const data = foodItemData(input.row);
+    const item =
+      input.existing === undefined
+        ? await transaction.foodItem.create({ data })
+        : await transaction.foodItem.update({
+            where: { id: input.existing.id },
+            data,
+          });
+    input.onStep?.({ step: 'food-item-persisted', row: input.row });
+    await transaction.foodItemNutrient.deleteMany({
+      where: { foodItemId: item.id },
+    });
+    input.onStep?.({ step: 'nutrients-deleted', row: input.row });
+    if (expectedNutrients.length > 0) {
+      await transaction.foodItemNutrient.createMany({
+        data: expectedNutrients.map((nutrient) => ({
+          foodItemId: item.id,
+          nutrientKey: nutrient.nutrientKey,
+          amount: nutrient.amount,
+          unit: nutrient.unit,
+          sourceProvider: nutrient.sourceProvider,
+          sourceRecordId: nutrient.sourceRecordId,
+          sourceRelease: nutrient.sourceRelease,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    input.onStep?.({ step: 'nutrients-persisted', row: input.row });
+  });
+  return input.existing === undefined ? 'imported' : 'updated';
+}
+
 async function forEachBounded<T>(
   values: readonly T[],
   concurrency: number,
@@ -112,6 +260,7 @@ export async function persistProviderFoods(input: {
   batchSize?: number;
   dryRun?: boolean;
   onProgress?: ImportProgressReporter;
+  onRowPersistenceStep?: RowPersistenceStepReporter;
 }): Promise<ImportRunResult> {
   const first = input.rows[0];
   if (first === undefined)
@@ -179,71 +328,38 @@ export async function persistProviderFoods(input: {
           sourceId: { in: batch.map((row) => row.sourceId) },
           datasetRelease: release,
         },
-        select: { id: true, sourceId: true, sourceRecordHash: true },
+        select: {
+          id: true,
+          sourceId: true,
+          sourceRecordHash: true,
+          nutrients: {
+            select: {
+              nutrientKey: true,
+              amount: true,
+              unit: true,
+              sourceProvider: true,
+              sourceRecordId: true,
+              sourceRelease: true,
+            },
+          },
+        },
       });
       const existingBySourceId = new Map(
         existingRows.map((row) => [row.sourceId, row]),
       );
       await forEachBounded(batch, PERSISTENCE_CONCURRENCY, async (row) => {
         const existing = existingBySourceId.get(row.sourceId);
-        if (existing?.sourceRecordHash === row.sourceRecordHash) {
-          skipped += 1;
-          return;
-        }
-        const data = {
-          userId: null,
-          name: row.name,
-          brandName: row.brandName,
-          foodType: row.foodType,
-          normalizedName: normalizeIdentityText(row.name),
-          normalizedBrandName:
-            row.brandName === null
-              ? null
-              : normalizeIdentityText(row.brandName),
-          searchText: providerSearchText(row),
-          servingQuantity: row.servingQuantity,
-          servingUnit: row.servingUnit,
-          servingWeightGrams: row.servingWeightGrams,
-          sourceProvider: provider,
-          sourceId: row.sourceId,
-          sourceUpdatedAt: new Date(),
-          sourceAliases: row.authoritativeAliases,
-          sourceRegion: row.region,
-          rankingClass: 'reference' as const,
-          datasetRelease: row.release,
-          sourceRecordHash: row.sourceRecordHash,
-          sourceType: 'app_owned' as const,
-          // A building release stays invisible until all bounded batches finish.
-          archivedAt: new Date(),
-        };
-        const item =
-          existing === undefined
-            ? await input.prisma.foodItem.create({ data })
-            : await input.prisma.foodItem.update({
-                where: { id: existing.id },
-                data,
-              });
-        if (existing === undefined) imported += 1;
-        else updated += 1;
-        await input.prisma.foodItemNutrient.deleteMany({
-          where: { foodItemId: item.id },
+        const outcome = await persistProviderRow({
+          prisma: input.prisma,
+          row,
+          existing,
+          ...(input.onRowPersistenceStep === undefined
+            ? {}
+            : { onStep: input.onRowPersistenceStep }),
         });
-        const nutrientRows = row.nutrients
-          .filter((nutrient) => nutrient.key in NUTRIENT_CATALOG)
-          .map((nutrient) => ({
-            foodItemId: item.id,
-            nutrientKey: nutrient.key as NutrientKey,
-            amount: nutrient.amount,
-            unit: nutrient.unit as NutrientUnit,
-            sourceProvider: row.provider,
-            sourceRecordId: row.sourceId,
-            sourceRelease: row.release,
-          }));
-        if (nutrientRows.length > 0)
-          await input.prisma.foodItemNutrient.createMany({
-            data: nutrientRows,
-            skipDuplicates: true,
-          });
+        if (outcome === 'imported') imported += 1;
+        else if (outcome === 'updated') updated += 1;
+        else skipped += 1;
       });
       input.onProgress?.({
         processed: Math.min(offset + batch.length, rowsToPersist.length),
