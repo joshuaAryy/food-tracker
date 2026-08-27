@@ -1,8 +1,4 @@
-import {
-  PrismaClient,
-  type NutrientKey,
-  type NutrientUnit,
-} from '@prisma/client';
+import type { NutrientKey, NutrientUnit, PrismaClient } from '@prisma/client';
 import { NUTRIENT_CATALOG } from '@food-tracker/shared';
 import {
   normalizeIdentityText,
@@ -23,6 +19,31 @@ export interface ImportRunResult extends ImportCounts {
   dryRun: boolean;
 }
 
+export interface ImportProgress {
+  processed: number;
+  total: number;
+  imported: number;
+  updated: number;
+  skipped: number;
+  rejected: number;
+}
+
+type ImportProgressReporter = (progress: ImportProgress) => void;
+
+const PERSISTENCE_CONCURRENCY = 8;
+
+function validImportRow(row: NormalizedProviderFood): boolean {
+  return (
+    row.sourceId.length > 0 &&
+    row.name.length > 0 &&
+    row.nutrients.every((nutrient) => Number.isFinite(nutrient.amount))
+  );
+}
+
+function importIdentity(row: NormalizedProviderFood): string {
+  return `${row.provider}:${row.release}:${row.sourceId}`;
+}
+
 export function countImportRows(
   rows: readonly NormalizedProviderFood[],
 ): ImportCounts {
@@ -30,19 +51,57 @@ export function countImportRows(
   let rejected = 0;
   let skipped = 0;
   for (const row of rows) {
-    if (
-      !row.sourceId ||
-      !row.name ||
-      row.nutrients.some((nutrient) => !Number.isFinite(nutrient.amount))
-    ) {
+    if (!validImportRow(row)) {
       rejected += 1;
       continue;
     }
-    const key = `${row.provider}:${row.sourceId}`;
+    const key = importIdentity(row);
     if (seen.has(key)) skipped += 1;
     seen.add(key);
   }
-  return { imported: seen.size - rejected, updated: 0, skipped, rejected };
+  return { imported: seen.size, updated: 0, skipped, rejected };
+}
+
+function uniqueValidRows(
+  rows: readonly NormalizedProviderFood[],
+): NormalizedProviderFood[] {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    if (!validImportRow(row)) return false;
+    const key = importIdentity(row);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function forEachBounded<T>(
+  values: readonly T[],
+  concurrency: number,
+  operation: (value: T) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  let firstError: unknown;
+  const worker = async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const value = values[index];
+      if (value === undefined || firstError !== undefined) continue;
+      try {
+        await operation(value);
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from(
+      { length: Math.min(Math.max(1, concurrency), values.length) },
+      worker,
+    ),
+  );
+  if (firstError !== undefined) throw firstError;
 }
 
 export async function persistProviderFoods(input: {
@@ -52,6 +111,7 @@ export async function persistProviderFoods(input: {
   sourceSha256: string;
   batchSize?: number;
   dryRun?: boolean;
+  onProgress?: ImportProgressReporter;
 }): Promise<ImportRunResult> {
   const first = input.rows[0];
   if (first === undefined)
@@ -61,7 +121,32 @@ export async function persistProviderFoods(input: {
   const counts = countImportRows(input.rows);
   if (input.dryRun === true)
     return { ...counts, provider, release, dryRun: true };
-  const batchSize = Math.max(25, Math.min(input.batchSize ?? 250, 1000));
+  const batchSize = Math.max(1, Math.min(input.batchSize ?? 250, 1000));
+  const rowsToPersist = uniqueValidRows(input.rows);
+  const existingRelease = await input.prisma.foodDatasetRelease.findUnique({
+    where: { provider_release: { provider, release } },
+    select: { sourceUri: true, sourceSha256: true, status: true },
+  });
+  if (
+    existingRelease !== null &&
+    (existingRelease.sourceUri !== input.sourceUri ||
+      existingRelease.sourceSha256 !== input.sourceSha256)
+  ) {
+    throw new Error(
+      `Pinned artifact identity conflicts with existing ${provider} ${release} release`,
+    );
+  }
+  if (existingRelease?.status === 'active') {
+    return {
+      provider,
+      release,
+      imported: 0,
+      updated: 0,
+      skipped: rowsToPersist.length + counts.skipped,
+      rejected: counts.rejected,
+      dryRun: false,
+    };
+  }
   await input.prisma.foodDatasetRelease.upsert({
     where: { provider_release: { provider, release } },
     create: {
@@ -76,36 +161,35 @@ export async function persistProviderFoods(input: {
       sourceSha256: input.sourceSha256,
       status: 'building',
       completedAt: null,
+      importedCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      rejectedCount: 0,
     },
   });
   try {
     let imported = 0;
     let updated = 0;
     let skipped = counts.skipped;
-    const seenSourceIds = new Set<string>();
-    const rowsToPersist = input.rows.filter((row) => {
-      if (
-        !row.sourceId ||
-        !row.name ||
-        row.nutrients.some((nutrient) => !Number.isFinite(nutrient.amount))
-      )
-        return false;
-      const key = `${row.provider}:${row.sourceId}`;
-      if (seenSourceIds.has(key)) return false;
-      seenSourceIds.add(key);
-      return true;
-    });
     for (let offset = 0; offset < rowsToPersist.length; offset += batchSize) {
       const batch = rowsToPersist.slice(offset, offset + batchSize);
-      for (const row of batch) {
-        if (!row.sourceId || !row.name) continue;
-        const existing = await input.prisma.foodItem.findFirst({
-          where: {
-            sourceProvider: provider,
-            sourceId: row.sourceId,
-            archivedAt: null,
-          },
-        });
+      const existingRows = await input.prisma.foodItem.findMany({
+        where: {
+          sourceProvider: provider,
+          sourceId: { in: batch.map((row) => row.sourceId) },
+          datasetRelease: release,
+        },
+        select: { id: true, sourceId: true, sourceRecordHash: true },
+      });
+      const existingBySourceId = new Map(
+        existingRows.map((row) => [row.sourceId, row]),
+      );
+      await forEachBounded(batch, PERSISTENCE_CONCURRENCY, async (row) => {
+        const existing = existingBySourceId.get(row.sourceId);
+        if (existing?.sourceRecordHash === row.sourceRecordHash) {
+          skipped += 1;
+          return;
+        }
         const data = {
           userId: null,
           name: row.name,
@@ -132,18 +216,14 @@ export async function persistProviderFoods(input: {
           // A building release stays invisible until all bounded batches finish.
           archivedAt: new Date(),
         };
-        if (existing?.sourceRecordHash === row.sourceRecordHash) {
-          skipped += 1;
-          continue;
-        }
         const item =
-          existing === null
+          existing === undefined
             ? await input.prisma.foodItem.create({ data })
             : await input.prisma.foodItem.update({
                 where: { id: existing.id },
                 data,
               });
-        if (existing === null) imported += 1;
+        if (existing === undefined) imported += 1;
         else updated += 1;
         await input.prisma.foodItemNutrient.deleteMany({
           where: { foodItemId: item.id },
@@ -164,30 +244,66 @@ export async function persistProviderFoods(input: {
             data: nutrientRows,
             skipDuplicates: true,
           });
-      }
+      });
+      input.onProgress?.({
+        processed: Math.min(offset + batch.length, rowsToPersist.length),
+        total: rowsToPersist.length,
+        imported,
+        updated,
+        skipped,
+        rejected: counts.rejected,
+      });
     }
-    await input.prisma.foodItem.updateMany({
-      where: { sourceProvider: provider, datasetRelease: release },
-      data: { archivedAt: null },
-    });
-    await input.prisma.foodItem.updateMany({
+    const persistedCount = await input.prisma.foodItem.count({
       where: {
         sourceProvider: provider,
-        datasetRelease: { not: release },
+        datasetRelease: release,
         userId: null,
       },
-      data: { archivedAt: new Date() },
     });
-    await input.prisma.foodDatasetRelease.update({
-      where: { provider_release: { provider, release } },
-      data: {
-        status: 'active',
-        importedCount: imported,
-        updatedCount: updated,
-        skippedCount: skipped,
-        rejectedCount: counts.rejected,
-        completedAt: new Date(),
-      },
+    if (persistedCount !== rowsToPersist.length) {
+      throw new Error(
+        `Incomplete ${provider} ${release} persistence: expected ${rowsToPersist.length}, found ${persistedCount}`,
+      );
+    }
+    const completedAt = new Date();
+    await input.prisma.$transaction(async (transaction) => {
+      await transaction.foodItem.updateMany({
+        where: {
+          sourceProvider: provider,
+          datasetRelease: { not: release },
+          userId: null,
+          archivedAt: null,
+        },
+        data: { archivedAt: completedAt },
+      });
+      await transaction.foodDatasetRelease.updateMany({
+        where: {
+          provider,
+          release: { not: release },
+          status: 'active',
+        },
+        data: { status: 'retired' },
+      });
+      await transaction.foodItem.updateMany({
+        where: {
+          sourceProvider: provider,
+          datasetRelease: release,
+          userId: null,
+        },
+        data: { archivedAt: null },
+      });
+      await transaction.foodDatasetRelease.update({
+        where: { provider_release: { provider, release } },
+        data: {
+          status: 'active',
+          importedCount: imported,
+          updatedCount: updated,
+          skippedCount: skipped,
+          rejectedCount: counts.rejected,
+          completedAt,
+        },
+      });
     });
     return {
       provider,

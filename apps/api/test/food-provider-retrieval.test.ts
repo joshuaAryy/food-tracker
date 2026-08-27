@@ -21,6 +21,7 @@ import {
   dedupeAliases,
   normalizeIdentityText,
   providerSearchText,
+  type NormalizedProviderFood,
 } from '../src/modules/foodItems/providers/normalized.js';
 import {
   boundedSemanticSearch,
@@ -62,6 +63,47 @@ import {
 } from '../src/modules/foodItems/providers/manifest.js';
 
 describe('provider normalization', () => {
+  function importRow(input: {
+    provider?: 'cnf' | 'ciqual' | 'cofid';
+    release: string;
+    sourceId: string;
+    hash: string;
+    protein?: number;
+  }): NormalizedProviderFood {
+    return {
+      provider: input.provider ?? 'cnf',
+      release: input.release,
+      sourceId: input.sourceId,
+      name: `Food ${input.sourceId}`,
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic',
+      category: null,
+      preparation: null,
+      region: 'CA',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [
+        {
+          key: 'protein',
+          amount: input.protein ?? 10,
+          unit: 'g',
+          sourceLabel: 'Protein',
+          sourceUnit: 'g',
+          sourceValue: String(input.protein ?? 10),
+        },
+      ],
+      sourceRecordHash: input.hash,
+    };
+  }
+
+  async function clearImportRelease(provider: 'cnf', release: string) {
+    await prisma.foodDatasetRelease.deleteMany({
+      where: { provider, release },
+    });
+  }
+
   it('pins exactly the three approved official datasets', () => {
     expect(FOOD_DATASET_MANIFESTS.map((entry) => entry.provider)).toEqual([
       'cnf',
@@ -296,6 +338,39 @@ describe('provider normalization', () => {
     });
   });
 
+  it('reports bounded persistence progress without changing the final result', async () => {
+    const release = 'test-progress-2026';
+    await clearImportRelease('cnf', release);
+    const rows = [
+      importRow({ release, sourceId: 'progress-1', hash: 'progress-hash-1' }),
+      importRow({ release, sourceId: 'progress-2', hash: 'progress-hash-2' }),
+    ];
+    const progress: number[] = [];
+    try {
+      const result = await persistProviderFoods({
+        prisma,
+        rows,
+        sourceUri: 'https://example.test/cnf-progress.csv',
+        sourceSha256: 'progress-sha',
+        batchSize: 1,
+        onProgress: ({ processed, total }) => {
+          expect(total).toBe(2);
+          progress.push(processed);
+        },
+      });
+      expect(progress).toEqual([1, 2]);
+      expect(result).toMatchObject({
+        imported: 2,
+        updated: 0,
+        skipped: 0,
+        rejected: 0,
+        dryRun: false,
+      });
+    } finally {
+      await clearImportRelease('cnf', release);
+    }
+  });
+
   it('does not mutate duplicate provider rows twice during persistence', async () => {
     const createCalls: string[] = [];
     const row = {
@@ -317,21 +392,26 @@ describe('provider normalization', () => {
     };
     const fakePrisma = {
       foodDatasetRelease: {
+        findUnique: async () => null,
         upsert: async () => undefined,
         update: async () => undefined,
+        updateMany: async () => undefined,
       },
       foodItem: {
-        findFirst: async () => null,
+        findMany: async () => [],
         create: async () => {
           createCalls.push('create');
           return { id: 'food-1' };
         },
         updateMany: async () => undefined,
+        count: async () => 1,
       },
       foodItemNutrient: {
         deleteMany: async () => undefined,
         createMany: async () => undefined,
       },
+      $transaction: async (callback: (transaction: unknown) => unknown) =>
+        callback(fakePrisma),
     };
     const result = await persistProviderFoods({
       prisma: fakePrisma as never,
@@ -343,7 +423,7 @@ describe('provider normalization', () => {
     expect(result).toMatchObject({ imported: 1, skipped: 1 });
   });
 
-  it('looks up only the active provider row when archived history exists', async () => {
+  it('looks up a staged provider row for the exact release when history exists', async () => {
     let lookup: unknown;
     const row = {
       provider: 'cnf' as const,
@@ -364,21 +444,26 @@ describe('provider normalization', () => {
     };
     const fakePrisma = {
       foodDatasetRelease: {
+        findUnique: async () => null,
         upsert: async () => undefined,
         update: async () => undefined,
+        updateMany: async () => undefined,
       },
       foodItem: {
-        findFirst: async ({ where }: { where: unknown }) => {
+        findMany: async ({ where }: { where: unknown }) => {
           lookup = where;
-          return null;
+          return [];
         },
         create: async () => ({ id: 'food-1' }),
         updateMany: async () => undefined,
+        count: async () => 1,
       },
       foodItemNutrient: {
         deleteMany: async () => undefined,
         createMany: async () => undefined,
       },
+      $transaction: async (callback: (transaction: unknown) => unknown) =>
+        callback(fakePrisma),
     };
     await persistProviderFoods({
       prisma: fakePrisma as never,
@@ -388,8 +473,8 @@ describe('provider normalization', () => {
     });
     expect(lookup).toEqual({
       sourceProvider: 'cnf',
-      sourceId: 'active-row',
-      archivedAt: null,
+      sourceId: { in: ['active-row'] },
+      datasetRelease: '2026',
     });
   });
 
@@ -406,6 +491,52 @@ describe('provider normalization', () => {
     expect(migration).toContain('CREATE EXTENSION IF NOT EXISTS pg_trgm');
     expect(migration).toContain('USING GIST');
     expect(migration).toContain('gist_trgm_ops(siglen=32)');
+  });
+
+  it('rejects a second national provider identity within one release', async () => {
+    const release = 'test-unique-2026';
+    await clearImportRelease('cnf', release);
+    const row = importRow({
+      release,
+      sourceId: 'identity-1',
+      hash: 'identity-hash-1',
+    });
+    try {
+      await persistProviderFoods({
+        prisma,
+        rows: [row],
+        sourceUri: 'https://example.test/cnf-unique.csv',
+        sourceSha256: 'unique-sha',
+      });
+      await expect(
+        prisma.foodItem.create({
+          data: {
+            userId: null,
+            name: 'Duplicate identity',
+            brandName: null,
+            sourceType: 'app_owned',
+            foodType: 'generic',
+            normalizedName: 'duplicate identity',
+            normalizedBrandName: null,
+            searchText: 'duplicate identity',
+            servingQuantity: 100,
+            servingUnit: 'g',
+            servingWeightGrams: 100,
+            sourceProvider: 'cnf',
+            sourceId: 'identity-1',
+            sourceUpdatedAt: new Date(),
+            sourceAliases: [],
+            sourceRegion: 'CA',
+            rankingClass: 'reference',
+            datasetRelease: release,
+            sourceRecordHash: 'identity-hash-2',
+            archivedAt: new Date(),
+          },
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await clearImportRelease('cnf', release);
+    }
   });
 
   it('does not persist rows rejected for non-finite nutrient amounts', async () => {
@@ -438,21 +569,26 @@ describe('provider normalization', () => {
     };
     const fakePrisma = {
       foodDatasetRelease: {
+        findUnique: async () => null,
         upsert: async () => undefined,
         update: async () => undefined,
+        updateMany: async () => undefined,
       },
       foodItem: {
-        findFirst: async () => null,
+        findMany: async () => [],
         create: async () => {
           createCalls.push('create');
           return { id: 'food-1' };
         },
         updateMany: async () => undefined,
+        count: async () => 0,
       },
       foodItemNutrient: {
         deleteMany: async () => undefined,
         createMany: async () => undefined,
       },
+      $transaction: async (callback: (transaction: unknown) => unknown) =>
+        callback(fakePrisma),
     };
     const result = await persistProviderFoods({
       prisma: fakePrisma as never,
@@ -485,13 +621,16 @@ describe('provider normalization', () => {
     };
     const fakePrisma = {
       foodDatasetRelease: {
+        findUnique: async () => null,
         upsert: async () => undefined,
         update: async ({ data }: { data: { status: string } }) => {
           statuses.push(data.status);
         },
+        updateMany: async () => undefined,
       },
       foodItem: {
-        findFirst: async () => null,
+        findMany: async () => [],
+        count: async () => 0,
         create: async () => {
           throw new Error('simulated persistence failure');
         },
@@ -500,6 +639,8 @@ describe('provider normalization', () => {
         deleteMany: async () => undefined,
         createMany: async () => undefined,
       },
+      $transaction: async (callback: (transaction: unknown) => unknown) =>
+        callback(fakePrisma),
     };
     await expect(
       persistProviderFoods({
@@ -510,6 +651,241 @@ describe('provider normalization', () => {
       }),
     ).rejects.toThrow('simulated persistence failure');
     expect(statuses).toEqual(['failed']);
+  });
+
+  it('resumes a building release without duplicating staged foods or nutrients', async () => {
+    const release = 'test-resume-2026';
+    await clearImportRelease('cnf', release);
+    const rows = [
+      importRow({ release, sourceId: 'resume-1', hash: 'resume-hash-1' }),
+      importRow({ release, sourceId: 'resume-2', hash: 'resume-hash-2' }),
+    ];
+    let interrupted = false;
+    try {
+      await expect(
+        persistProviderFoods({
+          prisma,
+          rows,
+          sourceUri: 'https://example.test/cnf-resume.csv',
+          sourceSha256: 'resume-sha',
+          batchSize: 1,
+          onProgress: ({ processed }) => {
+            if (!interrupted && processed === 1) {
+              interrupted = true;
+              throw new Error('simulated interruption');
+            }
+          },
+        }),
+      ).rejects.toThrow('simulated interruption');
+
+      expect(
+        await prisma.foodDatasetRelease.findUniqueOrThrow({
+          where: { provider_release: { provider: 'cnf', release } },
+        }),
+      ).toMatchObject({ status: 'failed', completedAt: null });
+      expect(
+        await prisma.foodItem.count({
+          where: { sourceProvider: 'cnf', datasetRelease: release },
+        }),
+      ).toBe(1);
+
+      const resumed = await persistProviderFoods({
+        prisma,
+        rows,
+        sourceUri: 'https://example.test/cnf-resume.csv',
+        sourceSha256: 'resume-sha',
+        batchSize: 1,
+      });
+      expect(resumed).toMatchObject({ imported: 1, updated: 0, skipped: 1 });
+      expect(
+        await prisma.foodItem.count({
+          where: { sourceProvider: 'cnf', datasetRelease: release },
+        }),
+      ).toBe(2);
+      expect(
+        await prisma.foodItemNutrient.count({
+          where: { sourceProvider: 'cnf', sourceRelease: release },
+        }),
+      ).toBe(2);
+
+      const rerun = await persistProviderFoods({
+        prisma,
+        rows,
+        sourceUri: 'https://example.test/cnf-resume.csv',
+        sourceSha256: 'resume-sha',
+      });
+      expect(rerun).toMatchObject({ imported: 0, updated: 0, skipped: 2 });
+      expect(
+        await prisma.foodItem.count({
+          where: { sourceProvider: 'cnf', datasetRelease: release },
+        }),
+      ).toBe(2);
+      expect(
+        await prisma.foodItemNutrient.count({
+          where: { sourceProvider: 'cnf', sourceRelease: release },
+        }),
+      ).toBe(2);
+      expect(
+        await prisma.foodDatasetRelease.findUniqueOrThrow({
+          where: { provider_release: { provider: 'cnf', release } },
+        }),
+      ).toMatchObject({ status: 'active' });
+    } finally {
+      await clearImportRelease('cnf', release);
+    }
+  });
+
+  it('updates a changed staged row without creating a same-release duplicate', async () => {
+    const release = 'test-update-2026';
+    await clearImportRelease('cnf', release);
+    const original = importRow({
+      release,
+      sourceId: 'changed-1',
+      hash: 'changed-hash-1',
+      protein: 10,
+    });
+    try {
+      await expect(
+        persistProviderFoods({
+          prisma,
+          rows: [original],
+          sourceUri: 'https://example.test/cnf-update.csv',
+          sourceSha256: 'update-sha',
+          onProgress: () => {
+            throw new Error('stop after staging');
+          },
+        }),
+      ).rejects.toThrow('stop after staging');
+      const changed = importRow({
+        release,
+        sourceId: 'changed-1',
+        hash: 'changed-hash-2',
+        protein: 20,
+      });
+      await persistProviderFoods({
+        prisma,
+        rows: [changed],
+        sourceUri: 'https://example.test/cnf-update.csv',
+        sourceSha256: 'update-sha',
+      });
+      expect(
+        await prisma.foodItem.count({
+          where: { sourceProvider: 'cnf', datasetRelease: release },
+        }),
+      ).toBe(1);
+      expect(
+        await prisma.foodItemNutrient.findMany({
+          where: { sourceProvider: 'cnf', sourceRelease: release },
+          select: { amount: true },
+        }),
+      ).toEqual([{ amount: expect.anything() }]);
+      const persistedAmount = await prisma.foodItemNutrient.findFirstOrThrow({
+        where: { sourceProvider: 'cnf', sourceRelease: release },
+        select: { amount: true },
+      });
+      expect(Number(persistedAmount.amount)).toBe(20);
+    } finally {
+      await clearImportRelease('cnf', release);
+    }
+  });
+
+  it('keeps the active release visible during replacement failure and swaps atomically on success', async () => {
+    const oldRelease = 'test-active-old';
+    const newRelease = 'test-active-new';
+    await clearImportRelease('cnf', oldRelease);
+    await clearImportRelease('cnf', newRelease);
+    const oldRow = importRow({
+      release: oldRelease,
+      sourceId: 'shared-source',
+      hash: 'old-hash',
+    });
+    const newRow = importRow({
+      release: newRelease,
+      sourceId: 'shared-source',
+      hash: 'new-hash',
+    });
+    try {
+      await persistProviderFoods({
+        prisma,
+        rows: [oldRow],
+        sourceUri: 'https://example.test/cnf-old.csv',
+        sourceSha256: 'old-sha',
+      });
+      await expect(
+        persistProviderFoods({
+          prisma,
+          rows: [newRow],
+          sourceUri: 'https://example.test/cnf-new.csv',
+          sourceSha256: 'new-sha',
+          onProgress: () => {
+            throw new Error('replacement interrupted');
+          },
+        }),
+      ).rejects.toThrow('replacement interrupted');
+      expect(
+        await prisma.foodItem.findFirstOrThrow({
+          where: {
+            sourceProvider: 'cnf',
+            datasetRelease: oldRelease,
+          },
+        }),
+      ).toMatchObject({ archivedAt: null });
+      expect(
+        await prisma.foodItem.findFirstOrThrow({
+          where: {
+            sourceProvider: 'cnf',
+            datasetRelease: newRelease,
+          },
+        }),
+      ).toMatchObject({ archivedAt: expect.any(Date) });
+
+      await persistProviderFoods({
+        prisma,
+        rows: [newRow],
+        sourceUri: 'https://example.test/cnf-new.csv',
+        sourceSha256: 'new-sha',
+      });
+      expect(
+        await prisma.foodItem.findFirstOrThrow({
+          where: {
+            sourceProvider: 'cnf',
+            datasetRelease: oldRelease,
+          },
+        }),
+      ).toMatchObject({ archivedAt: expect.any(Date) });
+      expect(
+        await prisma.foodItem.findFirstOrThrow({
+          where: {
+            sourceProvider: 'cnf',
+            datasetRelease: newRelease,
+          },
+        }),
+      ).toMatchObject({ archivedAt: null });
+    } finally {
+      await clearImportRelease('cnf', oldRelease);
+      await clearImportRelease('cnf', newRelease);
+    }
+  });
+
+  it('defines release-scoped national identity protection and conflict-safe repair', async () => {
+    const migration = await readFile(
+      new URL(
+        '../prisma/migrations/20260827120000_national_release_identity/migration.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(migration).toContain(
+      'FoodItem_national_provider_source_release_unique',
+    );
+    expect(migration).toContain("'cnf', 'ciqual', 'cofid'");
+    expect(migration).toContain('sourceRecordHash');
+    expect(migration).toContain('RAISE EXCEPTION');
+    expect(migration).toContain('FoodItemNutrient');
+    const indexes = await prisma.$queryRaw<
+      { indexname: string }[]
+    >`SELECT indexname FROM pg_indexes WHERE indexname = 'FoodItem_national_provider_source_release_unique'`;
+    expect(indexes).toHaveLength(1);
   });
 });
 

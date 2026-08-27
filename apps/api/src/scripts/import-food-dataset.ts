@@ -83,6 +83,23 @@ async function main(): Promise<void> {
     sourceUri,
     sourceSha256: sha256,
     dryRun,
+    ...(dryRun
+      ? {}
+      : {
+          onProgress: ({
+            processed,
+            total,
+            imported,
+            updated,
+            skipped,
+            rejected,
+          }) => {
+            console.error(
+              `[food:import] ${provider} ${release} ${processed}/${total} ` +
+                `(imported=${imported} updated=${updated} skipped=${skipped} rejected=${rejected})`,
+            );
+          },
+        }),
   });
   console.log(JSON.stringify(result));
 }
