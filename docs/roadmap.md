@@ -13,17 +13,12 @@ explicitly below and takes precedence over those historical labels.
 ```text
 Phase 17 — complete
 Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
-Phase 18/19 — in progress: Food Data + Intelligent Retrieval
-Phase 20 — Real Accounts and User Isolation
-Phase 21 — Full Complex-Mode Micronutrient Editing
-Phase 22 — Recommendation Engine 2.0
-Phase 23 — Water and Supplement Tracking
-Phase 24 — Frontend and Food-Logging Flow Redesign
-Phase 25 — External MVP Beta
-Phase 26 — Offline Logging and Synchronization
-Phase 27 — Frequent Foods, Meal Shortcuts, and Lightweight Saved Meals
-Phase 28 — Experimental Grocery Recommendations
-Phase 29 — Wearable and Health Data Integration
+Phase 18/19 — complete: Food Data + Intelligent Retrieval
+Phase 20–22 — next/planning: Product Hardening + Intelligence
+Phase 23 — deferred from current finish line: Water and Supplement Tracking
+Phase 24 — final current implementation phase: Frontend and Food-Logging Flow Redesign
+Phase 25 — optional/deferred: External MVP Beta and distribution
+Phase 26–29 — post-finish/deferred roadmap ideas
 ```
 
 Phase 18 and Phase 19 are executed as one combined macro phase named
@@ -36,11 +31,16 @@ visual validation passed on 2026-08-21. Exact 390/393 Simulator evidence
 remained unavailable because of the CoreSimulator/runtime environment and was
 superseded as a completion blocker by the accepted physical-device review.
 
-The Phase 18/19 implementation branch contains the approved provider,
-retrieval, ranking, benchmark, and index-lifecycle work. PostgreSQL migration
-and persistence measurement, live benchmark baseline/holdout evidence,
-Pinecone validation, and Railway staging remain explicit external gates before
-the macro phase can be closed.
+Phase 18/19 is complete and merged by PR #8. Its implementation, database
+validation, frozen benchmark evidence, Railway staging deployment, Pinecone
+reconciliation/activation, and final review are recorded in
+[the Phase 18/19 closeout](superpowers/phase-18-19-closeout.md).
+
+The next task is an audit of the historical Phase 20, 21, and 22 requirements
+against current `main`, classifying each item as already complete, partially
+complete, missing, or obsolete/deferred. Only after that audit should the
+combined **Phase 20–22 — Product Hardening + Intelligence** implementation plan
+be written. No Phase 20–22 implementation plan is created by this closeout.
 
 The post-Phase 6 MVP direction is:
 
@@ -763,7 +763,7 @@ engineering smoke build, not the external MVP beta.
 
 ## Phase 18 — Additional Food Providers
 
-This is the historical decomposition of the current combined Phase 18/19
+This is the historical decomposition of the completed combined Phase 18/19
 macro phase. Execution is tracked in the committed Phase 18/19 plan and
 execution ledger; the combined phase must close before Phase 20 begins.
 
@@ -783,7 +783,7 @@ execution ledger; the combined phase must close before Phase 20 begins.
 
 ## Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
 
-This is the historical decomposition of the current combined Phase 18/19
+This is the historical decomposition of the completed combined Phase 18/19
 macro phase. It remains listed separately to preserve roadmap numbering.
 
 - typo tolerance
@@ -802,7 +802,12 @@ candidate is trusted. AI must not directly query the database, become the
 nutrition authority, or bypass trusted candidate review. The dedicated search
 page and final visual interaction belong in Phase 24.
 
-## Phase 20 — Real Accounts and User Isolation
+## Phase 20 — Real Accounts and User Isolation (historical component)
+
+This historical component is now grouped with Phases 21 and 22 under the next
+combined **Phase 20–22 — Product Hardening + Intelligence** macro phase. Its
+requirements will be audited against current `main` before any implementation
+plan is written.
 
 - Firebase authentication, identity mapping, protected routing, and hosted
   staging foundations already exist from Phase 16; this phase is the remaining
@@ -821,7 +826,7 @@ resources that user may access. Both boundaries remain required.
 Apple Sign In remains deferred or disabled until its provider and native
 capability requirements are deliberately reopened.
 
-## Phase 21 — Full Complex-Mode Micronutrient Editing
+## Phase 21 — Full Complex-Mode Micronutrient Editing (historical component)
 
 - full supported vitamin and mineral editing
 - caffeine, sodium, fiber, sugars, and other normalized nutrient fields
@@ -830,7 +835,7 @@ capability requirements are deliberately reopened.
 - protection of trusted source FoodItems
 - uncluttered Simple mode
 
-## Phase 22 — Recommendation Engine 2.0
+## Phase 22 — Recommendation Engine 2.0 (historical component)
 
 - stronger evidence and confidence
 - richer nutrient-aware recommendation facts
@@ -841,7 +846,7 @@ capability requirements are deliberately reopened.
 AI must not calculate trends, identify deficits independently, query the
 database, or decide recommendation facts.
 
-## Phase 23 — Water and Supplement Tracking
+## Phase 23 — Water and Supplement Tracking (deferred from current finish line)
 
 Phase 17.5 owns the first canonical Water logger and hydration analytics. This
 later phase retains the deferred supplement product scope and any future
@@ -852,7 +857,7 @@ Water:
 - historical roadmap intent only; do not reimplement the Phase 17.5 Water
   logger or hydration analytics here
 
-Supplements:
+Supplements (deferred; do not implement as part of the current finish line):
 
 - reusable supplement entries
 - dosage amount and unit
@@ -870,7 +875,7 @@ treated as normal meals or expanded into medication management. The old
 assumption that all Water work waits for Phase 23 is superseded by Phase 17.5;
 this phase remains numbered to preserve the earlier roadmap record.
 
-## Phase 24 — Frontend and Food-Logging Flow Redesign
+## Phase 24 — Frontend and Food-Logging Flow Redesign (final current implementation phase)
 
 This phase is the broader frontend and food-logging flow redesign. It is not an
 authentication login-screen redesign and is not automatically a full rewrite of
@@ -887,11 +892,11 @@ every screen.
 The redesign is placed after the required MVP features so it can account for
 the actual product instead of being repeatedly redone after each feature.
 
-## Phase 25 — External MVP Beta
+## Phase 25 — External MVP Beta (optional/deferred external release work)
 
-This is the official MVP completion milestone. The MVP is complete once the
-external beta, including the paid TestFlight/App Store distribution path, is
-prepared and distributed.
+This remains a historical release milestone, but it is not required for the
+user's current definition of development-complete. Paid TestFlight/App Store
+distribution is optional/deferred external work.
 
 - App Store Connect readiness
 - external tester configuration
@@ -906,7 +911,7 @@ prepared and distributed.
 - beta iteration
 - MVP release retrospective
 
-## Post-MVP Roadmap
+## Post-MVP Roadmap (Phases 26–29 deferred from the current finish line)
 
 ### Phase 26 — Offline Logging and Synchronization
 

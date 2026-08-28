@@ -69,6 +69,9 @@ The recommended strategy is:
 
 ### Phase 18/19 trusted reference catalog and hybrid retrieval
 
+Status: Complete and merged by PR #8. Final dataset, benchmark, Railway, and
+Pinecone evidence is recorded in the [Phase 18/19 closeout](superpowers/phase-18-19-closeout.md).
+
 The combined Phase 18/19 macro phase adds only CNF 2026, ANSES-Ciqual 2025,
 and UK CoFID 2021 as versioned bulk reference catalogs. They are imported
 deterministically into PostgreSQL and never queried as live runtime providers.

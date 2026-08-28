@@ -29,10 +29,10 @@ not manufacture lexical identity.
 
 Reference ingestion uses bounded persistence batches and release visibility:
 the new release remains archived until its deterministic batches complete, then
-the release is activated and older provider releases are archived. The first
-official CNF 2026 parse dry-run (5,993 foods, 147,637 canonical nutrient rows,
-354 MB peak RSS) supports this bounded strategy without a staging table; live
-database mutation timing remains an explicit deployment gate.
+the release is activated and older provider releases are archived. Railway
+staging validation completed the CNF 2026, Ciqual 2025, and CoFID 2021 imports
+with zero rejects and 12,363 active national foods; the final counts and
+operational incidents are recorded in the Phase 18/19 closeout.
 
 ## Phase 17.5 Custom Analytics, Micronutrients, and Hydration
 

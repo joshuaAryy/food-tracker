@@ -29,17 +29,16 @@ provider runtime calls.
 | Mode | Top-1 | Top-3 | Top-5 | Fuzzy recovery | Semantic recovery | Top-1 regressions | Candidate gate |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | Legacy | 40/80 | 40/80 | 40/80 | — | — | — | baseline |
-| Legacy + datasets | 25/80 | 25/80 | 25/80 | 0/40 | 0/40 | 15/80 | **FAIL** (Top-K and exact floor) |
-| + fuzzy | 70/80 | 72/80 | 72/80 | 32/40 | 0/40 | 0/80 | PASS |
-| + semantic | 25/80 | 25/80 | 25/80 | 0/40 | 0/40 | 15/80 | **FAIL**; no Pinecone credentials |
-| Full hybrid | 70/80 | 72/80 | 72/80 | 32/40 | 0/40 | 0/80 | PASS |
+| Legacy + datasets | 40/80 | 40/80 | 40/80 | 0/40 | 0/40 | 0/80 | PASS |
+| + fuzzy | 71/80 | 72/80 | 72/80 | 31/40 | 0/40 | 0/80 | PASS |
+| + semantic | 43/80 | 43/80 | 44/80 | 3/40 | 3/40 | 0/80 | PASS |
+| Full hybrid | 71/80 | 72/80 | 72/80 | 31/40 | 0/40 | 0/80 | PASS |
 
-The passing fuzzy/full-hybrid development run had class Top-1 results of
-branded 22/24, exact 24/24, preparation 23/24, and semantic 1/8. Its p50/p95
-latency was 18.191/31.519 ms. All hard safety gates were zero and provider
-expansion was 32/80. The semantic channel made zero calls because
-`PINECONE_API_KEY` and `PINECONE_INDEX_HOST` were not available; full hybrid
-therefore degrades to the validated lexical + fuzzy path.
+The final development runs had fuzzy/full-hybrid Top-1/3/5 of 71/72/72 and
+semantic Top-1/3/5 of 43/43/44. All hard safety gates were zero and no Top-1
+regressions or semantic bad Top-1 results were observed. Earlier snapshots
+captured before the dedicated catalog and active Pinecone namespace were
+available are historical diagnostics, not acceptance evidence.
 
 ## Frozen holdout evaluation
 
@@ -54,9 +53,10 @@ evaluation produced:
 - p50/p95 latency 18.036/28.835 ms;
 - all frozen candidate gates PASS.
 
-Semantic benefit remains unmeasured, not assumed: the semantic ablation and
-semantic portion of full hybrid were not live Pinecone evaluations. They must
-remain disabled until the external Pinecone index/credential gate is executed.
+Semantic retrieval remains a candidate-recall mechanism rather than an
+authoritative rank or selection mechanism. The external Pinecone index and
+credential gate was subsequently completed in Railway staging; the active
+namespace and smoke evidence are recorded in the Phase 18/19 closeout.
 
 ## Reproduction
 

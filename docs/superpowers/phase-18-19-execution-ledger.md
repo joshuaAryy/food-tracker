@@ -3,8 +3,9 @@
 Plan: `docs/superpowers/plans/2026-08-23-phase-18-19-hybrid-food-retrieval.md`
 Branch: `phase-18-19-hybrid-food-retrieval`
 Baseline: `13e476b`
-Preflight: complete; continuation started from `42b0caf`; current validated
-implementation checkpoint `b0faa2c`; Node 22.23.0; pnpm 10.34.3
+Preflight: complete; continuation started from `42b0caf`; final validated
+implementation checkpoint `0b92bd3`; merged by PR #8 as `76adc24`; Node
+22.23.0; pnpm 10.34.3
 Protected state: preserved; no protected paths staged or modified
 
 ## Task status
@@ -23,8 +24,8 @@ Protected state: preserved; no protected paths staged or modified
 - [x] L — mode-specific policy and normal-search hybrid path
 - [x] M — locale tie-break
 - [x] N — baseline-derived development ablations and one frozen-settings holdout evaluation recorded
-- [~] O — local resilience complete; Pinecone credentials and Railway execution remain external
-- [~] P — local closeout evidence aligned; Pinecone/Railway external gates remain pending
+- [x] O — local resilience and Railway/Pinecone staging validation complete
+- [x] P — Phase 18/19 closeout evidence complete; merged by PR #8
 
 ## Evidence log
 
@@ -67,14 +68,18 @@ Protected state: preserved; no protected paths staged or modified
 - Schema/dependency changes are present and the committed migrations deploy
   cleanly to the dedicated test database. The live benchmark adapter now
   records split-scoped snapshots and baseline-derived reports.
-- Official CNF 2026 parse dry-run completed under Node 22: 5,993 foods and 147,637 canonical nutrient rows in 7.2s, peak RSS 354 MB. This supports bounded 250-row persistence batches without introducing staging tables; PostgreSQL mutation/transaction timing remains pending.
-- Official CoFID 2021 parse dry-run completed under Node 22: 2,886 foods and 38,858 canonical nutrient rows in 4.1s, peak RSS 572 MB. This is parse-only evidence; PostgreSQL mutation/transaction timing remains pending.
+- Earlier parse dry-runs established bounded memory/batch characteristics for
+  CNF 2026 and CoFID 2021; subsequent Railway and dedicated-test persistence
+  runs completed with the final counts recorded below.
 - Official Ciqual 2025 parse dry-run completed under Node 22: 3,484 foods and 59,819 canonical nutrient rows in 3.2s, peak RSS 358 MB; English canonical names and French/scientific aliases were read from the official XLSX/XML pair.
 - Manifest-verified dry-run CLI imports completed for all three official releases: CNF 5,993, Ciqual 3,484, and CoFID 2,886 rows; no rejected rows were reported. CNF measure conversion/name files now preserve portion descriptions separately from gram weights.
 - Official CNF, Ciqual, and CoFID imports have now run against
   `food_tracker_test`; create/skip counts, nutrient/serving coverage, release
   activation, and source provenance were queried after persistence.
-- Pinecone lifecycle/search paths are implemented but not live-validated and remain optional at runtime.
+- Railway staging validation completed: CNF 2026, Ciqual 2025, and CoFID 2021
+  are active with 12,363 foods and 277,341 nutrient rows; Pinecone reconciliation
+  proved 12,363 eligible documents with zero missing/stale IDs before
+  transactional activation of the versioned namespace.
 - Full `TEST_DATABASE_URL=...food_tracker_test corepack pnpm test` now passes 98
   files and 1,230 tests after clean migration deployment.
 - Root `format:check` remains red only on pre-existing protected `.agents/`/`.superpowers/` files; all changed non-protected files pass targeted Prettier checks.
@@ -121,7 +126,8 @@ Protected state: preserved; no protected paths staged or modified
   baseline is 40/80 Top-1/3/5 and holdout is 25/40; full hybrid reaches 70/80
   development Top-1 and 27/40 holdout Top-1 with zero safety violations and
   zero Top-1 regressions. Dataset-only fails the baseline-derived exact/Top-K
-  floors. Semantic remains disabled pending Pinecone credentials.
+  floors. Semantic benefit was measured only after the external Pinecone gate;
+  semantic remains a candidate-recall channel and not an authority boundary.
 - Continuation commit `f21d9b8` quotes the Prisma camelCase `"searchText"`
   identifier in every fuzzy KNN SQL expression, changes strict-word retrieval
   to PostgreSQL `<<<->`, and aligns the unreleased trigram index with
@@ -156,10 +162,10 @@ Protected state: preserved; no protected paths staged or modified
   recorded duplicate `usda_fdc:2708402`, and that duplicate still has count 2.
   No reset, manual row edit, or `migrate resolve` was performed.
 - The first live baseline, five-channel ablation run, and frozen holdout are
-  recorded in `docs/superpowers/phase-18-19-benchmark-results.md`. Semantic
-  retrieval made zero calls because Pinecone credentials were unavailable, so
-  full hybrid was evaluated as the validated lexical + fuzzy path. Pinecone
-  and Railway remain external validation gates.
+  recorded in `docs/superpowers/phase-18-19-benchmark-results.md`. The frozen
+  holdout was not retuned after settings were locked; final external staging
+  smoke and Pinecone activation evidence is captured in the Phase 18/19
+  closeout document.
 - After PostgreSQL became available, the dedicated `food_tracker_test` target
   successfully applied both Phase 18/19 migrations. A direct migration command
   without `DATABASE_URL` correctly exposed a development-database duplicate
