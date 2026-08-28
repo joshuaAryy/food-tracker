@@ -142,6 +142,15 @@ async function main(): Promise<void> {
     reconciliation = await reconcileSearchDocuments({
       config,
       documents: eligibleDocuments,
+      onProgress: ({ indexed, total, retryAfterMs }) => {
+        if (retryAfterMs !== undefined) {
+          console.error(
+            `[food:reindex] rate limited; retrying batch after ${Math.ceil(retryAfterMs / 1000)}s`,
+          );
+          return;
+        }
+        console.error(`[food:reindex] ${indexed}/${total} indexed`);
+      },
     });
   } catch (error) {
     await prisma.foodSearchIndexVersion.update({

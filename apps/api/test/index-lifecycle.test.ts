@@ -27,6 +27,9 @@ vi.mock('@pinecone-database/pinecone', () => ({
 import {
   PINECONE_LIST_PAGE_SIZE,
   reconcileSearchDocuments,
+  PINECONE_UPSERT_BATCH_SIZE,
+  PINECONE_UPSERT_MAX_ATTEMPTS,
+  PINECONE_UPSERT_RETRY_DELAY_MS,
 } from '../src/modules/foodItems/retrieval/index-lifecycle.js';
 
 function document(id: string) {
@@ -117,6 +120,124 @@ describe('Pinecone search-document reconciliation', () => {
       ids: ['id-98', 'stale-late-1', 'stale-late-2'],
     });
     expect(pinecone.index.upsertRecords).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries a rate-limited batch without advancing progress or changing its records', async () => {
+    pinecone.index.listPaginated.mockResolvedValueOnce({ vectors: [] });
+    const rateLimited = Object.assign(
+      new Error('RESOURCE_EXHAUSTED: max tokens per minute'),
+      { status: 429, code: 'RESOURCE_EXHAUSTED' },
+    );
+    pinecone.index.upsertRecords
+      .mockRejectedValueOnce(rateLimited)
+      .mockResolvedValueOnce(undefined);
+    const sleep = vi.fn(async () => undefined);
+    const progress: { indexed: number; retryAfterMs?: number }[] = [];
+
+    await reconcileSearchDocuments({
+      config,
+      documents: [document('retry-1')],
+      retryDelayMs: 0,
+      sleep,
+      onProgress: ({ indexed, retryAfterMs }) =>
+        progress.push({
+          indexed,
+          ...(retryAfterMs === undefined ? {} : { retryAfterMs }),
+        }),
+    });
+
+    expect(pinecone.index.upsertRecords).toHaveBeenCalledTimes(2);
+    expect(pinecone.index.upsertRecords.mock.calls[0]?.[0]).toEqual(
+      pinecone.index.upsertRecords.mock.calls[1]?.[0],
+    );
+    expect(progress).toEqual([{ indexed: 0, retryAfterMs: 0 }, { indexed: 1 }]);
+    expect(sleep).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds repeated rate-limit retries and preserves the failed batch progress', async () => {
+    pinecone.index.listPaginated.mockResolvedValueOnce({ vectors: [] });
+    pinecone.index.upsertRecords.mockRejectedValue({
+      status: 429,
+      code: 'RESOURCE_EXHAUSTED',
+      message: 'quota exhausted',
+    });
+    const sleep = vi.fn(async () => undefined);
+    const progress: number[] = [];
+
+    await expect(
+      reconcileSearchDocuments({
+        config,
+        documents: [document('bounded-retry')],
+        maxAttempts: 3,
+        retryDelayMs: 0,
+        sleep,
+        onProgress: ({ indexed }) => progress.push(indexed),
+      }),
+    ).rejects.toThrow('quota exhausted');
+    expect(pinecone.index.upsertRecords).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+    expect(progress).toEqual([0, 0]);
+  });
+
+  it('fails immediately for non-rate-limit upsert errors', async () => {
+    pinecone.index.listPaginated.mockResolvedValueOnce({ vectors: [] });
+    pinecone.index.upsertRecords.mockRejectedValue(
+      new Error('invalid record payload'),
+    );
+    const sleep = vi.fn(async () => undefined);
+
+    await expect(
+      reconcileSearchDocuments({
+        config,
+        documents: [document('non-rate-limit')],
+        retryDelayMs: 0,
+        sleep,
+      }),
+    ).rejects.toThrow('invalid record payload');
+    expect(pinecone.index.upsertRecords).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('uploads every document batch exactly once after a successful retry', async () => {
+    pinecone.index.listPaginated.mockResolvedValueOnce({ vectors: [] });
+    const documents = Array.from(
+      { length: PINECONE_UPSERT_BATCH_SIZE + 4 },
+      (_, index) => document(`batch-${index}`),
+    );
+    const rateLimited = Object.assign(new Error('RESOURCE_EXHAUSTED'), {
+      status: 429,
+    });
+    pinecone.index.upsertRecords
+      .mockRejectedValueOnce(rateLimited)
+      .mockResolvedValue(undefined);
+    const progress: number[] = [];
+
+    await reconcileSearchDocuments({
+      config,
+      documents,
+      retryDelayMs: 0,
+      sleep: async () => undefined,
+      onProgress: ({ indexed }) => progress.push(indexed),
+    });
+
+    expect(pinecone.index.upsertRecords).toHaveBeenCalledTimes(3);
+    const uploadedIds = pinecone.index.upsertRecords.mock.calls.flatMap(
+      ([request]) =>
+        (request as { records: { id: string }[] }).records.map(
+          (record) => record.id,
+        ),
+    );
+    expect(uploadedIds).toEqual([
+      ...documents.slice(0, PINECONE_UPSERT_BATCH_SIZE).map(({ id }) => id),
+      ...documents.slice(0, PINECONE_UPSERT_BATCH_SIZE).map(({ id }) => id),
+      ...documents.slice(PINECONE_UPSERT_BATCH_SIZE).map(({ id }) => id),
+    ]);
+    expect(progress).toEqual([0, PINECONE_UPSERT_BATCH_SIZE, documents.length]);
+  });
+
+  it('keeps the documented bounded retry defaults', () => {
+    expect(PINECONE_UPSERT_MAX_ATTEMPTS).toBe(3);
+    expect(PINECONE_UPSERT_RETRY_DELAY_MS).toBe(65_000);
   });
 
   it('propagates a failed reconciliation and allows a subsequent retry to succeed', async () => {
