@@ -51,7 +51,9 @@ The following rules are mandatory:
 - Phase 17.5 is complete after completed Phase 17. Its source of truth is the
   approved Phase 17.5 plan and the aligned closeout documents listed in that
   plan. Hydration is complete in this phase; supplements remain deferred.
-  Phase 18 — Additional Food Providers — is next.
+  Phase 18/19 — Food Data + Intelligent Retrieval — is the current in-progress
+  macro phase on the feature branch. Phase 20 follows only after its external
+  validation and closeout gates are complete.
 - Phase 17.5 analytics keeps logging-day completeness separate from selected
   metric coverage. `complete`, `partial`, and `unlogged` describe FoodLog
   behavior; `in_progress` identifies the current local day; `recorded`,

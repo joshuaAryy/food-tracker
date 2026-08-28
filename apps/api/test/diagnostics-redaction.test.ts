@@ -9,7 +9,12 @@ import {
 function productionApiFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
     const path = join(directory, entry);
-    if (statSync(path).isDirectory()) return productionApiFiles(path);
+    if (statSync(path).isDirectory()) {
+      // Offline benchmark/import entrypoints intentionally report CLI output;
+      // this scan covers server runtime modules only.
+      if (path.endsWith('/scripts') || path.endsWith('/benchmarks')) return [];
+      return productionApiFiles(path);
+    }
     if (!path.endsWith('.ts') || path.endsWith('.test.ts')) return [];
     return path.endsWith('/diagnostics.ts') ? [] : [path];
   });

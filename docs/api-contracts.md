@@ -6,6 +6,16 @@ contract as later phases extend the product.
 
 Persisted model types, relations, indexes, and constraints are locked in [prisma-schema-decisions.md](prisma-schema-decisions.md).
 
+## Phase 18/19 food retrieval
+
+Food search may union exact/local, trigram-fuzzy, and Pinecone semantic
+candidates, but the deterministic evaluator remains authoritative before a
+candidate is shown or selected. Responses for reference FoodItems may include
+official provider-authoritative aliases and region metadata for diagnostics;
+aliases are identity terms, not an invitation to treat all `searchText` or
+category metadata as lexical identity. Pinecone is global-only and never
+authoritative for nutrients or user-private foods.
+
 ## API Conventions
 
 - Use REST-style endpoints.

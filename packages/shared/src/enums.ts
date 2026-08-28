@@ -45,6 +45,9 @@ export const FOOD_ITEM_TYPES = ['generic', 'branded'] as const;
 export const FOOD_SOURCE_PROVIDERS = [
   'open_food_facts',
   'usda_fdc',
+  'cnf',
+  'ciqual',
+  'cofid',
   'manual',
   'other',
 ] as const;

@@ -150,6 +150,20 @@ export function serializeFoodItem(foodItem: SerializableFoodItem): FoodItem {
     sourceProvider: foodItem.sourceProvider,
     sourceId: foodItem.sourceId,
     sourceUpdatedAt: foodItem.sourceUpdatedAt?.toISOString() ?? null,
+    authoritativeAliases: Array.isArray(foodItem.sourceAliases)
+      ? foodItem.sourceAliases.filter(
+          (alias): alias is string => typeof alias === 'string',
+        )
+      : [],
+    sourceRegion: foodItem.sourceRegion,
+    rankingSource:
+      foodItem.rankingClass === 'reference'
+        ? 'reference'
+        : foodItem.sourceType === 'app_owned'
+          ? 'app_curated'
+          : foodItem.sourceType === 'cached_external'
+            ? 'cached_external'
+            : 'custom',
     isSaved: (foodItem.savedByUsers?.length ?? 0) > 0,
     defaultServing:
       foodItem.servingPreferences?.[0] === undefined

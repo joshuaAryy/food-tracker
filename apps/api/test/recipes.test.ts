@@ -5,6 +5,7 @@ import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 
 const OTHER_USER_ID = '00000000-0000-4000-8000-000000000002';
+let recipeFoodCounter = 0;
 
 async function trustedFood(
   input: {
@@ -29,7 +30,7 @@ async function trustedFood(
       searchText: name.toLowerCase(),
       sourceType: 'cached_external',
       sourceProvider: 'usda_fdc',
-      sourceId: `recipe-${name}`,
+      sourceId: `recipe-${name}-${++recipeFoodCounter}`,
       foodType: 'generic',
       servingQuantity: 100,
       servingUnit: 'g',

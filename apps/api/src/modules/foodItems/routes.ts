@@ -15,7 +15,6 @@ import {
   idParamsSchema,
   classifyServingUnit,
   type ServingUnit,
-  type AiFoodCandidateMatchReason,
   type AiFoodParseCandidate,
 } from '@food-tracker/shared';
 import { Prisma, type NutrientKey, type NutrientUnit } from '@prisma/client';
@@ -55,6 +54,19 @@ import {
   queryVariants,
   rankParseCandidates,
 } from './candidate-ranking.js';
+import { retrieveFuzzyFoodItemMatches } from './retrieval/fuzzy.js';
+import {
+  createPineconeSemanticClient,
+  semanticSearchTimeoutMs,
+} from './retrieval/pinecone.js';
+import { globalSemanticFoodWhere } from './retrieval/global-scope.js';
+import { resolveActiveSemanticNamespace } from './retrieval/index-lifecycle.js';
+import {
+  appendUniqueCandidate,
+  candidateMatchReason,
+  coverageSourceKey,
+  foodItemCandidate,
+} from './retrieval/candidate-generation.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
 
@@ -380,17 +392,20 @@ async function visibleFoodItem(id: string, userId: string) {
   });
 }
 
-function candidateReason(
-  sourceType: string,
-  hasBarcode: boolean,
-  isSaved = false,
-  isRecent = false,
-): AiFoodCandidateMatchReason {
-  if (isRecent) return 'recent';
-  if (isSaved) return 'saved';
-  if (sourceType === 'user_custom') return 'custom';
-  if (sourceType === 'app_owned') return 'app';
-  return hasBarcode ? 'barcode_cached' : 'cached_external';
+export function needsAdditionalCoverage(
+  query: string,
+  candidates: AiFoodParseCandidate[],
+  requestedLimit: number,
+): boolean {
+  const topK = rankParseCandidates(query, candidates).slice(
+    0,
+    Math.min(requestedLimit, 3),
+  );
+  const providerDiversity = new Set(topK.map(coverageSourceKey));
+  return (
+    topK.length < Math.min(requestedLimit, 3) ||
+    (topK.length > 1 && providerDiversity.size < 2)
+  );
 }
 
 function usdaExternalCandidate(
@@ -590,6 +605,7 @@ foodItemsRouter.post(
         userId: currentUserId(response),
         sourceType: 'user_custom',
         sourceProvider: 'manual',
+        rankingClass: 'user_priority',
         ...manualFoodItemData(input),
         nutrients: { create: manualNutrientRows(input.nutrition.nutrients) },
       },
@@ -646,30 +662,135 @@ foodItemsRouter.post(
 
     for (const foodItem of localFoods) {
       const serialized = serializeFoodItem(foodItem);
-      const candidateFoodItem = {
-        ...serialized,
-        defaultWholeItemServing: defaultWholeItemServingFromOptions(
-          serialized.servingOptions,
-        ),
-      };
-      seen.add(serialized.id);
-      if (serialized.sourceProvider !== null && serialized.sourceId !== null) {
-        seen.add(`${serialized.sourceProvider}:${serialized.sourceId}`);
-      }
-      candidates.push({
-        candidateType: 'food_item',
-        foodItem: candidateFoodItem,
-        externalFood: null,
-        rank: candidates.length + 1,
-        matchReason: candidateReason(
-          foodItem.sourceType,
-          foodItem.barcodes.length > 0,
-          serialized.isSaved,
-          foodItem.foodLogs.length > 0,
-        ),
-        confidence: 'low',
-        defaultServingMultiplier: 1,
+      appendUniqueCandidate({
+        candidates,
+        seen,
+        candidate: foodItemCandidate({
+          foodItem: serialized,
+          matchReason: candidateMatchReason({
+            sourceType: foodItem.sourceType,
+            sourceProvider: serialized.sourceProvider,
+            hasBarcode: foodItem.barcodes.length > 0,
+            isSaved: serialized.isSaved,
+            isRecent: foodItem.foodLogs.length > 0,
+          }),
+          rank: candidates.length + 1,
+        }),
       });
+    }
+
+    if (needsAdditionalCoverage(normalizedQuery, candidates, input.limit)) {
+      try {
+        const fuzzyMatches = await retrieveFuzzyFoodItemMatches({
+          prisma,
+          query: normalizedQuery,
+          limit: Math.max(input.limit * 2, 10),
+          userId,
+        });
+        const fuzzyIds = fuzzyMatches.map((match) => match.id);
+        const fuzzyDistanceById = new Map(
+          fuzzyMatches.map((match) => [match.id, match.distance]),
+        );
+        const fuzzyFoods = await prisma.foodItem.findMany({
+          where: { AND: [visibleFoodWhere(userId), { id: { in: fuzzyIds } }] },
+          include: foodItemInclude(userId),
+        });
+        const byId = new Map(fuzzyFoods.map((food) => [food.id, food]));
+        for (const id of fuzzyIds) {
+          const foodItem = byId.get(id);
+          if (foodItem === undefined || seen.has(foodItem.id)) continue;
+          const serialized = serializeFoodItem(foodItem);
+          appendUniqueCandidate({
+            candidates,
+            seen,
+            candidate: foodItemCandidate({
+              foodItem: serialized,
+              matchReason: candidateMatchReason({
+                sourceType: foodItem.sourceType,
+                sourceProvider: serialized.sourceProvider,
+                hasBarcode: foodItem.barcodes.length > 0,
+                isSaved: serialized.isSaved,
+                isRecent: foodItem.foodLogs.length > 0,
+              }),
+              rank: candidates.length + 1,
+              retrievalEvidence: {
+                lexical: false,
+                fuzzyDistance: fuzzyDistanceById.get(id) ?? null,
+                semanticScore: null,
+              },
+            }),
+          });
+        }
+      } catch {
+        // The lexical path remains authoritative if trigram retrieval is unavailable.
+      }
+    }
+
+    const pineconeApiKey = process.env.PINECONE_API_KEY;
+    const pineconeHost = process.env.PINECONE_INDEX_HOST;
+    if (
+      needsAdditionalCoverage(normalizedQuery, candidates, input.limit) &&
+      pineconeApiKey &&
+      pineconeHost
+    ) {
+      try {
+        const semantic = createPineconeSemanticClient({
+          apiKey: pineconeApiKey,
+          indexHost: pineconeHost,
+          namespace: await resolveActiveSemanticNamespace({
+            prisma,
+            fallback: process.env.PINECONE_ACTIVE_NAMESPACE ?? 'food-search-v1',
+          }),
+          topK: Math.max(input.limit * 2, 10),
+        });
+        const matches = await semantic.search(
+          normalizedQuery,
+          semanticSearchTimeoutMs(),
+        );
+        const semanticIds = matches
+          .map((match) => match.foodItemId)
+          .filter((id) => !seen.has(id));
+        const semanticFoods = await prisma.foodItem.findMany({
+          where: globalSemanticFoodWhere(semanticIds),
+          include: foodItemInclude(userId),
+        });
+        const byId = new Map(semanticFoods.map((food) => [food.id, food]));
+        for (const id of semanticIds) {
+          const foodItem = byId.get(id);
+          if (foodItem === undefined || seen.has(id)) continue;
+          const serialized = serializeFoodItem(foodItem);
+          appendUniqueCandidate({
+            candidates,
+            seen,
+            candidate: foodItemCandidate({
+              foodItem: serialized,
+              matchReason: candidateMatchReason({
+                sourceType: foodItem.sourceType,
+                sourceProvider: serialized.sourceProvider,
+                hasBarcode: foodItem.barcodes.length > 0,
+                isSaved: serialized.isSaved,
+                isRecent: foodItem.foodLogs.length > 0,
+              }),
+              rank: candidates.length + 1,
+              retrievalEvidence: {
+                lexical: false,
+                fuzzyDistance: null,
+                semanticScore:
+                  matches.find((match) => match.foodItemId === id)?.score ??
+                  null,
+              },
+            }),
+          });
+        }
+      } catch {
+        // Semantic retrieval is derived and optional; lexical/local search remains usable.
+      }
+    }
+
+    if (!needsAdditionalCoverage(normalizedQuery, candidates, input.limit)) {
+      candidates = rankParseCandidates(normalizedQuery, candidates);
+      sendSuccess(response, { candidates: candidates.slice(0, input.limit) });
+      return;
     }
 
     const usdaConfig = usdaFdcConfig();
@@ -1132,6 +1253,7 @@ foodItemsRouter.post(
         userId: currentUserId(response),
         sourceType: 'user_custom',
         sourceProvider: 'manual',
+        rankingClass: 'user_priority',
         ...normalizedFoodItem(input),
         nutrients: { create: nutrientRows(input.nutrients) },
       },

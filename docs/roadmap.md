@@ -13,8 +13,7 @@ explicitly below and takes precedence over those historical labels.
 ```text
 Phase 17 — complete
 Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
-Phase 18 — next: Additional Food Providers
-Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
+Phase 18/19 — in progress: Food Data + Intelligent Retrieval
 Phase 20 — Real Accounts and User Isolation
 Phase 21 — Full Complex-Mode Micronutrient Editing
 Phase 22 — Recommendation Engine 2.0
@@ -27,11 +26,21 @@ Phase 28 — Experimental Grocery Recommendations
 Phase 29 — Wearable and Health Data Integration
 ```
 
+Phase 18 and Phase 19 are executed as one combined macro phase named
+**Phase 18/19 — Food Data + Intelligent Retrieval**. The historical labels and
+later phase numbers remain unchanged.
+
 Phase 17.5 is complete. Its final implementation baseline is
 `e70ccb514b0c9bd65cc9ba1c0bdea57d207f6043`; user-operated physical iPhone
 visual validation passed on 2026-08-21. Exact 390/393 Simulator evidence
 remained unavailable because of the CoreSimulator/runtime environment and was
 superseded as a completion blocker by the accepted physical-device review.
+
+The Phase 18/19 implementation branch contains the approved provider,
+retrieval, ranking, benchmark, and index-lifecycle work. PostgreSQL migration
+and persistence measurement, live benchmark baseline/holdout evidence,
+Pinecone validation, and Railway staging remain explicit external gates before
+the macro phase can be closed.
 
 The post-Phase 6 MVP direction is:
 
@@ -754,8 +763,9 @@ engineering smoke build, not the external MVP beta.
 
 ## Phase 18 — Additional Food Providers
 
-This follows Phase 17.5. No Phase 18 implementation slice is started by this
-closeout.
+This is the historical decomposition of the current combined Phase 18/19
+macro phase. Execution is tracked in the committed Phase 18/19 plan and
+execution ledger; the combined phase must close before Phase 20 begins.
 
 - evaluate provider options
 - improve Canadian food coverage
@@ -772,6 +782,9 @@ closeout.
 - legal terms, cost, quotas, and rate-limit review
 
 ## Phase 19 — Semantic Search, Typo Handling, and Expanded Retrieval
+
+This is the historical decomposition of the current combined Phase 18/19
+macro phase. It remains listed separately to preserve roadmap numbering.
 
 - typo tolerance
 - synonyms

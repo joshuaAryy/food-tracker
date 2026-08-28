@@ -4,12 +4,17 @@ import {
   classifyQueryTokens,
   confidenceForScore,
   queryVariants,
+  rankableFromParseCandidate,
+  rankParseCandidates,
   scoreFoodCandidate,
 } from '../src/modules/foodItems/candidate-ranking.js';
+import type { AiFoodParseCandidate, FoodItem } from '@food-tracker/shared';
 import {
   assessFoodIntent,
   foodIntentFallbackQuery,
 } from '../src/modules/foodItems/food-intent.js';
+import { coverageSourceKey } from '../src/modules/foodItems/retrieval/candidate-generation.js';
+import { needsAdditionalCoverage } from '../src/modules/foodItems/routes.js';
 
 function candidate(
   overrides: Partial<
@@ -36,7 +41,250 @@ function candidate(
   };
 }
 
+function foodItemCandidateForRegion(region: string): AiFoodParseCandidate {
+  return {
+    candidateType: 'food_item' as const,
+    foodItem: {
+      id: `food-${region}`,
+      name: 'Plain yogurt',
+      brandName: null,
+      sourceType: 'app_owned' as const,
+      foodType: 'generic' as const,
+      sourceProvider: 'ciqual' as const,
+      sourceId: `ciqual-${region}`,
+      sourceUpdatedAt: null,
+      authoritativeAliases: [],
+      sourceRegion: region,
+      rankingSource: 'reference' as const,
+      isSaved: false,
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      servingOptions: null,
+      calories: 60,
+      protein: 3,
+      carbs: 4,
+      fat: 3,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+      additionalNutrients: null,
+      nutrients: {},
+      barcodes: [],
+      createdAt: '',
+      updatedAt: '',
+    } satisfies FoodItem,
+    externalFood: null,
+    rank: 1,
+    matchReason: 'reference' as const,
+    confidence: 'low' as const,
+    defaultServingMultiplier: 1,
+  };
+}
+
+function regionalFoodItem(): FoodItem {
+  const candidate = foodItemCandidateForRegion('CA');
+  if (candidate.candidateType !== 'food_item') {
+    throw new Error('expected food item candidate');
+  }
+  return candidate.foodItem;
+}
+
 describe('candidate ranking helper', () => {
+  it('uses provider identity for manual-search coverage diversity', () => {
+    const providers = ['cnf', 'ciqual', 'cofid'] as const;
+    const keys = providers.map((sourceProvider, index) =>
+      coverageSourceKey({
+        candidateType: 'food_item',
+        foodItem: {
+          ...regionalFoodItem(),
+          id: `food-${index}`,
+          sourceProvider,
+        },
+        externalFood: null,
+        rank: index + 1,
+        matchReason: 'reference',
+        confidence: 'low',
+        defaultServingMultiplier: 1,
+      }),
+    );
+    expect(keys).toEqual(['provider:cnf', 'provider:ciqual', 'provider:cofid']);
+    expect(new Set(keys)).toHaveLength(3);
+    expect(
+      new Set(
+        (['cnf', 'ciqual', 'ciqual'] as const).map((sourceProvider, index) =>
+          coverageSourceKey({
+            candidateType: 'food_item',
+            foodItem: {
+              ...regionalFoodItem(),
+              id: `duplicate-provider-${index}`,
+              sourceProvider,
+            },
+            externalFood: null,
+            rank: index + 1,
+            matchReason: 'reference',
+            confidence: 'low',
+            defaultServingMultiplier: 1,
+          }),
+        ),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it('keeps provider-less user and app origins distinct for coverage', () => {
+    const candidateFor = (
+      matchReason: AiFoodParseCandidate['matchReason'],
+    ): AiFoodParseCandidate => ({
+      candidateType: 'food_item',
+      foodItem: {
+        ...regionalFoodItem(),
+        id: `food-${matchReason}`,
+        sourceProvider: null,
+      },
+      externalFood: null,
+      rank: 1,
+      matchReason,
+      confidence: 'low',
+      defaultServingMultiplier: 1,
+    });
+    expect(coverageSourceKey(candidateFor('recent'))).toBe('source:recent');
+    expect(coverageSourceKey(candidateFor('saved'))).toBe('source:saved');
+    expect(coverageSourceKey(candidateFor('custom'))).toBe('source:custom');
+    expect(coverageSourceKey(candidateFor('app'))).toBe('source:app');
+  });
+
+  it('uses the minimum top-k rule and provider-aware diversity for coverage', () => {
+    const candidateFor = (
+      sourceProvider: 'cnf' | 'ciqual' | 'cofid' | null,
+      matchReason: AiFoodParseCandidate['matchReason'] = 'reference',
+      index = 1,
+    ): AiFoodParseCandidate => ({
+      candidateType: 'food_item',
+      foodItem: {
+        ...regionalFoodItem(),
+        id: `coverage-food-${index}`,
+        sourceProvider,
+        rankingSource: sourceProvider === null ? 'app_curated' : 'reference',
+      },
+      externalFood: null,
+      rank: index,
+      matchReason,
+      confidence: 'low',
+      defaultServingMultiplier: 1,
+    });
+
+    expect(needsAdditionalCoverage('plain yogurt', [], 3)).toBe(true);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('ciqual', 'reference', 2),
+          candidateFor('cofid', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('cnf', 'reference', 2),
+          candidateFor('cnf', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(true);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor('cnf', 'reference', 1),
+          candidateFor('ciqual', 'reference', 2),
+          candidateFor('ciqual', 'reference', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+    expect(
+      needsAdditionalCoverage(
+        'plain yogurt',
+        [
+          candidateFor(null, 'recent', 1),
+          candidateFor(null, 'saved', 2),
+          candidateFor(null, 'custom', 3),
+        ],
+        3,
+      ),
+    ).toBe(false);
+  });
+  it('gives curated app and reference candidates equal base source quality', () => {
+    const curated = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'app_curated' }),
+    });
+    const reference = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'reference' }),
+    });
+    expect(reference.score).toBe(curated.score);
+  });
+
+  it('keeps legacy USDA inputs at the neutral reference source quality', () => {
+    const usda = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'usda_fdc' }),
+    });
+    const reference = scoreFoodCandidate({
+      query: 'banana',
+      candidate: candidate({ source: 'reference' }),
+    });
+    expect(usda.score).toBe(reference.score);
+  });
+
+  it.each([
+    { lexical: false, fuzzyDistance: 0.2, semanticScore: null },
+    { lexical: false, fuzzyDistance: null, semanticScore: 0.9 },
+  ] as const)(
+    'does not grant trusted selection from %s evidence alone',
+    (retrievalEvidence) => {
+      const score = scoreFoodCandidate({
+        query: 'banana',
+        candidate: candidate({ retrievalEvidence }),
+      });
+      expect(score.visibleRelevant).toBe(true);
+      expect(score.selectionEligible).toBe(false);
+    },
+  );
+
+  it('uses persisted ranking source semantics for hydrated app-owned foods', () => {
+    const appOwned = foodItemCandidateForRegion('CA');
+    if (appOwned.candidateType !== 'food_item')
+      throw new Error('expected food item candidate');
+    appOwned.foodItem.rankingSource = 'app_curated';
+    appOwned.matchReason = 'app';
+    expect(rankableFromParseCandidate(appOwned).source).toBe('app_curated');
+  });
+
+  it('uses explicit validated locale only as a final reference tie-break', () => {
+    const ranked = rankParseCandidates(
+      'plain yogurt',
+      [foodItemCandidateForRegion('FR'), foodItemCandidateForRegion('CA')],
+      { region: 'CA' },
+    );
+    expect(ranked[0]?.foodItem?.sourceRegion).toBe('CA');
+  });
+
+  it('ignores invalid locale values and preserves candidate order on a tie', () => {
+    const ranked = rankParseCandidates(
+      'plain yogurt',
+      [foodItemCandidateForRegion('FR'), foodItemCandidateForRegion('CA')],
+      { region: 'Canada' },
+    );
+    expect(ranked[0]?.foodItem?.sourceRegion).toBe('FR');
+  });
+
   it('creates singular and plural query variants', () => {
     expect(queryVariants('eggs')).toEqual(['eggs', 'egg']);
     expect(queryVariants('bananas')).toEqual(['bananas', 'banana']);
@@ -695,5 +943,53 @@ describe('candidate ranking helper', () => {
     expect(inadequate.mostlyInadequate).toBe(true);
     expect(adequate.hasAdequateCandidate).toBe(true);
     expect(adequate.topCandidateAdequate).toBe(false);
+  });
+
+  it('uses an exact authoritative alias for deterministic identity', () => {
+    const score = scoreFoodCandidate({
+      query: 'œuf',
+      candidate: candidate({
+        name: 'Egg, chicken, whole, raw',
+        authoritativeAliases: ['Œuf de poule entier cru'],
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.strongIdentityMatch).toBe(true);
+    expect(score.selectionEligible).toBe(true);
+  });
+
+  it('matches accented and unaccented authoritative aliases', () => {
+    const accented = candidate({
+      name: 'Crème fraîche',
+      authoritativeAliases: ['Crème fraîche entière'],
+    });
+    expect(
+      scoreFoodCandidate({ query: 'creme', candidate: accented })
+        .visibleRelevant,
+    ).toBe(true);
+    expect(
+      scoreFoodCandidate({ query: 'crème', candidate: accented })
+        .visibleRelevant,
+    ).toBe(true);
+  });
+
+  it('does not let category-only search metadata create identity', () => {
+    const score = scoreFoodCandidate({
+      query: 'vegetable',
+      candidate: candidate({ name: 'Chicken breast' }),
+    });
+    expect(score.visibleRelevant).toBe(false);
+  });
+
+  it('keeps preparation safeguards active when an alias matches', () => {
+    const score = scoreFoodCandidate({
+      query: 'œuf grilled',
+      candidate: candidate({
+        name: 'Egg, chicken, whole, raw',
+        authoritativeAliases: ['Œuf de poule entier cru'],
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.selectionEligible).toBe(false);
   });
 });
