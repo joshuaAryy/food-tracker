@@ -23,11 +23,12 @@ Use a local `User` model in the application database.
 The original foundation used a fixed mock user. The current implementation uses
 Firebase Authentication for identity, maps the verified Firebase UID to the
 application-owned `User.id`, and keeps the ownership boundary server-side.
-Remaining account-lifecycle work is tracked in Phase 20.
+Phase 20–22 account-isolation hardening is implemented; Firebase remains the
+identity boundary and every resource query remains user-scoped.
 
 Long-term:
-- The remaining account-lifecycle and isolation work follows Phase 19 semantic
-  retrieval in Phase 20; `User.id` is not assumed to equal an external identity.
+- `User.id` remains application-owned and is never assumed to equal an external
+  identity; Phase 20–22 covers the current account-lifecycle/isolation scope.
 - Do not build custom password authentication.
 - Do not store password credentials in the application database.
 
@@ -258,9 +259,21 @@ Relation:
 | `targetWeightLb` | nullable `Decimal`, precision `5`, scale `1` |
 | `targetCalories` | nullable `Int` |
 | `targetProteinGrams` | nullable `Decimal`, precision `5`, scale `1` |
+| `targetRateLbPerWeek` | nullable `Decimal`, precision `3`, scale `2`; 0.25 increments |
 
 Relation:
 - belongs to `User`; delete cascades from `User`
+
+`UserNutrientTargetOverride` is unique by `(userId, nutrientKey)` and stores
+`origin` (`user` or `legacy_preserved`). It is the authority for explicit
+target overrides; legacy UserGoal target columns remain compatibility snapshots
+and legacy `/goals` responses are projected from the effective resolver.
+
+Phase 20–22 notification tables are user-scoped: installations use a unique
+machine installation id and nullable user/token association, events are unique
+by `(userId, localDate)` and dedupe key, delivery attempts retain token hashes
+for safe receipt handling, and the worker checkpoint stores a bounded keyset
+cursor. User deletion retires installation tokens before the user cascade.
 
 ### TrackingPreference
 

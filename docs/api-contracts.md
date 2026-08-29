@@ -193,7 +193,10 @@ Request:
 Success `data` returns normalized `profile`, calculated `goals`,
 `preferences`, `calculatedTargets`, and a complete setup-status object.
 Targets are deterministic backend facts derived from birth date, sex, height,
-current weight, activity level, training style, goal type, and goal pace.
+latest valid weight (falling back to starting weight), activity level, training
+style, goal type, and numeric target rate. Birth date is authoritative for age;
+under-18 users remain eligible, but unsupported rate-driven prescriptions are
+represented as unavailable.
 Clients that edit only the visible tracking mode must preserve existing
 unrelated preference values, including `waterTrackingEnabled`.
 
@@ -203,7 +206,9 @@ Validates the same onboarding request shape as `PUT /api/v1/setup` and returns
 derived age plus calculated targets without writing any data. Mobile uses this
 for the final onboarding Review step.
 
-Request uses the same body as `PUT /api/v1/setup`.
+Request uses the same body as `PUT /api/v1/setup`. The preview body may
+additionally include transient `currentWeightLb`; this is used by the
+post-onboarding Goal Plan screen and is never persisted.
 
 Success `data`:
 
@@ -281,6 +286,7 @@ Success `data`:
 {
   "goalType": "lose",
   "goalPace": "moderate",
+  "targetRateLbPerWeek": 1.0,
   "targetWeightLb": 170.0,
   "targetCalories": 2200,
   "targetProteinGrams": 150.0,
@@ -321,8 +327,11 @@ Request:
 
 `goalType` must be `lose`, `maintain`, or `gain`; `goalPace` must match the
 goal type as described in Shared Validation Rules. Success `data` uses the
-goals shape above. Profile editing can preserve or manually override
-calculated targets after onboarding.
+goals shape above. `targetRateLbPerWeek` is optional for legacy callers.
+Profile editing may send `targetOverrides: false` when daily targets were not
+edited; ordinary legacy callers omit this flag, so supplied target values become
+explicit `user` overrides. Legacy GET always projects effective resolved
+values rather than stale raw columns.
 
 ## Tracking Preferences
 

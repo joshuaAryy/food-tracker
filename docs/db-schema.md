@@ -27,16 +27,16 @@ nutrition data.
 ## MVP Tables
 
 ### User
-- id (UUID; application-owned; Firebase identity mapping is implemented; future
-  account-lifecycle work remains in Phase 20)
+- id (UUID; application-owned; Firebase identity mapping and Phase 20–22
+  account-isolation hardening are implemented)
 - email (optional)
 - createdAt
 - updatedAt
 
 The current implementation uses Firebase Authentication at the identity
 boundary and maps the verified Firebase UID to the application-owned `User`
-record. Do not store custom password credentials. Remaining account lifecycle
-and isolation work is tracked in Phase 20.
+record. Do not store custom password credentials. Account-scoped API ownership,
+mobile reset, and notification association cleanup are enforced in Phase 20–22.
 
 ---
 
@@ -44,7 +44,7 @@ and isolation work is tracked in Phase 20.
 - id
 - userId
 - name
-- age
+- age (derived compatibility field; `birthDate` is authoritative)
 - birthDate
 - sex (`male` or `female`)
 - heightInches (optional total integer inches; entered as feet/inches)
@@ -60,6 +60,7 @@ and isolation work is tracked in Phase 20.
 - userId
 - goalType (`lose`, `maintain`, or `gain`)
 - goalPace (nullable; must match the goal type)
+- targetRateLbPerWeek (nullable decimal pounds/week; 0.25 increments)
 - targetWeightLb (optional decimal pounds, one decimal place)
 - targetCalories (integer kcal)
 - targetProteinGrams (optional decimal grams, one decimal place)
@@ -69,7 +70,9 @@ and isolation work is tracked in Phase 20.
 - limitSugarGrams (nullable decimal grams, one decimal place)
 - limitSodiumMg (nullable integer milligrams)
 
-The five new fields are nullable for backward-compatible migration and
+The legacy target columns remain nullable compatibility snapshots; normalized
+`UserNutrientTargetOverride` rows are authoritative for explicit overrides.
+The five extended fields are nullable for backward-compatible migration and
 legacy setup-incomplete rows. The reporting goal resolver uses explicit stored
 values first, derives missing values deterministically from the existing
 calorie/protein targets next, and applies the documented product default for
@@ -82,6 +85,10 @@ carbohydrates, fat, fiber), and limit (sugar, sodium). Period percentages use
 the existing report eligible-day count as the applicable day count. Weight
 continues to use `targetWeightLb` and is not duplicated in the nutrient goal
 model.
+
+`UserNutrientTargetOverride` is unique by `(userId, nutrientKey)`, stores
+`origin` as `user` or `legacy_preserved`, and cascades on user deletion. Legacy
+`/goals` reads project effective values from the resolver.
 
 ---
 
@@ -460,3 +467,16 @@ rows, serving basis, serving options, ownership, and archive lifecycle.
 unique by user and FoodItem. `FoodItem.derivedFromFoodLogId` is nullable and
 unique so a source log can yield at most one derived manual FoodItem. Both are
 additive; SavedFoodItem remains the saved/favorite relation.
+
+## Phase 20–22 additions
+
+`UserNutrientTargetOverride` stores one explicit per-user target override per
+nutrient. Its value is separate from historical FoodLog corrections and does
+not mutate FoodItems. `Recommendation` retains stable identity and condition
+fingerprints for deterministic lifecycle and dismissal behavior.
+
+Push delivery uses user-owned `NotificationPreference`, installation/token
+association, claimed `NotificationEvent`, delivery-attempt/receipt history,
+and a bounded worker cursor. User deletion cascades preferences/events and
+explicitly retires installation tokens; sign-out detaches the installation
+association without deleting the machine installation identifier.
