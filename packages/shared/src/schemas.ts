@@ -106,6 +106,12 @@ export const profileSchema = z.strictObject({
 const goalsBaseSchema = z.strictObject({
   goalType: goalTypeSchema,
   goalPace: goalPaceSchema.nullable(),
+  targetRateLbPerWeek: z
+    .number()
+    .positive()
+    .multipleOf(0.25)
+    .nullable()
+    .optional(),
   targetWeightLb: z.number().positive(),
   targetCalories: z.number().int().nonnegative(),
   targetProteinGrams: z.number().nonnegative(),
@@ -140,6 +146,7 @@ const goalsMatchTypeMessage = {
 
 export const goalsSchema = goalsBaseSchema
   .extend({
+    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
     targetCarbsGrams: z.number().positive().nullable(),
     targetFatGrams: z.number().positive().nullable(),
     targetFiberGrams: z.number().positive().nullable(),
@@ -222,6 +229,13 @@ export const setupResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .multipleOf(0.25)
+      .nullable()
+      .optional(),
+    estimatedGoalDate: localDateSchema.nullable().optional(),
   }),
   status: setupStatusSchema,
 });
@@ -238,6 +252,13 @@ export const setupPreviewResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .multipleOf(0.25)
+      .nullable()
+      .optional(),
+    estimatedGoalDate: localDateSchema.nullable().optional(),
   }),
 });
 
@@ -263,6 +284,35 @@ export const normalizedNutrientsInputSchema = z
         continue;
       }
 
+      const catalogEntry = NUTRIENT_CATALOG[key as NormalizedNutrientKey];
+      if (nutrient.unit !== catalogEntry.defaultUnit) {
+        context.addIssue({
+          code: 'custom',
+          message: `unit must be ${catalogEntry.defaultUnit} for ${key}`,
+          path: [key, 'unit'],
+        });
+      }
+    }
+  });
+
+const normalizedNutrientsPatchSchema = z
+  .record(
+    z.string().trim().min(1),
+    z.strictObject({
+      amount: z.number().nonnegative().nullable(),
+      unit: nutrientUnitSchema,
+    }),
+  )
+  .superRefine((nutrients, context) => {
+    for (const [key, nutrient] of Object.entries(nutrients)) {
+      if (!NORMALIZED_NUTRIENT_KEYS.includes(key as NormalizedNutrientKey)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'nutrient key must be a normalized nutrient',
+          path: [key],
+        });
+        continue;
+      }
       const catalogEntry = NUTRIENT_CATALOG[key as NormalizedNutrientKey];
       if (nutrient.unit !== catalogEntry.defaultUnit) {
         context.addIssue({
@@ -822,7 +872,7 @@ const foodLogNutritionOverrideSchema = z
     fiber: optionalNonNegativeDecimal,
     sugar: optionalNonNegativeDecimal,
     sodium: z.number().int().nonnegative().nullable().optional(),
-    nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+    nutrients: normalizedNutrientsPatchSchema.nullable().optional(),
   })
   .superRefine((override, context) => {
     if (

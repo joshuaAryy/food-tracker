@@ -92,6 +92,7 @@ export function serializeGoals(goals: UserGoal): Goals {
   return {
     goalType: goals.goalType,
     goalPace: goals.goalPace,
+    targetRateLbPerWeek: decimalToNumber(goals.targetRateLbPerWeek),
     targetWeightLb: decimalToNumber(goals.targetWeightLb) ?? 0,
     targetCalories: goals.targetCalories ?? 0,
     targetProteinGrams: decimalToNumber(goals.targetProteinGrams) ?? 0,
@@ -231,6 +232,7 @@ export function serializeRecommendation(
   return {
     id: recommendation.id,
     type: recommendation.type as RecommendationType,
+    identityKey: recommendation.identityKey || recommendation.type,
     severity: recommendation.severity,
     title: recommendation.title,
     message: recommendation.message,

@@ -38,6 +38,11 @@ enum GoalPace {
   aggressive_bulk
 }
 
+enum TargetOverrideOrigin {
+  user
+  legacy_preserved
+}
+
 enum TrackingMode {
   simple
   complex
@@ -61,6 +66,24 @@ enum RecommendationStatus {
   active
   dismissed
   archived
+}
+
+enum NotificationClass {
+  recommendation_insight
+  logging_reminder
+}
+
+enum NotificationEventStatus {
+  claimed
+  submitted
+  completed
+  failed
+  receipt_expired
+}
+
+enum NotificationPlatform {
+  ios
+  android
 }
 
 enum FoodItemSourceType {
@@ -191,6 +214,10 @@ model User {
   analyticsSavedViews        AnalyticsSavedView[]
   analyticsPreference        AnalyticsPreference?
   recommendations            Recommendation[]
+  targetOverrides            UserNutrientTargetOverride[]
+  notificationPreference     NotificationPreference?
+  notificationInstallations NotificationInstallation[]
+  notificationEvents        NotificationEvent[]
 }
 
 model AccountDeletion {
@@ -221,6 +248,7 @@ model UserGoal {
   userId             String    @unique @db.Uuid
   goalType           GoalType
   goalPace           GoalPace?
+  targetRateLbPerWeek Decimal? @db.Decimal(3, 2)
   targetWeightLb     Decimal?  @db.Decimal(5, 1)
   targetCalories     Int?
   targetProteinGrams Decimal?  @db.Decimal(5, 1)
@@ -230,6 +258,100 @@ model UserGoal {
   limitSugarGrams    Decimal?  @db.Decimal(6, 1)
   limitSodiumMg      Int?
   user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserNutrientTargetOverride {
+  id         String              @id @default(uuid()) @db.Uuid
+  userId     String              @db.Uuid
+  nutrientKey NutrientKey
+  value      Decimal             @db.Decimal(12, 4)
+  origin     TargetOverrideOrigin
+  createdAt  DateTime            @default(now()) @db.Timestamptz
+  updatedAt  DateTime            @updatedAt @db.Timestamptz
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, nutrientKey])
+  @@index([userId])
+}
+
+model NotificationPreference {
+  id                         String   @id @default(uuid()) @db.Uuid
+  userId                     String   @unique @db.Uuid
+  recommendationInsightsEnabled Boolean @default(false)
+  loggingRemindersEnabled    Boolean  @default(false)
+  createdAt                  DateTime @default(now()) @db.Timestamptz
+  updatedAt                  DateTime @updatedAt @db.Timestamptz
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationInstallation {
+  id               String                @id @default(uuid()) @db.Uuid
+  installationId   String                @unique
+  userId           String?               @db.Uuid
+  expoPushToken    String?
+  tokenHash        String?               @unique
+  platform         NotificationPlatform
+  enabledAt        DateTime?
+  disabledAt       DateTime?
+  lastRegisteredAt DateTime              @default(now()) @db.Timestamptz
+  createdAt        DateTime              @default(now()) @db.Timestamptz
+  updatedAt        DateTime              @updatedAt @db.Timestamptz
+  user             User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  attempts         NotificationDeliveryAttempt[]
+
+  @@index([userId, disabledAt])
+}
+
+model NotificationEvent {
+  id                 String                 @id @default(uuid()) @db.Uuid
+  userId             String                 @db.Uuid
+  class              NotificationClass
+  localDate          DateTime               @db.Date
+  identityKey        String
+  dedupeKey          String                 @unique
+  recommendationId   String?                @db.Uuid
+  status             NotificationEventStatus @default(claimed)
+  claimedAt          DateTime               @default(now()) @db.Timestamptz
+  submittedAt        DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime               @default(now()) @db.Timestamptz
+  updatedAt          DateTime               @updatedAt @db.Timestamptz
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommendation     Recommendation?       @relation(fields: [recommendationId], references: [id], onDelete: SetNull)
+  attempts           NotificationDeliveryAttempt[]
+
+  @@unique([userId, localDate])
+  @@index([userId, claimedAt])
+  @@index([userId, class, claimedAt])
+}
+
+model NotificationDeliveryAttempt {
+  id                     String                    @id @default(uuid()) @db.Uuid
+  notificationEventId    String                    @db.Uuid
+  notificationInstallationId String?               @db.Uuid
+  tokenHash              String
+  expoTicketId           String?                   @unique
+  status                 NotificationEventStatus  @default(submitted)
+  attemptedAt            DateTime                  @default(now()) @db.Timestamptz
+  submittedAt            DateTime?
+  receiptCheckCount      Int                       @default(0)
+  nextReceiptCheckAt     DateTime?
+  receiptLastCheckedAt   DateTime?
+  receiptStatus          String?
+  errorCode              String?
+  createdAt              DateTime                  @default(now()) @db.Timestamptz
+  updatedAt              DateTime                  @updatedAt @db.Timestamptz
+  event                  NotificationEvent        @relation(fields: [notificationEventId], references: [id], onDelete: Cascade)
+  installation            NotificationInstallation? @relation(fields: [notificationInstallationId], references: [id], onDelete: SetNull)
+
+  @@unique([notificationEventId, notificationInstallationId, tokenHash])
+  @@index([nextReceiptCheckAt, status])
+}
+
+model NotificationWorkerCheckpoint {
+  key          String   @id
+  cursorUserId String?
+  updatedAt    DateTime @updatedAt @db.Timestamptz
 }
 
 model TrackingPreference {
@@ -543,6 +665,10 @@ model Recommendation {
   id          String                 @id @default(uuid()) @db.Uuid
   userId      String                 @db.Uuid
   type        String
+  identityKey String                 @default("")
+  conditionFingerprint String         @default("")
+  dismissedAt DateTime?
+  resolvedAt  DateTime?
   severity    RecommendationSeverity
   title       String
   message     String
@@ -551,8 +677,10 @@ model Recommendation {
   createdAt   DateTime               @default(now()) @db.Timestamptz
   updatedAt   DateTime               @updatedAt @db.Timestamptz
   user        User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationEvents NotificationEvent[]
 
   @@index([userId])
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([userId, identityKey])
 }

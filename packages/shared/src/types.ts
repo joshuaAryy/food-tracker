@@ -76,6 +76,7 @@ export interface Profile {
 export interface Goals {
   goalType: GoalType;
   goalPace: GoalPace | null;
+  targetRateLbPerWeek?: number | null;
   targetWeightLb: number;
   targetCalories: number;
   targetProteinGrams: number;
@@ -689,6 +690,7 @@ export interface DailyNutrientTotals {
 export interface Recommendation {
   id: string;
   type: RecommendationType;
+  identityKey?: string;
   severity: RecommendationSeverity;
   title: string;
   message: string;

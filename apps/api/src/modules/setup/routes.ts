@@ -72,6 +72,8 @@ setupRouter.post(
         targetFiberGrams: calculatedTargets.targetFiberGrams,
         limitSugarGrams: calculatedTargets.limitSugarGrams,
         limitSodiumMg: calculatedTargets.limitSodiumMg,
+        targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
+        estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
     });
   },
@@ -92,6 +94,7 @@ setupRouter.put(
     };
     const goalsData = {
       ...input.goals,
+      targetRateLbPerWeek: input.goals.targetRateLbPerWeek ?? null,
       targetWeightLb: roundTo(input.goals.targetWeightLb, 1),
       targetCalories: calculatedTargets.targetCalories,
       targetProteinGrams: calculatedTargets.targetProteinGrams,
@@ -136,6 +139,8 @@ setupRouter.put(
         targetFiberGrams: calculatedTargets.targetFiberGrams,
         limitSugarGrams: calculatedTargets.limitSugarGrams,
         limitSodiumMg: calculatedTargets.limitSodiumMg,
+        targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
+        estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
       status: setupStatus(true, true, true),
     });

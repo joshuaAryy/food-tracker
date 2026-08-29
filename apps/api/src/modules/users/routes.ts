@@ -7,6 +7,7 @@ import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeProfile } from '../../lib/serializers.js';
 import { isCompleteProfile } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
+import { calculateAge } from '../personalization/resolver.js';
 
 export const usersRouter = Router();
 
@@ -30,6 +31,7 @@ usersRouter.put(
     const input = validatedBody<Profile>(response);
     const data = {
       ...input,
+      age: calculateAge(input.birthDate, new Date(), input.timezone),
       birthDate: new Date(`${input.birthDate}T00:00:00.000Z`),
       startingWeightLb: roundTo(input.startingWeightLb, 1),
     };

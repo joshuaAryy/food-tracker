@@ -7,6 +7,7 @@ import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeGoals } from '../../lib/serializers.js';
 import { isCompleteGoals } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
+import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
 
 export const goalsRouter = Router();
 
@@ -19,7 +20,22 @@ goalsRouter.get('/', async (_request, response) => {
     throw notFoundError('Goals');
   }
 
-  sendSuccess(response, serializeGoals(goals));
+  const serialized = serializeGoals(goals);
+  const effective = await resolveUserNutritionTargets(currentUserId(response));
+  for (const [key, field] of [
+    ['calories', 'targetCalories'],
+    ['protein', 'targetProteinGrams'],
+    ['carbs', 'targetCarbsGrams'],
+    ['fat', 'targetFatGrams'],
+    ['fiber', 'targetFiberGrams'],
+    ['sugar', 'limitSugarGrams'],
+    ['sodium', 'limitSodiumMg'],
+  ] as const) {
+    const value = effective[key]?.effectiveValue;
+    if (value !== undefined)
+      (serialized as unknown as Record<string, unknown>)[field] = value;
+  }
+  sendSuccess(response, serialized);
 });
 
 goalsRouter.put(
@@ -39,34 +55,107 @@ goalsRouter.put(
       limitSugarGrams,
       limitSodiumMg,
     } = input;
-    const data = {
+    const metadata = {
       goalType: input.goalType,
       goalPace: input.goalPace,
+      targetRateLbPerWeek: input.targetRateLbPerWeek ?? null,
       targetWeightLb: roundTo(input.targetWeightLb, 1),
-      targetCalories: input.targetCalories,
-      targetProteinGrams: roundTo(input.targetProteinGrams, 1),
-      ...(targetCarbsGrams === undefined
-        ? {}
-        : { targetCarbsGrams: roundOptional(targetCarbsGrams, 1) }),
-      ...(targetFatGrams === undefined
-        ? {}
-        : { targetFatGrams: roundOptional(targetFatGrams, 1) }),
-      ...(targetFiberGrams === undefined
-        ? {}
-        : { targetFiberGrams: roundOptional(targetFiberGrams, 1) }),
-      ...(limitSugarGrams === undefined
-        ? {}
-        : { limitSugarGrams: roundOptional(limitSugarGrams, 1) }),
-      ...(limitSodiumMg === undefined
-        ? {}
-        : { limitSodiumMg: roundOptional(limitSodiumMg, 0) }),
     };
-    const goals = await prisma.userGoal.upsert({
-      where: { userId },
-      update: data,
-      create: { userId, ...data },
+    const goals = await prisma.$transaction(async (transaction) => {
+      const saved = await transaction.userGoal.upsert({
+        where: { userId },
+        // Deprecated target columns are a creation-time compatibility snapshot.
+        // Reads project the effective resolver; subsequent edits live only in overrides.
+        update: metadata,
+        create: {
+          userId,
+          ...metadata,
+          targetCalories: input.targetCalories,
+          targetProteinGrams: roundTo(input.targetProteinGrams, 1),
+          ...(targetCarbsGrams === undefined
+            ? {}
+            : { targetCarbsGrams: roundOptional(targetCarbsGrams, 1) }),
+          ...(targetFatGrams === undefined
+            ? {}
+            : { targetFatGrams: roundOptional(targetFatGrams, 1) }),
+          ...(targetFiberGrams === undefined
+            ? {}
+            : { targetFiberGrams: roundOptional(targetFiberGrams, 1) }),
+          ...(limitSugarGrams === undefined
+            ? {}
+            : { limitSugarGrams: roundOptional(limitSugarGrams, 1) }),
+          ...(limitSodiumMg === undefined
+            ? {}
+            : { limitSodiumMg: roundOptional(limitSodiumMg, 0) }),
+        },
+      });
+      const overrides = [
+        ['calories', input.targetCalories],
+        ['protein', input.targetProteinGrams],
+        ['carbs', input.targetCarbsGrams],
+        ['fat', input.targetFatGrams],
+        ['fiber', input.targetFiberGrams],
+        ['sugar', input.limitSugarGrams],
+        ['sodium', input.limitSodiumMg],
+      ] as const;
+      for (const [nutrientKey, value] of overrides) {
+        if (value === undefined || value === null) continue;
+        await transaction.userNutrientTargetOverride.upsert({
+          where: { userId_nutrientKey: { userId, nutrientKey } },
+          update: {
+            value:
+              nutrientKey === 'sodium'
+                ? Math.round(value)
+                : roundTo(
+                    value,
+                    nutrientKey === 'protein' ||
+                      nutrientKey === 'carbs' ||
+                      nutrientKey === 'fat' ||
+                      nutrientKey === 'fiber' ||
+                      nutrientKey === 'sugar'
+                      ? 1
+                      : 0,
+                  ),
+            origin: 'user',
+          },
+          create: {
+            userId,
+            nutrientKey,
+            value:
+              nutrientKey === 'sodium'
+                ? Math.round(value)
+                : roundTo(
+                    value,
+                    nutrientKey === 'protein' ||
+                      nutrientKey === 'carbs' ||
+                      nutrientKey === 'fat' ||
+                      nutrientKey === 'fiber' ||
+                      nutrientKey === 'sugar'
+                      ? 1
+                      : 0,
+                  ),
+            origin: 'user',
+          },
+        });
+      }
+      return saved;
     });
 
-    sendSuccess(response, serializeGoals(goals));
+    const serialized = serializeGoals(goals);
+    const effective = await resolveUserNutritionTargets(userId);
+    for (const [key, field] of [
+      ['calories', 'targetCalories'],
+      ['protein', 'targetProteinGrams'],
+      ['carbs', 'targetCarbsGrams'],
+      ['fat', 'targetFatGrams'],
+      ['fiber', 'targetFiberGrams'],
+      ['sugar', 'limitSugarGrams'],
+      ['sodium', 'limitSodiumMg'],
+    ] as const) {
+      const value = effective[key]?.effectiveValue;
+      if (value !== undefined)
+        (serialized as unknown as Record<string, unknown>)[field] = value;
+    }
+    sendSuccess(response, serialized);
   },
 );

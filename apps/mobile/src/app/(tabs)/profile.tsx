@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   Beef,
@@ -59,6 +59,7 @@ import { trackingModeLabel } from '@/lib/reporting-ui';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
+import { registerPushInstallation } from '@/services/notifications';
 
 type SettingsIcon = ComponentType<{
   color?: string;
@@ -78,6 +79,7 @@ interface ProfileForm {
   trainingStyle: TrainingStyle;
   goalType: GoalType;
   goalPace: GoalPace | 'none';
+  targetRateLbPerWeek: string;
   targetWeightLb: string;
   targetCalories: string;
   targetProteinGrams: string;
@@ -107,6 +109,7 @@ const defaultGoals: Goals = {
   targetFiberGrams: null,
   limitSugarGrams: null,
   limitSodiumMg: null,
+  targetRateLbPerWeek: null,
 };
 
 const defaultPreferences: TrackingPreferences = {
@@ -131,6 +134,11 @@ function formValues(
     trainingStyle: profile.trainingStyle,
     goalType: goals.goalType,
     goalPace: goals.goalPace ?? 'none',
+    targetRateLbPerWeek:
+      goals.targetRateLbPerWeek === null ||
+      goals.targetRateLbPerWeek === undefined
+        ? ''
+        : String(goals.targetRateLbPerWeek),
     targetWeightLb: String(goals.targetWeightLb),
     targetCalories: String(goals.targetCalories),
     targetProteinGrams: String(goals.targetProteinGrams),
@@ -517,6 +525,7 @@ function ProfileSkeleton() {
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const {
     deleteAccount,
     providerIds,
@@ -529,6 +538,7 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [hasMissingData, setHasMissingData] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [savedPreferences, setSavedPreferences] =
@@ -615,6 +625,10 @@ export default function ProfileScreen() {
           goalType: values.goalType,
           goalPace,
           targetWeightLb: Number(values.targetWeightLb),
+          targetRateLbPerWeek:
+            values.targetRateLbPerWeek.trim() === ''
+              ? null
+              : Number(values.targetRateLbPerWeek),
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
         }),
@@ -748,6 +762,14 @@ export default function ProfileScreen() {
           label="Daily protein"
           value={`${watchedValues.targetProteinGrams || '0'} g`}
         />
+        <Pressable
+          className="rounded-full bg-primary-soft px-4 py-3"
+          onPress={() =>
+            router.push({ pathname: '/nutrition-targets' } as never)
+          }
+        >
+          <AppText variant="label">Edit daily nutrition targets</AppText>
+        </Pressable>
       </SettingsSection>
 
       <SettingsSection title="Edit profile">
@@ -971,6 +993,26 @@ export default function ProfileScreen() {
               />
             )}
           />
+          <Controller
+            control={control}
+            name="targetRateLbPerWeek"
+            rules={{
+              validate: (value) =>
+                value.trim() === '' || (Number(value) > 0 && Number(value) <= 2)
+                  ? true
+                  : 'Enter a rate from 0.25 to 2 lb/week.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Weekly rate (lb/week, optional)"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.targetRateLbPerWeek?.message}
+              />
+            )}
+          />
         </FieldGroup>
 
         <FieldGroup title="Daily targets">
@@ -1084,6 +1126,33 @@ export default function ProfileScreen() {
         onSave={() => void save()}
         onCancel={cancelChanges}
       />
+
+      <SettingsSection
+        title="Notifications"
+        description="Choose when Food Tracker can surface a private insight or logging reminder."
+      >
+        <Pressable
+          className="rounded-full bg-primary-soft px-4 py-3"
+          disabled={notificationsBusy}
+          onPress={() => {
+            setNotificationsBusy(true);
+            void registerPushInstallation()
+              .then((registered) =>
+                setNotice(
+                  registered
+                    ? 'Notifications are enabled on this device.'
+                    : 'Notifications need a physical device and permission.',
+                ),
+              )
+              .catch((registrationError) =>
+                setError(errorMessage(registrationError)),
+              )
+              .finally(() => setNotificationsBusy(false));
+          }}
+        >
+          <AppText variant="label">Enable notifications on this device</AppText>
+        </Pressable>
+      </SettingsSection>
 
       <SettingsSection
         title="Account"

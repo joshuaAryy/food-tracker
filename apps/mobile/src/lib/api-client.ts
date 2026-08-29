@@ -492,6 +492,9 @@ const recommendationList = (status?: RecommendationStatus) =>
     `/recommendations${status === undefined ? '' : `?status=${status}`}`,
   ).then(({ recommendations }) => recommendations);
 
+const nutritionTargets = () =>
+  request<{ targets: Array<Record<string, unknown>> }>('/nutrition-targets');
+
 export const api = {
   account: {
     delete: () =>
@@ -820,6 +823,38 @@ export const api = {
       request<Recommendation>(`/recommendations/${id}/dismiss`, {
         method: 'PATCH',
       }),
+  },
+  nutritionTargets: {
+    list: nutritionTargets,
+    set: (nutrientKey: string, value: number) =>
+      request<{ targets: Array<Record<string, unknown>> }>(
+        `/nutrition-targets/${encodeURIComponent(nutrientKey)}`,
+        { method: 'PUT', body: { value } },
+      ),
+    useRecommended: (nutrientKey: string) =>
+      request<{ targets: Array<Record<string, unknown>> }>(
+        `/nutrition-targets/${encodeURIComponent(nutrientKey)}`,
+        { method: 'DELETE' },
+      ),
+  },
+  notifications: {
+    preferences: {
+      get: () => request<{ recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }>('/notifications/preferences'),
+      update: (input: { recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }) =>
+        request<{ recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }>('/notifications/preferences', { method: 'PUT', body: input }),
+    },
+    installations: {
+      register: (installationId: string, expoPushToken: string, platform: 'ios' | 'android') =>
+        request<{ installationId: string; enabled: boolean }>(
+          `/notifications/installations/${encodeURIComponent(installationId)}`,
+          { method: 'PUT', body: { expoPushToken, platform, enabled: true } },
+        ),
+      detach: (installationId: string) =>
+        request<{ detached: true }>(
+          `/notifications/installations/${encodeURIComponent(installationId)}`,
+          { method: 'DELETE' },
+        ),
+    },
   },
   profile: {
     get: () => request<Profile>('/profile', {}, profileSchema),

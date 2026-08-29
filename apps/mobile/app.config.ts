@@ -78,6 +78,7 @@ export function createAppConfig(
     userInterfaceStyle: 'light',
     plugins: [
       'expo-router',
+      'expo-notifications',
       [
         'expo-dev-client',
         {

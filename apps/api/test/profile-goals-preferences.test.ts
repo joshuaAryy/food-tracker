@@ -31,7 +31,7 @@ describe('profile API', () => {
   it('updates and persists the current user profile', async () => {
     const input = {
       name: 'Updated User',
-      age: 31,
+      age: 33,
       birthDate: '1993-02-03',
       sex: 'female',
       heightInches: 66,
@@ -86,6 +86,7 @@ describe('goals API', () => {
     await seedGoals({
       goalType: 'maintain',
       goalPace: null,
+      targetRateLbPerWeek: null,
       targetCalories: 2400,
     });
 
@@ -95,6 +96,7 @@ describe('goals API', () => {
     expect(response.body.data).toEqual({
       goalType: 'maintain',
       goalPace: null,
+      targetRateLbPerWeek: null,
       targetWeightLb: 190,
       targetCalories: 2400,
       targetProteinGrams: 150,
@@ -124,6 +126,7 @@ describe('goals API', () => {
       ...input,
       targetWeightLb: 170,
       targetProteinGrams: 160.1,
+      targetRateLbPerWeek: null,
       targetCarbsGrams: null,
       targetFatGrams: null,
       targetFiberGrams: null,

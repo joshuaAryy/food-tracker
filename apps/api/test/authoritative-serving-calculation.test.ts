@@ -384,6 +384,18 @@ describe('calculateAuthoritativeServing', () => {
     ).toBeNull();
   });
 
+  it('supports per-nutrient Unknown without clearing unrelated values', () => {
+    const result = successful({
+      nutritionOverride: {
+        mode: 'complex',
+        nutrients: { potassium: { amount: null, unit: 'mg' } },
+      },
+    });
+    expect(result.finalNutrition.nutrients).toEqual({
+      vitaminD: { amount: 1.2346, unit: 'mcg' },
+    });
+  });
+
   it.each([
     [
       {

@@ -18,6 +18,8 @@ import type { AuthenticationService } from '@/services/auth-service';
 import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { purgeAnalyticsCache } from '@/lib/analytics/analytics-cache-runtime';
+import { detachPushInstallation } from '@/services/notifications';
+import { cleanupPhotoFiles } from '@/lib/photo-image';
 
 interface AuthRuntimeContextValue {
   userId: string | null;
@@ -136,6 +138,17 @@ export function AuthBootstrap({
     }
   };
 
+  const cleanupCurrentPhotoSession = async () => {
+    const session = useAppStore.getState().photoLogSession;
+    if (session === null) return;
+    await cleanupPhotoFiles([
+      ...(session.originalOwnership === 'app_capture'
+        ? [{ uri: session.originalUri, ownership: 'app_capture' as const }]
+        : []),
+      { uri: session.normalizedUri, ownership: 'app_capture' },
+    ]);
+  };
+
   useEffect(() => {
     let active = true;
     let stopStore: (() => void) | undefined;
@@ -195,6 +208,16 @@ export function AuthBootstrap({
         setSignOut(() => async () => {
           pendingProviderCredential.clear('signOut');
           await purgeCurrentAnalyticsCache();
+          try {
+            await cleanupCurrentPhotoSession();
+          } catch {
+            // Local capture cleanup is best effort and never blocks sign-out.
+          }
+          try {
+            await detachPushInstallation();
+          } catch {
+            // Push detachment is best effort; Firebase/API sign-out remains authoritative.
+          }
           await store.getState().signOut();
           useAppStore.getState().resetUserData();
         });
@@ -205,6 +228,16 @@ export function AuthBootstrap({
           }
           await runtime.deleteAccount();
           await purgeCurrentAnalyticsCache();
+          try {
+            await cleanupCurrentPhotoSession();
+          } catch {
+            // The server deletion is authoritative even if local cleanup fails.
+          }
+          try {
+            await detachPushInstallation();
+          } catch {
+            // The server deletion is authoritative even if local push cleanup fails.
+          }
           try {
             await store.getState().signOut();
           } catch {

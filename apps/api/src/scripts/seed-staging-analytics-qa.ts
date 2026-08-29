@@ -188,6 +188,8 @@ async function persistFixture(
   await transaction.recommendation.createMany({
     data: fixture.recommendations.map((recommendation) => ({
       userId,
+      identityKey: recommendation.type,
+      conditionFingerprint: `${recommendation.type}:${userId}`,
       ...recommendation,
     })),
   });

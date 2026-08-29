@@ -8,7 +8,10 @@ import { roundTo } from '../../lib/serializers.js';
 
 export interface RecommendationCandidate {
   type: RecommendationType;
+  identityKey: string;
   severity: RecommendationSeverity;
+  goalRelevanceScore: 0 | 1 | 2 | 3;
+  rulePriority: number;
   title: string;
   message: string;
   sourceFacts: Record<string, string | number | null>;
@@ -20,6 +23,7 @@ export const MANAGED_RECOMMENDATION_TYPES: RecommendationType[] = [
   'calories_over_target',
   'missing_recent_weight_logs',
   'inconsistent_food_logging',
+  'micronutrient_below_target',
 ];
 
 function proteinSeverity(
@@ -52,6 +56,29 @@ export function generateRecommendationCandidates(
 ): RecommendationCandidate[] {
   const candidates: RecommendationCandidate[] = [];
 
+  for (const micronutrient of facts.micronutrients) {
+    const difference = roundTo(micronutrient.target - micronutrient.average, 1);
+    const severity =
+      difference >= micronutrient.target * 0.5
+        ? 'high'
+        : difference >= micronutrient.target * 0.25
+          ? 'medium'
+          : difference >= 0.1
+            ? 'low'
+            : null;
+    if (severity === null) continue;
+    candidates.push({
+      type: 'micronutrient_below_target',
+      identityKey: `micronutrient_below_target:${micronutrient.nutrientKey}`,
+      severity,
+      goalRelevanceScore: 1,
+      rulePriority: 50,
+      title: `${micronutrient.nutrientKey} is below target`,
+      message: `Your logged ${micronutrient.nutrientKey} intake has been below your reference target recently.`,
+      sourceFacts: { ...micronutrient, difference },
+    });
+  }
+
   if (facts.intakeRecommendationsAllowed && facts.targetProteinGrams !== null) {
     const differenceGrams = roundTo(
       facts.targetProteinGrams - facts.averageProteinGrams,
@@ -62,7 +89,10 @@ export function generateRecommendationCandidates(
     if (severity !== null) {
       candidates.push({
         type: 'protein_low',
+        identityKey: 'protein_low',
         severity,
+        goalRelevanceScore: 2,
+        rulePriority: 20,
         title: 'Protein is below target',
         message: `You are averaging ${differenceGrams}g below your protein target over the last ${facts.daysAnalyzed} days.`,
         sourceFacts: {
@@ -92,7 +122,10 @@ export function generateRecommendationCandidates(
       if (severity !== null) {
         candidates.push({
           type: 'calories_under_target',
+          identityKey: 'calories_under_target',
           severity,
+          goalRelevanceScore: facts.goalType === 'gain' ? 3 : 2,
+          rulePriority: 10,
           title: 'Calories are below target',
           message: `You are averaging ${calorieDifference} kcal below your calorie target over the last ${facts.daysAnalyzed} days.`,
           sourceFacts: {
@@ -114,7 +147,10 @@ export function generateRecommendationCandidates(
       if (severity !== null) {
         candidates.push({
           type: 'calories_over_target',
+          identityKey: 'calories_over_target',
           severity,
+          goalRelevanceScore: facts.goalType === 'lose' ? 3 : 2,
+          rulePriority: 11,
           title: 'Calories are above target',
           message: `You are averaging ${differenceCalories} kcal above your calorie target over the last ${facts.daysAnalyzed} days.`,
           sourceFacts: {
@@ -133,7 +169,10 @@ export function generateRecommendationCandidates(
   if (!facts.hasRecentWeightLog) {
     candidates.push({
       type: 'missing_recent_weight_logs',
+      identityKey: 'missing_recent_weight_logs',
       severity: 'medium',
+      goalRelevanceScore: facts.goalType === null ? 1 : 2,
+      rulePriority: 30,
       title: 'A recent weight log is missing',
       message:
         facts.lastWeightLoggedAt === null
@@ -151,7 +190,10 @@ export function generateRecommendationCandidates(
   if (loggingRecommendationSeverity !== null) {
     candidates.push({
       type: 'inconsistent_food_logging',
+      identityKey: 'inconsistent_food_logging',
       severity: loggingRecommendationSeverity,
+      goalRelevanceScore: 1,
+      rulePriority: 40,
       title: 'Food logging has been inconsistent',
       message: `You logged food on ${facts.loggedDays} of the last ${facts.expectedDays} days.`,
       sourceFacts: {

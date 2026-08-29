@@ -65,7 +65,7 @@ recommendationsRouter.patch(
 
     const recommendation = await prisma.recommendation.update({
       where: { id },
-      data: { status: 'dismissed' },
+      data: { status: 'dismissed', dismissedAt: new Date() },
     });
 
     sendSuccess(response, serializeRecommendation(recommendation));

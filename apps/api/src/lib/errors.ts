@@ -35,6 +35,7 @@ export type ErrorCode =
   | 'DUPLICATE_ESTIMATE_PROOF'
   | 'INVALID_MIXED_CONFIRMATION'
   | 'TOO_MANY_ROWS'
+  | 'INVALID_TARGET_VALUE'
   | 'INTERNAL_SERVER_ERROR';
 
 export class AppError extends Error {

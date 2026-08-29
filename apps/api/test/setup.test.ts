@@ -171,6 +171,7 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: null,
       },
       preferences: { ...setupInput.preferences, dailyWaterGoalMl: 2000 },
       calculatedTargets: {
@@ -181,6 +182,8 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: 1,
+        estimatedGoalDate: expect.any(String),
       },
       status: {
         profileComplete: true,
@@ -247,6 +250,8 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: 1,
+        estimatedGoalDate: expect.any(String),
       },
     });
     expect(

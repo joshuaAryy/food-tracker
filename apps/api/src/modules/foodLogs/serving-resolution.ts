@@ -164,10 +164,14 @@ function roundOverrideNutrition(
       nutrition.nutrients = {};
     } else {
       for (const [nutrientKey, nutrient] of Object.entries(nutrients)) {
-        nutrition.nutrients[nutrientKey as NormalizedNutrientKey] = {
-          amount: roundDecimal(nutrient.amount, 4),
-          unit: nutrient.unit,
-        };
+        if (nutrient.amount === null) {
+          delete nutrition.nutrients[nutrientKey as NormalizedNutrientKey];
+        } else {
+          nutrition.nutrients[nutrientKey as NormalizedNutrientKey] = {
+            amount: roundDecimal(nutrient.amount, 4),
+            unit: nutrient.unit,
+          };
+        }
       }
     }
   }
