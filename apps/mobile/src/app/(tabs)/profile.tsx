@@ -631,6 +631,9 @@ export default function ProfileScreen() {
               : Number(values.targetRateLbPerWeek),
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
+          targetOverrides:
+            values.targetCalories !== lastSavedForm.targetCalories ||
+            values.targetProteinGrams !== lastSavedForm.targetProteinGrams,
         }),
         api.trackingPreferences.update({
           mode: values.mode,

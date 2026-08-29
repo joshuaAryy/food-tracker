@@ -104,7 +104,7 @@ export type GoalsInput = Omit<
       | 'limitSugarGrams'
       | 'limitSodiumMg'
     >
-  >;
+  > & { targetOverrides?: boolean };
 
 export interface TrackingPreferences {
   mode: TrackingMode;

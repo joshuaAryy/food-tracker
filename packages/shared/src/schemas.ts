@@ -155,10 +155,9 @@ export const goalsSchema = goalsBaseSchema
   })
   .refine(goalsMatchType, goalsMatchTypeMessage);
 
-export const goalsInputSchema = goalsBaseSchema.refine(
-  goalsMatchType,
-  goalsMatchTypeMessage,
-);
+export const goalsInputSchema = goalsBaseSchema
+  .extend({ targetOverrides: z.boolean().optional() })
+  .refine(goalsMatchType, goalsMatchTypeMessage);
 
 export const trackingPreferencesSchema = z.strictObject({
   mode: trackingModeSchema,

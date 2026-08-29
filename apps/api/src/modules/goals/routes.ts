@@ -99,7 +99,12 @@ goalsRouter.put(
         ['sodium', input.limitSodiumMg],
       ] as const;
       for (const [nutrientKey, value] of overrides) {
-        if (value === undefined || value === null) continue;
+        if (
+          input.targetOverrides === false ||
+          value === undefined ||
+          value === null
+        )
+          continue;
         await transaction.userNutrientTargetOverride.upsert({
           where: { userId_nutrientKey: { userId, nutrientKey } },
           update: {
