@@ -839,12 +839,26 @@ export const api = {
   },
   notifications: {
     preferences: {
-      get: () => request<{ recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }>('/notifications/preferences'),
-      update: (input: { recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }) =>
-        request<{ recommendationInsightsEnabled: boolean; loggingRemindersEnabled: boolean }>('/notifications/preferences', { method: 'PUT', body: input }),
+      get: () =>
+        request<{
+          recommendationInsightsEnabled: boolean;
+          loggingRemindersEnabled: boolean;
+        }>('/notifications/preferences'),
+      update: (input: {
+        recommendationInsightsEnabled: boolean;
+        loggingRemindersEnabled: boolean;
+      }) =>
+        request<{
+          recommendationInsightsEnabled: boolean;
+          loggingRemindersEnabled: boolean;
+        }>('/notifications/preferences', { method: 'PUT', body: input }),
     },
     installations: {
-      register: (installationId: string, expoPushToken: string, platform: 'ios' | 'android') =>
+      register: (
+        installationId: string,
+        expoPushToken: string,
+        platform: 'ios' | 'android',
+      ) =>
         request<{ installationId: string; enabled: boolean }>(
           `/notifications/installations/${encodeURIComponent(installationId)}`,
           { method: 'PUT', body: { expoPushToken, platform, enabled: true } },
@@ -889,7 +903,7 @@ export const api = {
   },
   setup: {
     status: () => request<SetupStatus>('/setup/status', {}, setupStatusSchema),
-    preview: (input: SetupInput) =>
+    preview: (input: SetupInput & { currentWeightLb?: number | null }) =>
       request<SetupPreviewResult>(
         '/setup/preview',
         { method: 'POST', body: input },

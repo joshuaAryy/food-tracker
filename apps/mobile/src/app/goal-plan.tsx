@@ -17,12 +17,15 @@ export default function GoalPlanScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [profile, goals] = await Promise.all([
+      const [profile, goals, weightLogs] = await Promise.all([
         api.profile.get(),
         api.goals.get(),
+        api.weightLogs.list(),
       ]);
+      const currentWeightLb = weightLogs[0]?.weightLb ?? null;
       setPreview(
         await api.setup.preview({
+          currentWeightLb,
           profile: {
             name: profile.name,
             birthDate: profile.birthDate,

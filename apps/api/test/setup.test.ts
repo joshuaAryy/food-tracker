@@ -47,7 +47,9 @@ function expectedAge(birthDate: string): number {
   return age;
 }
 
-async function preview(input: typeof setupInput = setupInput) {
+async function preview(
+  input: SetupInput & { currentWeightLb?: number | null } = setupInput,
+) {
   const response = await api
     .post('/api/v1/setup/preview')
     .send(input)
@@ -326,6 +328,15 @@ describe('setup API', () => {
     });
 
     expect(result.age).toBe(expectedAge('2000-01-01'));
+  });
+
+  it('uses an explicit current weight only for preview recalculation', async () => {
+    const starting = await preview(setupInput);
+    const current = await preview({ ...setupInput, currentWeightLb: 160 });
+
+    expect(current.calculatedTargets.targetCalories).not.toBe(
+      starting.calculatedTargets.targetCalories,
+    );
   });
 
   it('increases calorie targets for higher activity levels', async () => {

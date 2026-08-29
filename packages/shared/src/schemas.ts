@@ -216,6 +216,10 @@ export const setupInputSchema = z
     },
   );
 
+export const setupPreviewInputSchema = setupInputSchema.extend({
+  currentWeightLb: z.number().positive().nullable().optional(),
+});
+
 export const setupResultSchema = z.strictObject({
   profile: profileSchema,
   goals: goalsSchema,
@@ -235,6 +239,7 @@ export const setupResultSchema = z.strictObject({
 });
 
 export type SetupInput = z.infer<typeof setupInputSchema>;
+export type SetupPreviewInput = z.infer<typeof setupPreviewInputSchema>;
 
 export const setupPreviewResultSchema = z.strictObject({
   age: z.number().int().nonnegative(),

@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import {
   setupInputSchema,
+  setupPreviewInputSchema,
   type SetupInput,
+  type SetupPreviewInput,
   type SetupStatus,
 } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
@@ -57,10 +59,20 @@ setupRouter.get('/status', async (_request, response) => {
 
 setupRouter.post(
   '/preview',
-  validateBody(setupInputSchema),
+  validateBody(setupPreviewInputSchema),
   async (_request, response) => {
-    const input = validatedBody<SetupInput>(response);
-    const calculatedTargets = calculatePersonalizedTargets(input);
+    const input = validatedBody<SetupPreviewInput>(response);
+    const calculatedTargets = calculatePersonalizedTargets({
+      ...input,
+      profile: {
+        ...input.profile,
+        ...(input.currentWeightLb === undefined
+          ? {}
+          : { currentWeightLb: input.currentWeightLb }),
+      },
+    } as SetupInput & {
+      profile: SetupInput['profile'] & { currentWeightLb?: number | null };
+    });
 
     sendSuccess(response, {
       age: calculatedTargets.age,
