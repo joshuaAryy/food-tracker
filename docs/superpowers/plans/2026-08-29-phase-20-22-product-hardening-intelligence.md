@@ -227,8 +227,8 @@
 - [ ] Implement claimed-event transaction with unique daily constraint.
 - [ ] Process receipts older than 15 minutes before new sends; stop polling after 24 hours.
 - [ ] Implement keyset cursor, bounded concurrency, seven/eight-minute deadlines, and per-user transaction advisory lock.
-- [ ] Add production-rejecting fixed-clock guards and exact-user staging invocation.
-- [ ] Configure Railway `*/30 * * * *` UTC schedule without introducing a queue.
+- [ ] Add production-rejecting fixed-clock guards and exact-user staging invocation (the exact command is documented in the design artifact).
+- [ ] Configure Railway `*/30 * * * *` UTC schedule without introducing a queue; production runs `notifications:worker -- --send`.
 
 **Validation:** Notification unit/integration/concurrency tests, config tests, worker dry-run against scoped staging fixture, Prisma migration deploy to `food_tracker_test`.
 

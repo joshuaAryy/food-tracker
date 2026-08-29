@@ -112,6 +112,20 @@ The Railway worker runs every 30 minutes in UTC, takes pages of 100 users with f
 
 Remote payloads contain only generic copy and an opaque route/recommendation identifier. Taps always re-fetch through authenticated API authorization.
 
+For non-production acceptance, run the worker against exactly one staging user
+with an explicit fixed clock:
+
+```bash
+APP_ENV=staging NOTIFICATION_ACCEPTANCE_TIME_OVERRIDE_ENABLED=true \
+  corepack pnpm --filter @food-tracker/api notifications:worker -- \
+  --at '2026-08-29T22:00:00.000Z' \
+  --acceptance-user-firebase-uid "$STAGING_FIREBASE_UID"
+```
+
+Add `--send` only for an intentional staging delivery check. Production uses
+`notifications:worker -- --send` from a Railway Cron Job scheduled as
+`*/30 * * * *` UTC; production rejects `--at` and the override environment flag.
+
 ## Mobile and acceptance
 
 Onboarding adds a presentable numeric adult rate control and younger-user plan summary. Profile exposes Goal Plan and Nutrition Targets screens with recommended/effective/custom state and `Use recommended`. Complex FoodLog adds per-nutrient Unknown controls. Insights renders the canonical maximum-three recommendations. Notification permission is user-driven, and cold/warm/foreground routing is validated.
