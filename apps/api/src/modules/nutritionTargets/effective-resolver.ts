@@ -80,11 +80,22 @@ export function resolveEffectiveNutritionTargets(input: {
   );
   const result: Record<string, EffectiveTarget> = {};
 
-  for (const [key, recommended] of Object.entries(input.recommended)) {
-    if (recommended === undefined) continue;
+  const keys = new Set([
+    ...Object.keys(input.recommended),
+    ...input.overrides.map((override) => override.nutrientKey),
+  ]);
+  for (const key of keys) {
     const nutrientKey = key as NutrientKey;
     const override = byKey.get(nutrientKey);
     const policy = TARGETABLE_NUTRIENT_POLICY[nutrientKey];
+    const recommended =
+      input.recommended[nutrientKey] ??
+      ({
+        value: null,
+        unit: policy?.unit ?? 'g',
+        direction: policy?.direction ?? 'target',
+        source: 'missing',
+      } satisfies RecommendedTarget);
     const direction = policy?.direction ?? recommended.direction;
     const unit = policy?.unit ?? recommended.unit;
     const effectiveSource =
