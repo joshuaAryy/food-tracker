@@ -14,7 +14,7 @@ explicitly below and takes precedence over those historical labels.
 Phase 17 — complete
 Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
 Phase 18/19 — complete: Food Data + Intelligent Retrieval
-Phase 20–22 — next/planning: Product Hardening + Intelligence
+Phase 20–22 — implementation candidate in progress: Product Hardening + Intelligence
 Phase 23 — deferred from current finish line: Water and Supplement Tracking
 Phase 24 — final current implementation phase: Frontend and Food-Logging Flow Redesign
 Phase 25 — optional/deferred: External MVP Beta and distribution
@@ -36,11 +36,11 @@ validation, frozen benchmark evidence, Railway staging deployment, Pinecone
 reconciliation/activation, and final review are recorded in
 [the Phase 18/19 closeout](superpowers/phase-18-19-closeout.md).
 
-The next task is an audit of the historical Phase 20, 21, and 22 requirements
-against current `main`, classifying each item as already complete, partially
-complete, missing, or obsolete/deferred. Only after that audit should the
-combined **Phase 20–22 — Product Hardening + Intelligence** implementation plan
-be written. No Phase 20–22 implementation plan is created by this closeout.
+The combined **Phase 20–22 — Product Hardening + Intelligence** audit and
+implementation design are recorded in the [authoritative design](superpowers/specs/2026-08-29-phase-20-22-product-hardening-intelligence-design.md)
+and [execution plan](superpowers/plans/2026-08-29-phase-20-22-product-hardening-intelligence.md).
+The branch implementation is internally validated while Simulator, staging,
+and physical push acceptance remain separate gates.
 
 The post-Phase 6 MVP direction is:
 
@@ -804,10 +804,10 @@ page and final visual interaction belong in Phase 24.
 
 ## Phase 20 — Real Accounts and User Isolation (historical component)
 
-This historical component is now grouped with Phases 21 and 22 under the next
+This historical component is now grouped with Phases 21 and 22 under the
 combined **Phase 20–22 — Product Hardening + Intelligence** macro phase. Its
-requirements will be audited against current `main` before any implementation
-plan is written.
+requirements and delivered scope are tracked by the linked macro-phase design
+and execution plan above.
 
 - Firebase authentication, identity mapping, protected routing, and hosted
   staging foundations already exist from Phase 16; this phase is the remaining

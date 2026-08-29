@@ -197,8 +197,13 @@ export async function runNotificationWorker(
           select: { id: true },
         });
     if (users.length === 0) break;
+    let pageComplete = true;
+    let processedThrough: string | undefined;
     for (let index = 0; index < users.length; index += USER_CONCURRENCY) {
-      if (Date.now() - started >= MAX_RUNTIME_MS) break;
+      if (Date.now() - started >= MAX_RUNTIME_MS) {
+        pageComplete = false;
+        break;
+      }
       const batch = users.slice(index, index + USER_CONCURRENCY);
       const results = await Promise.all(
         batch.map(async (user) => ({
@@ -207,14 +212,20 @@ export async function runNotificationWorker(
       );
       evaluated += results.length;
       claimed += results.filter((result) => result.claimed).length;
+      processedThrough = batch[batch.length - 1]?.id;
     }
     if (options.acceptanceUserId) break;
-    cursor = users[users.length - 1]?.id;
+    cursor = processedThrough;
     await prisma.notificationWorkerCheckpoint.upsert({
       where: { key: 'default' },
       update: { cursorUserId: cursor ?? null, updatedAt: now },
-      create: { key: 'default', cursorUserId: cursor ?? null, updatedAt: now },
+      create: {
+        key: 'default',
+        cursorUserId: cursor ?? null,
+        updatedAt: now,
+      },
     });
+    if (!pageComplete) break;
     if (users.length < PAGE_SIZE) {
       await prisma.notificationWorkerCheckpoint.update({
         where: { key: 'default' },

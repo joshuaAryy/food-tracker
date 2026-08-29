@@ -128,6 +128,14 @@ function validWeight(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 
+function youngerProteinRdaGramsPerKg(ageYears: number, sex: Sex): number {
+  if (ageYears < 0.5) return sex === 'male' ? 1.52 : 1.52;
+  if (ageYears < 1) return 1.2;
+  if (ageYears < 4) return 1.05;
+  if (ageYears < 14) return 0.95;
+  return 0.85;
+}
+
 function rateMaximum(
   goalType: GoalType,
   weightLb: number,
@@ -194,11 +202,7 @@ export function resolvePersonalizationPlan(
 
   const proteinRda =
     completedYears < 19
-      ? completedYears < 4
-        ? 1.05
-        : completedYears < 14
-          ? 0.95
-          : 0.85
+      ? youngerProteinRdaGramsPerKg(years, input.sex)
       : 0.8;
   const adultTrainingMultiplier =
     input.trainingStyle === 'athlete'

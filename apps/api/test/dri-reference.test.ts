@@ -28,5 +28,6 @@ describe('DRI target compatibility', () => {
       unit: 'mg',
       direction: 'minimum',
     });
+    expect(resolveDriReferenceTarget('calcium', 13, 'female')).toBeNull();
   });
 });

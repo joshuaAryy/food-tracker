@@ -229,13 +229,8 @@ export const setupResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive(),
-    targetRateLbPerWeek: z
-      .number()
-      .positive()
-      .multipleOf(0.25)
-      .nullable()
-      .optional(),
-    estimatedGoalDate: localDateSchema.nullable().optional(),
+    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
+    estimatedGoalDate: localDateSchema.nullable(),
   }),
   status: setupStatusSchema,
 });
@@ -252,13 +247,8 @@ export const setupPreviewResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive(),
-    targetRateLbPerWeek: z
-      .number()
-      .positive()
-      .multipleOf(0.25)
-      .nullable()
-      .optional(),
-    estimatedGoalDate: localDateSchema.nullable().optional(),
+    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
+    estimatedGoalDate: localDateSchema.nullable(),
   }),
 });
 
@@ -323,6 +313,19 @@ const normalizedNutrientsPatchSchema = z
       }
     }
   });
+
+const normalizedNutrientPatchSchema = z.discriminatedUnion('state', [
+  z.strictObject({
+    nutrientKey: normalizedNutrientKeySchema,
+    state: z.literal('known'),
+    amount: z.number().nonnegative(),
+    unit: nutrientUnitSchema,
+  }),
+  z.strictObject({
+    nutrientKey: normalizedNutrientKeySchema,
+    state: z.literal('unknown'),
+  }),
+]);
 
 const persistedServingNumberSchema = z
   .number()
@@ -873,8 +876,19 @@ const foodLogNutritionOverrideSchema = z
     sugar: optionalNonNegativeDecimal,
     sodium: z.number().int().nonnegative().nullable().optional(),
     nutrients: normalizedNutrientsPatchSchema.nullable().optional(),
+    nutrientPatches: z.array(normalizedNutrientPatchSchema).max(64).optional(),
   })
   .superRefine((override, context) => {
+    if (
+      override.nutrients !== undefined &&
+      override.nutrientPatches !== undefined
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Use either nutrients or nutrientPatches, not both.',
+        path: ['nutrientPatches'],
+      });
+    }
     if (
       override.mode === 'simple' &&
       override.nutrients !== undefined &&
@@ -886,6 +900,29 @@ const foodLogNutritionOverrideSchema = z
         message: 'Simple mode can only override main nutrients',
         path: ['nutrients'],
       });
+    }
+    if (
+      override.mode === 'simple' &&
+      override.nutrientPatches !== undefined &&
+      override.nutrientPatches.length > 0
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Simple mode can only override main nutrients',
+        path: ['nutrientPatches'],
+      });
+    }
+    for (const [index, patch] of (override.nutrientPatches ?? []).entries()) {
+      if (
+        patch.state === 'known' &&
+        patch.unit !== NUTRIENT_CATALOG[patch.nutrientKey].defaultUnit
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: `unit must be ${NUTRIENT_CATALOG[patch.nutrientKey].defaultUnit} for ${patch.nutrientKey}`,
+          path: ['nutrientPatches', index, 'unit'],
+        });
+      }
     }
   });
 

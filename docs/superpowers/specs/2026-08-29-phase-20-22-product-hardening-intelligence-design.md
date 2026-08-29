@@ -108,7 +108,7 @@ Dismissal suppresses an unchanged condition for three local calendar days; highe
 
 The subsystem contains preferences, installations, claimed events, delivery attempts, and a worker checkpoint. Installation registration is authenticated, idempotent, token-hash protected, and rebindable after sign-out. Account deletion disables and clears the association.
 
-The Railway worker runs every 30 minutes in UTC, takes pages of 100 users with five-way bounded concurrency, resumes a persisted UUID keyset cursor, and exits by eight minutes. It uses a global PostgreSQL advisory lock. Receipt processing precedes new sends: tickets are checked after 15 minutes, transient/not-ready receipts remain pending, `DeviceNotRegistered` retires only the matching token hash, and attempts expire from receipt polling after 24 hours.
+The Railway worker runs every 30 minutes in UTC, takes pages of 100 users with five-way bounded concurrency, resumes a persisted UUID keyset cursor, and exits by eight minutes. Each claim transaction takes a per-user PostgreSQL transaction advisory lock and relies on the unique `(userId, localDate)` constraint, so concurrent cron invocations cannot claim the same user's daily opportunity; no process-wide lock is required. Receipt processing precedes new sends: tickets are checked after 15 minutes, transient/not-ready receipts remain pending, `DeviceNotRegistered` retires only the matching token hash, and attempts expire from receipt polling after 24 hours.
 
 Remote payloads contain only generic copy and an opaque route/recommendation identifier. Taps always re-fetch through authenticated API authorization.
 

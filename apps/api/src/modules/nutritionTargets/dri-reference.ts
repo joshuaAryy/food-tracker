@@ -220,6 +220,11 @@ export function resolveDriReferenceTarget(
   const reference = referenceValues[nutrientKey];
   if (compatibility?.status !== 'compatible' || reference === undefined)
     return null;
+  // This table intentionally carries only the validated adolescent (14–18)
+  // and adult (19+) rows. Younger users still receive age-appropriate energy
+  // requirements and may set Custom targets, but we do not project an
+  // adolescent value onto children without a reviewed source row.
+  if (completedAge < 14) return null;
   const values = completedAge < 19 ? reference.adolescent : reference.adult;
   return {
     value: values[sex],

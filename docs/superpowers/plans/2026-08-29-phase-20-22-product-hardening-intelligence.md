@@ -217,7 +217,7 @@
 - [ ] Recommendation priority over reminder.
 - [ ] Failed send consumes claim.
 - [ ] Receipt delay, transient/not-ready, 24-hour expiry, DeviceNotRegistered, token-hash protection.
-- [ ] Cursor pagination, page size 100, concurrency five, advisory lock, deadline, resume, clean exit.
+- [ ] Cursor pagination, page size 100, concurrency five, per-user transaction advisory lock plus unique daily claim, deadline, resume, clean exit.
 - [ ] Generic privacy-safe payload and validated route data.
 
 **Implementation:**
@@ -226,7 +226,7 @@
 - [ ] Add user-driven permission and token registration.
 - [ ] Implement claimed-event transaction with unique daily constraint.
 - [ ] Process receipts older than 15 minutes before new sends; stop polling after 24 hours.
-- [ ] Implement keyset cursor, bounded concurrency, seven/eight-minute deadlines, and advisory lock.
+- [ ] Implement keyset cursor, bounded concurrency, seven/eight-minute deadlines, and per-user transaction advisory lock.
 - [ ] Add production-rejecting fixed-clock guards and exact-user staging invocation.
 - [ ] Configure Railway `*/30 * * * *` UTC schedule without introducing a queue.
 

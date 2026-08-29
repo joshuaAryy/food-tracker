@@ -19,6 +19,10 @@ export interface RecommendationAnalyticsFacts {
   targetCalories: number | null;
   targetProteinGrams: number | null;
   goalType: GoalType | null;
+  targetWeightLb: number | null;
+  targetRateLbPerWeek: number | null;
+  currentWeightLb: number | null;
+  weightTrendLbPerWeek: number | null;
   averageCalories: number;
   averageProteinGrams: number;
   loggedDays: number;
@@ -28,6 +32,11 @@ export interface RecommendationAnalyticsFacts {
   lastWeightLoggedAt: string | null;
   daysSinceLastWeightLog: number | null;
   hasRecentWeightLog: boolean;
+  hydration: {
+    averageMl: number;
+    recordedDays: number;
+    eligibleDays: number;
+  };
   micronutrients: Array<{
     nutrientKey: 'vitaminD' | 'calcium' | 'potassium';
     target: number;
@@ -48,7 +57,7 @@ export async function computeRecommendationFacts(
       select: { timezone: true },
     }),
     prisma.userGoal.findUnique({ where: { userId } }),
-    resolveUserNutritionTargets(userId),
+    resolveUserNutritionTargets(userId, now),
   ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const currentLocalDate = localDate(now, timezone);
@@ -57,7 +66,7 @@ export async function computeRecommendationFacts(
     startDate,
     endDate: currentLocalDate,
   });
-  const [foodLogs, latestWeightLog] = await Promise.all([
+  const [foodLogs, latestWeightLog, weightLogs, waterLogs] = await Promise.all([
     prisma.foodLog.findMany({
       where: { userId, loggedAt: trackingRange },
       select: {
@@ -76,6 +85,15 @@ export async function computeRecommendationFacts(
       },
       select: { loggedAt: true },
       orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
+    }),
+    prisma.weightLog.findMany({
+      where: { userId, loggedAt: trackingRange },
+      select: { weightLb: true, loggedAt: true },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+    }),
+    prisma.waterLog.findMany({
+      where: { userId, loggedAt: trackingRange },
+      select: { amountMl: true, loggedAt: true },
     }),
   ]);
 
@@ -99,6 +117,29 @@ export async function computeRecommendationFacts(
       ? null
       : Math.max(0, localDateDifference(currentLocalDate, lastWeightLocalDate));
   const loggedDays = loggedLocalDates.size;
+  const waterByDate = new Map<string, number>();
+  for (const waterLog of waterLogs) {
+    const date = localDate(waterLog.loggedAt, timezone);
+    waterByDate.set(date, (waterByDate.get(date) ?? 0) + waterLog.amountMl);
+  }
+  const weightTrendLbPerWeek =
+    weightLogs.length >= 2
+      ? roundTo(
+          (((weightLogs.at(-1)?.weightLb.toNumber() ?? 0) -
+            (weightLogs[0]?.weightLb.toNumber() ?? 0)) /
+            Math.max(
+              1 / 7,
+              (weightLogs.at(-1)?.loggedAt.getTime() ?? 0) -
+                (weightLogs[0]?.loggedAt.getTime() ?? 0),
+            )) *
+            7 *
+            24 *
+            60 *
+            60 *
+            1000,
+          2,
+        )
+      : null;
   const micronutrients = (
     ['vitaminD', 'calcium', 'potassium'] as const
   ).flatMap((nutrientKey) => {
@@ -148,6 +189,10 @@ export async function computeRecommendationFacts(
     targetCalories: effectiveTargets.calories?.effectiveValue ?? null,
     targetProteinGrams: effectiveTargets.protein?.effectiveValue ?? null,
     goalType: goals?.goalType ?? null,
+    targetWeightLb: goals?.targetWeightLb?.toNumber() ?? null,
+    targetRateLbPerWeek: goals?.targetRateLbPerWeek?.toNumber() ?? null,
+    currentWeightLb: weightLogs.at(-1)?.weightLb.toNumber() ?? null,
+    weightTrendLbPerWeek,
     averageCalories: roundTo(totalCalories / DAYS_ANALYZED, 0),
     averageProteinGrams: roundTo(totalProtein / DAYS_ANALYZED, 1),
     loggedDays,
@@ -161,6 +206,18 @@ export async function computeRecommendationFacts(
       latestWeightLog !== null &&
       trackingRange.gte !== undefined &&
       latestWeightLog.loggedAt >= trackingRange.gte,
+    hydration: {
+      averageMl:
+        waterByDate.size === 0
+          ? 0
+          : roundTo(
+              [...waterByDate.values()].reduce((sum, value) => sum + value, 0) /
+                waterByDate.size,
+              0,
+            ),
+      recordedDays: waterByDate.size,
+      eligibleDays: loggedDays,
+    },
     micronutrients,
   };
 }

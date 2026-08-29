@@ -55,3 +55,15 @@ export function subscribeToNotificationResponses(
     Notifications.addNotificationResponseReceivedListener(onResponse);
   return subscription.remove;
 }
+
+export async function getLastNotificationResponse(): Promise<Notifications.NotificationResponse | null> {
+  const getter = Notifications.getLastNotificationResponseAsync;
+  if (typeof getter !== 'function') return null;
+  try {
+    return await getter();
+  } catch {
+    // Native notification state is unavailable in Expo Go/Jest; cold-launch
+    // routing remains best-effort and warm responses still use the listener.
+    return null;
+  }
+}

@@ -24,13 +24,16 @@ const CORE_TARGETS: Array<
   ['sodium', 'sodiumMg', 'reference'],
 ];
 
-export async function resolveUserNutritionTargets(userId: string) {
+export async function resolveUserNutritionTargets(
+  userId: string,
+  now = new Date(),
+) {
   const [profile, goal, overrides, latestWeight] = await Promise.all([
     prisma.userProfile.findUnique({ where: { userId } }),
     prisma.userGoal.findUnique({ where: { userId } }),
     prisma.userNutrientTargetOverride.findMany({ where: { userId } }),
     prisma.weightLog.findFirst({
-      where: { userId, weightLb: { gt: 0 } },
+      where: { userId, weightLb: { gt: 0 }, loggedAt: { lte: now } },
       orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
       select: { weightLb: true },
     }),
@@ -47,28 +50,31 @@ export async function resolveUserNutritionTargets(userId: string) {
     goal?.goalType &&
     goal.targetWeightLb
   ) {
-    const plan = calculatePersonalizedPlan({
-      profile: {
-        name: profile.name ?? 'User',
-        birthDate: profile.birthDate.toISOString().slice(0, 10),
-        sex: profile.sex as 'male' | 'female',
-        heightInches: profile.heightInches,
-        timezone: profile.timezone,
-        startingWeightLb: Number(profile.startingWeightLb),
-        currentWeightLb: latestWeight?.weightLb
-          ? Number(latestWeight.weightLb)
-          : null,
-        activityLevel: profile.activityLevel,
-        trainingStyle: profile.trainingStyle,
+    const plan = calculatePersonalizedPlan(
+      {
+        profile: {
+          name: profile.name ?? 'User',
+          birthDate: profile.birthDate.toISOString().slice(0, 10),
+          sex: profile.sex as 'male' | 'female',
+          heightInches: profile.heightInches,
+          timezone: profile.timezone,
+          startingWeightLb: Number(profile.startingWeightLb),
+          currentWeightLb: latestWeight?.weightLb
+            ? Number(latestWeight.weightLb)
+            : null,
+          activityLevel: profile.activityLevel,
+          trainingStyle: profile.trainingStyle,
+        },
+        goals: {
+          goalType: goal.goalType,
+          goalPace: goal.goalPace,
+          targetRateLbPerWeek: goal.targetRateLbPerWeek?.toNumber() ?? null,
+          targetWeightLb: Number(goal.targetWeightLb),
+        },
+        preferences: { mode: 'simple', waterTrackingEnabled: false },
       },
-      goals: {
-        goalType: goal.goalType,
-        goalPace: goal.goalPace,
-        targetRateLbPerWeek: goal.targetRateLbPerWeek?.toNumber() ?? null,
-        targetWeightLb: Number(goal.targetWeightLb),
-      },
-      preferences: { mode: 'simple', waterTrackingEnabled: false },
-    });
+      now,
+    );
     for (const [key, planKey, source] of CORE_TARGETS) {
       const value = plan.recommendedTargets[planKey];
       if (value !== null) {

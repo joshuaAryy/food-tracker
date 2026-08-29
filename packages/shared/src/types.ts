@@ -134,6 +134,8 @@ export interface SetupResult {
     targetFiberGrams: number;
     limitSugarGrams: number;
     limitSodiumMg: number;
+    targetRateLbPerWeek?: number | null;
+    estimatedGoalDate?: string | null;
   };
   status: SetupStatus;
 }
@@ -148,6 +150,8 @@ export interface SetupPreviewResult {
     targetFiberGrams: number;
     limitSugarGrams: number;
     limitSodiumMg: number;
+    targetRateLbPerWeek?: number | null;
+    estimatedGoalDate?: string | null;
   };
 }
 

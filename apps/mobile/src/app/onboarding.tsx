@@ -82,6 +82,7 @@ interface OnboardingForm {
   activityLevel: ActivityLevel;
   goalType: GoalType;
   goalPace: GoalPace | 'none';
+  targetRateLbPerWeek: string;
   trainingStyle: TrainingStyle;
   mode: TrackingMode;
 }
@@ -351,6 +352,11 @@ function setupInput(values: OnboardingForm): SetupInput {
     goals: {
       goalType: values.goalType,
       goalPace: values.goalPace === 'none' ? null : values.goalPace,
+      targetRateLbPerWeek:
+        values.goalType === 'maintain' ||
+        values.targetRateLbPerWeek.trim() === ''
+          ? null
+          : Number(values.targetRateLbPerWeek),
       targetWeightLb: Number(values.targetWeightLb),
     },
     preferences: {
@@ -526,6 +532,7 @@ export default function OnboardingScreen() {
       activityLevel: 'lightly_active',
       goalType: 'maintain',
       goalPace: 'none',
+      targetRateLbPerWeek: '',
       trainingStyle: 'none',
       mode: 'simple',
     },
@@ -959,8 +966,22 @@ export default function OnboardingScreen() {
           {stepKey === 'goalPace' ? (
             <>
               <OnboardingQuestion
-                title="What pace feels right?"
-                subtitle="This sets the size of the calorie adjustment."
+                title="How fast should your plan move?"
+                subtitle="Adults can fine-tune the weekly rate. Younger users still get an age-appropriate energy estimate without an automatic rate prescription."
+              />
+              <Controller
+                control={control}
+                name="targetRateLbPerWeek"
+                render={({ field }) => (
+                  <AppInput
+                    label="Weekly rate (lb/week)"
+                    placeholder="Optional"
+                    keyboardType="decimal-pad"
+                    value={field.value}
+                    onBlur={field.onBlur}
+                    onChangeText={field.onChange}
+                  />
+                )}
               />
               <Controller
                 control={control}

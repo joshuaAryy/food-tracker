@@ -23,6 +23,10 @@ export const MANAGED_RECOMMENDATION_TYPES: RecommendationType[] = [
   'calories_over_target',
   'missing_recent_weight_logs',
   'inconsistent_food_logging',
+  'goal_progress_behind_rate',
+  'goal_progress_opposite_direction',
+  'maintenance_weight_drift',
+  'hydration_below_target',
   'micronutrient_below_target',
 ];
 
@@ -71,7 +75,7 @@ export function generateRecommendationCandidates(
       type: 'micronutrient_below_target',
       identityKey: `micronutrient_below_target:${micronutrient.nutrientKey}`,
       severity,
-      goalRelevanceScore: 1,
+      goalRelevanceScore: 0,
       rulePriority: 50,
       title: `${micronutrient.nutrientKey} is below target`,
       message: `Your logged ${micronutrient.nutrientKey} intake has been below your reference target recently.`,
@@ -164,6 +168,98 @@ export function generateRecommendationCandidates(
         });
       }
     }
+  }
+
+  if (
+    facts.goalType !== null &&
+    facts.goalType !== 'maintain' &&
+    facts.targetRateLbPerWeek !== null &&
+    facts.targetRateLbPerWeek > 0 &&
+    facts.weightTrendLbPerWeek !== null
+  ) {
+    const targetRate = facts.targetRateLbPerWeek;
+    const trend = facts.weightTrendLbPerWeek;
+    const opposite = facts.goalType === 'lose' ? trend >= 0.25 : trend <= -0.25;
+    const behind =
+      facts.goalType === 'lose'
+        ? trend > -targetRate * 0.5
+        : trend < targetRate * 0.5;
+    if (opposite) {
+      candidates.push({
+        type: 'goal_progress_opposite_direction',
+        identityKey: 'goal_progress_opposite_direction',
+        severity: 'high',
+        goalRelevanceScore: 3,
+        rulePriority: 5,
+        title: 'Weight trend is moving opposite your goal',
+        message:
+          'Your recent logged weight trend is moving opposite your selected goal direction.',
+        sourceFacts: {
+          goalType: facts.goalType,
+          targetRateLbPerWeek: targetRate,
+          weightTrendLbPerWeek: trend,
+        },
+      });
+    } else if (behind) {
+      candidates.push({
+        type: 'goal_progress_behind_rate',
+        identityKey: 'goal_progress_behind_rate',
+        severity: 'medium',
+        goalRelevanceScore: 3,
+        rulePriority: 6,
+        title: 'Weight progress is behind your selected rate',
+        message:
+          'Your recent logged weight trend is below the pace selected for your goal.',
+        sourceFacts: {
+          goalType: facts.goalType,
+          targetRateLbPerWeek: targetRate,
+          weightTrendLbPerWeek: trend,
+        },
+      });
+    }
+  }
+
+  if (
+    facts.goalType === 'maintain' &&
+    facts.weightTrendLbPerWeek !== null &&
+    Math.abs(facts.weightTrendLbPerWeek) >= 0.5
+  ) {
+    candidates.push({
+      type: 'maintenance_weight_drift',
+      identityKey: 'maintenance_weight_drift',
+      severity: Math.abs(facts.weightTrendLbPerWeek) >= 1 ? 'medium' : 'low',
+      goalRelevanceScore: 3,
+      rulePriority: 7,
+      title: 'Weight has drifted from your maintenance goal',
+      message:
+        'Your recent logged weight trend has moved while your goal is maintenance.',
+      sourceFacts: {
+        goalType: facts.goalType,
+        weightTrendLbPerWeek: facts.weightTrendLbPerWeek,
+      },
+    });
+  }
+
+  if (
+    facts.hydration.recordedDays >=
+      MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS &&
+    facts.hydration.averageMl < 2000 * 0.7
+  ) {
+    candidates.push({
+      type: 'hydration_below_target',
+      identityKey: 'hydration_below_target',
+      severity: facts.hydration.averageMl < 1000 ? 'medium' : 'low',
+      goalRelevanceScore: 1,
+      rulePriority: 45,
+      title: 'Hydration is below target',
+      message:
+        'Your logged water intake has been below the 2,000 mL daily hydration goal recently.',
+      sourceFacts: {
+        averageMl: facts.hydration.averageMl,
+        targetMl: 2000,
+        recordedDays: facts.hydration.recordedDays,
+      },
+    });
   }
 
   if (!facts.hasRecentWeightLog) {

@@ -770,6 +770,12 @@ export default function ProfileScreen() {
         >
           <AppText variant="label">Edit daily nutrition targets</AppText>
         </Pressable>
+        <Pressable
+          className="rounded-full bg-primary-soft px-4 py-3"
+          onPress={() => router.push({ pathname: '/goal-plan' } as never)}
+        >
+          <AppText variant="label">Review goal plan</AppText>
+        </Pressable>
       </SettingsSection>
 
       <SettingsSection title="Edit profile">
@@ -1137,13 +1143,19 @@ export default function ProfileScreen() {
           onPress={() => {
             setNotificationsBusy(true);
             void registerPushInstallation()
-              .then((registered) =>
+              .then(async (registered) => {
+                if (registered) {
+                  await api.notifications.preferences.update({
+                    recommendationInsightsEnabled: true,
+                    loggingRemindersEnabled: true,
+                  });
+                }
                 setNotice(
                   registered
                     ? 'Notifications are enabled on this device.'
                     : 'Notifications need a physical device and permission.',
-                ),
-              )
+                );
+              })
               .catch((registrationError) =>
                 setError(errorMessage(registrationError)),
               )

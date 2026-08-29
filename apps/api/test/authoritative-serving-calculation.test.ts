@@ -396,6 +396,21 @@ describe('calculateAuthoritativeServing', () => {
     });
   });
 
+  it('accepts explicit known/unknown nutrient patch states', () => {
+    const result = successful({
+      nutritionOverride: {
+        mode: 'complex',
+        nutrientPatches: [
+          { nutrientKey: 'potassium', state: 'unknown' },
+          { nutrientKey: 'vitaminD', state: 'known', amount: 0, unit: 'mcg' },
+        ],
+      },
+    });
+    expect(result.finalNutrition.nutrients).toEqual({
+      vitaminD: { amount: 0, unit: 'mcg' },
+    });
+  });
+
   it.each([
     [
       {
