@@ -201,9 +201,7 @@ export function resolvePersonalizationPlan(
     Math.round(Math.max(floor, baselineCalories + adjustment) / 10) * 10;
 
   const proteinRda =
-    completedYears < 19
-      ? youngerProteinRdaGramsPerKg(years, input.sex)
-      : 0.8;
+    completedYears < 19 ? youngerProteinRdaGramsPerKg(years, input.sex) : 0.8;
   const adultTrainingMultiplier =
     input.trainingStyle === 'athlete'
       ? 1.1

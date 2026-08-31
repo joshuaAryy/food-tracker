@@ -19,8 +19,12 @@ const base = {
 
 describe('age-aware personalization', () => {
   it('derives age from birth date rather than a stored age value', () => {
-    expect(calculateAge('2008-08-30', '2026-08-29', 'America/Toronto')).toBe(17);
-    expect(calculateAge('2008-08-29', '2026-08-29', 'America/Toronto')).toBe(18);
+    expect(calculateAge('2008-08-30', '2026-08-29', 'America/Toronto')).toBe(
+      17,
+    );
+    expect(calculateAge('2008-08-29', '2026-08-29', 'America/Toronto')).toBe(
+      18,
+    );
   });
 
   it('uses the adolescent EER model with growth energy at age 18', () => {
