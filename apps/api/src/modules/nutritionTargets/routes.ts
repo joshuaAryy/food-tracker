@@ -13,12 +13,21 @@ const valueSchema = z.strictObject({ value: z.number().nonnegative() });
 
 export const nutritionTargetsRouter = Router();
 
+export function targetRows(
+  targets: Awaited<ReturnType<typeof resolveUserNutritionTargets>>,
+) {
+  return Object.values(targets).filter(
+    (target) => TARGETABLE_NUTRIENT_POLICY[target.nutrientKey] !== undefined,
+  );
+}
+
+async function resolvedTargetRows(userId: string) {
+  return targetRows(await resolveUserNutritionTargets(userId));
+}
+
 nutritionTargetsRouter.get('/', async (_request, response) => {
-  const targets = await resolveUserNutritionTargets(currentUserId(response));
   sendSuccess(response, {
-    targets: Object.values(targets).filter(
-      (target) => TARGETABLE_NUTRIENT_POLICY[target.nutrientKey] !== undefined,
-    ),
+    targets: await resolvedTargetRows(currentUserId(response)),
   });
 });
 
@@ -52,7 +61,7 @@ nutritionTargetsRouter.put(
       },
     });
     sendSuccess(response, {
-      targets: await resolveUserNutritionTargets(currentUserId(response)),
+      targets: await resolvedTargetRows(currentUserId(response)),
     });
   },
 );
@@ -66,6 +75,6 @@ nutritionTargetsRouter.delete('/:nutrientKey', async (request, response) => {
     where: { userId: currentUserId(response), nutrientKey },
   });
   sendSuccess(response, {
-    targets: await resolveUserNutritionTargets(currentUserId(response)),
+    targets: await resolvedTargetRows(currentUserId(response)),
   });
 });

@@ -766,6 +766,8 @@ export default function ProfileScreen() {
           value={`${watchedValues.targetProteinGrams || '0'} g`}
         />
         <Pressable
+          accessibilityLabel="Edit daily nutrition targets"
+          accessibilityRole="button"
           className="rounded-full bg-primary-soft px-4 py-3"
           onPress={() =>
             router.push({ pathname: '/nutrition-targets' } as never)
@@ -774,6 +776,8 @@ export default function ProfileScreen() {
           <AppText variant="label">Edit daily nutrition targets</AppText>
         </Pressable>
         <Pressable
+          accessibilityLabel="Review goal plan"
+          accessibilityRole="button"
           className="rounded-full bg-primary-soft px-4 py-3"
           onPress={() => router.push({ pathname: '/goal-plan' } as never)}
         >

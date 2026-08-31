@@ -3,6 +3,7 @@ import {
   TARGETABLE_NUTRIENT_POLICY,
   resolveEffectiveNutritionTargets,
 } from '../src/modules/nutritionTargets/effective-resolver.js';
+import { targetRows } from '../src/modules/nutritionTargets/routes.js';
 
 describe('targetable nutrient and effective target policy', () => {
   it('does not target every catalog nutrient', () => {
@@ -64,5 +65,38 @@ describe('targetable nutrient and effective target policy', () => {
       direction: 'minimum',
       isCustom: true,
     });
+  });
+
+  it('projects mutation responses to the same target-row array as GET', () => {
+    const rows = targetRows({
+      calories: {
+        nutrientKey: 'calories',
+        unit: 'kcal',
+        direction: 'target',
+        recommendedValue: 2180,
+        effectiveValue: 2300,
+        effectiveSource: 'user',
+        recommendedSource: 'personalized',
+        source: 'user',
+        value: 2300,
+        isCustom: true,
+        overrideOrigin: 'user',
+      },
+      oxalate: {
+        nutrientKey: 'oxalate',
+        unit: 'mg',
+        direction: 'target',
+        recommendedValue: null,
+        effectiveValue: null,
+        effectiveSource: 'missing',
+        recommendedSource: 'missing',
+        source: 'missing',
+        value: null,
+        isCustom: false,
+      },
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.nutrientKey).toBe('calories');
   });
 });

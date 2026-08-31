@@ -77,7 +77,11 @@ export default function GoalPlanScreen() {
       <ScreenHeader
         title="Goal plan"
         action={
-          <Pressable onPress={() => router.back()}>
+          <Pressable
+            accessibilityLabel="Back"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+          >
             <AppText variant="label">Back</AppText>
           </Pressable>
         }

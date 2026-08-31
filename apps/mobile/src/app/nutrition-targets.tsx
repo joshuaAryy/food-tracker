@@ -9,7 +9,7 @@ import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
 
-interface TargetRow {
+export interface TargetRow {
   nutrientKey: string;
   unit: string;
   direction: string;
@@ -17,6 +17,15 @@ interface TargetRow {
   recommendedValue: number | null;
   effectiveSource: string;
   isCustom: boolean;
+}
+
+export function draftsForTargets(targets: TargetRow[]): Record<string, string> {
+  return Object.fromEntries(
+    targets.map((target) => [
+      target.nutrientKey,
+      target.effectiveValue === null ? '' : String(target.effectiveValue),
+    ]),
+  );
 }
 
 export default function NutritionTargetsScreen() {
@@ -33,14 +42,7 @@ export default function NutritionTargetsScreen() {
       const response = await api.nutritionTargets.list();
       const next = response.targets as unknown as TargetRow[];
       setTargets(next);
-      setDrafts(
-        Object.fromEntries(
-          next.map((target) => [
-            target.nutrientKey,
-            target.effectiveValue === null ? '' : String(target.effectiveValue),
-          ]),
-        ),
-      );
+      setDrafts(draftsForTargets(next));
     } catch (loadError) {
       setError(errorMessage(loadError));
     } finally {
@@ -66,7 +68,9 @@ export default function NutritionTargetsScreen() {
         target.nutrientKey,
         value,
       );
-      setTargets(response.targets as unknown as TargetRow[]);
+      const next = response.targets as unknown as TargetRow[];
+      setTargets(next);
+      setDrafts(draftsForTargets(next));
     } catch (saveError) {
       setError(errorMessage(saveError));
     } finally {
@@ -80,7 +84,9 @@ export default function NutritionTargetsScreen() {
       const response = await api.nutritionTargets.useRecommended(
         target.nutrientKey,
       );
-      setTargets(response.targets as unknown as TargetRow[]);
+      const next = response.targets as unknown as TargetRow[];
+      setTargets(next);
+      setDrafts(draftsForTargets(next));
     } catch (saveError) {
       setError(errorMessage(saveError));
     } finally {
@@ -110,7 +116,11 @@ export default function NutritionTargetsScreen() {
       <ScreenHeader
         title="Nutrition targets"
         action={
-          <Pressable onPress={() => router.back()}>
+          <Pressable
+            accessibilityLabel="Back"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+          >
             <AppText variant="label">Back</AppText>
           </Pressable>
         }
@@ -159,6 +169,8 @@ export default function NutritionTargetsScreen() {
             </AppButton>
             {target.isCustom ? (
               <Pressable
+                accessibilityLabel={`Use recommended ${target.nutrientKey}`}
+                accessibilityRole="button"
                 className="flex-1 items-center justify-center rounded-full bg-primary-soft px-3"
                 onPress={() => void useRecommended(target)}
               >
