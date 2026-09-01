@@ -390,6 +390,7 @@ describe('staging Release workflow', () => {
   it.each([
     'phase-17-5-custom-analytics',
     'phase-17-free-xcode-standalone',
+    'phase-20-22-product-hardening-intelligence',
     'main',
   ])('accepts the explicit staging Release branch %s', (branch) => {
     expect(() =>
@@ -404,7 +405,7 @@ describe('staging Release workflow', () => {
         () => 'feature/other\n',
       ),
     ).toThrow(
-      'requires an approved Phase 17 staging branch or post-merge main',
+      'requires an approved Phase 17 or Phase 20-22 staging branch or post-merge main',
     );
   });
 
