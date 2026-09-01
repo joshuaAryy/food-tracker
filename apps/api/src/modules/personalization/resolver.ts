@@ -82,12 +82,23 @@ function dateValue(iso: string): number {
   return Date.parse(`${iso}T00:00:00.000Z`);
 }
 
+export function isBirthDateInFuture(
+  birthDate: string,
+  timezone: string,
+  asOf = new Date(),
+): boolean {
+  return dateValue(birthDate) > dateValue(dateOnly(asOf, timezone));
+}
+
 export function calculateAge(
   birthDate: string,
   asOf: Date | string = new Date(),
   timezone = 'UTC',
 ): number {
   const today = typeof asOf === 'string' ? asOf : dateOnly(asOf, timezone);
+  if (dateValue(birthDate) > dateValue(today)) {
+    throw new Error('Birth date cannot be in the future.');
+  }
   const birth = new Date(`${birthDate}T00:00:00.000Z`);
   const current = new Date(`${today}T00:00:00.000Z`);
   let age = current.getUTCFullYear() - birth.getUTCFullYear();
@@ -134,6 +145,16 @@ function youngerProteinRdaGramsPerKg(ageYears: number, sex: Sex): number {
   if (ageYears < 4) return 1.05;
   if (ageYears < 14) return 0.95;
   return 0.85;
+}
+
+function sodiumCdrMg(completedAge: number): number | null {
+  if (completedAge < 1) return null;
+  if (completedAge <= 3) return 1200;
+  if (completedAge <= 8) return 1500;
+  if (completedAge <= 13) return 1800;
+  if (completedAge <= 50) return 2300;
+  if (completedAge <= 70) return 2000;
+  return 1800;
 }
 
 function rateMaximum(
@@ -274,7 +295,7 @@ export function resolvePersonalizationPlan(
       fatGrams: round(fat, 1),
       fiberGrams: round(Math.max(1, (recommendedCalories / 1000) * 14), 1),
       sugarGrams: round(Math.max(1, (recommendedCalories * 0.1) / 4), 1),
-      sodiumMg: completedYears >= 4 ? 2300 : null,
+      sodiumMg: sodiumCdrMg(completedYears),
     },
     goal: { goalType: input.goalType, targetWeightLb: input.targetWeightLb },
     ratePlanning,

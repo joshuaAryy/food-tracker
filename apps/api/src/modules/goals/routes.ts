@@ -8,6 +8,7 @@ import { roundTo, serializeGoals } from '../../lib/serializers.js';
 import { isCompleteGoals } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
 import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
+import { calculateAge } from '../personalization/resolver.js';
 
 export const goalsRouter = Router();
 
@@ -44,6 +45,18 @@ goalsRouter.put(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<GoalsInput>(response);
+    const profile = await prisma.userProfile.findUnique({
+      where: { userId },
+      select: { birthDate: true, timezone: true },
+    });
+    const adultRatePlanning =
+      profile?.birthDate !== null && profile?.birthDate !== undefined
+        ? calculateAge(
+            profile.birthDate.toISOString().slice(0, 10),
+            new Date(),
+            profile.timezone,
+          ) >= 19
+        : false;
     const roundOptional = (
       value: number | null,
       places: number,
@@ -58,7 +71,10 @@ goalsRouter.put(
     const metadata = {
       goalType: input.goalType,
       goalPace: input.goalPace,
-      targetRateLbPerWeek: input.targetRateLbPerWeek ?? null,
+      targetRateLbPerWeek:
+        adultRatePlanning && input.targetRateLbPerWeek !== undefined
+          ? input.targetRateLbPerWeek
+          : null,
       targetWeightLb: roundTo(input.targetWeightLb, 1),
     };
     const goals = await prisma.$transaction(async (transaction) => {

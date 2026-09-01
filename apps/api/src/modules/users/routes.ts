@@ -1,13 +1,16 @@
 import { Router } from 'express';
-import { profileSchema, type Profile } from '@food-tracker/shared';
+import { profileUpdateSchema, type ProfileUpdate } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
-import { notFoundError } from '../../lib/errors.js';
+import { AppError, notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeProfile } from '../../lib/serializers.js';
 import { isCompleteProfile } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
-import { calculateAge } from '../personalization/resolver.js';
+import {
+  calculateAge,
+  isBirthDateInFuture,
+} from '../personalization/resolver.js';
 
 export const usersRouter = Router();
 
@@ -25,10 +28,17 @@ usersRouter.get('/', async (_request, response) => {
 
 usersRouter.put(
   '/',
-  validateBody(profileSchema),
+  validateBody(profileUpdateSchema),
   async (_request, response) => {
     const userId = currentUserId(response);
-    const input = validatedBody<Profile>(response);
+    const input = validatedBody<ProfileUpdate>(response);
+    if (isBirthDateInFuture(input.birthDate, input.timezone, new Date())) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Birth date cannot be in the future.',
+      );
+    }
     const data = {
       ...input,
       age: calculateAge(input.birthDate, new Date(), input.timezone),

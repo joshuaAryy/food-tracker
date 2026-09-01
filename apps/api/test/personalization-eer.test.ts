@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateAge,
+  isBirthDateInFuture,
   resolvePersonalizationPlan,
 } from '../src/modules/personalization/resolver.js';
 
@@ -52,6 +53,15 @@ describe('age-aware personalization', () => {
     expect(plan.ratePlanning.status).toBe('available');
     expect(plan.ratePlanning.calorieAdjustment).toBe(-500);
     expect(plan.estimatedGoal.status).toBe('available');
+    expect(plan.recommendedTargets.sodiumMg).toBe(2300);
+  });
+
+  it('uses age-specific sodium CDRR values', () => {
+    const older = resolvePersonalizationPlan(
+      { ...base, birthDate: '1955-08-29' },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+    expect(older.recommendedTargets.sodiumMg).toBe(2000);
   });
 
   it('falls back to starting weight when no current weight is supplied', () => {
@@ -74,5 +84,19 @@ describe('age-aware personalization', () => {
     expect(plan.ratePlanning.calorieAdjustment).toBe(0);
     expect(plan.estimatedGoal.status).toBe('unavailable');
     expect(plan.goal.targetWeightLb).toBe(150);
+    expect(plan.protein.source).toBe('reference');
+  });
+
+  it('rejects a future birth date instead of clamping to age zero', () => {
+    expect(
+      isBirthDateInFuture(
+        '2026-08-30',
+        'America/Toronto',
+        new Date('2026-08-29T12:00:00.000Z'),
+      ),
+    ).toBe(true);
+    expect(() =>
+      calculateAge('2026-08-30', '2026-08-29', 'America/Toronto'),
+    ).toThrow('Birth date cannot be in the future');
   });
 });

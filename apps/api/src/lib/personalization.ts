@@ -49,7 +49,7 @@ export function calculatePersonalizedTargets(
   targetFatGrams: number;
   targetFiberGrams: number;
   limitSugarGrams: number;
-  limitSodiumMg: number;
+  limitSodiumMg: number | null;
   targetRateLbPerWeek: number | null;
   estimatedGoalDate: string | null;
 } {
@@ -62,7 +62,7 @@ export function calculatePersonalizedTargets(
     targetFatGrams: plan.recommendedTargets.fatGrams,
     targetFiberGrams: plan.recommendedTargets.fiberGrams,
     limitSugarGrams: plan.recommendedTargets.sugarGrams,
-    limitSodiumMg: plan.recommendedTargets.sodiumMg ?? 2300,
+    limitSodiumMg: plan.recommendedTargets.sodiumMg,
     targetRateLbPerWeek:
       plan.ratePlanning.status === 'available'
         ? plan.ratePlanning.selectedRateLbPerWeek

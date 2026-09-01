@@ -8,6 +8,7 @@ import {
 } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
 import { calculatePersonalizedTargets } from '../../lib/personalization.js';
+import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import {
@@ -20,6 +21,7 @@ import {
   isCompleteProfile,
 } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
+import { isBirthDateInFuture } from '../personalization/resolver.js';
 
 export const setupRouter = Router();
 
@@ -62,6 +64,13 @@ setupRouter.post(
   validateBody(setupPreviewInputSchema),
   async (_request, response) => {
     const input = validatedBody<SetupPreviewInput>(response);
+    if (isBirthDateInFuture(input.profile.birthDate, input.profile.timezone)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Birth date cannot be in the future.',
+      );
+    }
     const calculatedTargets = calculatePersonalizedTargets({
       ...input,
       profile: {
@@ -97,6 +106,13 @@ setupRouter.put(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<SetupInput>(response);
+    if (isBirthDateInFuture(input.profile.birthDate, input.profile.timezone)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Birth date cannot be in the future.',
+      );
+    }
     const calculatedTargets = calculatePersonalizedTargets(input);
     const profileData = {
       ...input.profile,

@@ -10,8 +10,25 @@ export interface DriCompatibility {
   canonicalMeaning: string;
   referenceQuantity: string;
   unit: NutrientUnit;
+  /** Provider representations proven safe for this canonical quantity. */
+  providers: readonly NutrientDataProvider[];
   reason?: string;
 }
+
+export type NutrientDataProvider =
+  | 'cnf'
+  | 'ciqual'
+  | 'cofid'
+  | 'usda_fdc'
+  | 'open_food_facts';
+
+const REFERENCE_SAFE_PROVIDERS: readonly NutrientDataProvider[] = [
+  'cnf',
+  'ciqual',
+  'cofid',
+  'usda_fdc',
+  'open_food_facts',
+];
 
 const compatibleKeys = [
   'vitaminD',
@@ -43,6 +60,7 @@ const incompatible = (
   canonicalMeaning,
   referenceQuantity,
   unit,
+  providers: [],
   reason,
 });
 
@@ -82,9 +100,24 @@ export const DRI_TARGET_COMPATIBILITY: Record<NutrientKey, DriCompatibility> = {
       key,
       {
         status: 'compatible',
-        canonicalMeaning: key,
-        referenceQuantity: key,
+        canonicalMeaning:
+          key === 'vitaminD'
+            ? 'total vitamin D (D2 + D3)'
+            : key === 'calcium'
+              ? 'total dietary calcium'
+              : key === 'potassium'
+                ? 'total dietary potassium'
+                : key,
+        referenceQuantity:
+          key === 'vitaminD'
+            ? 'Vitamin D RDA/AI (mcg D2 + D3)'
+            : key === 'calcium'
+              ? 'Calcium RDA/AI (mg)'
+              : key === 'potassium'
+                ? 'Potassium AI (mg)'
+                : key,
         unit: TARGETABLE_NUTRIENT_POLICY[key]?.unit ?? 'mg',
+        providers: REFERENCE_SAFE_PROVIDERS,
       },
     ]),
   ),
@@ -205,6 +238,98 @@ const referenceValues: Partial<
   },
 };
 
+type ChildBand = '1_3' | '4_8' | '9_13';
+const childBandValues: Partial<
+  Record<NutrientKey, Record<ChildBand, { male: number; female: number }>>
+> = {
+  vitaminD: {
+    '1_3': { male: 15, female: 15 },
+    '4_8': { male: 15, female: 15 },
+    '9_13': { male: 15, female: 15 },
+  },
+  calcium: {
+    '1_3': { male: 700, female: 700 },
+    '4_8': { male: 1000, female: 1000 },
+    '9_13': { male: 1300, female: 1300 },
+  },
+  potassium: {
+    '1_3': { male: 2000, female: 2000 },
+    '4_8': { male: 2300, female: 2300 },
+    '9_13': { male: 2500, female: 2300 },
+  },
+};
+
+type AdultBand = '19_30' | '31_50' | '51_70' | 'over_70';
+const adultBandValues: Partial<
+  Record<NutrientKey, Record<AdultBand, { male: number; female: number }>>
+> = {
+  vitaminD: {
+    '19_30': { male: 15, female: 15 },
+    '31_50': { male: 15, female: 15 },
+    '51_70': { male: 15, female: 15 },
+    over_70: { male: 20, female: 20 },
+  },
+  calcium: {
+    '19_30': { male: 1000, female: 1000 },
+    '31_50': { male: 1000, female: 1000 },
+    '51_70': { male: 1000, female: 1200 },
+    over_70: { male: 1200, female: 1200 },
+  },
+  vitaminC: {
+    '19_30': { male: 90, female: 75 },
+    '31_50': { male: 90, female: 75 },
+    '51_70': { male: 90, female: 75 },
+    over_70: { male: 90, female: 75 },
+  },
+  vitaminB6: {
+    '19_30': { male: 1.3, female: 1.3 },
+    '31_50': { male: 1.3, female: 1.3 },
+    '51_70': { male: 1.7, female: 1.5 },
+    over_70: { male: 1.7, female: 1.5 },
+  },
+  magnesium: {
+    '19_30': { male: 400, female: 310 },
+    '31_50': { male: 420, female: 320 },
+    '51_70': { male: 420, female: 320 },
+    over_70: { male: 420, female: 320 },
+  },
+  iron: {
+    '19_30': { male: 8, female: 18 },
+    '31_50': { male: 8, female: 18 },
+    '51_70': { male: 8, female: 8 },
+    over_70: { male: 8, female: 8 },
+  },
+};
+
+function adultBand(age: number): AdultBand {
+  if (age <= 30) return '19_30';
+  if (age <= 50) return '31_50';
+  if (age <= 70) return '51_70';
+  return 'over_70';
+}
+
+function childBand(age: number): ChildBand | null {
+  if (age <= 3) return '1_3';
+  if (age <= 8) return '4_8';
+  if (age <= 13) return '9_13';
+  return null;
+}
+
+/**
+ * Automatic references are only valid for provider rows whose normalized
+ * mapping preserves the DRI quantity (not merely its display unit). FoodLog
+ * snapshots do not carry provider metadata, so ingestion must enforce this
+ * registry before a value can enter the canonical nutrient store.
+ */
+export function isDriProviderCompatible(
+  nutrientKey: NutrientKey,
+  provider: NutrientDataProvider,
+): boolean {
+  return (
+    DRI_TARGET_COMPATIBILITY[nutrientKey]?.providers.includes(provider) ?? false
+  );
+}
+
 export function resolveDriReferenceTarget(
   nutrientKey: NutrientKey,
   completedAge: number,
@@ -222,10 +347,15 @@ export function resolveDriReferenceTarget(
     return null;
   // This table intentionally carries only the validated adolescent (14–18)
   // and adult (19+) rows. Younger users still receive age-appropriate energy
-  // requirements and may set Custom targets, but we do not project an
-  // adolescent value onto children without a reviewed source row.
-  if (completedAge < 14) return null;
-  const values = completedAge < 19 ? reference.adolescent : reference.adult;
+  if (completedAge < 1) return null;
+  const values =
+    completedAge < 14
+      ? childBandValues[nutrientKey]?.[childBand(completedAge) ?? '1_3']
+      : completedAge < 19
+        ? reference.adolescent
+        : (adultBandValues[nutrientKey]?.[adultBand(completedAge)] ??
+          reference.adult);
+  if (values === undefined) return null;
   return {
     value: values[sex],
     unit: reference.unit,
