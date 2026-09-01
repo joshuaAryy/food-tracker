@@ -31,6 +31,7 @@ import type {
   Goals,
   GoalsInput,
   Profile,
+  ProfileUpdate,
   Recommendation,
   RecommendationStatus,
   Recipe,
@@ -872,7 +873,7 @@ export const api = {
   },
   profile: {
     get: () => request<Profile>('/profile', {}, profileSchema),
-    update: (profile: Profile) =>
+    update: (profile: ProfileUpdate) =>
       request<Profile>(
         '/profile',
         { method: 'PUT', body: profile },

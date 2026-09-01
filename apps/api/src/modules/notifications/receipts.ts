@@ -4,8 +4,13 @@ import { prisma } from '../../lib/prisma.js';
 const RECEIPT_MIN_AGE_MS = 15 * 60 * 1000;
 const RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+export interface ReceiptProcessingOptions {
+  timeoutMs?: number;
+}
+
 export async function processDueNotificationReceipts(
   now = new Date(),
+  options: ReceiptProcessingOptions = {},
 ): Promise<number> {
   const attempts = await prisma.notificationDeliveryAttempt.findMany({
     where: {
@@ -29,7 +34,7 @@ export async function processDueNotificationReceipts(
     Awaited<ReturnType<typeof getExpoPushReceipts>>[string]
   > = {};
   try {
-    receipts = await getExpoPushReceipts(ids);
+    receipts = await getExpoPushReceipts(ids, options.timeoutMs);
   } catch {
     return 0;
   }

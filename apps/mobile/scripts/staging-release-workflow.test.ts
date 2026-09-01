@@ -44,6 +44,7 @@ function stagingConfig(): StagingReleaseConfig {
     appEnvironment: 'staging',
     googleIosUrlScheme: 'com.googleusercontent.apps.release',
     googleWebClientId: 'web-client',
+    easProjectId: 'eas-project',
     googleServicesPlistPath: '/tmp/GoogleService-Info.plist',
     firebase: {
       bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
@@ -1043,7 +1044,7 @@ end
     );
     writeFileSync(
       join(mobile, '.env.staging-release.local'),
-      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
+      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nEXPO_PUBLIC_EAS_PROJECT_ID=eas-project\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
     );
     const order: string[] = [];
     const writeGenerated = (): void => writeGeneratedReleaseFixture(root);
@@ -1083,7 +1084,7 @@ end
     );
     writeFileSync(
       join(mobile, '.env.staging-release.local'),
-      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
+      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nEXPO_PUBLIC_EAS_PROJECT_ID=eas-project\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
     );
     const capturedEnvironments: NodeJS.ProcessEnv[] = [];
     const originalSkipBundling = process.env.SKIP_BUNDLING;

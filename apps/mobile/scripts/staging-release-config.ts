@@ -7,6 +7,7 @@ export const STAGING_RELEASE_PUBLIC_VARIABLES = [
   'EXPO_PUBLIC_API_URL',
   'EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED',
   'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
+  'EXPO_PUBLIC_EAS_PROJECT_ID',
 ] as const;
 
 export const STAGING_RELEASE_BUILD_VARIABLES = [
@@ -56,6 +57,7 @@ export interface StagingReleaseConfig {
   googleIosUrlScheme: string;
   googleWebClientId: string;
   googleServicesPlistPath: string;
+  easProjectId: string;
   firebase: FirebasePlistSummary;
   sanitized: Record<string, string>;
 }
@@ -354,6 +356,7 @@ export function createStagingReleaseXcodeEnvironment(
     ['EXPO_PUBLIC_API_URL', config.apiUrl],
     ['EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED', 'false'],
     ['EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', config.googleWebClientId],
+    ['EXPO_PUBLIC_EAS_PROJECT_ID', config.easProjectId],
     ['GOOGLE_IOS_URL_SCHEME', config.googleIosUrlScheme],
     ['GOOGLE_SERVICES_PLIST_PATH', config.googleServicesPlistPath],
     ['EXPO_NO_DOTENV', '1'],
@@ -389,6 +392,12 @@ export function validateStagingReleaseEnvironment(
   if (environment.EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED !== 'false') {
     throw new Error(
       'Apple Sign In must remain disabled for the free Release build.',
+    );
+  }
+  const easProjectId = environment.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  if (!nonEmpty(easProjectId)) {
+    throw new Error(
+      'EXPO_PUBLIC_EAS_PROJECT_ID is required for staging Release.',
     );
   }
 
@@ -427,6 +436,7 @@ export function validateStagingReleaseEnvironment(
     appEnvironment: 'staging' as const,
     googleIosUrlScheme,
     googleWebClientId,
+    easProjectId,
     googleServicesPlistPath: resolve(
       environment.GOOGLE_SERVICES_PLIST_PATH as string,
     ),

@@ -2,11 +2,23 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
+import Constants from 'expo-constants';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 const installationFile = () => {
   if (FileSystem.documentDirectory === null) return null;
   return `${FileSystem.documentDirectory}food-tracker-installation-id.txt`;
 };
+
+let pushTokenSubscription: { remove: () => void } | null = null;
 
 export async function getInstallationId(): Promise<string> {
   const file = installationFile();
@@ -30,16 +42,28 @@ export async function registerPushInstallation(): Promise<boolean> {
     status = (await Notifications.requestPermissionsAsync()).status;
   }
   if (status !== 'granted') return false;
-  const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
-  const token = await Notifications.getExpoPushTokenAsync(
-    projectId === undefined ? {} : { projectId },
-  );
+  const projectId =
+    process.env.EXPO_PUBLIC_EAS_PROJECT_ID ??
+    Constants.expoConfig?.extra?.eas?.projectId;
+  if (typeof projectId !== 'string' || projectId.trim() === '') {
+    throw new Error(
+      'Expo project identity is unavailable for push registration.',
+    );
+  }
+  const token = await Notifications.getExpoPushTokenAsync({
+    projectId: projectId.trim(),
+  });
   const { api } = await import('@/lib/api-client');
   await api.notifications.installations.register(
     await getInstallationId(),
     token.data,
     Device.osName?.toLowerCase() === 'android' ? 'android' : 'ios',
   );
+  if (pushTokenSubscription === null) {
+    pushTokenSubscription = Notifications.addPushTokenListener(() => {
+      void registerPushInstallation().catch(() => undefined);
+    });
+  }
   return true;
 }
 

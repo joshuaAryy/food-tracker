@@ -67,9 +67,13 @@ type SettingsIcon = ComponentType<{
   strokeWidth?: number;
 }>;
 
+type NotificationPreferences = {
+  recommendationInsightsEnabled: boolean;
+  loggingRemindersEnabled: boolean;
+};
+
 interface ProfileForm {
   name: string;
-  age: string;
   birthDate: string;
   sex: Sex;
   heightInches: string;
@@ -124,7 +128,6 @@ function formValues(
 ): ProfileForm {
   return {
     name: profile.name,
-    age: String(profile.age),
     birthDate: profile.birthDate,
     sex: profile.sex,
     heightInches: String(profile.heightInches),
@@ -539,6 +542,11 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>({
+      recommendationInsightsEnabled: false,
+      loggingRemindersEnabled: false,
+    });
   const [hasMissingData, setHasMissingData] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [savedPreferences, setSavedPreferences] =
@@ -570,11 +578,13 @@ export default function ProfileScreen() {
       setNotice(null);
 
       try {
-        const [profile, goals, preferences] = await Promise.all([
-          optionalResource(api.profile.get, defaultProfile),
-          optionalResource(api.goals.get, defaultGoals),
-          optionalResource(api.trackingPreferences.get, defaultPreferences),
-        ]);
+        const [profile, goals, preferences, notificationSettings] =
+          await Promise.all([
+            optionalResource(api.profile.get, defaultProfile),
+            optionalResource(api.goals.get, defaultGoals),
+            optionalResource(api.trackingPreferences.get, defaultPreferences),
+            api.notifications.preferences.get(),
+          ]);
         const nextValues = formValues(
           profile.data,
           goals.data,
@@ -583,6 +593,7 @@ export default function ProfileScreen() {
         reset(nextValues);
         setLastSavedForm(nextValues);
         setSavedPreferences(preferences.data);
+        setNotificationPreferences(notificationSettings);
         setHasMissingData(
           profile.missing || goals.missing || preferences.missing,
         );
@@ -612,7 +623,6 @@ export default function ProfileScreen() {
       const [profile, goals, preferences] = await Promise.all([
         api.profile.update({
           name: values.name.trim(),
-          age: Number(values.age),
           birthDate: values.birthDate.trim(),
           sex: values.sex,
           heightInches: Number(values.heightInches),
@@ -802,27 +812,6 @@ export default function ProfileScreen() {
                 onBlur={field.onBlur}
                 onChangeText={field.onChange}
                 error={errors.name?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="age"
-            rules={{
-              required: 'Age is required.',
-              validate: (value) =>
-                Number.isInteger(Number(value)) && Number(value) >= 0
-                  ? true
-                  : 'Enter a whole number.',
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Age"
-                keyboardType="number-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.age?.message}
               />
             )}
           />
@@ -1149,18 +1138,29 @@ export default function ProfileScreen() {
           disabled={notificationsBusy}
           onPress={() => {
             setNotificationsBusy(true);
-            void registerPushInstallation()
+            const enable =
+              !notificationPreferences.recommendationInsightsEnabled;
+            const registration = enable
+              ? registerPushInstallation()
+              : Promise.resolve(true);
+            void registration
               .then(async (registered) => {
                 if (registered) {
                   await api.notifications.preferences.update({
-                    recommendationInsightsEnabled: true,
-                    loggingRemindersEnabled: true,
+                    ...notificationPreferences,
+                    recommendationInsightsEnabled: enable,
                   });
+                  setNotificationPreferences((current) => ({
+                    ...current,
+                    recommendationInsightsEnabled: enable,
+                  }));
                 }
                 setNotice(
-                  registered
-                    ? 'Notifications are enabled on this device.'
-                    : 'Notifications need a physical device and permission.',
+                  registered && enable
+                    ? 'Nutrition insights are enabled on this device.'
+                    : registered
+                      ? 'Nutrition insights are disabled.'
+                      : 'Notifications need a physical device and permission.',
                 );
               })
               .catch((registrationError) =>
@@ -1169,7 +1169,48 @@ export default function ProfileScreen() {
               .finally(() => setNotificationsBusy(false));
           }}
         >
-          <AppText variant="label">Enable notifications on this device</AppText>
+          <AppText variant="label">
+            {notificationPreferences.recommendationInsightsEnabled
+              ? 'Disable nutrition insights'
+              : 'Enable nutrition insights'}
+          </AppText>
+        </Pressable>
+        <Pressable
+          className="rounded-full border border-line px-4 py-3"
+          disabled={notificationsBusy}
+          onPress={() => {
+            setNotificationsBusy(true);
+            const enable = !notificationPreferences.loggingRemindersEnabled;
+            const registration = enable
+              ? registerPushInstallation()
+              : Promise.resolve(true);
+            void registration
+              .then(async (registered) => {
+                if (enable && !registered) {
+                  setNotice(
+                    'Notifications need a physical device and permission.',
+                  );
+                  return null;
+                }
+                return api.notifications.preferences.update({
+                  ...notificationPreferences,
+                  loggingRemindersEnabled: enable,
+                });
+              })
+              .then((next) => {
+                if (next !== null) setNotificationPreferences(next);
+              })
+              .catch((preferenceError) =>
+                setError(errorMessage(preferenceError)),
+              )
+              .finally(() => setNotificationsBusy(false));
+          }}
+        >
+          <AppText variant="label">
+            {notificationPreferences.loggingRemindersEnabled
+              ? 'Disable logging reminders'
+              : 'Enable logging reminders'}
+          </AppText>
         </Pressable>
       </SettingsSection>
 

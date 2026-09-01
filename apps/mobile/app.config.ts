@@ -67,6 +67,7 @@ export function createAppConfig(
   const googleServicesPlistPath =
     environment.GOOGLE_SERVICES_PLIST_PATH?.trim();
   const appleSignInEnabled = isAppleSignInEnabled(environment);
+  const easProjectId = environment.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
 
   const config: ExpoConfig = {
     name: 'Food Tracker',
@@ -131,6 +132,9 @@ export function createAppConfig(
     extra: {
       apiUrl,
       appEnvironment: appEnv,
+      ...(easProjectId === undefined || easProjectId === ''
+        ? {}
+        : { eas: { projectId: easProjectId } }),
     },
     experiments: { typedRoutes: true },
     ios: {

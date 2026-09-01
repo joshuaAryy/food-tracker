@@ -4,6 +4,7 @@ import { localDate, localDateRange } from '../../lib/dates.js';
 import { notificationEligibility } from './policy.js';
 import { sendExpoPushNotifications } from './expo-client.js';
 import { processDueNotificationReceipts } from './receipts.js';
+import { comparePersistedRecommendations } from '../recommendations/service.js';
 
 const PAGE_SIZE = 100;
 const MAX_RUNTIME_MS = 8 * 60 * 1000;
@@ -20,6 +21,7 @@ async function evaluateUser(
   userId: string,
   now: Date,
   dryRun: boolean,
+  deadlineAt: number,
 ): Promise<boolean> {
   const [profile, preference, lastFoodLog, events, recommendation] =
     await Promise.all([
@@ -30,7 +32,7 @@ async function evaluateUser(
       prisma.notificationPreference.findUnique({ where: { userId } }),
       prisma.foodLog.findFirst({
         where: { userId },
-        orderBy: { loggedAt: 'desc' },
+        orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
         select: { loggedAt: true },
       }),
       prisma.notificationEvent.findMany({
@@ -40,10 +42,15 @@ async function evaluateUser(
         },
         select: { class: true, claimedAt: true, localDate: true },
       }),
-      prisma.recommendation.findFirst({
+      prisma.recommendation.findMany({
         where: { userId, status: 'active' },
-        orderBy: [{ severity: 'desc' }, { identityKey: 'asc' }],
-        select: { id: true, identityKey: true },
+        select: {
+          id: true,
+          identityKey: true,
+          type: true,
+          severity: true,
+          sourceFacts: true,
+        },
       }),
     ]);
   const timezone = profile?.timezone ?? 'America/Toronto';
@@ -54,6 +61,9 @@ async function evaluateUser(
       loggedAt: localDateRange(timezone, { date: currentLocalDate }),
     },
   });
+  const rankedRecommendations = recommendation
+    .sort(comparePersistedRecommendations)
+    .slice(0, 1);
   const eligibility = notificationEligibility({
     now,
     timezone,
@@ -67,7 +77,7 @@ async function evaluateUser(
       claimedAt: event.claimedAt,
       localDate: event.localDate.toISOString().slice(0, 10),
     })),
-    activeRecommendation: recommendation,
+    activeRecommendation: rankedRecommendations[0] ?? null,
   });
   if (eligibility.kind === 'none' || dryRun) return eligibility.kind !== 'none';
 
@@ -123,25 +133,29 @@ async function evaluateUser(
     },
   });
   for (const installation of installations) {
+    if (Date.now() >= deadlineAt) break;
     if (installation.expoPushToken === null || installation.tokenHash === null)
       continue;
-    const [ticket] = await sendExpoPushNotifications([
-      {
-        to: installation.expoPushToken,
-        title: 'Food Tracker',
-        body:
-          eligibility.kind === 'recommendation'
-            ? 'A new nutrition insight is ready.'
-            : 'A logging reminder is ready.',
-        data:
-          eligibility.kind === 'recommendation'
-            ? {
-                route: '/insights',
-                recommendationId: eligibility.recommendationId,
-              }
-            : { route: '/insights' },
-      },
-    ]);
+    const [ticket] = await sendExpoPushNotifications(
+      [
+        {
+          to: installation.expoPushToken,
+          title: 'Food Tracker',
+          body:
+            eligibility.kind === 'recommendation'
+              ? 'A new nutrition insight is ready.'
+              : 'A logging reminder is ready.',
+          data:
+            eligibility.kind === 'recommendation'
+              ? {
+                  route: '/insights',
+                  recommendationId: eligibility.recommendationId,
+                }
+              : { route: '/insights' },
+        },
+      ],
+      Math.max(100, deadlineAt - Date.now()),
+    );
     await prisma.notificationDeliveryAttempt.create({
       data: {
         notificationEventId: event.id,
@@ -171,9 +185,12 @@ async function evaluateUser(
 export async function runNotificationWorker(
   options: NotificationWorkerOptions = {},
 ): Promise<{ evaluated: number; claimed: number }> {
-  const now = options.now ?? new Date();
-  await processDueNotificationReceipts(now);
   const started = Date.now();
+  const deadlineAt = started + MAX_RUNTIME_MS;
+  const now = options.now ?? new Date();
+  await processDueNotificationReceipts(now, {
+    timeoutMs: Math.max(100, deadlineAt - Date.now()),
+  });
   let cursor = options.acceptanceUserId;
   if (!options.acceptanceUserId) {
     const checkpoint = await prisma.notificationWorkerCheckpoint.findUnique({
@@ -183,7 +200,10 @@ export async function runNotificationWorker(
   }
   let evaluated = 0;
   let claimed = 0;
-  while (Date.now() - started < STOP_STARTING_PAGES_MS) {
+  while (
+    Date.now() - started < STOP_STARTING_PAGES_MS &&
+    Date.now() < deadlineAt
+  ) {
     const users = options.acceptanceUserId
       ? await prisma.user.findMany({
           where: { id: options.acceptanceUserId },
@@ -196,18 +216,34 @@ export async function runNotificationWorker(
           take: PAGE_SIZE,
           select: { id: true },
         });
-    if (users.length === 0) break;
+    if (users.length === 0) {
+      // A full final page leaves the cursor at the last user. Reset on the
+      // next empty page so the next invocation starts a fresh complete cycle.
+      if (!options.acceptanceUserId && cursor !== undefined) {
+        cursor = undefined;
+        await prisma.notificationWorkerCheckpoint.update({
+          where: { key: 'default' },
+          data: { cursorUserId: null, updatedAt: now },
+        });
+      }
+      break;
+    }
     let pageComplete = true;
     let processedThrough: string | undefined;
     for (let index = 0; index < users.length; index += USER_CONCURRENCY) {
-      if (Date.now() - started >= MAX_RUNTIME_MS) {
+      if (Date.now() >= deadlineAt) {
         pageComplete = false;
         break;
       }
       const batch = users.slice(index, index + USER_CONCURRENCY);
       const results = await Promise.all(
         batch.map(async (user) => ({
-          claimed: await evaluateUser(user.id, now, options.dryRun ?? false),
+          claimed: await evaluateUser(
+            user.id,
+            now,
+            options.dryRun ?? false,
+            deadlineAt,
+          ),
         })),
       );
       evaluated += results.length;

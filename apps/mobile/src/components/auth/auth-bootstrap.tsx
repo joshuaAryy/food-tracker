@@ -127,6 +127,8 @@ export function AuthBootstrap({
   const storeRef = useRef<ReturnType<typeof createAuthStore> | null>(null);
   const loadRuntimeRef = useRef(loadRuntime);
   const lastRedirectKeyRef = useRef<string | null>(null);
+  const reconciledInstallationUidRef = useRef<string | null>(null);
+  const lastAuthenticatedUidRef = useRef<string | null>(null);
 
   const purgeCurrentAnalyticsCache = async () => {
     const state = storeRef.current?.getState().authState;
@@ -276,6 +278,42 @@ export function AuthBootstrap({
       stopStore?.();
     };
   }, [initializationAttempt]);
+
+  useEffect(() => {
+    if (
+      authState.status === 'signedInSetupUnknown' ||
+      authState.status === 'signedInSetupIncomplete' ||
+      authState.status === 'signedInReady'
+    ) {
+      const uid = authState.user.uid;
+      const previousUid = lastAuthenticatedUidRef.current;
+      if (previousUid !== null && previousUid !== uid) {
+        // Firebase identity changes are authoritative even when the prior
+        // sign-out was interrupted. Clear process-local user state immediately
+        // and purge only the previous user's analytics partition.
+        useAppStore.getState().resetUserData();
+        void purgeAnalyticsCache(previousUid).catch(() => undefined);
+        pendingProviderCredential.clear('signOut');
+      }
+      lastAuthenticatedUidRef.current = uid;
+    }
+    if (authState.status === 'signedOut') {
+      reconciledInstallationUidRef.current = null;
+      return;
+    }
+    if (
+      authState.status !== 'signedInSetupUnknown' &&
+      authState.status !== 'signedInSetupIncomplete' &&
+      authState.status !== 'signedInReady'
+    )
+      return;
+    const uid = authState.user.uid;
+    if (reconciledInstallationUidRef.current === uid) return;
+    reconciledInstallationUidRef.current = uid;
+    // Reconcile an installation that could not be detached during an offline
+    // sign-out before the new account can enable delivery.
+    void detachPushInstallation().catch(() => undefined);
+  }, [authState]);
 
   useEffect(() => {
     const matches = routeMatchesAuthState(authState, segments);

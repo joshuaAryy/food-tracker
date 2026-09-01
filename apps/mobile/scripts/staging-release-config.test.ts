@@ -43,6 +43,7 @@ function validEnvironment(): EnvironmentMap {
     RAILWAY_STAGING_API_HOST: 'api.railway.test',
     EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client.apps.googleusercontent.com',
+    EXPO_PUBLIC_EAS_PROJECT_ID: 'eas-project',
     GOOGLE_IOS_URL_SCHEME: reversedClientId,
     GOOGLE_SERVICES_PLIST_PATH: createPlist(),
     EXPO_NO_DOTENV: '1',

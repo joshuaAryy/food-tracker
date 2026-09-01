@@ -111,9 +111,11 @@ notificationsRouter.put(
 notificationsRouter.delete(
   '/installations/:installationId',
   async (request, response) => {
-    const userId = currentUserId(response);
+    currentUserId(response);
     await prisma.notificationInstallation.updateMany({
-      where: { installationId: String(request.params.installationId), userId },
+      // A newly authenticated account must be able to detach an installation
+      // left bound to a previous account after an offline sign-out.
+      where: { installationId: String(request.params.installationId) },
       data: {
         userId: null,
         expoPushToken: null,
