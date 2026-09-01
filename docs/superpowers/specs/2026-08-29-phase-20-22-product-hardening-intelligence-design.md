@@ -117,14 +117,21 @@ with an explicit fixed clock:
 
 ```bash
 APP_ENV=staging NOTIFICATION_ACCEPTANCE_TIME_OVERRIDE_ENABLED=true \
+  NOTIFICATION_ACCEPTANCE_APPROVED_FIREBASE_UID="$STAGING_FIREBASE_UID" \
   corepack pnpm --filter @food-tracker/api notifications:worker -- \
   --at '2026-08-29T22:00:00.000Z' \
   --acceptance-user-firebase-uid "$STAGING_FIREBASE_UID"
 ```
 
-Add `--send` only for an intentional staging delivery check. Production uses
+Add `--send` only for an intentional staging delivery check, and only with
+`NOTIFICATION_ACCEPTANCE_SEND_ENABLED=true` as a second explicit authorization
+gate. Production uses
 `notifications:worker -- --send` from a Railway Cron Job scheduled as
 `*/30 * * * *` UTC; production rejects `--at` and the override environment flag.
+
+Physical Expo-to-APNs delivery is intentionally deferred when the available
+Apple Personal Team cannot provision the `aps-environment` entitlement. Railway
+staging deployment/schema/health remains a separate verified gate.
 
 ## Mobile and acceptance
 

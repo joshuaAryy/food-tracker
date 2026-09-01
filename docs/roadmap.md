@@ -14,7 +14,7 @@ explicitly below and takes precedence over those historical labels.
 Phase 17 — complete
 Phase 17.5 — complete: Custom Analytics, Micronutrients, and Hydration
 Phase 18/19 — complete: Food Data + Intelligent Retrieval
-Phase 20–22 — implementation candidate in progress: Product Hardening + Intelligence
+Phase 20–22 — implementation candidate: Product Hardening + Intelligence
 Phase 23 — deferred from current finish line: Water and Supplement Tracking
 Phase 24 — final current implementation phase: Frontend and Food-Logging Flow Redesign
 Phase 25 — optional/deferred: External MVP Beta and distribution
@@ -39,8 +39,11 @@ reconciliation/activation, and final review are recorded in
 The combined **Phase 20–22 — Product Hardening + Intelligence** audit and
 implementation design are recorded in the [authoritative design](superpowers/specs/2026-08-29-phase-20-22-product-hardening-intelligence-design.md)
 and [execution plan](superpowers/plans/2026-08-29-phase-20-22-product-hardening-intelligence.md).
-The branch implementation is internally validated while Simulator, staging,
-and physical push acceptance remain separate gates.
+The branch implementation is internally validated, Simulator-verified, and
+Railway staging deployment/schema/health-verified. Physical Expo-to-APNs push
+delivery remains deferred because the available Apple Personal Team cannot
+provision Push Notifications (`aps-environment`); it is not represented as a
+passed physical-device gate.
 
 The post-Phase 6 MVP direction is:
 
