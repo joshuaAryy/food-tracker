@@ -133,7 +133,7 @@ export interface SetupResult {
     targetFatGrams: number;
     targetFiberGrams: number;
     limitSugarGrams: number;
-    limitSodiumMg: number;
+    limitSodiumMg: number | null;
     targetRateLbPerWeek?: number | null;
     estimatedGoalDate?: string | null;
   };
@@ -149,7 +149,7 @@ export interface SetupPreviewResult {
     targetFatGrams: number;
     targetFiberGrams: number;
     limitSugarGrams: number;
-    limitSodiumMg: number;
+    limitSodiumMg: number | null;
     targetRateLbPerWeek?: number | null;
     estimatedGoalDate?: string | null;
   };

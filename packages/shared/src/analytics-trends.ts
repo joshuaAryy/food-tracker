@@ -121,14 +121,14 @@ export type AnalyticsReference =
       kind: 'target' | 'minimum' | 'limit';
       value: number;
       unit: AnalyticsUnit;
-      source: 'user' | 'derived' | 'default';
+      source: 'user' | 'personalized' | 'reference' | 'derived' | 'default';
     }
   | {
       kind: 'range';
       lower: number;
       upper: number;
       unit: AnalyticsUnit;
-      source: 'user' | 'derived' | 'default';
+      source: 'user' | 'personalized' | 'reference' | 'derived' | 'default';
     }
   | {
       kind: 'none';
@@ -288,14 +288,14 @@ const analyticsReferenceSchema = z.discriminatedUnion('kind', [
     kind: z.enum(['target', 'minimum', 'limit']),
     value: analyticsNumberSchema,
     unit: analyticsUnitSchema,
-    source: z.enum(['user', 'derived', 'default']),
+    source: z.enum(['user', 'personalized', 'reference', 'derived', 'default']),
   }),
   z.object({
     kind: z.literal('range'),
     lower: analyticsNumberSchema,
     upper: analyticsNumberSchema,
     unit: analyticsUnitSchema,
-    source: z.enum(['user', 'derived', 'default']),
+    source: z.enum(['user', 'personalized', 'reference', 'derived', 'default']),
   }),
   z.object({
     kind: z.literal('none'),

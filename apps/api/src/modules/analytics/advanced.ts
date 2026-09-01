@@ -8,6 +8,7 @@ import {
 } from '@food-tracker/shared';
 import { addLocalDays, localDate, localDateRange } from '../../lib/dates.js';
 import { prisma } from '../../lib/prisma.js';
+import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
 import { roundTo } from '../../lib/serializers.js';
 
 const EMPTY_NUTRIENTS: NutrientValues = {
@@ -269,13 +270,13 @@ export async function computeAdvancedAnalytics(
   input: AdvancedAnalyticsInput,
   now = new Date(),
 ): Promise<AdvancedAnalytics> {
-  const [profile, goals, preferences] = await Promise.all([
+  const [profile, preferences, effectiveTargets] = await Promise.all([
     prisma.userProfile.findUnique({
       where: { userId },
       select: { timezone: true },
     }),
-    prisma.userGoal.findUnique({ where: { userId } }),
     prisma.trackingPreference.findUnique({ where: { userId } }),
+    resolveUserNutritionTargets(userId, now),
   ]);
   const timezone = input.timezone ?? profile?.timezone ?? DEFAULT_TIMEZONE;
   const endDate = input.date ?? localDate(now, timezone);
@@ -305,7 +306,7 @@ export async function computeAdvancedAnalytics(
     prisma.weightLog.findMany({
       where: { userId, loggedAt: selectedRange },
       select: { weightLb: true, loggedAt: true },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
   const selectedLogs = foodLogs.filter((log) =>
@@ -351,8 +352,8 @@ export async function computeAdvancedAnalytics(
     range: { startDate: selectedStartDate, endDate },
     trackingMode: preferences?.mode ?? 'simple',
     targets: {
-      calories: goals?.targetCalories ?? null,
-      proteinGrams: goals?.targetProteinGrams?.toNumber() ?? null,
+      calories: effectiveTargets.calories?.effectiveValue ?? null,
+      proteinGrams: effectiveTargets.protein?.effectiveValue ?? null,
     },
     calorieTrend: {
       average7Day: averageCalories7,

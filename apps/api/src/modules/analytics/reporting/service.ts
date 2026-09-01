@@ -7,7 +7,6 @@ import {
   type ProgressResponse,
   type ReportPeriod,
   reportingGoalForKey,
-  resolveReportingGoals,
   type ReportingNutrientDetails,
   type ReportingGoals,
   type ReportingGoal,
@@ -33,6 +32,8 @@ import {
   periodBoundaries,
   type DateBoundary,
 } from './periods.js';
+import { resolveUserNutritionTargets } from '../../nutritionTargets/service.js';
+import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
 
 type Metric<T> =
   | { available: true; value: T }
@@ -587,7 +588,15 @@ export async function computeReports(
   requestedDate?: string,
   now = new Date(),
 ): Promise<ReportsResponse> {
-  const [profile, goal, preferences, foodLogs, weightLogs] = await Promise.all([
+  const [
+    profile,
+    goal,
+    preferences,
+    foodLogs,
+    weightLogs,
+    effectiveTargets,
+    reportingGoals,
+  ] = await Promise.all([
     prisma.userProfile.findUnique({
       where: { userId },
       select: { timezone: true },
@@ -615,20 +624,15 @@ export async function computeReports(
     prisma.weightLog.findMany({
       where: { userId },
       select: { weightLb: true, loggedAt: true },
-      orderBy: { loggedAt: 'asc' },
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     }),
+    resolveUserNutritionTargets(userId, now),
+    resolveUserReportingGoals(userId, now),
   ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = requestedDate ?? localDate(now, timezone);
-  const reportingGoals = resolveReportingGoals({
-    targetCalories: goal?.targetCalories ?? null,
-    targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
-    targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
-    targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
-    targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
-    limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
-    limitSodiumMg: goal?.limitSodiumMg ?? null,
-  });
+  const targetValue = (key: keyof typeof effectiveTargets): number | null =>
+    effectiveTargets[key]?.effectiveValue ?? null;
   const boundaries = periodBoundaries(period, today);
   const comparisons = comparisonWindows(period, today);
   const firstLoggedDate =
@@ -664,8 +668,8 @@ export async function computeReports(
     weightLogs: serializedWeightLogs,
     timezone,
     goalType: goal?.goalType ?? null,
-    targetCalories: goal?.targetCalories ?? null,
-    targetProtein: goal?.targetProteinGrams?.toNumber() ?? null,
+    targetCalories: targetValue('calories'),
+    targetProtein: targetValue('protein'),
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
@@ -678,8 +682,8 @@ export async function computeReports(
     weightLogs: serializedWeightLogs,
     timezone,
     goalType: goal?.goalType ?? null,
-    targetCalories: goal?.targetCalories ?? null,
-    targetProtein: goal?.targetProteinGrams?.toNumber() ?? null,
+    targetCalories: targetValue('calories'),
+    targetProtein: targetValue('protein'),
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
@@ -696,8 +700,8 @@ export async function computeReports(
     weightLogs: serializedWeightLogs,
     timezone,
     goalType: goal?.goalType ?? null,
-    targetCalories: goal?.targetCalories ?? null,
-    targetProtein: goal?.targetProteinGrams?.toNumber() ?? null,
+    targetCalories: targetValue('calories'),
+    targetProtein: targetValue('protein'),
     targetWeight: goal?.targetWeightLb?.toNumber() ?? null,
     baselineWeight: serializedWeightLogs[0]?.weightLb.toNumber() ?? null,
     mode: preferences?.mode ?? 'simple',
@@ -838,38 +842,44 @@ export async function computeProgress(
   requestedDate?: string,
   now = new Date(),
 ): Promise<ProgressResponse> {
-  const [profile, preferences, goal, foodLogs, weightLogs] = await Promise.all([
-    prisma.userProfile.findUnique({
-      where: { userId },
-      select: { timezone: true },
-    }),
-    prisma.trackingPreference.findUnique({
-      where: { userId },
-      select: { mode: true },
-    }),
-    prisma.userGoal.findUnique({ where: { userId } }),
-    prisma.foodLog.findMany({
-      where: { userId },
-      select: {
-        loggedAt: true,
-        calories: true,
-        protein: true,
-        carbs: true,
-        fat: true,
-        fiber: true,
-        sugar: true,
-        sodium: true,
-        nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
-      },
-    }),
-    prisma.weightLog.findMany({
-      where: { userId },
-      select: { weightLb: true, loggedAt: true },
-      orderBy: { loggedAt: 'asc' },
-    }),
-  ]);
+  const [profile, preferences, goal, foodLogs, weightLogs, effectiveTargets] =
+    await Promise.all([
+      prisma.userProfile.findUnique({
+        where: { userId },
+        select: { timezone: true },
+      }),
+      prisma.trackingPreference.findUnique({
+        where: { userId },
+        select: { mode: true },
+      }),
+      prisma.userGoal.findUnique({ where: { userId } }),
+      prisma.foodLog.findMany({
+        where: { userId },
+        select: {
+          loggedAt: true,
+          calories: true,
+          protein: true,
+          carbs: true,
+          fat: true,
+          fiber: true,
+          sugar: true,
+          sodium: true,
+          nutrients: {
+            select: { nutrientKey: true, amount: true, unit: true },
+          },
+        },
+      }),
+      prisma.weightLog.findMany({
+        where: { userId },
+        select: { weightLb: true, loggedAt: true },
+        orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      }),
+      resolveUserNutritionTargets(userId, now),
+    ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = requestedDate ?? localDate(now, timezone);
+  const targetValue = (key: keyof typeof effectiveTargets): number | null =>
+    effectiveTargets[key]?.effectiveValue ?? null;
   const serializedFoodLogs = foodLogs as ReportFoodLog[];
   const serializedWeightLogs = weightLogs as ReportWeightLog[];
   const foodDates = [
@@ -905,14 +915,14 @@ export async function computeProgress(
   const weekCalorie = calorieAdherence(
     last7Logs,
     timezone,
-    goal?.targetCalories ?? null,
+    targetValue('calories'),
     goal?.goalType ?? null,
     3,
   );
   const weekProtein = proteinAdherence(
     last7Logs,
     timezone,
-    goal?.targetProteinGrams?.toNumber() ?? null,
+    targetValue('protein'),
     3,
   );
   const weight = weightFacts(

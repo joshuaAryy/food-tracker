@@ -1,4 +1,8 @@
-import { DEFAULT_TIMEZONE, type GoalType } from '@food-tracker/shared';
+import {
+  DEFAULT_TIMEZONE,
+  type GoalType,
+  type TrackingMode,
+} from '@food-tracker/shared';
 import {
   addLocalDays,
   localDate,
@@ -8,6 +12,7 @@ import {
 import { prisma } from '../../lib/prisma.js';
 import { roundTo } from '../../lib/serializers.js';
 import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
+import { calculateAge } from '../personalization/resolver.js';
 
 const DAYS_ANALYZED = 7;
 export const MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS = 4;
@@ -17,10 +22,13 @@ export interface RecommendationAnalyticsFacts {
   currentLocalDate: string;
   daysAnalyzed: number;
   targetCalories: number | null;
+  targetCaloriesSource: string | null;
   targetProteinGrams: number | null;
+  targetProteinSource: string | null;
   goalType: GoalType | null;
   targetWeightLb: number | null;
   targetRateLbPerWeek: number | null;
+  trackingMode: TrackingMode;
   currentWeightLb: number | null;
   weightTrendLbPerWeek: number | null;
   averageCalories: number;
@@ -44,6 +52,8 @@ export interface RecommendationAnalyticsFacts {
     recordedDays: number;
     eligibleDays: number;
     coverage: number;
+    targetSource: string;
+    referenceVersion: string | null;
   }>;
 }
 
@@ -51,15 +61,27 @@ export async function computeRecommendationFacts(
   userId: string,
   now = new Date(),
 ): Promise<RecommendationAnalyticsFacts> {
-  const [profile, goals, effectiveTargets] = await Promise.all([
+  const [profile, goals, preferences, effectiveTargets] = await Promise.all([
     prisma.userProfile.findUnique({
       where: { userId },
-      select: { timezone: true },
+      select: { timezone: true, birthDate: true },
     }),
     prisma.userGoal.findUnique({ where: { userId } }),
+    prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    }),
     resolveUserNutritionTargets(userId, now),
   ]);
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
+  const completedAge =
+    profile?.birthDate === null || profile?.birthDate === undefined
+      ? null
+      : calculateAge(
+          profile.birthDate.toISOString().slice(0, 10),
+          now,
+          timezone,
+        );
   const currentLocalDate = localDate(now, timezone);
   const startDate = addLocalDays(currentLocalDate, -(DAYS_ANALYZED - 1));
   const trackingRange = localDateRange(timezone, {
@@ -84,12 +106,12 @@ export async function computeRecommendationFacts(
           : { loggedAt: { lt: trackingRange.lt } }),
       },
       select: { loggedAt: true },
-      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     }),
     prisma.weightLog.findMany({
       where: { userId, loggedAt: trackingRange },
       select: { weightLb: true, loggedAt: true },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     }),
     prisma.waterLog.findMany({
       where: { userId, loggedAt: trackingRange },
@@ -141,7 +163,9 @@ export async function computeRecommendationFacts(
         )
       : null;
   const micronutrients = (
-    ['vitaminD', 'calcium', 'potassium'] as const
+    preferences?.mode === 'complex'
+      ? (['vitaminD', 'calcium', 'potassium'] as const)
+      : []
   ).flatMap((nutrientKey) => {
     const target = effectiveTargets[nutrientKey]?.effectiveValue;
     if (target === null || target === undefined || target <= 0) return [];
@@ -178,6 +202,12 @@ export async function computeRecommendationFacts(
         recordedDays,
         eligibleDays: loggedDays,
         coverage: recordedDays / Math.max(1, loggedDays),
+        targetSource:
+          effectiveTargets[nutrientKey]?.effectiveSource ?? 'missing',
+        referenceVersion:
+          effectiveTargets[nutrientKey]?.recommendedSource === 'reference'
+            ? 'health_canada_dri_2023'
+            : null,
       },
     ];
   });
@@ -187,10 +217,16 @@ export async function computeRecommendationFacts(
     currentLocalDate,
     daysAnalyzed: DAYS_ANALYZED,
     targetCalories: effectiveTargets.calories?.effectiveValue ?? null,
+    targetCaloriesSource: effectiveTargets.calories?.effectiveSource ?? null,
     targetProteinGrams: effectiveTargets.protein?.effectiveValue ?? null,
+    targetProteinSource: effectiveTargets.protein?.effectiveSource ?? null,
     goalType: goals?.goalType ?? null,
     targetWeightLb: goals?.targetWeightLb?.toNumber() ?? null,
-    targetRateLbPerWeek: goals?.targetRateLbPerWeek?.toNumber() ?? null,
+    targetRateLbPerWeek:
+      completedAge !== null && completedAge >= 19
+        ? (goals?.targetRateLbPerWeek?.toNumber() ?? null)
+        : null,
+    trackingMode: preferences?.mode ?? 'simple',
     currentWeightLb: weightLogs.at(-1)?.weightLb.toNumber() ?? null,
     weightTrendLbPerWeek,
     averageCalories: roundTo(totalCalories / DAYS_ANALYZED, 0),

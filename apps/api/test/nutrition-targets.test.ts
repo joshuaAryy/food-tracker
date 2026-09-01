@@ -3,9 +3,32 @@ import {
   TARGETABLE_NUTRIENT_POLICY,
   resolveEffectiveNutritionTargets,
 } from '../src/modules/nutritionTargets/effective-resolver.js';
+import { reportingGoalsFromEffectiveTargets } from '../src/modules/nutritionTargets/reporting-adapter.js';
 import { targetRows } from '../src/modules/nutritionTargets/routes.js';
 
 describe('targetable nutrient and effective target policy', () => {
+  it('projects only effective targets without inventing unsupported defaults', () => {
+    const effective = resolveEffectiveNutritionTargets({
+      recommended: {
+        calories: {
+          value: 2100,
+          unit: 'kcal',
+          direction: 'target',
+          source: 'personalized',
+        },
+      },
+      overrides: [],
+    });
+    expect(reportingGoalsFromEffectiveTargets(effective)).toEqual({
+      calories: {
+        value: 2100,
+        unit: 'kcal',
+        direction: 'target',
+        source: 'personalized',
+      },
+    });
+  });
+
   it('does not target every catalog nutrient', () => {
     expect(TARGETABLE_NUTRIENT_POLICY.oxalate).toBeUndefined();
     expect(TARGETABLE_NUTRIENT_POLICY.folate).toBeUndefined();

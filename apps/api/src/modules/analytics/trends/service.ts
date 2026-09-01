@@ -9,7 +9,6 @@ import {
   NUTRIENT_CATALOG,
   NUTRIENT_KEYS,
   relatedAnalyticsMetricsForKey,
-  resolveReportingGoals,
   type NutrientKey,
 } from '@food-tracker/shared';
 import { DEFAULT_TIMEZONE } from '@food-tracker/shared';
@@ -30,6 +29,7 @@ import {
 } from './forecast-policy.js';
 import { selectDeterministicForecast } from './forecast.js';
 import { interpretAnalyticsReference } from './interpretation.js';
+import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -46,30 +46,24 @@ function loadTrendBase(userId: string) {
       select: {
         goalType: true,
         targetWeightLb: true,
-        targetCalories: true,
-        targetProteinGrams: true,
-        targetCarbsGrams: true,
-        targetFatGrams: true,
-        targetFiberGrams: true,
-        limitSugarGrams: true,
-        limitSodiumMg: true,
       },
     }),
     prisma.foodLog.findFirst({
       where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       select: { loggedAt: true },
     }),
     prisma.waterLog.findFirst({
       where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       select: { loggedAt: true },
     }),
     prisma.weightLog.findFirst({
       where: { userId },
-      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
       select: { loggedAt: true },
     }),
+    resolveUserReportingGoals(userId),
   ]);
 }
 
@@ -106,7 +100,7 @@ function loadTrendData(
       ? prisma.weightLog.findMany({
           where: { userId, loggedAt: dateRange },
           select: { weightLb: true, loggedAt: true },
-          orderBy: { loggedAt: 'asc' },
+          orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
         })
       : Promise.resolve([]),
   ]);
@@ -536,44 +530,8 @@ function aminoAcidProfile(
     }[];
   }[],
   timezone: string,
-  goal: {
-    targetCalories: { toString(): string } | null;
-    targetProteinGrams: { toString(): string } | null;
-    targetCarbsGrams: { toString(): string } | null;
-    targetFatGrams: { toString(): string } | null;
-    targetFiberGrams: { toString(): string } | null;
-    limitSugarGrams: { toString(): string } | null;
-    limitSodiumMg: number | null;
-  } | null,
+  goals: import('@food-tracker/shared').ReportingGoals,
 ) {
-  const goals = resolveReportingGoals({
-    targetCalories:
-      goal?.targetCalories === null || goal?.targetCalories === undefined
-        ? null
-        : Number(goal.targetCalories),
-    targetProteinGrams:
-      goal?.targetProteinGrams === null ||
-      goal?.targetProteinGrams === undefined
-        ? null
-        : Number(goal.targetProteinGrams),
-    targetCarbsGrams:
-      goal?.targetCarbsGrams === null || goal?.targetCarbsGrams === undefined
-        ? null
-        : Number(goal.targetCarbsGrams),
-    targetFatGrams:
-      goal?.targetFatGrams === null || goal?.targetFatGrams === undefined
-        ? null
-        : Number(goal.targetFatGrams),
-    targetFiberGrams:
-      goal?.targetFiberGrams === null || goal?.targetFiberGrams === undefined
-        ? null
-        : Number(goal.targetFiberGrams),
-    limitSugarGrams:
-      goal?.limitSugarGrams === null || goal?.limitSugarGrams === undefined
-        ? null
-        : Number(goal.limitSugarGrams),
-    limitSodiumMg: goal?.limitSodiumMg ?? null,
-  });
   const keys = NUTRIENT_KEYS.filter(
     (key): key is Exclude<NutrientKey, 'water'> =>
       key !== 'water' && NUTRIENT_CATALOG[key].category === 'amino_acid',
@@ -649,6 +607,7 @@ export async function computeCanonicalTrend(
     firstFoodLog,
     firstWaterLog,
     firstWeightLog,
+    reportingGoals,
   ] = await context.base;
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
   const today = localDate(new Date(), timezone);
@@ -772,13 +731,14 @@ export async function computeCanonicalTrend(
         }
       : metricReference(query.primaryMetric, {
           goalType: goal?.goalType ?? null,
-          targetCalories: goal?.targetCalories ?? null,
-          targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
-          targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
-          targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
-          targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
-          limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
-          limitSodiumMg: goal?.limitSodiumMg ?? null,
+          targetCalories: null,
+          targetProteinGrams: null,
+          targetCarbsGrams: null,
+          targetFatGrams: null,
+          targetFiberGrams: null,
+          limitSugarGrams: null,
+          limitSodiumMg: null,
+          reportingGoals,
         })
     : noReference(query.primaryMetric);
 
@@ -886,7 +846,7 @@ export async function computeCanonicalTrend(
       : {}),
     loggingSummary: loggingSummary(dailyPoints, today, logsByDate),
     ...(query.primaryMetric === 'leucine'
-      ? { aminoAcidProfile: aminoAcidProfile(logs, timezone, goal) }
+      ? { aminoAcidProfile: aminoAcidProfile(logs, timezone, reportingGoals) }
       : {}),
   };
   if (query.comparisonMetric === undefined) return response;

@@ -34,7 +34,7 @@ export async function resolveUserNutritionTargets(
     prisma.userNutrientTargetOverride.findMany({ where: { userId } }),
     prisma.weightLog.findFirst({
       where: { userId, weightLb: { gt: 0 }, loggedAt: { lte: now } },
-      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
       select: { weightLb: true },
     }),
   ]);
@@ -78,11 +78,12 @@ export async function resolveUserNutritionTargets(
     for (const [key, planKey, source] of CORE_TARGETS) {
       const value = plan.recommendedTargets[planKey];
       if (value !== null) {
+        const resolvedSource = key === 'protein' ? plan.protein.source : source;
         recommended[key] = {
           value,
           unit: TARGETABLE_NUTRIENT_POLICY[key]?.unit ?? 'g',
           direction: TARGETABLE_NUTRIENT_POLICY[key]?.direction ?? 'target',
-          source,
+          source: resolvedSource,
         };
       }
     }
@@ -96,28 +97,6 @@ export async function resolveUserNutritionTargets(
         profile.sex as 'male' | 'female',
       );
       if (reference) recommended[nutrientKey] = reference;
-    }
-  }
-
-  if (goal !== null) {
-    const legacy: Array<[NutrientKey, number | null]> = [
-      ['calories', goal.targetCalories],
-      ['protein', goal.targetProteinGrams?.toNumber() ?? null],
-      ['carbs', goal.targetCarbsGrams?.toNumber() ?? null],
-      ['fat', goal.targetFatGrams?.toNumber() ?? null],
-      ['fiber', goal.targetFiberGrams?.toNumber() ?? null],
-      ['sugar', goal.limitSugarGrams?.toNumber() ?? null],
-      ['sodium', goal.limitSodiumMg],
-    ];
-    for (const [key, value] of legacy) {
-      if (recommended[key] === undefined && value !== null) {
-        recommended[key] = {
-          value,
-          unit: TARGETABLE_NUTRIENT_POLICY[key]?.unit ?? 'g',
-          direction: TARGETABLE_NUTRIENT_POLICY[key]?.direction ?? 'target',
-          source: 'derived',
-        };
-      }
     }
   }
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { metricReference } from '../src/modules/analytics/trends/references.js';
-import { resolveReportingGoals } from '../../../packages/shared/src/reporting-goals.js';
 
 const missingInputs = {
   goalType: null,
@@ -14,20 +13,11 @@ const missingInputs = {
 } as const;
 
 describe('analytics reference consistency', () => {
-  it('uses the shared default Vitamin C minimum for trend and overview inputs', () => {
-    const expected = resolveReportingGoals(missingInputs).vitaminC;
-
-    expect(expected).toMatchObject({
-      value: 90,
-      direction: 'minimum',
-      unit: 'mg',
-      source: 'default',
-    });
+  it('does not invent a Vitamin C reference without canonical effective targets', () => {
     expect(metricReference('vitaminC', missingInputs)).toEqual({
-      kind: 'minimum',
-      value: 90,
+      kind: 'none',
       unit: 'mg',
-      source: 'default',
+      reason: 'not_configured',
     });
   });
 });
