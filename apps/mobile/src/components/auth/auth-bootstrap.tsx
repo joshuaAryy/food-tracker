@@ -6,6 +6,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { AppState } from 'react-native';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import type { ApiAuthSession } from '@/lib/api-auth-session';
 import { AuthRecoveryProvider } from '@/components/auth/auth-recovery-context';
@@ -314,6 +315,20 @@ export function AuthBootstrap({
     // sign-out before the new account can enable delivery.
     void detachPushInstallation().catch(() => undefined);
   }, [authState]);
+
+  useEffect(() => {
+    if (
+      authState.status !== 'signedInSetupUnknown' &&
+      authState.status !== 'signedInSetupIncomplete' &&
+      authState.status !== 'signedInReady'
+    )
+      return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active')
+        void detachPushInstallation().catch(() => undefined);
+    });
+    return subscription.remove;
+  }, [authState.status]);
 
   useEffect(() => {
     const matches = routeMatchesAuthState(authState, segments);

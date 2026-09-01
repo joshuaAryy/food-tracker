@@ -18,6 +18,33 @@ const installationFile = () => {
   return `${FileSystem.documentDirectory}food-tracker-installation-id.txt`;
 };
 
+const pendingDetachFile = () => {
+  if (FileSystem.documentDirectory === null) return null;
+  return `${FileSystem.documentDirectory}food-tracker-push-detach-pending.txt`;
+};
+
+async function markDetachPending(): Promise<void> {
+  const file = pendingDetachFile();
+  if (file === null) return;
+  try {
+    await FileSystem.writeAsStringAsync(file, 'pending');
+  } catch {
+    // The network failure remains the authoritative error; local persistence
+    // is best effort and must never block Firebase sign-out.
+  }
+}
+
+async function clearDetachPending(): Promise<void> {
+  const file = pendingDetachFile();
+  if (file === null) return;
+  try {
+    const info = await FileSystem.getInfoAsync(file);
+    if (info.exists) await FileSystem.deleteAsync(file, { idempotent: true });
+  } catch {
+    // A later authenticated bootstrap will retry the idempotent detach.
+  }
+}
+
 let pushTokenSubscription: { remove: () => void } | null = null;
 
 export async function getInstallationId(): Promise<string> {
@@ -69,7 +96,13 @@ export async function registerPushInstallation(): Promise<boolean> {
 
 export async function detachPushInstallation(): Promise<void> {
   const { api } = await import('@/lib/api-client');
-  await api.notifications.installations.detach(await getInstallationId());
+  try {
+    await api.notifications.installations.detach(await getInstallationId());
+    await clearDetachPending();
+  } catch (error) {
+    await markDetachPending();
+    throw error;
+  }
 }
 
 export function subscribeToNotificationResponses(
