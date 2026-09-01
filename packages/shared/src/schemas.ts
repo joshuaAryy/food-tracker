@@ -103,6 +103,8 @@ export const profileSchema = z.strictObject({
   trainingStyle: trainingStyleSchema,
 });
 
+export const profileUpdateSchema = profileSchema.omit({ age: true });
+
 const goalsBaseSchema = z.strictObject({
   goalType: goalTypeSchema,
   goalPace: goalPaceSchema.nullable(),
@@ -231,7 +233,7 @@ export const setupResultSchema = z.strictObject({
     targetFatGrams: z.number().positive(),
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
-    limitSodiumMg: z.number().int().positive(),
+    limitSodiumMg: z.number().int().positive().nullable(),
     targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
     estimatedGoalDate: localDateSchema.nullable(),
   }),
@@ -240,6 +242,7 @@ export const setupResultSchema = z.strictObject({
 
 export type SetupInput = z.infer<typeof setupInputSchema>;
 export type SetupPreviewInput = z.infer<typeof setupPreviewInputSchema>;
+export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
 export const setupPreviewResultSchema = z.strictObject({
   age: z.number().int().nonnegative(),
@@ -250,7 +253,7 @@ export const setupPreviewResultSchema = z.strictObject({
     targetFatGrams: z.number().positive(),
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
-    limitSodiumMg: z.number().int().positive(),
+    limitSodiumMg: z.number().int().positive().nullable(),
     targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
     estimatedGoalDate: localDateSchema.nullable(),
   }),
@@ -883,6 +886,20 @@ const foodLogNutritionOverrideSchema = z
     nutrientPatches: z.array(normalizedNutrientPatchSchema).max(64).optional(),
   })
   .superRefine((override, context) => {
+    if (override.calories === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Calories are required and cannot be Unknown.',
+        path: ['calories'],
+      });
+    }
+    if (override.protein === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Protein is required and cannot be Unknown.',
+        path: ['protein'],
+      });
+    }
     if (
       override.nutrients !== undefined &&
       override.nutrientPatches !== undefined

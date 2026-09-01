@@ -669,6 +669,21 @@ describe('snapshot-backed FoodLog serving updates', () => {
     });
   });
 
+  it('rejects explicit null for required calories and protein', async () => {
+    const { foodLogId } = await createSnapshotLog();
+    const before = await readLog(foodLogId);
+
+    const response = await api
+      .put(`/api/v1/food-logs/${foodLogId}`)
+      .send({
+        nutritionOverride: { mode: 'complex', calories: null, protein: null },
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+    await expectUnchanged(foodLogId, before);
+  });
+
   it('rejects clearing and replacing an override in one request', async () => {
     const { foodLogId } = await createSnapshotLog({
       request: { nutritionOverride: { mode: 'complex', calories: 300 } },
