@@ -11,6 +11,88 @@ import {
 } from './engine.js';
 import { createHash } from 'node:crypto';
 
+export function recommendationConditionFingerprint(
+  candidate: Pick<
+    import('./engine.js').RecommendationCandidate,
+    | 'identityKey'
+    | 'severity'
+    | 'goalRelevanceScore'
+    | 'effectiveTargetSource'
+    | 'referenceVersion'
+    | 'goalType'
+  > &
+    Partial<Pick<import('./engine.js').RecommendationCandidate, 'sourceFacts'>>,
+): string {
+  const stableCondition = {
+    identityKey: candidate.identityKey,
+    severity: candidate.severity,
+    conditionBand: candidate.severity,
+    goalRelevanceBand: candidate.goalRelevanceScore,
+    effectiveTargetSource: candidate.effectiveTargetSource ?? null,
+    referenceVersion: candidate.referenceVersion ?? null,
+    goalType: candidate.goalType ?? null,
+  };
+  return createHash('sha256')
+    .update(JSON.stringify(stableCondition))
+    .digest('hex');
+}
+
+function confidenceScore(sourceFacts: Record<string, string | number | null>) {
+  const coverage =
+    typeof sourceFacts.coverage === 'number' ? sourceFacts.coverage : null;
+  if (coverage !== null) return Math.round(coverage * 100);
+  const loggedDays =
+    typeof sourceFacts.loggedDays === 'number' ? sourceFacts.loggedDays : null;
+  return loggedDays === null ? 0 : Math.round((loggedDays / 7) * 100);
+}
+
+function persistedSourceFacts(
+  candidate: import('./engine.js').RecommendationCandidate,
+) {
+  return {
+    ...candidate.sourceFacts,
+    goalRelevanceScore: candidate.goalRelevanceScore,
+    rulePriority: candidate.rulePriority,
+    confidenceScore: confidenceScore(candidate.sourceFacts),
+  };
+}
+
+function numericFact(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+export function comparePersistedRecommendations(
+  left: Pick<
+    PrismaRecommendation,
+    'severity' | 'identityKey' | 'type' | 'sourceFacts'
+  >,
+  right: Pick<
+    PrismaRecommendation,
+    'severity' | 'identityKey' | 'type' | 'sourceFacts'
+  >,
+): number {
+  const severityRank = { high: 3, medium: 2, low: 1 } as const;
+  const leftFacts = (left.sourceFacts ?? {}) as Record<string, unknown>;
+  const rightFacts = (right.sourceFacts ?? {}) as Record<string, unknown>;
+  const severity = severityRank[right.severity] - severityRank[left.severity];
+  if (severity !== 0) return severity;
+  const confidence =
+    numericFact(rightFacts.confidenceScore, 0) -
+    numericFact(leftFacts.confidenceScore, 0);
+  if (confidence !== 0) return confidence;
+  const relevance =
+    numericFact(rightFacts.goalRelevanceScore, 0) -
+    numericFact(leftFacts.goalRelevanceScore, 0);
+  if (relevance !== 0) return relevance;
+  const priority =
+    numericFact(leftFacts.rulePriority, 999) -
+    numericFact(rightFacts.rulePriority, 999);
+  if (priority !== 0) return priority;
+  return (left.identityKey || left.type).localeCompare(
+    right.identityKey || right.type,
+  );
+}
+
 export async function generateRecommendations(
   userId: string,
   now = new Date(),
@@ -71,17 +153,11 @@ export async function generateRecommendations(
             severity: candidate.severity,
             title: candidate.title,
             message: candidate.message,
-            sourceFacts: candidate.sourceFacts as Prisma.InputJsonValue,
+            sourceFacts: persistedSourceFacts(
+              candidate,
+            ) as Prisma.InputJsonValue,
             identityKey: candidate.identityKey,
-            conditionFingerprint: createHash('sha256')
-              .update(
-                JSON.stringify({
-                  identityKey: candidate.identityKey,
-                  severity: candidate.severity,
-                  facts: candidate.sourceFacts,
-                }),
-              )
-              .digest('hex'),
+            conditionFingerprint: recommendationConditionFingerprint(candidate),
           },
         });
         activeRecommendations.push(updated);
@@ -100,15 +176,7 @@ export async function generateRecommendations(
         continue;
       }
 
-      const fingerprint = createHash('sha256')
-        .update(
-          JSON.stringify({
-            identityKey: candidate.identityKey,
-            severity: candidate.severity,
-            facts: candidate.sourceFacts,
-          }),
-        )
-        .digest('hex');
+      const fingerprint = recommendationConditionFingerprint(candidate);
       const dismissedRecently = matching.some(
         (recommendation) =>
           recommendation.status === 'dismissed' &&
@@ -132,7 +200,9 @@ export async function generateRecommendations(
             severity: candidate.severity,
             title: candidate.title,
             message: candidate.message,
-            sourceFacts: candidate.sourceFacts as Prisma.InputJsonValue,
+            sourceFacts: persistedSourceFacts(
+              candidate,
+            ) as Prisma.InputJsonValue,
             conditionFingerprint: fingerprint,
             status: 'active',
           },
@@ -140,29 +210,7 @@ export async function generateRecommendations(
       );
     }
 
-    const severityRank = { high: 3, medium: 2, low: 1 } as const;
-    const ranked = activeRecommendations.sort((left, right) => {
-      const severity =
-        severityRank[right.severity] - severityRank[left.severity];
-      if (severity !== 0) return severity;
-      const leftCandidate = candidateByIdentity.get(
-        left.identityKey || left.type,
-      );
-      const rightCandidate = candidateByIdentity.get(
-        right.identityKey || right.type,
-      );
-      const relevance =
-        (rightCandidate?.goalRelevanceScore ?? 0) -
-        (leftCandidate?.goalRelevanceScore ?? 0);
-      if (relevance !== 0) return relevance;
-      const priority =
-        (leftCandidate?.rulePriority ?? 999) -
-        (rightCandidate?.rulePriority ?? 999);
-      if (priority !== 0) return priority;
-      return (left.identityKey || left.type).localeCompare(
-        right.identityKey || right.type,
-      );
-    });
+    const ranked = activeRecommendations.sort(comparePersistedRecommendations);
     const micronutrientIds = ranked
       .filter(
         (recommendation) =>
@@ -177,19 +225,6 @@ export async function generateRecommendations(
           recommendation.id === allowedMicronutrientId,
       )
       .slice(0, 3);
-    const overflow = ranked.filter(
-      (recommendation) =>
-        !constrained.some((kept) => kept.id === recommendation.id),
-    );
-    if (overflow.length > 0) {
-      await transaction.recommendation.updateMany({
-        where: {
-          userId,
-          id: { in: overflow.map((recommendation) => recommendation.id) },
-        },
-        data: { status: 'archived', resolvedAt: now },
-      });
-    }
     return constrained;
   });
 }

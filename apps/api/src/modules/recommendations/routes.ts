@@ -15,7 +15,10 @@ import {
   validatedParams,
   validatedQuery,
 } from '../../middleware/validate.js';
-import { generateRecommendations } from './service.js';
+import {
+  comparePersistedRecommendations,
+  generateRecommendations,
+} from './service.js';
 
 type RecommendationsQuery = z.infer<typeof recommendationsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
@@ -30,11 +33,16 @@ recommendationsRouter.get(
     const { status } = validatedQuery<RecommendationsQuery>(response);
     const recommendations = await prisma.recommendation.findMany({
       where: { userId, status },
-      orderBy: [{ createdAt: 'desc' }],
     });
 
     sendSuccess(response, {
-      recommendations: recommendations.map(serializeRecommendation),
+      recommendations: recommendations
+        .sort(comparePersistedRecommendations)
+        .slice(
+          status === 'active' ? 0 : undefined,
+          status === 'active' ? 3 : undefined,
+        )
+        .map(serializeRecommendation),
     });
   },
 );

@@ -182,14 +182,14 @@ export default function InsightsScreen() {
   const loadRecommendations = useCallback(async () => {
     setRecommendationsError(null);
     try {
-      await api.recommendations.generate().catch(() => undefined);
+      const generated = await api.recommendations.generate().catch(() => null);
       const [activeResult, dismissedResult] = await Promise.allSettled([
-        api.recommendations.list('active'),
+        generated === null
+          ? api.recommendations.list('active')
+          : Promise.resolve(generated),
         api.recommendations.list('dismissed'),
       ]);
-      if (activeResult.status === 'rejected') {
-        throw activeResult.reason;
-      }
+      if (activeResult.status === 'rejected') throw activeResult.reason;
       setRecommendations(activeResult.value);
       if (dismissedResult.status === 'fulfilled') {
         setDismissedRecommendations(dismissedResult.value);

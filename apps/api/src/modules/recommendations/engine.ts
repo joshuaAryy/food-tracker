@@ -1,4 +1,5 @@
 import type {
+  GoalType,
   RecommendationSeverity,
   RecommendationType,
 } from '@food-tracker/shared';
@@ -12,6 +13,9 @@ export interface RecommendationCandidate {
   severity: RecommendationSeverity;
   goalRelevanceScore: 0 | 1 | 2 | 3;
   rulePriority: number;
+  effectiveTargetSource?: string | null;
+  referenceVersion?: string | null;
+  goalType?: GoalType | null;
   title: string;
   message: string;
   sourceFacts: Record<string, string | number | null>;
@@ -48,6 +52,22 @@ function calorieSeverity(
   return null;
 }
 
+function calorieIssueIsCorroboratedByTrend(
+  facts: RecommendationAnalyticsFacts,
+): boolean {
+  if (
+    facts.goalType === null ||
+    facts.goalType === 'maintain' ||
+    facts.targetRateLbPerWeek === null ||
+    facts.weightTrendLbPerWeek === null
+  )
+    return false;
+  const intended = facts.targetRateLbPerWeek * 0.5;
+  return facts.goalType === 'gain'
+    ? facts.weightTrendLbPerWeek >= intended
+    : facts.weightTrendLbPerWeek <= -intended;
+}
+
 function loggingSeverity(loggedDays: number): RecommendationSeverity | null {
   if (loggedDays === 0) return 'high';
   if (loggedDays <= 2) return 'medium';
@@ -60,7 +80,9 @@ export function generateRecommendationCandidates(
 ): RecommendationCandidate[] {
   const candidates: RecommendationCandidate[] = [];
 
-  for (const micronutrient of facts.micronutrients) {
+  for (const micronutrient of facts.trackingMode === 'complex'
+    ? facts.micronutrients
+    : []) {
     const difference = roundTo(micronutrient.target - micronutrient.average, 1);
     const severity =
       difference >= micronutrient.target * 0.5
@@ -77,6 +99,9 @@ export function generateRecommendationCandidates(
       severity,
       goalRelevanceScore: 0,
       rulePriority: 50,
+      effectiveTargetSource: micronutrient.targetSource,
+      referenceVersion: micronutrient.referenceVersion,
+      goalType: facts.goalType,
       title: `${micronutrient.nutrientKey} is below target`,
       message: `Your logged ${micronutrient.nutrientKey} intake has been below your reference target recently.`,
       sourceFacts: { ...micronutrient, difference },
@@ -97,6 +122,8 @@ export function generateRecommendationCandidates(
         severity,
         goalRelevanceScore: 2,
         rulePriority: 20,
+        effectiveTargetSource: facts.targetProteinSource,
+        goalType: facts.goalType,
         title: 'Protein is below target',
         message: `You are averaging ${differenceGrams}g below your protein target over the last ${facts.daysAnalyzed} days.`,
         sourceFacts: {
@@ -121,7 +148,9 @@ export function generateRecommendationCandidates(
     );
 
     if (facts.goalType === 'gain' || facts.goalType === 'maintain') {
-      const severity = calorieSeverity(calorieDifference);
+      const severity = calorieIssueIsCorroboratedByTrend(facts)
+        ? null
+        : calorieSeverity(calorieDifference);
 
       if (severity !== null) {
         candidates.push({
@@ -130,6 +159,8 @@ export function generateRecommendationCandidates(
           severity,
           goalRelevanceScore: facts.goalType === 'gain' ? 3 : 2,
           rulePriority: 10,
+          effectiveTargetSource: facts.targetCaloriesSource,
+          goalType: facts.goalType,
           title: 'Calories are below target',
           message: `You are averaging ${calorieDifference} kcal below your calorie target over the last ${facts.daysAnalyzed} days.`,
           sourceFacts: {
@@ -146,7 +177,9 @@ export function generateRecommendationCandidates(
 
     if (facts.goalType === 'lose' || facts.goalType === 'maintain') {
       const differenceCalories = -calorieDifference;
-      const severity = calorieSeverity(differenceCalories);
+      const severity = calorieIssueIsCorroboratedByTrend(facts)
+        ? null
+        : calorieSeverity(differenceCalories);
 
       if (severity !== null) {
         candidates.push({
@@ -155,6 +188,8 @@ export function generateRecommendationCandidates(
           severity,
           goalRelevanceScore: facts.goalType === 'lose' ? 3 : 2,
           rulePriority: 11,
+          effectiveTargetSource: facts.targetCaloriesSource,
+          goalType: facts.goalType,
           title: 'Calories are above target',
           message: `You are averaging ${differenceCalories} kcal above your calorie target over the last ${facts.daysAnalyzed} days.`,
           sourceFacts: {
@@ -191,6 +226,7 @@ export function generateRecommendationCandidates(
         severity: 'high',
         goalRelevanceScore: 3,
         rulePriority: 5,
+        goalType: facts.goalType,
         title: 'Weight trend is moving opposite your goal',
         message:
           'Your recent logged weight trend is moving opposite your selected goal direction.',
@@ -207,6 +243,7 @@ export function generateRecommendationCandidates(
         severity: 'medium',
         goalRelevanceScore: 3,
         rulePriority: 6,
+        goalType: facts.goalType,
         title: 'Weight progress is behind your selected rate',
         message:
           'Your recent logged weight trend is below the pace selected for your goal.',
@@ -230,6 +267,7 @@ export function generateRecommendationCandidates(
       severity: Math.abs(facts.weightTrendLbPerWeek) >= 1 ? 'medium' : 'low',
       goalRelevanceScore: 3,
       rulePriority: 7,
+      goalType: facts.goalType,
       title: 'Weight has drifted from your maintenance goal',
       message:
         'Your recent logged weight trend has moved while your goal is maintenance.',
@@ -269,6 +307,7 @@ export function generateRecommendationCandidates(
       severity: 'medium',
       goalRelevanceScore: facts.goalType === null ? 1 : 2,
       rulePriority: 30,
+      goalType: facts.goalType,
       title: 'A recent weight log is missing',
       message:
         facts.lastWeightLoggedAt === null
