@@ -30,6 +30,7 @@ import {
 import { selectDeterministicForecast } from './forecast.js';
 import { interpretAnalyticsReference } from './interpretation.js';
 import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
+import { isDriDataComparable } from '../../nutritionTargets/dri-reference.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -85,6 +86,7 @@ function loadTrendData(
         sugar: true,
         sodium: true,
         loggedAt: true,
+        foodItem: { select: { sourceProvider: true } },
         nutrients: { select: { nutrientKey: true, amount: true } },
       },
       orderBy: { loggedAt: 'asc' },
@@ -514,10 +516,17 @@ function normalizedNutrientValue(
       nutrientKey: string;
       amount: { toString(): string };
     }[];
+    foodItem?: { sourceProvider: string | null } | null;
   },
   metric: string,
 ): number | null {
   const nutrient = log.nutrients.find((entry) => entry.nutrientKey === metric);
+  if (
+    nutrient !== undefined &&
+    !isDriDataComparable(metric as NutrientKey, log.foodItem?.sourceProvider)
+  ) {
+    return null;
+  }
   return nutrient === undefined ? null : numericSnapshotValue(nutrient.amount);
 }
 

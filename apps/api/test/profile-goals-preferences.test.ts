@@ -1,5 +1,5 @@
 import { MOCK_USER_ID } from '@food-tracker/shared';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import {
   api,
@@ -9,7 +9,13 @@ import {
 import { seedGoals, seedPreferences, seedProfile } from './helpers/seeds.js';
 
 describe('profile API', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns the current user profile', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-29T12:00:00.000Z'));
     await seedProfile({ startingWeightLb: 185.5 });
 
     const response = await api.get('/api/v1/profile').expect(200);
@@ -17,7 +23,7 @@ describe('profile API', () => {
     expectSuccessEnvelope(response.body);
     expect(response.body.data).toEqual({
       name: 'Test User',
-      age: 30,
+      age: 31,
       birthDate: '1995-01-01',
       sex: 'male',
       heightInches: 70,
@@ -31,7 +37,6 @@ describe('profile API', () => {
   it('updates and persists the current user profile', async () => {
     const input = {
       name: 'Updated User',
-      age: 33,
       birthDate: '1993-02-03',
       sex: 'female',
       heightInches: 66,
@@ -49,11 +54,31 @@ describe('profile API', () => {
     expectSuccessEnvelope(response.body);
     expect(response.body.data).toEqual({
       ...input,
+      age: 33,
       startingWeightLb: 142.3,
     });
     expect(persisted?.timezone).toBe('America/Vancouver');
     expect(persisted?.startingWeightLb?.toNumber()).toBe(142.3);
     expect(persisted?.birthDate?.toISOString().slice(0, 10)).toBe('1993-02-03');
+  });
+
+  it('rejects an independently submitted age field', async () => {
+    const response = await api
+      .put('/api/v1/profile')
+      .send({
+        name: 'Updated User',
+        age: 33,
+        birthDate: '1993-02-03',
+        sex: 'female',
+        heightInches: 66,
+        timezone: 'America/Vancouver',
+        startingWeightLb: 142.34,
+        activityLevel: 'lightly_active',
+        trainingStyle: 'cardio',
+      })
+      .expect(400);
+
+    expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
   });
 
   it('rejects an invalid profile body', async () => {

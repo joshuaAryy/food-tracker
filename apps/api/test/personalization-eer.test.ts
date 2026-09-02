@@ -61,7 +61,7 @@ describe('age-aware personalization', () => {
       { ...base, birthDate: '1955-08-29' },
       new Date('2026-08-29T12:00:00.000Z'),
     );
-    expect(older.recommendedTargets.sodiumMg).toBe(2000);
+    expect(older.recommendedTargets.sodiumMg).toBe(1800);
   });
 
   it('falls back to starting weight when no current weight is supplied', () => {

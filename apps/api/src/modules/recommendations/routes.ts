@@ -31,8 +31,18 @@ recommendationsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const { status } = validatedQuery<RecommendationsQuery>(response);
+    const preferences = await prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    });
     const recommendations = await prisma.recommendation.findMany({
-      where: { userId, status },
+      where: {
+        userId,
+        status,
+        ...(status === 'active' && preferences?.mode !== 'complex'
+          ? { type: { not: 'micronutrient_below_target' } }
+          : {}),
+      },
     });
 
     sendSuccess(response, {

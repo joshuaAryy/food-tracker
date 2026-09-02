@@ -13,6 +13,7 @@ import {
   type ReportsResponse,
   type ReportingMetricReason,
   type WeightResult,
+  type NutrientKey,
 } from '@food-tracker/shared';
 import { prisma } from '../../../lib/prisma.js';
 import {
@@ -34,6 +35,7 @@ import {
 } from './periods.js';
 import { resolveUserNutritionTargets } from '../../nutritionTargets/service.js';
 import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
+import { isDriDataComparable } from '../../nutritionTargets/dri-reference.js';
 
 type Metric<T> =
   | { available: true; value: T }
@@ -53,6 +55,7 @@ type ReportFoodLog = {
     amount: { toNumber(): number };
     unit: string;
   }>;
+  foodItem?: { sourceProvider: string | null } | null;
 };
 
 type ReportWeightLog = {
@@ -284,6 +287,13 @@ function nutrientReportFacts(
     add('sodium', log.sodium, NUTRIENT_CATALOG.sodium.defaultUnit, date);
     for (const nutrient of log.nutrients) {
       if (nutrient.nutrientKey === 'water') continue;
+      if (
+        !isDriDataComparable(
+          nutrient.nutrientKey as NutrientKey,
+          log.foodItem?.sourceProvider,
+        )
+      )
+        continue;
       add(
         nutrient.nutrientKey,
         nutrient.amount.toNumber(),
@@ -610,6 +620,7 @@ export async function computeReports(
       where: { userId },
       select: {
         loggedAt: true,
+        foodItem: { select: { sourceProvider: true } },
         calories: true,
         protein: true,
         carbs: true,

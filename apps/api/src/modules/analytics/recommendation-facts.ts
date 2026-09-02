@@ -13,6 +13,7 @@ import { prisma } from '../../lib/prisma.js';
 import { roundTo } from '../../lib/serializers.js';
 import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
 import { calculateAge } from '../personalization/resolver.js';
+import { isDriDataComparable } from '../nutritionTargets/dri-reference.js';
 
 const DAYS_ANALYZED = 7;
 export const MIN_LOGGED_DAYS_FOR_INTAKE_RECOMMENDATIONS = 4;
@@ -95,6 +96,7 @@ export async function computeRecommendationFacts(
         calories: true,
         protein: true,
         loggedAt: true,
+        foodItem: { select: { sourceProvider: true } },
         nutrients: { select: { nutrientKey: true, amount: true } },
       },
     }),
@@ -171,18 +173,20 @@ export async function computeRecommendationFacts(
     if (target === null || target === undefined || target <= 0) return [];
     const byDate = new Map<string, number>();
     for (const foodLog of foodLogs) {
-      const amount = foodLog.nutrients
+      const comparableNutrients = foodLog.nutrients.filter(
+        (nutrient) =>
+          nutrient.nutrientKey === nutrientKey &&
+          isDriDataComparable(nutrientKey, foodLog.foodItem?.sourceProvider),
+      );
+      // An incompatible provider is still trackable, but it cannot count as
+      // an observed DRI-comparable intake day. In particular, do not let the
+      // presence of an incompatible row be mistaken for a recorded zero.
+      if (comparableNutrients.length === 0) continue;
+      const amount = comparableNutrients
         .filter((nutrient) => nutrient.nutrientKey === nutrientKey)
         .reduce((sum, nutrient) => sum + nutrient.amount.toNumber(), 0);
-      if (
-        amount > 0 ||
-        foodLog.nutrients.some(
-          (nutrient) => nutrient.nutrientKey === nutrientKey,
-        )
-      ) {
-        const date = localDate(foodLog.loggedAt, timezone);
-        byDate.set(date, (byDate.get(date) ?? 0) + amount);
-      }
+      const date = localDate(foodLog.loggedAt, timezone);
+      byDate.set(date, (byDate.get(date) ?? 0) + amount);
     }
     const recordedDays = byDate.size;
     if (

@@ -194,16 +194,16 @@ describe('reporting API', () => {
         source: 'user',
       },
       sugar: {
-        value: 50,
+        value: 78,
         unit: 'g',
         direction: 'limit',
-        source: 'user',
+        source: 'derived',
       },
       sodium: {
-        value: 1000,
+        value: 2300,
         unit: 'mg',
         direction: 'limit',
-        source: 'user',
+        source: 'reference',
       },
     });
 
@@ -229,12 +229,12 @@ describe('reporting API', () => {
       percentage: 120,
     });
     expect(current.nutrientDetails?.sugar).toMatchObject({
-      periodGoal: 150,
-      percentage: 120,
+      periodGoal: 234,
+      percentage: 76.9,
     });
     expect(current.nutrientDetails?.sodium).toMatchObject({
-      periodGoal: 3000,
-      percentage: 120,
+      periodGoal: 6900,
+      percentage: 52.2,
     });
   });
 

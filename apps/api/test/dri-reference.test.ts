@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DRI_TARGET_COMPATIBILITY,
+  isDriDataComparable,
   isDriProviderCompatible,
   resolveDriReferenceTarget,
 } from '../src/modules/nutritionTargets/dri-reference.js';
@@ -15,17 +16,14 @@ describe('DRI target compatibility', () => {
     expect(DRI_TARGET_COMPATIBILITY.folate.status).toBe('unavailable');
     expect(DRI_TARGET_COMPATIBILITY.niacin.status).toBe('unavailable');
     expect(DRI_TARGET_COMPATIBILITY.vitaminD.providers).toEqual(
-      expect.arrayContaining([
-        'cnf',
-        'ciqual',
-        'cofid',
-        'usda_fdc',
-        'open_food_facts',
-      ]),
+      expect.arrayContaining(['cnf', 'ciqual', 'cofid', 'usda_fdc']),
     );
     expect(isDriProviderCompatible('vitaminD', 'usda_fdc')).toBe(true);
     expect(isDriProviderCompatible('vitaminD', 'cnf')).toBe(true);
     expect(isDriProviderCompatible('vitaminA', 'usda_fdc')).toBe(false);
+    expect(isDriProviderCompatible('vitaminD', 'open_food_facts')).toBe(false);
+    expect(isDriDataComparable('vitaminD', 'open_food_facts')).toBe(false);
+    expect(isDriDataComparable('vitaminD', null)).toBe(true);
   });
 
   it('resolves age and sex references for the approved micronutrient pool', () => {
@@ -79,5 +77,24 @@ describe('DRI target compatibility', () => {
       key: 'vitaminD',
       unit: 'mcg',
     });
+  });
+
+  it('enforces the provider matrix for automatic reference comparisons', () => {
+    const providers = [
+      'cnf',
+      'ciqual',
+      'cofid',
+      'usda_fdc',
+      'open_food_facts',
+    ] as const;
+    for (const provider of providers) {
+      expect(isDriDataComparable('calcium', provider)).toBe(true);
+      expect(isDriDataComparable('potassium', provider)).toBe(true);
+    }
+    expect(isDriDataComparable('vitaminD', 'open_food_facts')).toBe(false);
+    for (const provider of providers.slice(0, 4)) {
+      expect(isDriDataComparable('vitaminD', provider)).toBe(true);
+    }
+    expect(isDriDataComparable('vitaminD', 'unknown_provider')).toBe(false);
   });
 });

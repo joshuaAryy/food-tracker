@@ -228,3 +228,24 @@ export async function generateRecommendations(
     return constrained;
   });
 }
+
+/**
+ * Tracking mode is a lifecycle boundary: Complex-only recommendations cease
+ * to be current when a user switches to Simple. History remains archived for
+ * auditability and possible reactivation after returning to Complex.
+ */
+export async function reconcileRecommendationMode(
+  userId: string,
+  mode: 'simple' | 'complex',
+  now = new Date(),
+): Promise<void> {
+  if (mode !== 'simple') return;
+  await prisma.recommendation.updateMany({
+    where: {
+      userId,
+      type: 'micronutrient_below_target',
+      status: 'active',
+    },
+    data: { status: 'archived', resolvedAt: now },
+  });
+}

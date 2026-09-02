@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 import { recentLocalDateTime } from './helpers/dates.js';
+import { computeRecommendationFacts } from '../src/modules/analytics/recommendation-facts.js';
 import {
   seedGoals,
   seedProfile,
@@ -468,5 +469,85 @@ describe('recommendation lifecycle', () => {
       .expect(400);
 
     expectErrorEnvelope(response.body, 'VALIDATION_ERROR');
+  });
+
+  it('reconciles stale micronutrient recommendations when switching to Simple mode', async () => {
+    await seedProfile();
+    await seedGoals({ goalType: 'maintain' });
+    await seedRecentWeight();
+    await seedSevenFoodDays({ calories: 2000, protein: 100 });
+    await prisma.trackingPreference.create({
+      data: { userId: MOCK_USER_ID, mode: 'complex' },
+    });
+    const recommendation = await prisma.recommendation.create({
+      data: {
+        userId: MOCK_USER_ID,
+        type: 'micronutrient_below_target',
+        identityKey: 'micronutrient_below_target:vitaminD',
+        severity: 'high',
+        title: 'vitaminD is below target',
+        message: 'Logged vitamin D is below target.',
+        sourceFacts: { confidenceScore: 100, rulePriority: 50 },
+        status: 'active',
+      },
+    });
+
+    await api
+      .put('/api/v1/tracking-preferences')
+      .send({ mode: 'simple', waterTrackingEnabled: false })
+      .expect(200);
+
+    const active = await api
+      .get('/api/v1/recommendations')
+      .query({ status: 'active' })
+      .expect(200);
+    expect(recommendations(active.body)).toEqual([]);
+    expect(
+      await prisma.recommendation.findUnique({
+        where: { id: recommendation.id },
+      }),
+    ).toMatchObject({ status: 'archived' });
+  });
+
+  it('does not count an incompatible provider as DRI-comparable intake', async () => {
+    await seedProfile();
+    await seedGoals({ goalType: 'maintain' });
+    await seedRecentWeight();
+    await seedSevenFoodDays({ calories: 2000, protein: 100 });
+    await prisma.trackingPreference.create({
+      data: { userId: MOCK_USER_ID, mode: 'complex' },
+    });
+    const foodItem = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Open food facts item',
+        sourceType: 'cached_external',
+        foodType: 'generic',
+        normalizedName: 'open food facts item',
+        searchText: 'open food facts item',
+        sourceProvider: 'open_food_facts',
+        sourceId: 'qa-off-vitamin-d',
+      },
+    });
+    for (let day = 0; day < 4; day += 1) {
+      await prisma.foodLog.create({
+        data: {
+          userId: MOCK_USER_ID,
+          foodItemId: foodItem.id,
+          foodName: foodItem.name,
+          mealType: 'dinner',
+          calories: 500,
+          protein: 30,
+          loggedAt: new Date(recentLocalDateTime(day)),
+          nutrients: {
+            create: [{ nutrientKey: 'vitaminD', amount: 1, unit: 'mcg' }],
+          },
+        },
+      });
+    }
+
+    const facts = await computeRecommendationFacts(MOCK_USER_ID);
+
+    expect(facts.micronutrients).toEqual([]);
   });
 });

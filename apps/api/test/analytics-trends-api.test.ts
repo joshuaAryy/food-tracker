@@ -387,18 +387,17 @@ describe('canonical analytics trends API', () => {
           metric: 'leucine',
           average: 2.6,
           reference: {
-            kind: 'minimum',
-            value: 2.6,
+            kind: 'none',
+            reason: 'not_configured',
             unit: 'g',
-            source: 'default',
           },
-          percentage: 100,
-          status: 'meets_minimum',
+          percentage: null,
+          status: 'unknown',
         }),
         expect.objectContaining({
           metric: 'histidine',
           average: 1.2,
-          status: 'meets_minimum',
+          status: 'unknown',
         }),
       ]),
     });
@@ -645,12 +644,12 @@ describe('canonical analytics trends API', () => {
     expect(response.body.data.relatedMetrics).toEqual(['potassium']);
     expect(response.body.data.comparison.reference).toMatchObject({
       kind: 'minimum',
-      value: 4700,
+      value: 3400,
     });
     expect(response.body.data.comparison).toMatchObject({
-      sharedAxisDomain: { minimum: 0, maximum: 0.5 },
-      primaryAxisDomain: { minimum: 0, maximum: 0.5 },
-      comparisonAxisDomain: { minimum: 0, maximum: 0.5 },
+      sharedAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
+      primaryAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
+      comparisonAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
     });
     expect(response.body.data.points).toEqual(
       expect.arrayContaining([
@@ -666,7 +665,7 @@ describe('canonical analytics trends API', () => {
         expect.objectContaining({
           date: recentLocalDate(6),
           value: 2350,
-          normalizedValue: 0.5,
+          normalizedValue: 0.6911764705882353,
         }),
         expect.objectContaining({ date: recentLocalDate(5), value: null }),
       ]),

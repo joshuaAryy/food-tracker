@@ -8,6 +8,7 @@ import { notFoundError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
+import { reconcileRecommendationMode } from '../recommendations/service.js';
 
 export const trackingPreferencesRouter = Router();
 
@@ -38,6 +39,7 @@ trackingPreferencesRouter.put(
       update: input,
       create: { userId, ...input },
     });
+    await reconcileRecommendationMode(userId, preferences.mode);
 
     sendSuccess(response, {
       mode: preferences.mode,

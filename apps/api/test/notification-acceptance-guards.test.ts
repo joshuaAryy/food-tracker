@@ -61,7 +61,7 @@ describe('notification acceptance guards', () => {
         send: true,
         sendEnabled: true,
       }),
-    ).toThrow(/clock override/);
+    ).toThrow(/NOTIFICATION_ACCEPTANCE_TIME_OVERRIDE_ENABLED/);
   });
 
   it('keeps the ordinary production cron path free of acceptance overrides', () => {

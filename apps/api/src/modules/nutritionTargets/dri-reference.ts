@@ -29,6 +29,12 @@ const REFERENCE_SAFE_PROVIDERS: readonly NutrientDataProvider[] = [
   'usda_fdc',
   'open_food_facts',
 ];
+const VITAMIN_D_SAFE_PROVIDERS: readonly NutrientDataProvider[] = [
+  'cnf',
+  'ciqual',
+  'cofid',
+  'usda_fdc',
+];
 
 const compatibleKeys = [
   'vitaminD',
@@ -117,7 +123,10 @@ export const DRI_TARGET_COMPATIBILITY: Record<NutrientKey, DriCompatibility> = {
                 ? 'Potassium AI (mg)'
                 : key,
         unit: TARGETABLE_NUTRIENT_POLICY[key]?.unit ?? 'mg',
-        providers: REFERENCE_SAFE_PROVIDERS,
+        providers:
+          key === 'vitaminD'
+            ? VITAMIN_D_SAFE_PROVIDERS
+            : REFERENCE_SAFE_PROVIDERS,
       },
     ]),
   ),
@@ -323,11 +332,28 @@ function childBand(age: number): ChildBand | null {
  */
 export function isDriProviderCompatible(
   nutrientKey: NutrientKey,
-  provider: NutrientDataProvider,
+  provider: string,
 ): boolean {
   return (
-    DRI_TARGET_COMPATIBILITY[nutrientKey]?.providers.includes(provider) ?? false
+    DRI_TARGET_COMPATIBILITY[nutrientKey]?.providers.includes(
+      provider as NutrientDataProvider,
+    ) ?? false
   );
+}
+
+/**
+ * Manual/first-party snapshots do not carry an external provider identity and
+ * are already expressed in the canonical unit. Unknown external providers are
+ * intentionally not trusted for automatic DRI comparisons.
+ */
+export function isDriDataComparable(
+  nutrientKey: NutrientKey,
+  provider: string | null | undefined,
+): boolean {
+  if (provider === null || provider === undefined || provider === 'manual') {
+    return true;
+  }
+  return isDriProviderCompatible(nutrientKey, provider);
 }
 
 export function resolveDriReferenceTarget(
