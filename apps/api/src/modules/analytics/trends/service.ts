@@ -30,7 +30,10 @@ import {
 import { selectDeterministicForecast } from './forecast.js';
 import { interpretAnalyticsReference } from './interpretation.js';
 import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
-import { isDriDataComparable } from '../../nutritionTargets/dri-reference.js';
+import {
+  DRI_TARGET_COMPATIBILITY,
+  isDriDataComparable,
+} from '../../nutritionTargets/dri-reference.js';
 
 function loadTrendBase(userId: string) {
   return Promise.all([
@@ -86,7 +89,7 @@ function loadTrendData(
         sugar: true,
         sodium: true,
         loggedAt: true,
-        foodItem: { select: { sourceProvider: true } },
+        foodItem: { select: { sourceProvider: true, sourceType: true } },
         nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
       orderBy: { loggedAt: 'asc' },
@@ -517,17 +520,23 @@ function normalizedNutrientValue(
       amount: { toString(): string };
       unit?: string;
     }[];
-    foodItem?: { sourceProvider: string | null } | null;
+    foodItem?: {
+      sourceProvider: string | null;
+      sourceType: 'app_owned' | 'user_custom' | 'cached_external';
+    } | null;
   },
   metric: string,
 ): number | null {
   const nutrient = log.nutrients.find((entry) => entry.nutrientKey === metric);
+  const compatibility = DRI_TARGET_COMPATIBILITY[metric as NutrientKey] ?? null;
   if (
     nutrient !== undefined &&
+    compatibility?.status === 'compatible' &&
     !isDriDataComparable(
       metric as NutrientKey,
       log.foodItem?.sourceProvider,
       nutrient.unit,
+      log.foodItem?.sourceType,
     )
   ) {
     return null;

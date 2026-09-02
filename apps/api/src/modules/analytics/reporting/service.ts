@@ -35,7 +35,10 @@ import {
 } from './periods.js';
 import { resolveUserNutritionTargets } from '../../nutritionTargets/service.js';
 import { resolveUserReportingGoals } from '../../nutritionTargets/reporting-adapter.js';
-import { isDriDataComparable } from '../../nutritionTargets/dri-reference.js';
+import {
+  DRI_TARGET_COMPATIBILITY,
+  isDriDataComparable,
+} from '../../nutritionTargets/dri-reference.js';
 
 type Metric<T> =
   | { available: true; value: T }
@@ -55,7 +58,10 @@ type ReportFoodLog = {
     amount: { toNumber(): number };
     unit: string;
   }>;
-  foodItem?: { sourceProvider: string | null } | null;
+  foodItem?: {
+    sourceProvider: string | null;
+    sourceType: 'app_owned' | 'user_custom' | 'cached_external';
+  } | null;
 };
 
 type ReportWeightLog = {
@@ -287,11 +293,15 @@ function nutrientReportFacts(
     add('sodium', log.sodium, NUTRIENT_CATALOG.sodium.defaultUnit, date);
     for (const nutrient of log.nutrients) {
       if (nutrient.nutrientKey === 'water') continue;
+      const compatibility =
+        DRI_TARGET_COMPATIBILITY[nutrient.nutrientKey as NutrientKey];
       if (
+        compatibility?.status === 'compatible' &&
         !isDriDataComparable(
           nutrient.nutrientKey as NutrientKey,
           log.foodItem?.sourceProvider,
           nutrient.unit,
+          log.foodItem?.sourceType,
         )
       )
         continue;
@@ -621,7 +631,7 @@ export async function computeReports(
       where: { userId },
       select: {
         loggedAt: true,
-        foodItem: { select: { sourceProvider: true } },
+        foodItem: { select: { sourceProvider: true, sourceType: true } },
         calories: true,
         protein: true,
         carbs: true,

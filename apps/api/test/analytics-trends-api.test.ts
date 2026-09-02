@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 import { recentLocalDate, recentLocalDateTime } from './helpers/dates.js';
-import { seedGoals, seedPreferences, seedProfile } from './helpers/seeds.js';
+import {
+  seedFoodItem,
+  seedGoals,
+  seedPreferences,
+  seedProfile,
+} from './helpers/seeds.js';
 
 const caloriesQuery = {
   primaryMetric: 'calories',
@@ -610,9 +615,15 @@ describe('canonical analytics trends API', () => {
     await seedProfile();
     await seedPreferences({ mode: 'complex' });
     await seedGoals({ targetCalories: 2000, limitSodiumMg: null });
+    const foodItem = await seedFoodItem({
+      userId: null,
+      sourceType: 'app_owned',
+      name: 'Canonical mineral snapshot',
+    });
     const log = await prisma.foodLog.create({
       data: {
         userId: MOCK_USER_ID,
+        foodItemId: foodItem.id,
         foodName: 'Mineral snapshot',
         mealType: 'breakfast',
         calories: 200,
@@ -801,12 +812,18 @@ describe('canonical analytics trends API', () => {
   it('keeps a complete logging day separate from partial Vitamin C snapshot coverage', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'complex' });
+    const foodItem = await seedFoodItem({
+      userId: null,
+      sourceType: 'app_owned',
+      name: 'Canonical vitamin snapshot',
+    });
     const loggedAt = new Date(recentLocalDateTime(6));
     const [first, second, third] = await Promise.all(
       ['breakfast', 'lunch', 'dinner'].map((mealType) =>
         prisma.foodLog.create({
           data: {
             userId: MOCK_USER_ID,
+            foodItemId: foodItem.id,
             foodName: `${mealType} snapshot`,
             mealType: mealType as 'breakfast' | 'lunch' | 'dinner',
             calories: 200,
