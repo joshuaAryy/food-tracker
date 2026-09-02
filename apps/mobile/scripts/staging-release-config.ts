@@ -16,6 +16,7 @@ export const STAGING_RELEASE_BUILD_VARIABLES = [
   'GOOGLE_SERVICES_PLIST_PATH',
   'GOOGLE_IOS_URL_SCHEME',
   'EXPO_NO_DOTENV',
+  'IOS_REMOTE_PUSH_ENABLED',
 ] as const;
 
 const SERVER_VARIABLE_NAMES = new Set([
@@ -58,6 +59,7 @@ export interface StagingReleaseConfig {
   googleWebClientId: string;
   googleServicesPlistPath: string;
   easProjectId: string;
+  remotePushEnabled: true;
   firebase: FirebasePlistSummary;
   sanitized: Record<string, string>;
 }
@@ -357,6 +359,7 @@ export function createStagingReleaseXcodeEnvironment(
     ['EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED', 'false'],
     ['EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', config.googleWebClientId],
     ['EXPO_PUBLIC_EAS_PROJECT_ID', config.easProjectId],
+    ['IOS_REMOTE_PUSH_ENABLED', 'true'],
     ['GOOGLE_IOS_URL_SCHEME', config.googleIosUrlScheme],
     ['GOOGLE_SERVICES_PLIST_PATH', config.googleServicesPlistPath],
     ['EXPO_NO_DOTENV', '1'],
@@ -400,6 +403,11 @@ export function validateStagingReleaseEnvironment(
       'EXPO_PUBLIC_EAS_PROJECT_ID is required for staging Release.',
     );
   }
+  if (environment.IOS_REMOTE_PUSH_ENABLED !== 'true') {
+    throw new Error(
+      'IOS_REMOTE_PUSH_ENABLED=true is required for staging Release.',
+    );
+  }
 
   const apiUrl = validateApiTarget(environment.EXPO_PUBLIC_API_URL, 'staging');
   if (options.requireRailwayHost === true) {
@@ -437,6 +445,7 @@ export function validateStagingReleaseEnvironment(
     googleIosUrlScheme,
     googleWebClientId,
     easProjectId,
+    remotePushEnabled: true as const,
     googleServicesPlistPath: resolve(
       environment.GOOGLE_SERVICES_PLIST_PATH as string,
     ),

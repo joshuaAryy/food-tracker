@@ -59,6 +59,7 @@ import { trackingModeLabel } from '@/lib/reporting-ui';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
+import { isRemotePushEnabled } from '@/lib/remote-push-capability';
 import { registerPushInstallation } from '@/services/notifications';
 
 type SettingsIcon = ComponentType<{
@@ -542,6 +543,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const remotePushEnabled = isRemotePushEnabled();
   const [notificationPreferences, setNotificationPreferences] =
     useState<NotificationPreferences>({
       recommendationInsightsEnabled: false,
@@ -1133,9 +1135,19 @@ export default function ProfileScreen() {
         title="Notifications"
         description="Choose when Food Tracker can surface a private insight or logging reminder."
       >
+        {!remotePushEnabled ? (
+          <AppText
+            variant="caption"
+            muted
+            className="rounded-2xl bg-surface px-4 py-3"
+          >
+            Push delivery is unavailable in this local build. Your notification
+            settings will be available in a push-capable release build.
+          </AppText>
+        ) : null}
         <Pressable
           className="rounded-full bg-primary-soft px-4 py-3"
-          disabled={notificationsBusy}
+          disabled={notificationsBusy || !remotePushEnabled}
           onPress={() => {
             setNotificationsBusy(true);
             const enable =
@@ -1177,7 +1189,7 @@ export default function ProfileScreen() {
         </Pressable>
         <Pressable
           className="rounded-full border border-line px-4 py-3"
-          disabled={notificationsBusy}
+          disabled={notificationsBusy || !remotePushEnabled}
           onPress={() => {
             setNotificationsBusy(true);
             const enable = !notificationPreferences.loggingRemindersEnabled;

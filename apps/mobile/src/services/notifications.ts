@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
+import { isRemotePushEnabled } from '@/lib/remote-push-capability';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -72,6 +73,7 @@ export async function getInstallationId(): Promise<string> {
 }
 
 export async function registerPushInstallation(): Promise<boolean> {
+  if (!isRemotePushEnabled()) return false;
   if (!Device.isDevice) return false;
   const permissions = await Notifications.getPermissionsAsync();
   let status = permissions.status;

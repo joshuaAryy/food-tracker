@@ -44,6 +44,7 @@ function validEnvironment(): EnvironmentMap {
     EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client.apps.googleusercontent.com',
     EXPO_PUBLIC_EAS_PROJECT_ID: 'eas-project',
+    IOS_REMOTE_PUSH_ENABLED: 'true',
     GOOGLE_IOS_URL_SCHEME: reversedClientId,
     GOOGLE_SERVICES_PLIST_PATH: createPlist(),
     EXPO_NO_DOTENV: '1',
@@ -63,6 +64,7 @@ describe('staging Release configuration', () => {
     });
     expect(result.appEnvironment).toBe('staging');
     expect(result.apiUrl).toBe('https://api.railway.test/api/v1');
+    expect(result.remotePushEnabled).toBe(true);
     expect(result.sanitized.sensitiveValues).toBe('not-printed');
   });
 
@@ -118,6 +120,15 @@ describe('staging Release configuration', () => {
         EXPO_NO_CLIENT_ENV_VARS: '0',
       }),
     ).toThrow('EXPO_NO_CLIENT_ENV_VARS');
+  });
+
+  it('requires remote push capability for the real staging Release workflow', () => {
+    expect(() =>
+      validateStagingReleaseEnvironment({
+        ...validEnvironment(),
+        IOS_REMOTE_PUSH_ENABLED: 'false',
+      }),
+    ).toThrow('IOS_REMOTE_PUSH_ENABLED=true');
   });
 
   it('rejects server secrets and unapproved public variables', () => {
@@ -223,6 +234,7 @@ describe('staging Release configuration', () => {
     expect(handoff).toContain('unset EXPO_NO_CLIENT_ENV_VARS');
     expect(handoff).toContain("export EXPO_NO_DOTENV='1'");
     expect(handoff).toContain("export APP_ENV='staging'");
+    expect(handoff).toContain("export IOS_REMOTE_PUSH_ENABLED='true'");
     expect(handoff).toContain("export EXPO_PUBLIC_APP_ENV='staging'");
     expect(handoff).toContain("export NODE_BINARY='/opt/node path/bin/node'");
     expect(handoff).toContain(

@@ -11,6 +11,7 @@
     "ios:dev-build:device": "expo run:ios --device",
     "ios:staging-release": "tsx scripts/prepare-staging-release.ts",
     "ios:staging-simulator": "tsx scripts/staging-simulator.ts",
+    "ios:personal-team": "tsx scripts/personal-team.ts",
     "web": "expo start --web",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src scripts app.config.ts",

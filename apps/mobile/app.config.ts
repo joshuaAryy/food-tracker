@@ -2,6 +2,7 @@ import 'tsx/cjs';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 import { withEntitlementsPlist, type ConfigPlugin } from 'expo/config-plugins';
 import { isAppleSignInEnabled } from './src/lib/apple-sign-in-config';
+import { resolveRemotePushEnabled } from './src/lib/remote-push-config';
 import {
   APP_VERSION,
   IOS_BUILD_NUMBER,
@@ -22,9 +23,25 @@ export function removeAppleSignInNativeConfiguration(
   return nextEntitlements;
 }
 
+export function removeRemotePushNativeConfiguration(
+  entitlements: Record<string, unknown>,
+): Record<string, unknown> {
+  const nextEntitlements = { ...entitlements };
+  delete nextEntitlements['aps-environment'];
+  return nextEntitlements;
+}
+
 const withDisabledAppleSignInNativeConfiguration: ConfigPlugin = (config) =>
   withEntitlementsPlist(config, (config) => {
     config.modResults = removeAppleSignInNativeConfiguration(config.modResults);
+    return config;
+  });
+
+export const withDisabledRemotePushNativeConfiguration: ConfigPlugin = (
+  config,
+) =>
+  withEntitlementsPlist(config, (config) => {
+    config.modResults = removeRemotePushNativeConfiguration(config.modResults);
     return config;
   });
 
@@ -67,6 +84,10 @@ export function createAppConfig(
   const googleServicesPlistPath =
     environment.GOOGLE_SERVICES_PLIST_PATH?.trim();
   const appleSignInEnabled = isAppleSignInEnabled(environment);
+  const remotePushEnabled = resolveRemotePushEnabled({
+    APP_ENV: appEnv,
+    IOS_REMOTE_PUSH_ENABLED: environment.IOS_REMOTE_PUSH_ENABLED,
+  });
   const easProjectId = environment.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
 
   const config: ExpoConfig = {
@@ -79,7 +100,9 @@ export function createAppConfig(
     userInterfaceStyle: 'light',
     plugins: [
       'expo-router',
-      'expo-notifications',
+      ...(remotePushEnabled
+        ? ['expo-notifications']
+        : [withDisabledRemotePushNativeConfiguration]),
       [
         'expo-dev-client',
         {
@@ -132,6 +155,7 @@ export function createAppConfig(
     extra: {
       apiUrl,
       appEnvironment: appEnv,
+      remotePushEnabled,
       ...(easProjectId === undefined || easProjectId === ''
         ? {}
         : { eas: { projectId: easProjectId } }),

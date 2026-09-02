@@ -33,6 +33,7 @@ function validEnvironment(): EnvironmentMap {
     EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 'web-client.apps.googleusercontent.com',
     EXPO_PUBLIC_EAS_PROJECT_ID: 'eas-project',
+    IOS_REMOTE_PUSH_ENABLED: 'true',
     GOOGLE_IOS_URL_SCHEME: 'com.googleusercontent.apps.release',
     GOOGLE_SERVICES_PLIST_PATH: plistPath,
     EXPO_NO_DOTENV: '1',

@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import packageJson from './package.json';
 import {
   createAppConfig,
+  removeRemotePushNativeConfiguration,
   removeAppleSignInNativeConfiguration,
   validateApiUrl,
+  withDisabledRemotePushNativeConfiguration,
 } from './app.config';
 import withReleaseBundleSafety from './config-plugins/with-release-bundle-safety';
 import withIosDeploymentTarget from './config-plugins/with-ios-deployment-target';
@@ -98,6 +100,7 @@ describe('tracked Expo configuration', () => {
       extra: {
         apiUrl: 'https://staging-api.example.com/api/v1',
         appEnvironment: 'staging',
+        remotePushEnabled: false,
       },
       ios: {
         bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
@@ -131,6 +134,7 @@ describe('tracked Expo configuration', () => {
     const plugins = config.plugins ?? [];
     expect(plugins).toContain('@react-native-firebase/app');
     expect(plugins).toContain('@react-native-firebase/auth');
+    expect(plugins).not.toContain('expo-notifications');
     expect(plugins).toContain('expo-apple-authentication');
     expect(plugins).toContainEqual(['expo-dev-client', { toolsButton: false }]);
     expect(plugins).toContainEqual([
@@ -182,6 +186,50 @@ describe('tracked Expo configuration', () => {
         'aps-environment': 'development',
       }),
     ).toEqual({ 'aps-environment': 'development' });
+  });
+
+  it('removes only the remote push entitlement when remote push is disabled', () => {
+    expect(
+      removeRemotePushNativeConfiguration({
+        'aps-environment': 'development',
+        'com.apple.developer.applesignin': ['Default'],
+        unrelated: 'value',
+      }),
+    ).toEqual({
+      'com.apple.developer.applesignin': ['Default'],
+      unrelated: 'value',
+    });
+  });
+
+  it('omits remote push plugin and exposes disabled capability by default', () => {
+    const config = createAppConfig({
+      APP_ENV: 'development',
+      EXPO_PUBLIC_API_URL: 'http://localhost:3000/api/v1',
+      EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED: 'false',
+    });
+    expect(config.extra).toMatchObject({ remotePushEnabled: false });
+    expect(config.plugins).not.toContain('expo-notifications');
+    expect(config.plugins).toContain(withDisabledRemotePushNativeConfiguration);
+  });
+
+  it('includes remote push plugin and capability when explicitly enabled', () => {
+    const config = createAppConfig({
+      APP_ENV: 'staging',
+      EXPO_PUBLIC_API_URL: 'https://staging-api.example.com/api/v1',
+      IOS_REMOTE_PUSH_ENABLED: 'true',
+    });
+    expect(config.extra).toMatchObject({ remotePushEnabled: true });
+    expect(config.plugins).toContain('expo-notifications');
+  });
+
+  it('rejects a production build with remote push disabled', () => {
+    expect(() =>
+      createAppConfig({
+        APP_ENV: 'production',
+        EXPO_PUBLIC_API_URL: 'https://api.example.com/api/v1',
+        IOS_REMOTE_PUSH_ENABLED: 'false',
+      }),
+    ).toThrow('Production builds require IOS_REMOTE_PUSH_ENABLED=true.');
   });
 
   it('enables Apple capability and plugin exactly once when configured', () => {
