@@ -291,6 +291,7 @@ function nutrientReportFacts(
         !isDriDataComparable(
           nutrient.nutrientKey as NutrientKey,
           log.foodItem?.sourceProvider,
+          nutrient.unit,
         )
       )
         continue;

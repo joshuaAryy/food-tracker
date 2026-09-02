@@ -349,7 +349,16 @@ export function isDriProviderCompatible(
 export function isDriDataComparable(
   nutrientKey: NutrientKey,
   provider: string | null | undefined,
+  unit?: string | null,
 ): boolean {
+  const compatibility = DRI_TARGET_COMPATIBILITY[nutrientKey];
+  if (
+    unit !== undefined &&
+    unit !== null &&
+    compatibility !== undefined &&
+    compatibility.unit !== unit
+  )
+    return false;
   if (provider === null || provider === undefined || provider === 'manual') {
     return true;
   }

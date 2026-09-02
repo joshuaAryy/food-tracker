@@ -87,7 +87,7 @@ function loadTrendData(
         sodium: true,
         loggedAt: true,
         foodItem: { select: { sourceProvider: true } },
-        nutrients: { select: { nutrientKey: true, amount: true } },
+        nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
       orderBy: { loggedAt: 'asc' },
     }),
@@ -515,6 +515,7 @@ function normalizedNutrientValue(
     nutrients: readonly {
       nutrientKey: string;
       amount: { toString(): string };
+      unit?: string;
     }[];
     foodItem?: { sourceProvider: string | null } | null;
   },
@@ -523,7 +524,11 @@ function normalizedNutrientValue(
   const nutrient = log.nutrients.find((entry) => entry.nutrientKey === metric);
   if (
     nutrient !== undefined &&
-    !isDriDataComparable(metric as NutrientKey, log.foodItem?.sourceProvider)
+    !isDriDataComparable(
+      metric as NutrientKey,
+      log.foodItem?.sourceProvider,
+      nutrient.unit,
+    )
   ) {
     return null;
   }

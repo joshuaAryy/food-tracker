@@ -24,6 +24,9 @@ describe('DRI target compatibility', () => {
     expect(isDriProviderCompatible('vitaminD', 'open_food_facts')).toBe(false);
     expect(isDriDataComparable('vitaminD', 'open_food_facts')).toBe(false);
     expect(isDriDataComparable('vitaminD', null)).toBe(true);
+    expect(isDriDataComparable('vitaminD', 'usda_fdc', 'mg')).toBe(false);
+    expect(isDriDataComparable('vitaminD', null, 'mcg')).toBe(true);
+    expect(isDriDataComparable('vitaminD', null, 'mg')).toBe(false);
   });
 
   it('resolves age and sex references for the approved micronutrient pool', () => {

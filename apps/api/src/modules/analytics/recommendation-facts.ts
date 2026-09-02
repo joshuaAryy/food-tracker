@@ -97,7 +97,7 @@ export async function computeRecommendationFacts(
         protein: true,
         loggedAt: true,
         foodItem: { select: { sourceProvider: true } },
-        nutrients: { select: { nutrientKey: true, amount: true } },
+        nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
     }),
     prisma.weightLog.findFirst({
@@ -176,7 +176,11 @@ export async function computeRecommendationFacts(
       const comparableNutrients = foodLog.nutrients.filter(
         (nutrient) =>
           nutrient.nutrientKey === nutrientKey &&
-          isDriDataComparable(nutrientKey, foodLog.foodItem?.sourceProvider),
+          isDriDataComparable(
+            nutrientKey,
+            foodLog.foodItem?.sourceProvider,
+            nutrient.unit,
+          ),
       );
       // An incompatible provider is still trackable, but it cannot count as
       // an observed DRI-comparable intake day. In particular, do not let the
