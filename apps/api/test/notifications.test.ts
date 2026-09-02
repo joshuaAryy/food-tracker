@@ -64,4 +64,25 @@ describe('notification registration and preferences', () => {
       tokenHash: null,
     });
   });
+
+  it('does not detach an installation already owned by the authenticated user during recovery', async () => {
+    await api
+      .put('/api/v1/notifications/installations/install-c')
+      .send({
+        expoPushToken: 'ExponentPushToken[account-c-token]',
+        platform: 'ios',
+        enabled: true,
+      })
+      .expect(200);
+
+    await api
+      .post('/api/v1/notifications/installations/install-c/reconcile')
+      .expect(200);
+
+    expect(
+      await prisma.notificationInstallation.findUnique({
+        where: { installationId: 'install-c' },
+      }),
+    ).toMatchObject({ userId: MOCK_USER_ID, disabledAt: null });
+  });
 });

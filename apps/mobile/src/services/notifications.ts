@@ -45,6 +45,16 @@ async function clearDetachPending(): Promise<void> {
   }
 }
 
+export async function hasPendingPushDetach(): Promise<boolean> {
+  const file = pendingDetachFile();
+  if (file === null) return false;
+  try {
+    return (await FileSystem.getInfoAsync(file)).exists;
+  } catch {
+    return false;
+  }
+}
+
 let pushTokenSubscription: { remove: () => void } | null = null;
 
 export async function getInstallationId(): Promise<string> {
@@ -86,12 +96,25 @@ export async function registerPushInstallation(): Promise<boolean> {
     token.data,
     Device.osName?.toLowerCase() === 'android' ? 'android' : 'ios',
   );
+  await clearDetachPending();
   if (pushTokenSubscription === null) {
     pushTokenSubscription = Notifications.addPushTokenListener(() => {
       void registerPushInstallation().catch(() => undefined);
     });
   }
   return true;
+}
+
+export async function reconcilePendingPushInstallation(): Promise<void> {
+  if (!(await hasPendingPushDetach())) return;
+  const { api } = await import('@/lib/api-client');
+  try {
+    await api.notifications.installations.reconcile(await getInstallationId());
+    await clearDetachPending();
+  } catch (error) {
+    await markDetachPending();
+    throw error;
+  }
 }
 
 export async function detachPushInstallation(): Promise<void> {

@@ -19,7 +19,10 @@ import type { AuthenticationService } from '@/services/auth-service';
 import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { purgeAnalyticsCache } from '@/lib/analytics/analytics-cache-runtime';
-import { detachPushInstallation } from '@/services/notifications';
+import {
+  detachPushInstallation,
+  reconcilePendingPushInstallation,
+} from '@/services/notifications';
 import { cleanupPhotoFiles } from '@/lib/photo-image';
 
 interface AuthRuntimeContextValue {
@@ -313,7 +316,7 @@ export function AuthBootstrap({
     reconciledInstallationUidRef.current = uid;
     // Reconcile an installation that could not be detached during an offline
     // sign-out before the new account can enable delivery.
-    void detachPushInstallation().catch(() => undefined);
+    void reconcilePendingPushInstallation().catch(() => undefined);
   }, [authState]);
 
   useEffect(() => {
@@ -325,7 +328,7 @@ export function AuthBootstrap({
       return;
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active')
-        void detachPushInstallation().catch(() => undefined);
+        void reconcilePendingPushInstallation().catch(() => undefined);
     });
     return subscription.remove;
   }, [authState.status]);

@@ -5,11 +5,25 @@ import { notificationEligibility } from './policy.js';
 import { sendExpoPushNotifications } from './expo-client.js';
 import { processDueNotificationReceipts } from './receipts.js';
 import { comparePersistedRecommendations } from '../recommendations/service.js';
+import type { Recommendation } from '@prisma/client';
 
 const PAGE_SIZE = 100;
 const MAX_RUNTIME_MS = 8 * 60 * 1000;
 const STOP_STARTING_PAGES_MS = 7 * 60 * 1000;
 const USER_CONCURRENCY = 5;
+
+export function recommendationsForTrackingMode<
+  T extends Pick<Recommendation, 'type'>,
+>(
+  recommendations: readonly T[],
+  mode: 'simple' | 'complex' | null | undefined,
+): T[] {
+  return mode === 'complex'
+    ? [...recommendations]
+    : recommendations.filter(
+        (item) => item.type !== 'micronutrient_below_target',
+      );
+}
 
 export interface NotificationWorkerOptions {
   now?: Date;
@@ -23,36 +37,46 @@ async function evaluateUser(
   dryRun: boolean,
   deadlineAt: number,
 ): Promise<boolean> {
-  const [profile, preference, lastFoodLog, events, recommendation] =
-    await Promise.all([
-      prisma.userProfile.findUnique({
-        where: { userId },
-        select: { timezone: true },
-      }),
-      prisma.notificationPreference.findUnique({ where: { userId } }),
-      prisma.foodLog.findFirst({
-        where: { userId },
-        orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
-        select: { loggedAt: true },
-      }),
-      prisma.notificationEvent.findMany({
-        where: {
-          userId,
-          claimedAt: { gte: new Date(now.getTime() - 168 * 60 * 60 * 1000) },
-        },
-        select: { class: true, claimedAt: true, localDate: true },
-      }),
-      prisma.recommendation.findMany({
-        where: { userId, status: 'active' },
-        select: {
-          id: true,
-          identityKey: true,
-          type: true,
-          severity: true,
-          sourceFacts: true,
-        },
-      }),
-    ]);
+  const [
+    profile,
+    preference,
+    trackingPreference,
+    lastFoodLog,
+    events,
+    recommendation,
+  ] = await Promise.all([
+    prisma.userProfile.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    }),
+    prisma.notificationPreference.findUnique({ where: { userId } }),
+    prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    }),
+    prisma.foodLog.findFirst({
+      where: { userId },
+      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      select: { loggedAt: true },
+    }),
+    prisma.notificationEvent.findMany({
+      where: {
+        userId,
+        claimedAt: { gte: new Date(now.getTime() - 168 * 60 * 60 * 1000) },
+      },
+      select: { class: true, claimedAt: true, localDate: true },
+    }),
+    prisma.recommendation.findMany({
+      where: { userId, status: 'active' },
+      select: {
+        id: true,
+        identityKey: true,
+        type: true,
+        severity: true,
+        sourceFacts: true,
+      },
+    }),
+  ]);
   const timezone = profile?.timezone ?? 'America/Toronto';
   const currentLocalDate = localDate(now, timezone);
   const todayLogs = await prisma.foodLog.count({
@@ -61,7 +85,10 @@ async function evaluateUser(
       loggedAt: localDateRange(timezone, { date: currentLocalDate }),
     },
   });
-  const rankedRecommendations = recommendation
+  const rankedRecommendations = recommendationsForTrackingMode(
+    recommendation,
+    trackingPreference?.mode,
+  )
     .sort(comparePersistedRecommendations)
     .slice(0, 1);
   const eligibility = notificationEligibility({
@@ -190,6 +217,7 @@ export async function runNotificationWorker(
   const now = options.now ?? new Date();
   await processDueNotificationReceipts(now, {
     timeoutMs: Math.max(100, deadlineAt - Date.now()),
+    deadlineAt,
   });
   let cursor = options.acceptanceUserId;
   if (!options.acceptanceUserId) {

@@ -126,3 +126,37 @@ notificationsRouter.delete(
     sendSuccess(response, { detached: true });
   },
 );
+
+notificationsRouter.post(
+  '/installations/:installationId/reconcile',
+  async (request, response) => {
+    const userId = currentUserId(response);
+    const installationId = String(request.params.installationId);
+    await prisma.$transaction(async (transaction) => {
+      const installation =
+        await transaction.notificationInstallation.findUnique({
+          where: { installationId },
+          select: { userId: true },
+        });
+      if (
+        installation === null ||
+        installation.userId === null ||
+        installation.userId === userId
+      )
+        return;
+      // Keep the ownership predicate on the write as well as the read. A
+      // concurrent registration may bind this installation to the current
+      // user between these statements; never clear that newer binding.
+      await transaction.notificationInstallation.updateMany({
+        where: { installationId, userId: { not: userId } },
+        data: {
+          userId: null,
+          expoPushToken: null,
+          tokenHash: null,
+          disabledAt: new Date(),
+        },
+      });
+    });
+    sendSuccess(response, { reconciled: true });
+  },
+);

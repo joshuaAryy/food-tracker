@@ -6,12 +6,19 @@ const RECEIPT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface ReceiptProcessingOptions {
   timeoutMs?: number;
+  /** Absolute wall-clock deadline shared with the enclosing worker. */
+  deadlineAt?: number;
+}
+
+function deadlineReached(deadlineAt: number | undefined): boolean {
+  return deadlineAt !== undefined && Date.now() >= deadlineAt;
 }
 
 export async function processDueNotificationReceipts(
   now = new Date(),
   options: ReceiptProcessingOptions = {},
 ): Promise<number> {
+  if (deadlineReached(options.deadlineAt)) return 0;
   const attempts = await prisma.notificationDeliveryAttempt.findMany({
     where: {
       expoTicketId: { not: null },
@@ -34,12 +41,14 @@ export async function processDueNotificationReceipts(
     Awaited<ReturnType<typeof getExpoPushReceipts>>[string]
   > = {};
   try {
+    if (deadlineReached(options.deadlineAt)) return 0;
     receipts = await getExpoPushReceipts(ids, options.timeoutMs);
   } catch {
     return 0;
   }
   let processed = 0;
   for (const attempt of attempts) {
+    if (deadlineReached(options.deadlineAt)) break;
     if (attempt.expoTicketId === null) continue;
     const receipt = receipts[attempt.expoTicketId];
     if (receipt === undefined) {
@@ -85,6 +94,7 @@ export async function processDueNotificationReceipts(
     });
     processed += 1;
   }
+  if (deadlineReached(options.deadlineAt)) return processed;
   await prisma.notificationDeliveryAttempt.updateMany({
     where: {
       status: 'submitted',

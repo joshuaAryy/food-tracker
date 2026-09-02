@@ -869,6 +869,11 @@ export const api = {
           `/notifications/installations/${encodeURIComponent(installationId)}`,
           { method: 'DELETE' },
         ),
+      reconcile: (installationId: string) =>
+        request<{ reconciled: true }>(
+          `/notifications/installations/${encodeURIComponent(installationId)}/reconcile`,
+          { method: 'POST' },
+        ),
     },
   },
   profile: {
