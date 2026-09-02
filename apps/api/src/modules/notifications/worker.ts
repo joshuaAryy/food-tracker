@@ -12,6 +12,10 @@ const MAX_RUNTIME_MS = 8 * 60 * 1000;
 const STOP_STARTING_PAGES_MS = 7 * 60 * 1000;
 const USER_CONCURRENCY = 5;
 
+function remainingWorkerBudget(deadlineAt: number): number {
+  return Math.max(1, deadlineAt - Date.now());
+}
+
 export function recommendationsForTrackingMode<
   T extends Pick<Recommendation, 'type'>,
 >(
@@ -181,7 +185,7 @@ async function evaluateUser(
               : { route: '/insights' },
         },
       ],
-      Math.max(100, deadlineAt - Date.now()),
+      remainingWorkerBudget(deadlineAt),
     );
     await prisma.notificationDeliveryAttempt.create({
       data: {
@@ -216,7 +220,7 @@ export async function runNotificationWorker(
   const deadlineAt = started + MAX_RUNTIME_MS;
   const now = options.now ?? new Date();
   await processDueNotificationReceipts(now, {
-    timeoutMs: Math.max(100, deadlineAt - Date.now()),
+    timeoutMs: remainingWorkerBudget(deadlineAt),
     deadlineAt,
   });
   let cursor = options.acceptanceUserId;

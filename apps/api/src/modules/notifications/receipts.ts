@@ -42,7 +42,16 @@ export async function processDueNotificationReceipts(
   > = {};
   try {
     if (deadlineReached(options.deadlineAt)) return 0;
-    receipts = await getExpoPushReceipts(ids, options.timeoutMs);
+    const remainingMs =
+      options.deadlineAt === undefined
+        ? undefined
+        : Math.max(1, options.deadlineAt - Date.now());
+    receipts = await getExpoPushReceipts(
+      ids,
+      remainingMs === undefined
+        ? options.timeoutMs
+        : Math.min(options.timeoutMs ?? remainingMs, remainingMs),
+    );
   } catch {
     return 0;
   }
@@ -52,6 +61,7 @@ export async function processDueNotificationReceipts(
     if (attempt.expoTicketId === null) continue;
     const receipt = receipts[attempt.expoTicketId];
     if (receipt === undefined) {
+      if (deadlineReached(options.deadlineAt)) break;
       await prisma.notificationDeliveryAttempt.update({
         where: { id: attempt.id },
         data: {
@@ -62,6 +72,7 @@ export async function processDueNotificationReceipts(
       });
       continue;
     }
+    if (deadlineReached(options.deadlineAt)) break;
     const error = receipt.details?.error;
     const terminal = receipt.status === 'error';
     await prisma.$transaction(async (transaction) => {

@@ -52,4 +52,28 @@ describe('notification receipt worker deadline', () => {
     ).resolves.toBe(0);
     expect(update).toHaveBeenCalledTimes(1);
   });
+
+  it('never gives Expo a timeout longer than the remaining worker budget', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(100);
+    vi.spyOn(prisma.notificationDeliveryAttempt, 'findMany').mockResolvedValue([
+      {
+        id: '00000000-0000-0000-0000-000000000004',
+        expoTicketId: 'ticket-budget',
+        installation: null,
+      },
+    ] as never);
+    vi.spyOn(prisma.notificationDeliveryAttempt, 'update').mockResolvedValue(
+      {} as never,
+    );
+    const getReceipts = vi
+      .spyOn(expoClient, 'getExpoPushReceipts')
+      .mockResolvedValue({});
+
+    await processDueNotificationReceipts(new Date('2026-09-01T12:00:00.000Z'), {
+      deadlineAt: 150,
+      timeoutMs: 10_000,
+    });
+
+    expect(getReceipts).toHaveBeenCalledWith(['ticket-budget'], 50);
+  });
 });
