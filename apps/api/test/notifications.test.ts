@@ -65,6 +65,35 @@ describe('notification registration and preferences', () => {
     });
   });
 
+  it('does not let an authenticated user detach another user installation', async () => {
+    const otherUserId = '00000000-0000-0000-0000-000000000002';
+    await prisma.user.create({ data: { id: otherUserId } });
+    await prisma.notificationInstallation.create({
+      data: {
+        installationId: 'install-other-user',
+        userId: otherUserId,
+        expoPushToken: 'ExponentPushToken[other-user-token]',
+        tokenHash: 'other-user-token-hash',
+        platform: 'ios',
+        enabledAt: new Date(),
+      },
+    });
+
+    await api
+      .delete('/api/v1/notifications/installations/install-other-user')
+      .expect(200);
+
+    expect(
+      await prisma.notificationInstallation.findUnique({
+        where: { installationId: 'install-other-user' },
+      }),
+    ).toMatchObject({
+      userId: otherUserId,
+      expoPushToken: 'ExponentPushToken[other-user-token]',
+      disabledAt: null,
+    });
+  });
+
   it('does not detach an installation already owned by the authenticated user during recovery', async () => {
     await api
       .put('/api/v1/notifications/installations/install-c')
@@ -84,5 +113,36 @@ describe('notification registration and preferences', () => {
         where: { installationId: 'install-c' },
       }),
     ).toMatchObject({ userId: MOCK_USER_ID, disabledAt: null });
+  });
+
+  it('reconciles a stale prior-account installation without requiring its ownership', async () => {
+    const priorUserId = '00000000-0000-0000-0000-000000000003';
+    await prisma.user.create({ data: { id: priorUserId } });
+    await prisma.notificationInstallation.create({
+      data: {
+        installationId: 'install-stale-prior-account',
+        userId: priorUserId,
+        expoPushToken: 'ExponentPushToken[stale-prior-token]',
+        tokenHash: 'stale-prior-token-hash',
+        platform: 'ios',
+        enabledAt: new Date(),
+      },
+    });
+
+    await api
+      .post(
+        '/api/v1/notifications/installations/install-stale-prior-account/reconcile',
+      )
+      .expect(200);
+
+    expect(
+      await prisma.notificationInstallation.findUnique({
+        where: { installationId: 'install-stale-prior-account' },
+      }),
+    ).toMatchObject({
+      userId: null,
+      expoPushToken: null,
+      tokenHash: null,
+    });
   });
 });

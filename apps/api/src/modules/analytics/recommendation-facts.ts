@@ -96,7 +96,7 @@ export async function computeRecommendationFacts(
         calories: true,
         protein: true,
         loggedAt: true,
-        foodItem: { select: { sourceProvider: true } },
+        foodItem: { select: { sourceProvider: true, sourceType: true } },
         nutrients: { select: { nutrientKey: true, amount: true, unit: true } },
       },
     }),
@@ -180,6 +180,7 @@ export async function computeRecommendationFacts(
             nutrientKey,
             foodLog.foodItem?.sourceProvider,
             nutrient.unit,
+            foodLog.foodItem?.sourceType,
           ),
       );
       // An incompatible provider is still trackable, but it cannot count as

@@ -327,8 +327,9 @@ function childBand(age: number): ChildBand | null {
 /**
  * Automatic references are only valid for provider rows whose normalized
  * mapping preserves the DRI quantity (not merely its display unit). FoodLog
- * snapshots do not carry provider metadata, so ingestion must enforce this
- * registry before a value can enter the canonical nutrient store.
+ * snapshots retain the source FoodItem relationship, so recommendation facts
+ * enforce this registry against provider and source-type provenance while
+ * retaining incompatible values for ordinary tracking.
  */
 export function isDriProviderCompatible(
   nutrientKey: NutrientKey,
@@ -350,6 +351,7 @@ export function isDriDataComparable(
   nutrientKey: NutrientKey,
   provider: string | null | undefined,
   unit?: string | null,
+  sourceType?: 'app_owned' | 'user_custom' | 'cached_external',
 ): boolean {
   const compatibility = DRI_TARGET_COMPATIBILITY[nutrientKey];
   if (
@@ -359,8 +361,12 @@ export function isDriDataComparable(
     compatibility.unit !== unit
   )
     return false;
-  if (provider === null || provider === undefined || provider === 'manual') {
-    return true;
+  if (provider === 'manual') return true;
+  if (provider === null || provider === undefined) {
+    // A null provider is only safe when the FoodItem explicitly identifies a
+    // first-party/manual source. Legacy or ambiguous cached rows must not be
+    // promoted into an authoritative DRI comparison by unit alone.
+    return sourceType === 'app_owned' || sourceType === 'user_custom';
   }
   return isDriProviderCompatible(nutrientKey, provider);
 }

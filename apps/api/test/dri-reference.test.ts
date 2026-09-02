@@ -23,9 +23,16 @@ describe('DRI target compatibility', () => {
     expect(isDriProviderCompatible('vitaminA', 'usda_fdc')).toBe(false);
     expect(isDriProviderCompatible('vitaminD', 'open_food_facts')).toBe(false);
     expect(isDriDataComparable('vitaminD', 'open_food_facts')).toBe(false);
-    expect(isDriDataComparable('vitaminD', null)).toBe(true);
+    expect(isDriDataComparable('vitaminD', null)).toBe(false);
+    expect(isDriDataComparable('vitaminD', null, 'mcg', 'app_owned')).toBe(
+      true,
+    );
+    expect(
+      isDriDataComparable('vitaminD', null, 'mcg', 'cached_external'),
+    ).toBe(false);
+    expect(isDriDataComparable('vitaminD', 'manual', 'mcg')).toBe(true);
     expect(isDriDataComparable('vitaminD', 'usda_fdc', 'mg')).toBe(false);
-    expect(isDriDataComparable('vitaminD', null, 'mcg')).toBe(true);
+    expect(isDriDataComparable('vitaminD', null, 'mcg')).toBe(false);
     expect(isDriDataComparable('vitaminD', null, 'mg')).toBe(false);
   });
 
