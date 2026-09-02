@@ -1,4 +1,6 @@
 import { writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prisma } from '../../lib/prisma.js';
 import {
   FOOD_RETRIEVAL_CORPUS,
@@ -64,6 +66,15 @@ export function benchmarkSnapshotForObservations(
   };
 }
 
+export function isLiveBenchmarkCliEntrypoint(
+  moduleUrl: string,
+  argvEntry: string | undefined,
+): boolean {
+  return (
+    argvEntry !== undefined && fileURLToPath(moduleUrl) === resolve(argvEntry)
+  );
+}
+
 async function main(): Promise<void> {
   if (process.argv.includes('--help') || process.argv.includes('-h')) {
     printHelp();
@@ -106,11 +117,13 @@ async function main(): Promise<void> {
   );
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (isLiveBenchmarkCliEntrypoint(import.meta.url, process.argv[1])) {
+  main()
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
