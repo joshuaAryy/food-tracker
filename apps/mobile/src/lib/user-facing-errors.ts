@@ -90,6 +90,8 @@ export function toUserFacingError(
   }
 
   switch (code) {
+    case 'DATABASE_NOT_READY':
+      return 'We couldn’t connect. Check your connection and try again.';
     case 'INVALID_RESPONSE':
       return 'We received an unexpected response. Try again.';
     case 'INTERNAL_SERVER_ERROR':

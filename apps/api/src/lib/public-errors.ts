@@ -82,6 +82,8 @@ const DEFAULT_PUBLIC_MESSAGES: Record<string, string> = {
   AUTH_CONFIGURATION_ERROR: 'Authentication is temporarily unavailable.',
   AI_UNAVAILABLE: 'Food recognition is temporarily unavailable.',
   RATE_LIMITED: 'Too many requests. Try again shortly.',
+  DATABASE_NOT_READY:
+    'The database is temporarily unavailable. Please try again.',
   INTERNAL_SERVER_ERROR: 'The request could not be completed.',
 };
 
@@ -113,6 +115,7 @@ function safeDetails(
   if (typeof details.reason === 'string' && SAFE_REASONS.has(details.reason)) {
     output.reason = details.reason;
   }
+  if (details.retryable === true) output.retryable = true;
   if (typeof details.status === 'string' && SAFE_STATUSES.has(details.status)) {
     output.status = details.status;
   }

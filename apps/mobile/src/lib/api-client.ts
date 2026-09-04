@@ -115,6 +115,10 @@ export const API_URL = resolvedApiRuntime.apiUrl;
 
 let apiAuthSession: ApiAuthSession | null = null;
 
+export const API_TRANSIENT_READ_RETRY_DELAY_MS = 400;
+const API_TRANSIENT_READ_RETRY_MAX_ATTEMPTS = 2;
+const TRANSIENT_READ_STATUSES = new Set([502, 503, 504]);
+
 export function configureApiAuthSession(session: ApiAuthSession | null): void {
   apiAuthSession = session;
 }
@@ -179,9 +183,13 @@ function withAuthorization(
 async function fetchWithAuth(
   url: string,
   createRequestInit: (token: string | undefined) => RequestInit,
+  method?: string,
 ): Promise<Response> {
   let token = await tokenForRequest(false);
   let didRefresh = false;
+  let attempt = 0;
+  const normalizedMethod = (method ?? 'GET').toUpperCase();
+  const isSafeRead = normalizedMethod === 'GET' || normalizedMethod === 'HEAD';
 
   while (true) {
     let response: Response;
@@ -195,23 +203,54 @@ async function fetchWithAuth(
           0,
         );
       }
+      if (isSafeRead && attempt + 1 < API_TRANSIENT_READ_RETRY_MAX_ATTEMPTS) {
+        attempt += 1;
+        reportDiagnostic('api_transient_read_retry', {
+          operation: 'api_request',
+          errorCategory: 'network',
+          attempt,
+        });
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, API_TRANSIENT_READ_RETRY_DELAY_MS),
+        );
+        continue;
+      }
       throw new ApiClientError(apiConnectionMessage(), 'NETWORK_ERROR', 0);
     }
 
-    if (response.status !== 401 || apiAuthSession === null || didRefresh) {
-      return response;
+    if (response.status === 401 && apiAuthSession !== null && !didRefresh) {
+      didRefresh = true;
+      try {
+        token = await tokenForRequest(true);
+      } catch {
+        throw new ApiClientError(
+          'Your session has expired. Please sign in again.',
+          'AUTH_TOKEN_EXPIRED',
+          401,
+        );
+      }
+      continue;
     }
 
-    didRefresh = true;
-    try {
-      token = await tokenForRequest(true);
-    } catch {
-      throw new ApiClientError(
-        'Your session has expired. Please sign in again.',
-        'AUTH_TOKEN_EXPIRED',
-        401,
+    if (
+      isSafeRead &&
+      TRANSIENT_READ_STATUSES.has(response.status) &&
+      attempt + 1 < API_TRANSIENT_READ_RETRY_MAX_ATTEMPTS
+    ) {
+      attempt += 1;
+      reportDiagnostic('api_transient_read_retry', {
+        operation: 'api_request',
+        status: response.status,
+        errorCategory: 'http_transient',
+        attempt,
+      });
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, API_TRANSIENT_READ_RETRY_DELAY_MS),
       );
+      continue;
     }
+
+    return response;
   }
 }
 
@@ -257,8 +296,10 @@ async function request<T>(
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   };
 
-  const response = await fetchWithAuth(`${API_URL}${path}`, (token) =>
-    withAuthorization(requestInit, token),
+  const response = await fetchWithAuth(
+    `${API_URL}${path}`,
+    (token) => withAuthorization(requestInit, token),
+    requestInit.method,
   );
 
   return parseApiResponse(response, schema);
@@ -276,12 +317,12 @@ async function requestRaw<T>(
   });
   reportDiagnostic('photo_request_started', { operation: 'photo_analysis' });
   let response: Response;
+  const requestInit = photoAnalysisRequestInit({ bytes: body, signal });
   try {
-    response = await fetchWithAuth(`${API_URL}${path}`, (token) =>
-      withAuthorization(
-        photoAnalysisRequestInit({ bytes: body, signal }),
-        token,
-      ),
+    response = await fetchWithAuth(
+      `${API_URL}${path}`,
+      (token) => withAuthorization(requestInit, token),
+      requestInit.method,
     );
   } catch (error) {
     reportDiagnostic('photo_request_failed', {

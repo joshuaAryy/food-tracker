@@ -3,6 +3,7 @@ import { emitServerDiagnostic } from '../lib/diagnostics.js';
 import { AppError } from '../lib/errors.js';
 import { toPublicError } from '../lib/public-errors.js';
 import { sendError } from '../lib/responses.js';
+import { DatabaseReadinessError } from '../lib/database-readiness.js';
 
 function isMalformedJson(error: unknown): boolean {
   return (
@@ -57,6 +58,10 @@ export const errorHandler: ErrorRequestHandler = (
           : undefined,
       errorCategory: error instanceof Error ? 'exception' : 'unknown',
     });
+  }
+
+  if (error instanceof DatabaseReadinessError) {
+    response.setHeader('Retry-After', '1');
   }
 
   const publicError = toPublicError(error);
