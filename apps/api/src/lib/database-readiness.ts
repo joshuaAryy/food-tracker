@@ -129,10 +129,19 @@ function readinessErrorMetadata(error: unknown): Record<string, unknown> {
 
 export function isTransientDatabaseReadinessError(error: unknown): boolean {
   const code = errorCode(error);
-  return (
-    (code !== undefined && TRANSIENT_PRISMA_ERROR_CODES.has(code)) ||
-    (code !== undefined && TRANSIENT_TRANSPORT_ERROR_CODES.has(code))
-  );
+  if (code !== undefined) {
+    return (
+      TRANSIENT_PRISMA_ERROR_CODES.has(code) ||
+      TRANSIENT_TRANSPORT_ERROR_CODES.has(code)
+    );
+  }
+
+  if (typeof error !== 'object' || error === null) return false;
+  try {
+    return error instanceof Prisma.PrismaClientInitializationError;
+  } catch {
+    return false;
+  }
 }
 
 function failureCategory(error: unknown): string {
