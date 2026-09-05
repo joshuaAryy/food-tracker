@@ -122,4 +122,40 @@ describe('targetable nutrient and effective target policy', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.nutrientKey).toBe('calories');
   });
+
+  it('keeps complex-only targets out of simple mode', () => {
+    const targets = {
+      calories: {
+        nutrientKey: 'calories' as const,
+        unit: 'kcal' as const,
+        direction: 'target' as const,
+        recommendedValue: 2100,
+        effectiveValue: 2100,
+        effectiveSource: 'personalized' as const,
+        recommendedSource: 'personalized' as const,
+        source: 'personalized' as const,
+        value: 2100,
+        isCustom: false,
+      },
+      vitaminD: {
+        nutrientKey: 'vitaminD' as const,
+        unit: 'mcg' as const,
+        direction: 'minimum' as const,
+        recommendedValue: 15,
+        effectiveValue: 15,
+        effectiveSource: 'reference' as const,
+        recommendedSource: 'reference' as const,
+        source: 'reference' as const,
+        value: 15,
+        isCustom: false,
+      },
+    };
+
+    expect(targetRows(targets, 'simple').map((row) => row.nutrientKey)).toEqual(
+      ['calories'],
+    );
+    expect(
+      targetRows(targets, 'complex').map((row) => row.nutrientKey),
+    ).toEqual(['calories', 'vitaminD']);
+  });
 });

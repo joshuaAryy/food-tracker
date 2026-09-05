@@ -5,6 +5,17 @@ import * as FileSystem from 'expo-file-system/legacy';
 import Constants from 'expo-constants';
 import { isRemotePushEnabled } from '@/lib/remote-push-capability';
 
+export type NotificationDestination = '/insights' | '/food-log';
+
+export function notificationDestinationForData(
+  data: unknown,
+): NotificationDestination | null {
+  if (typeof data !== 'object' || data === null || !('route' in data))
+    return null;
+  const route = (data as { route?: unknown }).route;
+  return route === '/insights' || route === '/food-log' ? route : null;
+}
+
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,

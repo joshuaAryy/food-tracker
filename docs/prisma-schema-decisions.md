@@ -259,7 +259,7 @@ Relation:
 | `targetWeightLb` | nullable `Decimal`, precision `5`, scale `1` |
 | `targetCalories` | nullable `Int` |
 | `targetProteinGrams` | nullable `Decimal`, precision `5`, scale `1` |
-| `targetRateLbPerWeek` | nullable `Decimal`, precision `3`, scale `2`; 0.25 increments |
+| `targetRateLbPerWeek` | nullable `Decimal`, precision `3`, scale `2`; selectable values use 0.05 increments |
 
 Relation:
 - belongs to `User`; delete cascades from `User`

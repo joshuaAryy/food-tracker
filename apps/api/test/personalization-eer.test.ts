@@ -56,6 +56,23 @@ describe('age-aware personalization', () => {
     expect(plan.recommendedTargets.sodiumMg).toBe(2300);
   });
 
+  it('normalizes adult rates to selectable 0.05 lb/week steps', () => {
+    const plan = resolvePersonalizationPlan(
+      { ...base, targetRateLbPerWeek: 0.55 },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+
+    expect(plan.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.25,
+      selectedRateLbPerWeek: 0.55,
+    });
+    expect(
+      plan.ratePlanning.status === 'available' &&
+        plan.ratePlanning.maximumRateLbPerWeek,
+    ).toBeGreaterThanOrEqual(0.55);
+  });
+
   it('uses age-specific sodium CDRR values', () => {
     const older = resolvePersonalizationPlan(
       { ...base, birthDate: '1955-08-29' },
@@ -85,6 +102,23 @@ describe('age-aware personalization', () => {
     expect(plan.estimatedGoal.status).toBe('unavailable');
     expect(plan.goal.targetWeightLb).toBe(150);
     expect(plan.protein.source).toBe('reference');
+  });
+
+  it('does not create rate planning for maintenance', () => {
+    const plan = resolvePersonalizationPlan(
+      {
+        ...base,
+        goalType: 'maintain',
+        targetWeightLb: 160,
+        targetRateLbPerWeek: 0.55,
+      },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+    expect(plan.ratePlanning).toEqual({
+      status: 'unavailable',
+      reason: 'goal_type_not_supported',
+      calorieAdjustment: 0,
+    });
   });
 
   it('rejects a future birth date instead of clamping to age zero', () => {

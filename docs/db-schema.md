@@ -60,7 +60,7 @@ mobile reset, and notification association cleanup are enforced in Phase 20–22
 - userId
 - goalType (`lose`, `maintain`, or `gain`)
 - goalPace (nullable; must match the goal type)
-- targetRateLbPerWeek (nullable decimal pounds/week; 0.25 increments)
+- targetRateLbPerWeek (nullable decimal pounds/week; selectable values use 0.05 increments)
 - targetWeightLb (optional decimal pounds, one decimal place)
 - targetCalories (integer kcal)
 - targetProteinGrams (optional decimal grams, one decimal place)

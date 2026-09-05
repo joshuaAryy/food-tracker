@@ -38,7 +38,7 @@ athlete           -> very_active
 
 The exact published 2023 coefficient tables are stored under an explicit model version. Completed age chooses the band and fractional age within the birthday interval supplies the equation age input. Age 18 remains adolescent; age 19 selects adult.
 
-Adult loss rates use 0.25-lb/week steps and the maximum of 2.0 lb/week, 1% of current weight/week, and the existing calorie-floor guardrail. Adult gain uses 0.25-lb/week steps capped at 1.0 lb/week and approximately 0.5% of current weight/week. The existing 500 kcal/day per lb/week adjustment is an initial estimate, not a physiological promise, and final calories are rounded to the nearest 10 kcal. Existing floors remain 1,200 kcal for female profiles and 1,500 kcal for male profiles.
+Adult loss and gain rates use selectable 0.05-lb/week steps. The supported adult minimum remains 0.25 lb/week; the maximum is the minimum of 2.0 lb/week, 1% of current weight/week, and the existing calorie-floor guardrail for loss, or 1.0 lb/week and approximately 0.5% of current weight/week for gain. The existing 500 kcal/day per lb/week adjustment is an initial estimate, not a physiological promise, and final calories are rounded to the nearest 10 kcal. Existing floors remain 1,200 kcal for female profiles and 1,500 kcal for male profiles.
 
 Under-19 users may choose lose, maintain, or gain, set target weight, track progress, receive age-appropriate EER/protein targets, and create custom targets. They receive no unsupported automatic rate adjustment or forecast; their goal remains valid and its rate-planning status is unavailable.
 

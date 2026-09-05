@@ -8,6 +8,7 @@ import { AuthBootstrap } from '@/components/auth/auth-bootstrap';
 import { colors } from '@/theme/tokens';
 import {
   getLastNotificationResponse,
+  notificationDestinationForData,
   subscribeToNotificationResponses,
 } from '@/services/notifications';
 import '../global.css';
@@ -18,13 +19,13 @@ export default function RootLayout() {
       response: Notifications.NotificationResponse,
     ) => {
       const data = response.notification.request.content.data;
-      if (
-        typeof data === 'object' &&
-        data !== null &&
-        'route' in data &&
-        data.route === '/insights'
-      )
-        void Linking.openURL('foodtracker://insights');
+      const destination = notificationDestinationForData(data);
+      if (destination !== null)
+        void Linking.openURL(
+          destination === '/food-log'
+            ? 'foodtracker://food-log'
+            : 'foodtracker://insights',
+        );
     };
     void getLastNotificationResponse().then((response) => {
       if (response !== null) openNotificationDestination(response);

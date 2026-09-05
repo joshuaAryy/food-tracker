@@ -328,10 +328,12 @@ Request:
 `goalType` must be `lose`, `maintain`, or `gain`; `goalPace` must match the
 goal type as described in Shared Validation Rules. Success `data` uses the
 goals shape above. `targetRateLbPerWeek` is optional for legacy callers.
-Profile editing may send `targetOverrides: false` when daily targets were not
-edited; ordinary legacy callers omit this flag, so supplied target values become
-explicit `user` overrides. Legacy GET always projects effective resolved
-values rather than stale raw columns.
+`targetRateLbPerWeek` uses selectable 0.05-lb/week increments. Profile editing
+sends `targetOverrideFields` with only the daily target fields the user changed;
+`targetOverrides` remains a backward-compatible boolean for legacy callers.
+Legacy callers that omit both fields retain the historical supplied-value
+override behavior. Legacy GET always projects effective resolved values rather
+than stale raw columns.
 
 ## Tracking Preferences
 

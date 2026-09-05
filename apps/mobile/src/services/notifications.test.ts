@@ -35,7 +35,23 @@ vi.mock('@/lib/api-client', () => ({
   },
 }));
 
-import { registerPushInstallation } from './notifications';
+import {
+  notificationDestinationForData,
+  registerPushInstallation,
+} from './notifications';
+
+describe('notification destinations', () => {
+  it('accepts the canonical logging and insights routes only', () => {
+    expect(notificationDestinationForData({ route: '/food-log' })).toBe(
+      '/food-log',
+    );
+    expect(notificationDestinationForData({ route: '/insights' })).toBe(
+      '/insights',
+    );
+    expect(notificationDestinationForData({ route: '/settings' })).toBeNull();
+    expect(notificationDestinationForData(null)).toBeNull();
+  });
+});
 
 describe('notification registration capability gate', () => {
   beforeEach(() => {

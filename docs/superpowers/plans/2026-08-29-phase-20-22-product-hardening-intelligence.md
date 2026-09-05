@@ -85,7 +85,7 @@
 - [ ] Adult vectors use EER, not Mifflin.
 - [ ] Activity mapping and athlete cap.
 - [ ] Latest valid WeightLog and starting-weight fallback.
-- [ ] Adult loss/gain/maintenance, 0.25 increments, adaptive bounds, floor constraint.
+- [ ] Adult loss/gain/maintenance, selectable 0.05 increments with a 0.25 adult minimum, adaptive bounds, and floor constraint.
 - [ ] Under-19 goals have baseline EER but no rate adjustment/date.
 - [ ] Current-weight/profile changes update recommendations.
 - [ ] Deterministic rounding and legacy GoalPace mapping.

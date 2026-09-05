@@ -29,6 +29,12 @@ export function recommendationsForTrackingMode<
       );
 }
 
+export function notificationRouteForKind(
+  kind: 'recommendation' | 'logging_reminder',
+): '/insights' | '/food-log' {
+  return kind === 'logging_reminder' ? '/food-log' : '/insights';
+}
+
 export interface NotificationWorkerOptions {
   now?: Date;
   dryRun?: boolean;
@@ -179,10 +185,10 @@ async function evaluateUser(
           data:
             eligibility.kind === 'recommendation'
               ? {
-                  route: '/insights',
+                  route: notificationRouteForKind('recommendation'),
                   recommendationId: eligibility.recommendationId,
                 }
-              : { route: '/insights' },
+              : { route: notificationRouteForKind('logging_reminder') },
         },
       ],
       remainingWorkerBudget(deadlineAt),

@@ -52,6 +52,7 @@ export function calculatePersonalizedTargets(
   limitSodiumMg: number | null;
   targetRateLbPerWeek: number | null;
   estimatedGoalDate: string | null;
+  ratePlanning: ReturnType<typeof calculatePersonalizedPlan>['ratePlanning'];
 } {
   const plan = calculatePersonalizedPlan(input, today);
   return {
@@ -71,5 +72,6 @@ export function calculatePersonalizedTargets(
       plan.estimatedGoal.status === 'available'
         ? plan.estimatedGoal.date
         : null,
+    ratePlanning: plan.ratePlanning,
   };
 }

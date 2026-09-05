@@ -152,6 +152,7 @@ describe('setup API', () => {
         calculatedTargets: {
           targetCalories: number;
           targetProteinGrams: number;
+          targetRateLbPerWeek: number | null;
         };
       };
     };
@@ -173,7 +174,7 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
-        targetRateLbPerWeek: null,
+        targetRateLbPerWeek: 1,
       },
       preferences: { ...setupInput.preferences, dailyWaterGoalMl: 2000 },
       calculatedTargets: {
@@ -186,6 +187,12 @@ describe('setup API', () => {
         limitSodiumMg: expect.any(Number),
         targetRateLbPerWeek: 1,
         estimatedGoalDate: expect.any(String),
+      },
+      ratePlanning: {
+        status: 'available',
+        minimumRateLbPerWeek: 0.25,
+        maximumRateLbPerWeek: expect.any(Number),
+        selectedRateLbPerWeek: 1,
       },
       status: {
         profileComplete: true,
@@ -208,6 +215,9 @@ describe('setup API', () => {
     expect(profile?.activityLevel).toBe('moderately_active');
     expect(profile?.trainingStyle).toBe('weight_training');
     expect(goals?.goalPace).toBe('moderate');
+    expect(goals?.targetRateLbPerWeek?.toNumber()).toBe(
+      body.data.calculatedTargets.targetRateLbPerWeek,
+    );
     expect(goals?.targetCalories).toBe(
       body.data.calculatedTargets.targetCalories,
     );
@@ -254,6 +264,12 @@ describe('setup API', () => {
         limitSodiumMg: expect.any(Number),
         targetRateLbPerWeek: 1,
         estimatedGoalDate: expect.any(String),
+      },
+      ratePlanning: {
+        status: 'available',
+        minimumRateLbPerWeek: 0.25,
+        maximumRateLbPerWeek: expect.any(Number),
+        selectedRateLbPerWeek: 1,
       },
     });
     expect(

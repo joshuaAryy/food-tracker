@@ -36,13 +36,11 @@ import {
   GOAL_PACES,
   TRACKING_MODES,
   TRAINING_STYLES,
+  isSelectableRateLbPerWeek,
 } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
 import { AccountSignOutButton } from '@/components/auth/account-sign-out-button';
-import {
-  DeleteAccountPanel,
-  type AccountDeletionActions,
-} from '@/components/auth/account-deletion';
+import { DeleteAccountPanel } from '@/components/auth/account-deletion';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -56,6 +54,7 @@ import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { targetOverrideFieldsForProfileEdit } from '@/lib/target-overrides';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
@@ -530,13 +529,7 @@ function ProfileSkeleton() {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const {
-    deleteAccount,
-    providerIds,
-    reauthenticateWithGoogle,
-    reauthenticateWithPassword,
-    signOut,
-  } = useAuthRuntime();
+  const { deleteAccount, signOut } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -622,6 +615,11 @@ export default function ProfileScreen() {
 
     try {
       const goalPace = values.goalPace === 'none' ? null : values.goalPace;
+      const targetOverrideFields = targetOverrideFieldsForProfileEdit({
+        caloriesChanged: values.targetCalories !== lastSavedForm.targetCalories,
+        proteinChanged:
+          values.targetProteinGrams !== lastSavedForm.targetProteinGrams,
+      });
       const [profile, goals, preferences] = await Promise.all([
         api.profile.update({
           name: values.name.trim(),
@@ -643,9 +641,8 @@ export default function ProfileScreen() {
               : Number(values.targetRateLbPerWeek),
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
-          targetOverrides:
-            values.targetCalories !== lastSavedForm.targetCalories ||
-            values.targetProteinGrams !== lastSavedForm.targetProteinGrams,
+          targetOverrides: targetOverrideFields.length > 0,
+          targetOverrideFields,
         }),
         api.trackingPreferences.update({
           mode: values.mode,
@@ -1002,9 +999,12 @@ export default function ProfileScreen() {
             name="targetRateLbPerWeek"
             rules={{
               validate: (value) =>
-                value.trim() === '' || (Number(value) > 0 && Number(value) <= 2)
+                value.trim() === '' ||
+                (Number(value) >= 0.25 &&
+                  Number(value) <= 2 &&
+                  isSelectableRateLbPerWeek(Number(value)))
                   ? true
-                  : 'Enter a rate from 0.25 to 2 lb/week.',
+                  : 'Enter a rate from 0.25 to 2 lb/week in 0.05 steps.',
             }}
             render={({ field }) => (
               <AppInput
@@ -1231,16 +1231,7 @@ export default function ProfileScreen() {
         description="Your data stays separated from other accounts on this device."
       >
         <AccountSignOutButton onSignOut={signOut} />
-        <DeleteAccountPanel
-          providerIds={providerIds}
-          actions={
-            {
-              deleteAccount,
-              reauthenticateWithGoogle,
-              reauthenticateWithPassword,
-            } satisfies AccountDeletionActions
-          }
-        />
+        <DeleteAccountPanel actions={{ deleteAccount }} />
       </SettingsSection>
     </AppScreen>
   );

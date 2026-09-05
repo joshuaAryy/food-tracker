@@ -80,6 +80,36 @@ describe('authentication routing', () => {
         ['recipes', 'index'],
       ),
     ).toBe(true);
+    expect(
+      routeMatchesAuthState(
+        {
+          status: 'signedInReady',
+          user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
+        },
+        ['nutrition-targets'],
+      ),
+    ).toBe(true);
+    expect(
+      routeMatchesAuthState(
+        {
+          status: 'signedInReady',
+          user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
+        },
+        ['goal-plan'],
+      ),
+    ).toBe(true);
+    expect(
+      routeMatchesAuthState({ status: 'signedOut' }, ['nutrition-targets']),
+    ).toBe(false);
+    expect(
+      routeMatchesAuthState(
+        {
+          status: 'signedInSetupIncomplete',
+          user: { uid: 'u', emailVerified: true, providerIds: ['google.com'] },
+        },
+        ['goal-plan'],
+      ),
+    ).toBe(false);
   });
 
   it('keeps every registered authenticated root route and analytics child route in place', () => {
@@ -95,6 +125,8 @@ describe('authentication routing', () => {
       'meal-describe',
       'weight-log',
       'water-log',
+      'nutrition-targets',
+      'goal-plan',
     ]);
 
     const ready: AuthState = {

@@ -16,6 +16,7 @@ import {
   GOAL_TYPES,
   TRACKING_MODES,
   TRAINING_STYLES,
+  normalizeRateLbPerWeek,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
@@ -45,9 +46,11 @@ import {
   OnboardingWeightForecast,
 } from '@/components/onboarding-visual-modules';
 import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
+import { WeeklyRateSlider } from '@/components/weekly-rate-slider';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { compatibilityPaceForRate } from '@/lib/weekly-rate';
 import { useAppStore } from '@/store/app-store';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
@@ -140,16 +143,6 @@ const goalDescriptions: Record<GoalType, string> = {
   lose: 'A measured deficit toward a lower target weight.',
   maintain: 'Keep weight steady while building tracking consistency.',
   gain: 'A controlled surplus toward a higher target weight.',
-};
-
-const paceDescriptions: Record<GoalPace | 'none', string> = {
-  slow: 'Gentler deficit',
-  moderate: 'Balanced deficit',
-  aggressive: 'Faster deficit',
-  lean_bulk: 'Small surplus',
-  moderate_bulk: 'Balanced surplus',
-  aggressive_bulk: 'Faster surplus',
-  none: 'Steady maintenance',
 };
 
 const goalPaceOptions: Record<GoalType, ReadonlyArray<GoalPace | 'none'>> = {
@@ -541,7 +534,6 @@ export default function OnboardingScreen() {
   const values = useWatch({ control });
   const mode = useWatch({ control, name: 'mode' });
   const goalType = useWatch({ control, name: 'goalType' });
-  const paceOptions = useMemo(() => goalPaceOptions[goalType], [goalType]);
   const currentStep = steps[stepIndex] ?? firstStep;
   const stepKey = currentStep.key;
   const birthdayValue = useMemo<DateWheelValue>(
@@ -585,10 +577,32 @@ export default function OnboardingScreen() {
   }, [getValues]);
 
   useEffect(() => {
-    if (stepKey === 'review') {
+    if (stepKey === 'goalPace' || stepKey === 'review') {
       void refreshPreview();
     }
   }, [refreshPreview, stepKey]);
+
+  useEffect(() => {
+    if (
+      stepKey === 'goalPace' &&
+      preview?.ratePlanning.status === 'available' &&
+      getValues('targetRateLbPerWeek').trim() === ''
+    ) {
+      setValue(
+        'targetRateLbPerWeek',
+        String(preview.ratePlanning.selectedRateLbPerWeek),
+        { shouldDirty: true, shouldValidate: true },
+      );
+      setValue(
+        'goalPace',
+        compatibilityPaceForRate(
+          goalType,
+          preview.ratePlanning.selectedRateLbPerWeek,
+        ) ?? 'none',
+        { shouldDirty: true },
+      );
+    }
+  }, [getValues, goalType, preview, setValue, stepKey]);
 
   const validateStep = async () => {
     if (stepKey === 'name') return trigger('name');
@@ -967,37 +981,41 @@ export default function OnboardingScreen() {
             <>
               <OnboardingQuestion
                 title="How fast should your plan move?"
-                subtitle="Adults can fine-tune the weekly rate. Younger users still get an age-appropriate energy estimate without an automatic rate prescription."
+                subtitle="Move through small weekly-rate steps. Younger users and maintenance plans do not use automatic rate planning."
               />
-              <Controller
-                control={control}
-                name="targetRateLbPerWeek"
-                render={({ field }) => (
-                  <AppInput
-                    label="Weekly rate (lb/week)"
-                    placeholder="Optional"
-                    keyboardType="decimal-pad"
-                    value={field.value}
-                    onBlur={field.onBlur}
-                    onChangeText={field.onChange}
-                  />
-                )}
-              />
-              <Controller
-                control={control}
-                name="goalPace"
-                render={({ field }) => (
-                  <OnboardingScale
-                    options={paceOptions.map((option) => ({
-                      value: option,
-                      label: label(option),
-                      description: paceDescriptions[option],
-                    }))}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                )}
-              />
+              {goalType === 'maintain' ? (
+                <AppText muted>
+                  Maintenance plans use no automatic weekly rate.
+                </AppText>
+              ) : previewLoading ? (
+                <LoadingState message="Checking available rate range…" />
+              ) : preview?.ratePlanning.status === 'available' ? (
+                <WeeklyRateSlider
+                  minimumValue={preview.ratePlanning.minimumRateLbPerWeek}
+                  maximumValue={preview.ratePlanning.maximumRateLbPerWeek}
+                  value={normalizeRateLbPerWeek(
+                    Number(values.targetRateLbPerWeek) ||
+                      preview.ratePlanning.selectedRateLbPerWeek,
+                  )}
+                  onValueChange={(nextRate) => {
+                    const normalized = normalizeRateLbPerWeek(nextRate);
+                    setValue('targetRateLbPerWeek', String(normalized), {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    setValue(
+                      'goalPace',
+                      compatibilityPaceForRate(goalType, normalized) ?? 'none',
+                      { shouldDirty: true },
+                    );
+                  }}
+                />
+              ) : (
+                <AppText muted>
+                  Automatic weekly-rate planning is not available for this
+                  profile. Your age-appropriate targets remain available.
+                </AppText>
+              )}
             </>
           ) : null}
 

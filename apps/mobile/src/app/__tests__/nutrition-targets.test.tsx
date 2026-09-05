@@ -10,9 +10,28 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
-import { draftsForTargets, type TargetRow } from '../nutrition-targets';
+import {
+  draftsForTargets,
+  targetDisplayName,
+  targetValidationMessage,
+  type TargetRow,
+} from '../nutrition-targets';
 
 describe('nutrition target draft synchronization', () => {
+  it('returns concise feedback for invalid custom values', () => {
+    expect(targetValidationMessage({ direction: 'target' }, 0)).toContain(
+      'greater than 0',
+    );
+    expect(targetValidationMessage({ direction: 'limit' }, -1)).toContain(
+      '0 or more',
+    );
+    expect(targetValidationMessage({ direction: 'target' }, 100)).toBeNull();
+  });
+
+  it('uses catalog display names for internal nutrient keys', () => {
+    expect(targetDisplayName('vitaminD')).toBe('Vitamin D');
+  });
+
   it('reflects the effective value after Use recommended', () => {
     const targets: TargetRow[] = [
       {

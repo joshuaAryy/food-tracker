@@ -5,6 +5,12 @@ import type {
   TrainingStyle,
 } from '@food-tracker/shared';
 import {
+  floorRateToStep,
+  MIN_AUTOMATIC_RATE_LB_PER_WEEK,
+  normalizeRateLbPerWeek,
+  roundRateToStep,
+} from '@food-tracker/shared';
+import {
   calculateEnergyRequirement,
   type EnergyRequirementResult,
 } from './energy-requirement.js';
@@ -44,13 +50,17 @@ export interface PersonalizationPlan {
   ratePlanning:
     | {
         status: 'available';
+        minimumRateLbPerWeek: number;
         selectedRateLbPerWeek: number;
         maximumRateLbPerWeek: number;
         calorieAdjustment: number;
       }
     | {
         status: 'unavailable';
-        reason: 'age_model_not_supported' | 'no_safe_rate';
+        reason:
+          | 'age_model_not_supported'
+          | 'no_safe_rate'
+          | 'goal_type_not_supported';
         calorieAdjustment: 0;
       };
   estimatedGoal:
@@ -58,7 +68,10 @@ export interface PersonalizationPlan {
     | { status: 'reached' }
     | {
         status: 'unavailable';
-        reason: 'age_model_not_supported' | 'no_safe_rate';
+        reason:
+          | 'age_model_not_supported'
+          | 'no_safe_rate'
+          | 'goal_type_not_supported';
       };
 }
 
@@ -165,11 +178,10 @@ function rateMaximum(
 ): number {
   if (goalType === 'maintain') return 0;
   if (goalType === 'gain')
-    return Math.floor(Math.min(1, weightLb * 0.005) / 0.25) * 0.25;
+    return floorRateToStep(Math.min(1, weightLb * 0.005));
   const floor = sex === 'female' ? 1200 : 1500;
-  const floorLimited =
-    Math.floor(Math.max(0, (baseline - floor) / 500) / 0.25) * 0.25;
-  return Math.floor(Math.min(2, weightLb * 0.01, floorLimited) / 0.25) * 0.25;
+  const floorLimited = floorRateToStep(Math.max(0, (baseline - floor) / 500));
+  return floorRateToStep(Math.min(2, weightLb * 0.01, floorLimited));
 }
 
 function estimateDate(asOf: Date, timezone: string, days: number): string {
@@ -207,9 +219,14 @@ export function resolvePersonalizationPlan(
     : 0;
   const requestedRate = input.targetRateLbPerWeek ?? 0;
   const selectedRate =
-    adultPlanning && input.goalType !== 'maintain' && maximumRate >= 0.25
+    adultPlanning &&
+    input.goalType !== 'maintain' &&
+    maximumRate >= MIN_AUTOMATIC_RATE_LB_PER_WEEK
       ? Math.min(
-          Math.max(0.25, Math.round(requestedRate / 0.25) * 0.25),
+          Math.max(
+            MIN_AUTOMATIC_RATE_LB_PER_WEEK,
+            roundRateToStep(requestedRate),
+          ),
           maximumRate,
         )
       : 0;
@@ -248,17 +265,21 @@ export function resolvePersonalizationPlan(
     adultPlanning && input.goalType !== 'maintain' && selectedRate >= 0.25
       ? {
           status: 'available' as const,
-          selectedRateLbPerWeek: round(selectedRate, 2),
-          maximumRateLbPerWeek: round(maximumRate, 2),
+          minimumRateLbPerWeek: MIN_AUTOMATIC_RATE_LB_PER_WEEK,
+          selectedRateLbPerWeek: normalizeRateLbPerWeek(selectedRate),
+          maximumRateLbPerWeek: normalizeRateLbPerWeek(maximumRate),
           calorieAdjustment: adjustment,
         }
       : {
           status: 'unavailable' as const,
-          reason: (adultPlanning
-            ? 'no_safe_rate'
-            : 'age_model_not_supported') as
+          reason: (input.goalType === 'maintain'
+            ? 'goal_type_not_supported'
+            : adultPlanning
+              ? 'no_safe_rate'
+              : 'age_model_not_supported') as
             | 'no_safe_rate'
-            | 'age_model_not_supported',
+            | 'age_model_not_supported'
+            | 'goal_type_not_supported',
           calorieAdjustment: 0 as const,
         };
   const estimatedGoal = reached

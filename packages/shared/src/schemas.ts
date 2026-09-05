@@ -40,6 +40,7 @@ import {
 } from './constants.js';
 import { parsedServingSuggestionSchema } from './serving-text.js';
 import type { AiFoodParseCandidate } from './types.js';
+import { isSelectableRateLbPerWeek } from './goal-rates.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -111,7 +112,10 @@ const goalsBaseSchema = z.strictObject({
   targetRateLbPerWeek: z
     .number()
     .positive()
-    .multipleOf(0.25)
+    .refine(
+      isSelectableRateLbPerWeek,
+      'target rate must use 0.05 lb/week steps',
+    )
     .nullable()
     .optional(),
   targetWeightLb: z.number().positive(),
@@ -148,7 +152,14 @@ const goalsMatchTypeMessage = {
 
 export const goalsSchema = goalsBaseSchema
   .extend({
-    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
     targetCarbsGrams: z.number().positive().nullable(),
     targetFatGrams: z.number().positive().nullable(),
     targetFiberGrams: z.number().positive().nullable(),
@@ -158,7 +169,22 @@ export const goalsSchema = goalsBaseSchema
   .refine(goalsMatchType, goalsMatchTypeMessage);
 
 export const goalsInputSchema = goalsBaseSchema
-  .extend({ targetOverrides: z.boolean().optional() })
+  .extend({
+    targetOverrides: z.boolean().optional(),
+    targetOverrideFields: z
+      .array(
+        z.enum([
+          'calories',
+          'protein',
+          'carbs',
+          'fat',
+          'fiber',
+          'sugar',
+          'sodium',
+        ]),
+      )
+      .optional(),
+  })
   .refine(goalsMatchType, goalsMatchTypeMessage);
 
 export const trackingPreferencesSchema = z.strictObject({
@@ -222,6 +248,23 @@ export const setupPreviewInputSchema = setupInputSchema.extend({
   currentWeightLb: z.number().positive().nullable().optional(),
 });
 
+const ratePlanningSchema = z.union([
+  z.strictObject({
+    status: z.literal('available'),
+    minimumRateLbPerWeek: z.number().positive(),
+    maximumRateLbPerWeek: z.number().positive(),
+    selectedRateLbPerWeek: z.number().positive(),
+  }),
+  z.strictObject({
+    status: z.literal('unavailable'),
+    reason: z.enum([
+      'age_model_not_supported',
+      'no_safe_rate',
+      'goal_type_not_supported',
+    ]),
+  }),
+]);
+
 export const setupResultSchema = z.strictObject({
   profile: profileSchema,
   goals: goalsSchema,
@@ -234,9 +277,17 @@ export const setupResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive().nullable(),
-    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
     estimatedGoalDate: localDateSchema.nullable(),
   }),
+  ratePlanning: ratePlanningSchema,
   status: setupStatusSchema,
 });
 
@@ -254,9 +305,17 @@ export const setupPreviewResultSchema = z.strictObject({
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
     limitSodiumMg: z.number().int().positive().nullable(),
-    targetRateLbPerWeek: z.number().positive().multipleOf(0.25).nullable(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
     estimatedGoalDate: localDateSchema.nullable(),
   }),
+  ratePlanning: ratePlanningSchema,
 });
 
 export const nutrientUnitSchema = z.enum(NUTRIENT_UNITS);

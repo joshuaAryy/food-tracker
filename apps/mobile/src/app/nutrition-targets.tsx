@@ -8,6 +8,7 @@ import { AppText } from '@/components/app-text';
 import { ErrorState } from '@/components/error-state';
 import { ScreenHeader } from '@/components/screen-header';
 import { api, errorMessage } from '@/lib/api-client';
+import { NUTRIENT_CATALOG } from '@food-tracker/shared';
 
 export interface TargetRow {
   nutrientKey: string;
@@ -17,6 +18,38 @@ export interface TargetRow {
   recommendedValue: number | null;
   effectiveSource: string;
   isCustom: boolean;
+}
+
+const directionLabels: Record<string, string> = {
+  target: 'Target',
+  minimum: 'Minimum',
+  limit: 'Limit',
+};
+
+const sourceLabels: Record<string, string> = {
+  personalized: 'Personalized',
+  reference: 'Reference',
+  derived: 'Derived',
+  missing: 'Unavailable',
+  user: 'Custom',
+};
+
+export function targetValidationMessage(
+  target: Pick<TargetRow, 'direction'>,
+  value: number,
+): string | null {
+  if (!Number.isFinite(value) || value < 0)
+    return 'Enter a number of 0 or more.';
+  if (target.direction !== 'limit' && value === 0)
+    return 'Enter a number greater than 0.';
+  return null;
+}
+
+export function targetDisplayName(nutrientKey: string): string {
+  return (
+    NUTRIENT_CATALOG[nutrientKey as keyof typeof NUTRIENT_CATALOG]
+      ?.displayName ?? nutrientKey
+  );
 }
 
 export function draftsForTargets(targets: TargetRow[]): Record<string, string> {
@@ -35,6 +68,9 @@ export default function NutritionTargetsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
 
   const load = useCallback(async () => {
     setError(null);
@@ -56,12 +92,19 @@ export default function NutritionTargetsScreen() {
 
   const save = async (target: TargetRow) => {
     const value = Number(drafts[target.nutrientKey]);
-    if (
-      !Number.isFinite(value) ||
-      value < 0 ||
-      (target.direction !== 'limit' && value === 0)
-    )
+    const validationMessage = targetValidationMessage(target, value);
+    if (validationMessage !== null) {
+      setValidationErrors((current) => ({
+        ...current,
+        [target.nutrientKey]: validationMessage,
+      }));
       return;
+    }
+    setValidationErrors((current) => {
+      const next = { ...current };
+      delete next[target.nutrientKey];
+      return next;
+    });
     setSaving(target.nutrientKey);
     try {
       const response = await api.nutritionTargets.set(
@@ -138,21 +181,31 @@ export default function NutritionTargetsScreen() {
           className="gap-2 rounded-2xl border border-line bg-surface p-4"
         >
           <View className="flex-row items-center justify-between">
-            <AppText variant="label">{target.nutrientKey}</AppText>
+            <AppText variant="label">
+              {targetDisplayName(target.nutrientKey)}
+            </AppText>
             <AppText variant="caption" muted>
-              {target.isCustom ? 'Custom' : target.effectiveSource}
+              {target.isCustom
+                ? 'Custom'
+                : (sourceLabels[target.effectiveSource] ?? 'Recommended')}
             </AppText>
           </View>
           <AppInput
-            label={`${target.direction} (${target.unit})`}
+            label={`${directionLabels[target.direction] ?? 'Target'} (${target.unit})`}
             keyboardType="decimal-pad"
             value={drafts[target.nutrientKey] ?? ''}
-            onChangeText={(value) =>
+            onChangeText={(value) => {
               setDrafts((current) => ({
                 ...current,
                 [target.nutrientKey]: value,
-              }))
-            }
+              }));
+              setValidationErrors((current) => {
+                const next = { ...current };
+                delete next[target.nutrientKey];
+                return next;
+              });
+            }}
+            error={validationErrors[target.nutrientKey]}
           />
           <AppText variant="caption" muted>
             {target.recommendedValue === null

@@ -2,7 +2,10 @@ export interface ExpoPushMessage {
   to: string;
   title: string;
   body: string;
-  data: { route: '/insights'; recommendationId?: string };
+  data: {
+    route: '/insights' | '/food-log';
+    recommendationId?: string;
+  };
 }
 
 export interface ExpoPushTicket {

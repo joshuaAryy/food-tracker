@@ -188,6 +188,55 @@ describe('goals API', () => {
     });
   });
 
+  it('isolates field-level target override intent', async () => {
+    await seedProfile();
+
+    await api
+      .put('/api/v1/goals')
+      .send({
+        goalType: 'maintain',
+        goalPace: null,
+        targetWeightLb: 180,
+        targetCalories: 2300,
+        targetProteinGrams: 150,
+        targetOverrideFields: ['calories'],
+      })
+      .expect(200);
+
+    const overrides = await prisma.userNutrientTargetOverride.findMany({
+      where: { userId: MOCK_USER_ID },
+      orderBy: { nutrientKey: 'asc' },
+    });
+    expect(overrides.map((override) => override.nutrientKey)).toEqual([
+      'calories',
+    ]);
+  });
+
+  it('persists the effective safe rate rather than the requested rate', async () => {
+    await seedProfile({ startingWeightLb: 180 });
+
+    const response = await api
+      .put('/api/v1/goals')
+      .send({
+        goalType: 'lose',
+        goalPace: 'aggressive',
+        targetWeightLb: 160,
+        targetRateLbPerWeek: 2,
+        targetCalories: 2100,
+        targetProteinGrams: 150,
+        targetOverrideFields: [],
+      })
+      .expect(200);
+
+    const persisted = await prisma.userGoal.findUnique({
+      where: { userId: MOCK_USER_ID },
+    });
+    expect(persisted?.targetRateLbPerWeek?.toNumber()).toBe(
+      response.body.data.targetRateLbPerWeek,
+    );
+    expect(response.body.data.targetRateLbPerWeek).toBeLessThan(2);
+  });
+
   it('rejects an invalid goal type', async () => {
     const response = await api
       .put('/api/v1/goals')

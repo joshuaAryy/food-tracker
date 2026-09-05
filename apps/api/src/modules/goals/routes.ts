@@ -2,13 +2,13 @@ import { Router } from 'express';
 import { goalsInputSchema, type GoalsInput } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
 import { notFoundError } from '../../lib/errors.js';
+import { calculatePersonalizedPlan } from '../../lib/personalization.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import { roundTo, serializeGoals } from '../../lib/serializers.js';
 import { isCompleteGoals } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
 import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
-import { calculateAge } from '../personalization/resolver.js';
 
 export const goalsRouter = Router();
 
@@ -45,18 +45,56 @@ goalsRouter.put(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<GoalsInput>(response);
-    const profile = await prisma.userProfile.findUnique({
-      where: { userId },
-      select: { birthDate: true, timezone: true },
-    });
-    const adultRatePlanning =
-      profile?.birthDate !== null && profile?.birthDate !== undefined
-        ? calculateAge(
-            profile.birthDate.toISOString().slice(0, 10),
-            new Date(),
-            profile.timezone,
-          ) >= 19
-        : false;
+    const [profile, latestWeight] = await Promise.all([
+      prisma.userProfile.findUnique({
+        where: { userId },
+        select: {
+          name: true,
+          birthDate: true,
+          sex: true,
+          heightInches: true,
+          timezone: true,
+          startingWeightLb: true,
+          activityLevel: true,
+          trainingStyle: true,
+        },
+      }),
+      prisma.weightLog.findFirst({
+        where: { userId, weightLb: { gt: 0 } },
+        orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+        select: { weightLb: true },
+      }),
+    ]);
+    const effectiveRate =
+      profile?.birthDate &&
+      profile.sex &&
+      profile.heightInches &&
+      profile.startingWeightLb &&
+      profile.activityLevel &&
+      profile.trainingStyle
+        ? calculatePersonalizedPlan({
+            profile: {
+              name: profile.name ?? 'User',
+              birthDate: profile.birthDate.toISOString().slice(0, 10),
+              sex: profile.sex as 'male' | 'female',
+              heightInches: profile.heightInches,
+              timezone: profile.timezone,
+              startingWeightLb: Number(profile.startingWeightLb),
+              currentWeightLb: latestWeight?.weightLb
+                ? Number(latestWeight.weightLb)
+                : null,
+              activityLevel: profile.activityLevel,
+              trainingStyle: profile.trainingStyle,
+            },
+            goals: {
+              goalType: input.goalType,
+              goalPace: input.goalPace,
+              targetRateLbPerWeek: input.targetRateLbPerWeek ?? null,
+              targetWeightLb: input.targetWeightLb,
+            },
+            preferences: { mode: 'simple', waterTrackingEnabled: false },
+          }).ratePlanning
+        : null;
     const roundOptional = (
       value: number | null,
       places: number,
@@ -72,8 +110,8 @@ goalsRouter.put(
       goalType: input.goalType,
       goalPace: input.goalPace,
       targetRateLbPerWeek:
-        adultRatePlanning && input.targetRateLbPerWeek !== undefined
-          ? input.targetRateLbPerWeek
+        effectiveRate?.status === 'available'
+          ? effectiveRate.selectedRateLbPerWeek
           : null,
       targetWeightLb: roundTo(input.targetWeightLb, 1),
     };
@@ -114,9 +152,15 @@ goalsRouter.put(
         ['sugar', input.limitSugarGrams],
         ['sodium', input.limitSodiumMg],
       ] as const;
+      const explicitFields = input.targetOverrideFields;
+      const legacyFields =
+        input.targetOverrides === false
+          ? []
+          : overrides.map(([nutrientKey]) => nutrientKey);
+      const selectedFields = new Set(explicitFields ?? legacyFields);
       for (const [nutrientKey, value] of overrides) {
         if (
-          input.targetOverrides === false ||
+          !selectedFields.has(nutrientKey) ||
           value === undefined ||
           value === null
         )

@@ -96,6 +96,7 @@ setupRouter.post(
         targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
         estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
+      ratePlanning: publicRatePlanning(calculatedTargets.ratePlanning),
     });
   },
 );
@@ -122,7 +123,7 @@ setupRouter.put(
     };
     const goalsData = {
       ...input.goals,
-      targetRateLbPerWeek: input.goals.targetRateLbPerWeek ?? null,
+      targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
       targetWeightLb: roundTo(input.goals.targetWeightLb, 1),
       targetCalories: calculatedTargets.targetCalories,
       targetProteinGrams: calculatedTargets.targetProteinGrams,
@@ -170,7 +171,21 @@ setupRouter.put(
         targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
         estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
+      ratePlanning: publicRatePlanning(calculatedTargets.ratePlanning),
       status: setupStatus(true, true, true),
     });
   },
 );
+
+function publicRatePlanning(
+  ratePlanning: ReturnType<typeof calculatePersonalizedTargets>['ratePlanning'],
+) {
+  return ratePlanning.status === 'available'
+    ? {
+        status: ratePlanning.status,
+        minimumRateLbPerWeek: ratePlanning.minimumRateLbPerWeek,
+        maximumRateLbPerWeek: ratePlanning.maximumRateLbPerWeek,
+        selectedRateLbPerWeek: ratePlanning.selectedRateLbPerWeek,
+      }
+    : { status: ratePlanning.status, reason: ratePlanning.reason };
+}

@@ -15,14 +15,25 @@ export const nutritionTargetsRouter = Router();
 
 export function targetRows(
   targets: Awaited<ReturnType<typeof resolveUserNutritionTargets>>,
+  mode: 'simple' | 'complex' = 'simple',
 ) {
-  return Object.values(targets).filter(
-    (target) => TARGETABLE_NUTRIENT_POLICY[target.nutrientKey] !== undefined,
-  );
+  return Object.values(targets).filter((target) => {
+    const policy = TARGETABLE_NUTRIENT_POLICY[target.nutrientKey];
+    return (
+      policy !== undefined && (mode === 'complex' || policy.mode === 'simple')
+    );
+  });
 }
 
 async function resolvedTargetRows(userId: string) {
-  return targetRows(await resolveUserNutritionTargets(userId));
+  const [targets, preferences] = await Promise.all([
+    resolveUserNutritionTargets(userId),
+    prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    }),
+  ]);
+  return targetRows(targets, preferences?.mode ?? 'simple');
 }
 
 nutritionTargetsRouter.get('/', async (_request, response) => {
@@ -35,9 +46,17 @@ nutritionTargetsRouter.put(
   '/:nutrientKey',
   validateBody(valueSchema),
   async (request, response) => {
+    const userId = currentUserId(response);
     const nutrientKey = request.params.nutrientKey as NutrientKey;
     const policy = TARGETABLE_NUTRIENT_POLICY[nutrientKey];
     if (policy === undefined || !(nutrientKey in NUTRIENT_CATALOG)) {
+      throw notFoundError('Targetable nutrient');
+    }
+    const preferences = await prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    });
+    if (policy.mode === 'complex' && preferences?.mode !== 'complex') {
       throw notFoundError('Targetable nutrient');
     }
     const input = validatedBody<{ value: number }>(response);
@@ -61,7 +80,7 @@ nutritionTargetsRouter.put(
       },
     });
     sendSuccess(response, {
-      targets: await resolvedTargetRows(currentUserId(response)),
+      targets: await resolvedTargetRows(userId),
     });
   },
 );
