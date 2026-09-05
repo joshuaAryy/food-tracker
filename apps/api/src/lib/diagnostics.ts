@@ -10,9 +10,11 @@ export interface ServerDiagnostic {
   operation?: string;
   retryable?: boolean;
   elapsedMs?: number;
+  code?: string;
   errorClass?: string;
   errorName?: string;
   errorCode?: string;
+  prismaErrorTypes?: string[];
   errorMessage?: string;
   errorLocation?: string;
   environmentCategory?: string;
@@ -189,9 +191,11 @@ export function createServerDiagnostic(
       ? details.status
       : undefined;
   const operation = safeToken(details.operation);
+  const code = safeToken(details.code);
   const errorClass = safeToken(details.errorClass);
   const errorName = safeToken(details.errorName);
   const errorCode = safeToken(details.errorCode);
+  const prismaErrorTypes = safeTokenList(details.prismaErrorTypes);
   const errorMessage = safeText(details.errorMessage);
   const errorLocation = safeApplicationLocation(details.errorLocation);
   const environmentCategory = safeToken(details.environmentCategory);
@@ -218,9 +222,13 @@ export function createServerDiagnostic(
   ) {
     diagnostic.elapsedMs = Math.round(details.elapsedMs);
   }
+  if (code !== undefined) diagnostic.code = code;
   if (errorClass !== undefined) diagnostic.errorClass = errorClass;
   if (errorName !== undefined) diagnostic.errorName = errorName;
   if (errorCode !== undefined) diagnostic.errorCode = errorCode;
+  if (prismaErrorTypes !== undefined) {
+    diagnostic.prismaErrorTypes = prismaErrorTypes;
+  }
   if (errorMessage !== undefined) diagnostic.errorMessage = errorMessage;
   if (errorLocation !== undefined) diagnostic.errorLocation = errorLocation;
   if (environmentCategory !== undefined) {

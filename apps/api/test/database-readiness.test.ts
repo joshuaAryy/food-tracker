@@ -65,6 +65,46 @@ describe('database request readiness', () => {
     expect(isTransientDatabaseReadinessError(prismaError('P2002'))).toBe(false);
   });
 
+  it('emits safe structural metadata for an unclassified probe error', async () => {
+    class RailwayDatabaseWakeError extends Error {
+      code = 'RAILWAY_DATABASE_WAKE';
+      errorCode = 'RAILWAY_DATABASE_ERROR';
+      databaseUrl = 'postgresql://user:password@private-host/database';
+      authorization = 'Bearer private-token';
+      details = { privatePayload: 'do-not-serialize' };
+
+      constructor() {
+        super('private database wake failure');
+        this.name = 'RailwayDatabaseWakeError';
+      }
+    }
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = new RailwayDatabaseWakeError();
+    const readiness = createDatabaseReadiness({
+      probe: vi.fn().mockRejectedValue(error),
+    });
+
+    await expect(readiness.ensureReady()).rejects.toBe(error);
+
+    expect(warn).toHaveBeenCalledWith(
+      '[food-tracker:diagnostic]',
+      expect.objectContaining({
+        category: 'database_readiness_exhausted',
+        errorClass: 'RailwayDatabaseWakeError',
+        errorName: 'RailwayDatabaseWakeError',
+        code: 'RAILWAY_DATABASE_WAKE',
+        errorCode: 'RAILWAY_DATABASE_ERROR',
+        prismaErrorTypes: [],
+      }),
+    );
+    const serializedDiagnostics = JSON.stringify(warn.mock.calls);
+    expect(serializedDiagnostics).not.toContain('postgresql://');
+    expect(serializedDiagnostics).not.toContain('private-token');
+    expect(serializedDiagnostics).not.toContain('do-not-serialize');
+    warn.mockRestore();
+  });
+
   it('classifies Prisma 6.19 connectivity errors without classifying integrity errors', () => {
     expect(
       isTransientDatabaseReadinessError(

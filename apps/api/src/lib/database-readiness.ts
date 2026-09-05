@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { AppError } from './errors.js';
 import { emitServerDiagnostic } from './diagnostics.js';
 
@@ -23,6 +24,29 @@ const TRANSIENT_TRANSPORT_ERROR_CODES = new Set([
   'ETIMEDOUT',
   'EPIPE',
 ]);
+
+const PRISMA_ERROR_TYPES = [
+  {
+    name: 'PrismaClientInitializationError',
+    constructor: Prisma.PrismaClientInitializationError,
+  },
+  {
+    name: 'PrismaClientKnownRequestError',
+    constructor: Prisma.PrismaClientKnownRequestError,
+  },
+  {
+    name: 'PrismaClientUnknownRequestError',
+    constructor: Prisma.PrismaClientUnknownRequestError,
+  },
+  {
+    name: 'PrismaClientRustPanicError',
+    constructor: Prisma.PrismaClientRustPanicError,
+  },
+  {
+    name: 'PrismaClientValidationError',
+    constructor: Prisma.PrismaClientValidationError,
+  },
+] as const;
 
 export interface DatabaseReadiness {
   ensureReady(): Promise<void>;
@@ -50,12 +74,57 @@ export class DatabaseReadinessError extends AppError {
   }
 }
 
-function errorCode(error: unknown): string | undefined {
+function stringErrorProperty(
+  error: unknown,
+  property: 'code' | 'errorCode' | 'name',
+): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined;
-  const details = error as { code?: unknown; errorCode?: unknown };
-  if (typeof details.errorCode === 'string') return details.errorCode;
-  if (typeof details.code === 'string') return details.code;
-  return undefined;
+  try {
+    const value = (error as Record<string, unknown>)[property];
+    return typeof value === 'string' ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function errorCode(error: unknown): string | undefined {
+  return (
+    stringErrorProperty(error, 'errorCode') ??
+    stringErrorProperty(error, 'code')
+  );
+}
+
+function errorConstructorName(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  try {
+    const constructor = (error as { constructor?: unknown }).constructor;
+    if (typeof constructor !== 'function') return undefined;
+    const name = (constructor as { name?: unknown }).name;
+    return typeof name === 'string' ? name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function prismaErrorTypes(error: unknown): string[] {
+  if (typeof error !== 'object' || error === null) return [];
+  return PRISMA_ERROR_TYPES.flatMap(({ name, constructor }) => {
+    try {
+      return error instanceof constructor ? [name] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function readinessErrorMetadata(error: unknown): Record<string, unknown> {
+  return {
+    code: stringErrorProperty(error, 'code'),
+    errorClass: errorConstructorName(error),
+    errorName: stringErrorProperty(error, 'name'),
+    errorCode: stringErrorProperty(error, 'errorCode'),
+    prismaErrorTypes: prismaErrorTypes(error),
+  };
 }
 
 export function isTransientDatabaseReadinessError(error: unknown): boolean {
@@ -130,6 +199,7 @@ export function createDatabaseReadiness(
             elapsedMs,
             errorCategory: failureCategory(error),
             retryable: transient,
+            ...readinessErrorMetadata(error),
           });
           if (transient) throw new DatabaseReadinessError();
           throw error;
@@ -142,6 +212,7 @@ export function createDatabaseReadiness(
           elapsedMs,
           errorCategory: failureCategory(error),
           retryable: true,
+          ...readinessErrorMetadata(error),
         });
         await sleep(delayMs);
       }
