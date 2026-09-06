@@ -6,11 +6,10 @@ import {
   withInfoPlist,
   withXcodeProject,
   type ConfigPlugin,
+  type InfoPlist,
 } from 'expo/config-plugins';
 
 const SCENE_MARKER = '// @generated begin Food Tracker iOS scene lifecycle';
-
-type InfoPlist = Record<string, unknown>;
 
 type XcodeProject = {
   hash: {

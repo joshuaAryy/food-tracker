@@ -7,11 +7,7 @@ import {
   removeRemotePushNativeConfiguration,
   removeAppleSignInNativeConfiguration,
   validateApiUrl,
-  withDisabledRemotePushNativeConfiguration,
 } from './app.config';
-import withReleaseBundleSafety from './config-plugins/with-release-bundle-safety';
-import withIosDeploymentTarget from './config-plugins/with-ios-deployment-target';
-import withIosSceneLifecycle from './config-plugins/with-ios-scene-lifecycle';
 
 describe('tracked Expo configuration', () => {
   it('loads the external TypeScript helper through the Expo config loader', () => {
@@ -139,11 +135,10 @@ describe('tracked Expo configuration', () => {
     expect(plugins).toContainEqual(['expo-dev-client', { toolsButton: false }]);
     expect(plugins).toContainEqual([
       'expo-build-properties',
-      { ios: { useFrameworks: 'static' } },
+      expect.objectContaining({
+        ios: expect.objectContaining({ useFrameworks: 'static' }),
+      }),
     ]);
-    expect(plugins).toContain(withReleaseBundleSafety);
-    expect(plugins).toContain(withIosDeploymentTarget);
-    expect(plugins).toContain(withIosSceneLifecycle);
     expect(config.ios?.googleServicesFile).toBeUndefined();
   });
 
@@ -161,7 +156,9 @@ describe('tracked Expo configuration', () => {
     expect(plugins).toContain('@react-native-firebase/auth');
     expect(plugins).toContainEqual([
       'expo-build-properties',
-      { ios: { useFrameworks: 'static' } },
+      expect.objectContaining({
+        ios: expect.objectContaining({ useFrameworks: 'static' }),
+      }),
     ]);
     expect(config).toMatchObject({
       name: 'Food Tracker',
@@ -209,7 +206,11 @@ describe('tracked Expo configuration', () => {
     });
     expect(config.extra).toMatchObject({ remotePushEnabled: false });
     expect(config.plugins).not.toContain('expo-notifications');
-    expect(config.plugins).toContain(withDisabledRemotePushNativeConfiguration);
+    expect(
+      (config.plugins ?? []).every(
+        (plugin) => typeof plugin === 'string' || Array.isArray(plugin),
+      ),
+    ).toBe(true);
   });
 
   it('includes remote push plugin and capability when explicitly enabled', () => {

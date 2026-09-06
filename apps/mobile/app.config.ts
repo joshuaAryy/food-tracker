@@ -1,6 +1,12 @@
 import 'tsx/cjs';
 import type { ConfigContext, ExpoConfig } from 'expo/config';
-import { withEntitlementsPlist, type ConfigPlugin } from 'expo/config-plugins';
+import {
+  IOSConfig,
+  withEntitlementsPlist,
+  withPlugins,
+  type ConfigPlugin,
+  type StaticPlugin,
+} from 'expo/config-plugins';
 import { isAppleSignInEnabled } from './src/lib/apple-sign-in-config';
 import { resolveRemotePushEnabled } from './src/lib/remote-push-config';
 import {
@@ -15,17 +21,21 @@ import withIosSceneLifecycle from './config-plugins/with-ios-scene-lifecycle';
 
 export type AppEnvironment = 'development' | 'staging' | 'production';
 
+type Entitlements = Parameters<
+  typeof IOSConfig.Entitlements.setAssociatedDomains
+>[1];
+
 export function removeAppleSignInNativeConfiguration(
-  entitlements: Record<string, unknown>,
-): Record<string, unknown> {
+  entitlements: Entitlements,
+): Entitlements {
   const nextEntitlements = { ...entitlements };
   delete nextEntitlements['com.apple.developer.applesignin'];
   return nextEntitlements;
 }
 
 export function removeRemotePushNativeConfiguration(
-  entitlements: Record<string, unknown>,
-): Record<string, unknown> {
+  entitlements: Entitlements,
+): Entitlements {
   const nextEntitlements = { ...entitlements };
   delete nextEntitlements['aps-environment'];
   return nextEntitlements;
@@ -44,6 +54,66 @@ export const withDisabledRemotePushNativeConfiguration: ConfigPlugin = (
     config.modResults = removeRemotePushNativeConfiguration(config.modResults);
     return config;
   });
+
+type AppConfigPlugin = string | ConfigPlugin | StaticPlugin;
+
+function staticPlugin<Props>(name: string, props: Props): StaticPlugin<Props> {
+  return [name, props];
+}
+
+function isExpoConfigPlugin(
+  plugin: AppConfigPlugin,
+): plugin is string | [string, unknown] {
+  return (
+    typeof plugin === 'string' ||
+    (Array.isArray(plugin) && typeof plugin[0] === 'string')
+  );
+}
+
+function buildPluginDefinitions(
+  appleSignInEnabled: boolean,
+  remotePushEnabled: boolean,
+): AppConfigPlugin[] {
+  return [
+    'expo-router',
+    remotePushEnabled
+      ? 'expo-notifications'
+      : withDisabledRemotePushNativeConfiguration,
+    staticPlugin('expo-dev-client', { toolsButton: false }),
+    staticPlugin('expo-camera', {
+      cameraPermission:
+        'Allow Food Tracker to use the camera for barcode scanning and food photos.',
+      barcodeScannerEnabled: true,
+    }),
+    staticPlugin('expo-image-picker', {
+      photosPermission:
+        'Allow Food Tracker to choose a food photo for one-time analysis. Photos are not retained.',
+    }),
+    staticPlugin('expo-alternate-app-icons', [
+      {
+        name: 'ComplexMode',
+        ios: './assets/icons/complex.png',
+        android: {
+          foregroundImage: './assets/icons/complex.png',
+          backgroundColor: '#FFFFFF',
+        },
+      },
+    ]),
+    appleSignInEnabled
+      ? 'expo-apple-authentication'
+      : withDisabledAppleSignInNativeConfiguration,
+    '@react-native-firebase/app',
+    '@react-native-firebase/auth',
+    staticPlugin('expo-build-properties', {
+      ios: {
+        useFrameworks: 'static',
+      },
+    }),
+    withReleaseBundleSafety,
+    withIosDeploymentTarget,
+    withIosSceneLifecycle,
+  ];
+}
 
 function assertEnvironment(value: string): asserts value is AppEnvironment {
   if (!['development', 'staging', 'production'].includes(value)) {
@@ -86,9 +156,15 @@ export function createAppConfig(
   const appleSignInEnabled = isAppleSignInEnabled(environment);
   const remotePushEnabled = resolveRemotePushEnabled({
     APP_ENV: appEnv,
-    IOS_REMOTE_PUSH_ENABLED: environment.IOS_REMOTE_PUSH_ENABLED,
+    ...(environment.IOS_REMOTE_PUSH_ENABLED === undefined
+      ? {}
+      : { IOS_REMOTE_PUSH_ENABLED: environment.IOS_REMOTE_PUSH_ENABLED }),
   });
   const easProjectId = environment.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  const pluginDefinitions = buildPluginDefinitions(
+    appleSignInEnabled,
+    remotePushEnabled,
+  );
 
   const config: ExpoConfig = {
     name: 'Food Tracker',
@@ -98,60 +174,7 @@ export function createAppConfig(
     icon: './assets/icons/simple.png',
     scheme: 'foodtracker',
     userInterfaceStyle: 'light',
-    plugins: [
-      'expo-router',
-      ...(remotePushEnabled
-        ? ['expo-notifications']
-        : [withDisabledRemotePushNativeConfiguration]),
-      [
-        'expo-dev-client',
-        {
-          toolsButton: false,
-        },
-      ],
-      [
-        'expo-camera',
-        {
-          cameraPermission:
-            'Allow Food Tracker to use the camera for barcode scanning and food photos.',
-          barcodeScannerEnabled: true,
-        },
-      ],
-      [
-        'expo-image-picker',
-        {
-          photosPermission:
-            'Allow Food Tracker to choose a food photo for one-time analysis. Photos are not retained.',
-        },
-      ],
-      [
-        'expo-alternate-app-icons',
-        [
-          {
-            name: 'ComplexMode',
-            ios: './assets/icons/complex.png',
-            android: {
-              foregroundImage: './assets/icons/complex.png',
-              backgroundColor: '#FFFFFF',
-            },
-          },
-        ],
-      ],
-      ...(appleSignInEnabled
-        ? ['expo-apple-authentication']
-        : [withDisabledAppleSignInNativeConfiguration]),
-      '@react-native-firebase/app',
-      '@react-native-firebase/auth',
-      [
-        'expo-build-properties',
-        {
-          ios: { useFrameworks: 'static' },
-        },
-      ],
-      withReleaseBundleSafety,
-      withIosDeploymentTarget,
-      withIosSceneLifecycle,
-    ],
+    plugins: pluginDefinitions.filter(isExpoConfigPlugin),
     extra: {
       apiUrl,
       appEnvironment: appEnv,
@@ -194,7 +217,18 @@ export function createAppConfig(
   return config;
 }
 
-export default (_context: ConfigContext): ExpoConfig => {
-  void _context;
-  return createAppConfig();
+export default (context: ConfigContext): ExpoConfig => {
+  const environmentConfig = createAppConfig();
+  const config: ExpoConfig = {
+    ...context.config,
+    ...environmentConfig,
+  };
+  delete config.plugins;
+  return withPlugins(
+    config,
+    buildPluginDefinitions(
+      environmentConfig.ios?.usesAppleSignIn === true,
+      environmentConfig.extra?.remotePushEnabled === true,
+    ),
+  );
 };

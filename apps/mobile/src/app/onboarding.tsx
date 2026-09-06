@@ -49,6 +49,10 @@ import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
 import { WeeklyRateSlider } from '@/components/weekly-rate-slider';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  nextOnboardingStepIndex,
+  previousOnboardingStepIndex,
+} from '@/lib/onboarding-navigation';
 import { trackingModeLabel } from '@/lib/reporting-ui';
 import { compatibilityPaceForRate } from '@/lib/weekly-rate';
 import { useAppStore } from '@/store/app-store';
@@ -637,14 +641,18 @@ export default function OnboardingScreen() {
     }
 
     setNavigationDirection('forward');
-    setStepIndex((current) => Math.min(steps.length - 1, current + 1));
+    setStepIndex((current) =>
+      nextOnboardingStepIndex(steps, current, getValues('goalType')),
+    );
   };
 
   const back = () => {
     if (transitioning) return;
     setError(null);
     setNavigationDirection('back');
-    setStepIndex((current) => Math.max(0, current - 1));
+    setStepIndex((current) =>
+      previousOnboardingStepIndex(steps, current, getValues('goalType')),
+    );
   };
 
   const save = handleSubmit(async (submittedValues) => {
