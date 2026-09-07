@@ -66,6 +66,35 @@ describe('tracked Expo configuration', () => {
     ).toBe('https://staging-api.example.com/api/v1');
   });
 
+  it('declares local HTTP transport permissions only for development builds', () => {
+    const development = createAppConfig({
+      APP_ENV: 'development',
+      EXPO_PUBLIC_API_URL: 'http://10.0.0.195:3000/api/v1',
+    });
+    const developmentInfoPlist = development.ios?.infoPlist as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(developmentInfoPlist).toMatchObject({
+      NSAppTransportSecurity: {
+        NSAllowsArbitraryLoads: false,
+        NSAllowsLocalNetworking: true,
+      },
+      NSLocalNetworkUsageDescription: expect.any(String),
+    });
+
+    const staging = createAppConfig({
+      APP_ENV: 'staging',
+      EXPO_PUBLIC_API_URL: 'https://staging-api.example.com/api/v1',
+    });
+    const stagingInfoPlist = staging.ios?.infoPlist as
+      | Record<string, unknown>
+      | undefined;
+
+    expect(stagingInfoPlist?.NSAppTransportSecurity).toBeUndefined();
+    expect(stagingInfoPlist?.NSLocalNetworkUsageDescription).toBeUndefined();
+  });
+
   it('shares the runtime API-target contract for production and private hosts', () => {
     expect(validateApiUrl('https://api.example.com/api/v1', 'production')).toBe(
       'https://api.example.com/api/v1',

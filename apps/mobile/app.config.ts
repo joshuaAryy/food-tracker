@@ -165,6 +165,23 @@ export function createAppConfig(
     appleSignInEnabled,
     remotePushEnabled,
   );
+  const infoPlist = {
+    ...(googleIosUrlScheme === undefined
+      ? {}
+      : {
+          CFBundleURLTypes: [{ CFBundleURLSchemes: [googleIosUrlScheme] }],
+        }),
+    ...(appEnv === 'development'
+      ? {
+          NSAppTransportSecurity: {
+            NSAllowsArbitraryLoads: false,
+            NSAllowsLocalNetworking: true,
+          },
+          NSLocalNetworkUsageDescription:
+            'Food Tracker uses your local network to connect to the development API.',
+        }
+      : {}),
+  };
 
   const config: ExpoConfig = {
     name: 'Food Tracker',
@@ -193,13 +210,7 @@ export function createAppConfig(
       ...(googleServicesPlistPath === undefined
         ? {}
         : { googleServicesFile: googleServicesPlistPath }),
-      ...(googleIosUrlScheme === undefined
-        ? {}
-        : {
-            infoPlist: {
-              CFBundleURLTypes: [{ CFBundleURLSchemes: [googleIosUrlScheme] }],
-            },
-          }),
+      ...(Object.keys(infoPlist).length === 0 ? {} : { infoPlist }),
     },
     android: {
       adaptiveIcon: {
