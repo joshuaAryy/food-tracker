@@ -54,6 +54,7 @@ import {
   previousOnboardingStepIndex,
 } from '@/lib/onboarding-navigation';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { onboardingRatePlanningState } from '@/lib/onboarding-rate-planning';
 import { compatibilityPaceForRate } from '@/lib/weekly-rate';
 import { useAppStore } from '@/store/app-store';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
@@ -538,6 +539,8 @@ export default function OnboardingScreen() {
   const values = useWatch({ control });
   const mode = useWatch({ control, name: 'mode' });
   const goalType = useWatch({ control, name: 'goalType' });
+  const ratePlanningState = onboardingRatePlanningState(preview);
+  const ratePlanning = preview?.ratePlanning;
   const currentStep = steps[stepIndex] ?? firstStep;
   const stepKey = currentStep.key;
   const birthdayValue = useMemo<DateWheelValue>(
@@ -997,13 +1000,15 @@ export default function OnboardingScreen() {
                 </AppText>
               ) : previewLoading ? (
                 <LoadingState message="Checking available rate range…" />
-              ) : preview?.ratePlanning.status === 'available' ? (
+              ) : ratePlanning?.status === 'available' ? (
                 <WeeklyRateSlider
-                  minimumValue={preview.ratePlanning.minimumRateLbPerWeek}
-                  maximumValue={preview.ratePlanning.maximumRateLbPerWeek}
+                  // The state guard above narrows the preview to the available
+                  // planning contract before these backend-derived bounds are read.
+                  minimumValue={ratePlanning.minimumRateLbPerWeek}
+                  maximumValue={ratePlanning.maximumRateLbPerWeek}
                   value={normalizeRateLbPerWeek(
                     Number(values.targetRateLbPerWeek) ||
-                      preview.ratePlanning.selectedRateLbPerWeek,
+                      ratePlanning.selectedRateLbPerWeek,
                   )}
                   onValueChange={(nextRate) => {
                     const normalized = normalizeRateLbPerWeek(nextRate);
@@ -1018,12 +1023,12 @@ export default function OnboardingScreen() {
                     );
                   }}
                 />
-              ) : (
+              ) : ratePlanningState === 'unavailable' ? (
                 <AppText muted>
                   Automatic weekly-rate planning is not available for this
                   profile. Your age-appropriate targets remain available.
                 </AppText>
-              )}
+              ) : null}
             </>
           ) : null}
 
