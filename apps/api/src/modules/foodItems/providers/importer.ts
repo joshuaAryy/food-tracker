@@ -128,6 +128,34 @@ function canonicalNutrients(row: NormalizedProviderFood): CanonicalNutrient[] {
   return [...nutrients.values()];
 }
 
+function roundedNutritionColumn(
+  nutrientsByKey: ReadonlyMap<NutrientKey, number>,
+  nutrientKey: NutrientKey,
+  decimalPlaces: number,
+): number | null {
+  const amount = nutrientsByKey.get(nutrientKey);
+  if (amount === undefined) return null;
+  const factor = 10 ** decimalPlaces;
+  return Math.round((amount + Number.EPSILON) * factor) / factor;
+}
+
+export function topLevelNutritionFromNutrients(
+  nutrients: readonly Pick<CanonicalNutrient, 'nutrientKey' | 'amount'>[],
+) {
+  const nutrientsByKey = new Map(
+    nutrients.map((nutrient) => [nutrient.nutrientKey, nutrient.amount]),
+  );
+  return {
+    calories: roundedNutritionColumn(nutrientsByKey, 'calories', 0),
+    protein: roundedNutritionColumn(nutrientsByKey, 'protein', 1),
+    carbs: roundedNutritionColumn(nutrientsByKey, 'carbs', 1),
+    fat: roundedNutritionColumn(nutrientsByKey, 'fat', 1),
+    fiber: roundedNutritionColumn(nutrientsByKey, 'fiber', 1),
+    sugar: roundedNutritionColumn(nutrientsByKey, 'sugar', 1),
+    sodium: roundedNutritionColumn(nutrientsByKey, 'sodium', 0),
+  };
+}
+
 function nutrientsMatch(
   existing: readonly ExistingProviderFood['nutrients'][number][],
   expected: readonly CanonicalNutrient[],
@@ -150,6 +178,7 @@ function nutrientsMatch(
 }
 
 function foodItemData(row: NormalizedProviderFood) {
+  const nutrition = topLevelNutritionFromNutrients(canonicalNutrients(row));
   return {
     userId: null,
     name: row.name,
@@ -162,6 +191,7 @@ function foodItemData(row: NormalizedProviderFood) {
     servingQuantity: row.servingQuantity,
     servingUnit: row.servingUnit,
     servingWeightGrams: row.servingWeightGrams,
+    ...nutrition,
     sourceProvider: row.provider,
     sourceId: row.sourceId,
     sourceUpdatedAt: new Date(),

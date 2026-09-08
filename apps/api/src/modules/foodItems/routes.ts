@@ -66,6 +66,7 @@ import {
   candidateMatchReason,
   coverageSourceKey,
   foodItemCandidate,
+  hasAuthoritativeNutritionBasis,
 } from './retrieval/candidate-generation.js';
 import { calculateAuthoritativeServing } from '../foodLogs/serving-resolution.js';
 import { createRequestRateLimitKey } from '../ai/rate-limit-key.js';
@@ -662,6 +663,7 @@ foodItemsRouter.post(
 
     for (const foodItem of localFoods) {
       const serialized = serializeFoodItem(foodItem);
+      if (!hasAuthoritativeNutritionBasis(serialized)) continue;
       appendUniqueCandidate({
         candidates,
         seen,
@@ -700,6 +702,7 @@ foodItemsRouter.post(
           const foodItem = byId.get(id);
           if (foodItem === undefined || seen.has(foodItem.id)) continue;
           const serialized = serializeFoodItem(foodItem);
+          if (!hasAuthoritativeNutritionBasis(serialized)) continue;
           appendUniqueCandidate({
             candidates,
             seen,
@@ -759,6 +762,7 @@ foodItemsRouter.post(
           const foodItem = byId.get(id);
           if (foodItem === undefined || seen.has(id)) continue;
           const serialized = serializeFoodItem(foodItem);
+          if (!hasAuthoritativeNutritionBasis(serialized)) continue;
           appendUniqueCandidate({
             candidates,
             seen,

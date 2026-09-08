@@ -741,6 +741,113 @@ describe('provider normalization', () => {
     expect(result).toMatchObject({ imported: 1, skipped: 1 });
   });
 
+  it('persists reference macro columns from authoritative normalized nutrients', async () => {
+    let createdData: Record<string, unknown> | undefined;
+    const row = importRow({
+      release: '2026',
+      sourceId: 'macro-columns',
+      hash: 'macro-columns-hash',
+      nutrients: [
+        {
+          key: 'calories',
+          amount: 123.4,
+          unit: 'kcal',
+          sourceLabel: 'Energy',
+          sourceUnit: 'kcal',
+          sourceValue: '123.4',
+        },
+        {
+          key: 'protein',
+          amount: 12.34,
+          unit: 'g',
+          sourceLabel: 'Protein',
+          sourceUnit: 'g',
+          sourceValue: '12.34',
+        },
+        {
+          key: 'carbs',
+          amount: 20.56,
+          unit: 'g',
+          sourceLabel: 'Carbohydrate',
+          sourceUnit: 'g',
+          sourceValue: '20.56',
+        },
+        {
+          key: 'fat',
+          amount: 4.44,
+          unit: 'g',
+          sourceLabel: 'Fat',
+          sourceUnit: 'g',
+          sourceValue: '4.44',
+        },
+        {
+          key: 'fiber',
+          amount: 2.16,
+          unit: 'g',
+          sourceLabel: 'Fiber',
+          sourceUnit: 'g',
+          sourceValue: '2.16',
+        },
+        {
+          key: 'sugar',
+          amount: 0,
+          unit: 'g',
+          sourceLabel: 'Sugar',
+          sourceUnit: 'g',
+          sourceValue: '0',
+        },
+        {
+          key: 'sodium',
+          amount: 55.4,
+          unit: 'mg',
+          sourceLabel: 'Sodium',
+          sourceUnit: 'mg',
+          sourceValue: '55.4',
+        },
+      ],
+    });
+    const fakePrisma = {
+      foodDatasetRelease: {
+        findUnique: async () => null,
+        upsert: async () => undefined,
+        update: async () => undefined,
+        updateMany: async () => undefined,
+      },
+      foodItem: {
+        findMany: async () => [],
+        create: async ({ data }: { data: Record<string, unknown> }) => {
+          createdData = data;
+          return { id: 'food-macro-columns' };
+        },
+        updateMany: async () => undefined,
+        count: async () => 1,
+      },
+      foodItemNutrient: {
+        deleteMany: async () => undefined,
+        createMany: async () => undefined,
+      },
+      $transaction: async (callback: (transaction: unknown) => unknown) =>
+        callback(fakePrisma),
+    };
+
+    await persistProviderFoods({
+      prisma: fakePrisma as never,
+      rows: [row],
+      sourceUri: 'https://example.test/cnf.csv',
+      sourceSha256: 'sha',
+    });
+
+    expect(createdData).toMatchObject({
+      calories: 123,
+      protein: 12.3,
+      carbs: 20.6,
+      fat: 4.4,
+      fiber: 2.2,
+      sugar: 0,
+      sodium: 55,
+    });
+  });
+
   it('looks up a staged provider row for the exact release when history exists', async () => {
     let lookup: unknown;
     const row = {

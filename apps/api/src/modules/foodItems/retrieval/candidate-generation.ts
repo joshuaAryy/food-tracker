@@ -12,6 +12,25 @@ export interface CandidateRetrievalEvidence {
   semanticScore: number | null;
 }
 
+export function hasAuthoritativeNutritionBasis(
+  foodItem: Pick<
+    FoodItem,
+    'calories' | 'protein' | 'servingQuantity' | 'servingUnit'
+  >,
+): boolean {
+  return (
+    foodItem.calories !== null &&
+    Number.isFinite(foodItem.calories) &&
+    foodItem.protein !== null &&
+    Number.isFinite(foodItem.protein) &&
+    foodItem.servingQuantity !== null &&
+    Number.isFinite(foodItem.servingQuantity) &&
+    foodItem.servingQuantity > 0 &&
+    foodItem.servingUnit !== null &&
+    foodItem.servingUnit.trim().length > 0
+  );
+}
+
 export function candidateMatchReason(input: {
   sourceType: FoodItem['sourceType'] | string;
   sourceProvider: FoodSourceProvider | string | null;
