@@ -33,6 +33,11 @@ export function calculatePersonalizedPlan(
       targetRateLbPerWeek:
         input.goals.targetRateLbPerWeek ??
         (pace === null ? null : LEGACY_PACE_RATE[pace]),
+      targetRateSource:
+        input.goals.targetRateLbPerWeek === undefined ||
+        input.goals.targetRateLbPerWeek === null
+          ? 'legacy'
+          : 'explicit',
     },
     today,
   );

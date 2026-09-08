@@ -186,6 +186,7 @@ function publicRatePlanning(
         minimumRateLbPerWeek: ratePlanning.minimumRateLbPerWeek,
         maximumRateLbPerWeek: ratePlanning.maximumRateLbPerWeek,
         selectedRateLbPerWeek: ratePlanning.selectedRateLbPerWeek,
+        feasibility: ratePlanning.feasibility,
       }
     : { status: ratePlanning.status, reason: ratePlanning.reason };
 }

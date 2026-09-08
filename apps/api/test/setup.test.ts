@@ -191,8 +191,12 @@ describe('setup API', () => {
       ratePlanning: {
         status: 'available',
         minimumRateLbPerWeek: 0.25,
-        maximumRateLbPerWeek: expect.any(Number),
+        maximumRateLbPerWeek: 2,
         selectedRateLbPerWeek: 1,
+        feasibility: {
+          status: 'supported',
+          maximumSupportedRateLbPerWeek: expect.any(Number),
+        },
       },
       status: {
         profileComplete: true,
@@ -249,6 +253,32 @@ describe('setup API', () => {
     });
   });
 
+  it('persists an explicit policy-valid rate without replacing it with a legacy pace', async () => {
+    const response = await api
+      .put('/api/v1/setup')
+      .send({
+        ...setupInput,
+        goals: {
+          ...setupInput.goals,
+          targetRateLbPerWeek: 1.15,
+        },
+      })
+      .expect(200);
+
+    expect(response.body.data.goals.targetRateLbPerWeek).toBe(1.15);
+    expect(response.body.data.calculatedTargets.targetRateLbPerWeek).toBe(1.15);
+    expect(response.body.data.ratePlanning).toMatchObject({
+      minimumRateLbPerWeek: 0.25,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 1.15,
+    });
+
+    const goals = await prisma.userGoal.findUnique({
+      where: { userId: MOCK_USER_ID },
+    });
+    expect(goals?.targetRateLbPerWeek?.toNumber()).toBe(1.15);
+  });
+
   it('previews calculated targets without writing setup rows', async () => {
     const result = await preview();
 
@@ -268,8 +298,12 @@ describe('setup API', () => {
       ratePlanning: {
         status: 'available',
         minimumRateLbPerWeek: 0.25,
-        maximumRateLbPerWeek: expect.any(Number),
+        maximumRateLbPerWeek: 2,
         selectedRateLbPerWeek: 1,
+        feasibility: {
+          status: 'supported',
+          maximumSupportedRateLbPerWeek: expect.any(Number),
+        },
       },
     });
     expect(

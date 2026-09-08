@@ -40,7 +40,10 @@ import {
 } from './constants.js';
 import { parsedServingSuggestionSchema } from './serving-text.js';
 import type { AiFoodParseCandidate } from './types.js';
-import { isSelectableRateLbPerWeek } from './goal-rates.js';
+import {
+  isRateWithinAutomaticPolicy,
+  isSelectableRateLbPerWeek,
+} from './goal-rates.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -150,6 +153,22 @@ const goalsMatchTypeMessage = {
   path: ['goalPace'],
 };
 
+const targetRateMatchesGoalType = ({
+  goalType,
+  targetRateLbPerWeek,
+}: {
+  goalType: GoalType;
+  targetRateLbPerWeek?: number | null | undefined;
+}) =>
+  targetRateLbPerWeek === undefined ||
+  targetRateLbPerWeek === null ||
+  isRateWithinAutomaticPolicy(goalType, targetRateLbPerWeek);
+
+const targetRateMatchesGoalTypeMessage = {
+  message: 'target rate must fit the goal type policy range',
+  path: ['targetRateLbPerWeek'],
+};
+
 export const goalsSchema = goalsBaseSchema
   .extend({
     targetRateLbPerWeek: z
@@ -166,7 +185,8 @@ export const goalsSchema = goalsBaseSchema
     limitSugarGrams: z.number().positive().nullable(),
     limitSodiumMg: z.number().int().positive().nullable(),
   })
-  .refine(goalsMatchType, goalsMatchTypeMessage);
+  .refine(goalsMatchType, goalsMatchTypeMessage)
+  .refine(targetRateMatchesGoalType, targetRateMatchesGoalTypeMessage);
 
 export const goalsInputSchema = goalsBaseSchema
   .extend({
@@ -185,7 +205,8 @@ export const goalsInputSchema = goalsBaseSchema
       )
       .optional(),
   })
-  .refine(goalsMatchType, goalsMatchTypeMessage);
+  .refine(goalsMatchType, goalsMatchTypeMessage)
+  .refine(targetRateMatchesGoalType, targetRateMatchesGoalTypeMessage);
 
 export const trackingPreferencesSchema = z.strictObject({
   mode: trackingModeSchema,
@@ -242,7 +263,11 @@ export const setupInputSchema = z
       message: 'goalPace must match goalType',
       path: ['goals', 'goalPace'],
     },
-  );
+  )
+  .refine(({ goals }) => targetRateMatchesGoalType(goals), {
+    ...targetRateMatchesGoalTypeMessage,
+    path: ['goals', 'targetRateLbPerWeek'],
+  });
 
 export const setupPreviewInputSchema = setupInputSchema.extend({
   currentWeightLb: z.number().positive().nullable().optional(),
@@ -254,6 +279,10 @@ const ratePlanningSchema = z.union([
     minimumRateLbPerWeek: z.number().positive(),
     maximumRateLbPerWeek: z.number().positive(),
     selectedRateLbPerWeek: z.number().positive(),
+    feasibility: z.strictObject({
+      status: z.enum(['supported', 'limited']),
+      maximumSupportedRateLbPerWeek: z.number().nonnegative(),
+    }),
   }),
   z.strictObject({
     status: z.literal('unavailable'),

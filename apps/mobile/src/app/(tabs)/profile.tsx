@@ -36,7 +36,7 @@ import {
   GOAL_PACES,
   TRACKING_MODES,
   TRAINING_STYLES,
-  isSelectableRateLbPerWeek,
+  isRateWithinAutomaticPolicy,
 } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
 import { AccountSignOutButton } from '@/components/auth/account-sign-out-button';
@@ -1000,11 +1000,16 @@ export default function ProfileScreen() {
             rules={{
               validate: (value) =>
                 value.trim() === '' ||
-                (Number(value) >= 0.25 &&
-                  Number(value) <= 2 &&
-                  isSelectableRateLbPerWeek(Number(value)))
+                isRateWithinAutomaticPolicy(
+                  watchedValues.goalType,
+                  Number(value),
+                )
                   ? true
-                  : 'Enter a rate from 0.25 to 2 lb/week in 0.05 steps.',
+                  : watchedValues.goalType === 'gain'
+                    ? 'Enter a gain rate from 0.25 to 1 lb/week in 0.05 steps.'
+                    : watchedValues.goalType === 'lose'
+                      ? 'Enter a loss rate from 0.25 to 2 lb/week in 0.05 steps.'
+                      : 'Maintain plans do not use a weekly rate.',
             }}
             render={({ field }) => (
               <AppInput

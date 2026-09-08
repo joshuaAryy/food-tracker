@@ -168,6 +168,10 @@ export type RatePlanning =
       minimumRateLbPerWeek: number;
       maximumRateLbPerWeek: number;
       selectedRateLbPerWeek: number;
+      feasibility: {
+        status: 'supported' | 'limited';
+        maximumSupportedRateLbPerWeek: number;
+      };
     }
   | {
       status: 'unavailable';

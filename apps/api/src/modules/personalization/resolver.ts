@@ -5,6 +5,7 @@ import type {
   TrainingStyle,
 } from '@food-tracker/shared';
 import {
+  automaticRateRangeForGoal,
   floorRateToStep,
   MIN_AUTOMATIC_RATE_LB_PER_WEEK,
   normalizeRateLbPerWeek,
@@ -27,6 +28,7 @@ export interface PersonalizationInput {
   goalType: GoalType;
   targetWeightLb: number;
   targetRateLbPerWeek?: number | null;
+  targetRateSource?: 'explicit' | 'legacy';
 }
 
 export interface PersonalizationPlan {
@@ -54,6 +56,10 @@ export interface PersonalizationPlan {
         selectedRateLbPerWeek: number;
         maximumRateLbPerWeek: number;
         calorieAdjustment: number;
+        feasibility: {
+          status: 'supported' | 'limited';
+          maximumSupportedRateLbPerWeek: number;
+        };
       }
     | {
         status: 'unavailable';
@@ -71,7 +77,8 @@ export interface PersonalizationPlan {
         reason:
           | 'age_model_not_supported'
           | 'no_safe_rate'
-          | 'goal_type_not_supported';
+          | 'goal_type_not_supported'
+          | 'rate_not_feasible';
       };
 }
 
@@ -170,7 +177,7 @@ function sodiumCdrMg(completedAge: number): number | null {
   return 1800;
 }
 
-function rateMaximum(
+function profileSafeMaximumRate(
   goalType: GoalType,
   weightLb: number,
   baseline: number,
@@ -214,21 +221,39 @@ export function resolvePersonalizationPlan(
   });
   const baselineCalories = Math.max(0, energy.kcal);
   const adultPlanning = completedYears >= 19;
-  const maximumRate = adultPlanning
-    ? rateMaximum(input.goalType, currentWeightLb, baselineCalories, input.sex)
+  const productRange = automaticRateRangeForGoal(input.goalType);
+  const profileMaximumRate = adultPlanning
+    ? profileSafeMaximumRate(
+        input.goalType,
+        currentWeightLb,
+        baselineCalories,
+        input.sex,
+      )
     : 0;
   const requestedRate = input.targetRateLbPerWeek ?? 0;
+  const recommendedRate =
+    adultPlanning && productRange
+      ? profileMaximumRate >= MIN_AUTOMATIC_RATE_LB_PER_WEEK
+        ? Math.min(
+            Math.max(
+              productRange.minimumRateLbPerWeek,
+              roundRateToStep(requestedRate),
+            ),
+            Math.min(productRange.maximumRateLbPerWeek, profileMaximumRate),
+          )
+        : productRange.minimumRateLbPerWeek
+      : 0;
   const selectedRate =
-    adultPlanning &&
-    input.goalType !== 'maintain' &&
-    maximumRate >= MIN_AUTOMATIC_RATE_LB_PER_WEEK
-      ? Math.min(
-          Math.max(
-            MIN_AUTOMATIC_RATE_LB_PER_WEEK,
-            roundRateToStep(requestedRate),
-          ),
-          maximumRate,
-        )
+    adultPlanning && productRange
+      ? input.targetRateSource === 'legacy'
+        ? recommendedRate
+        : Math.min(
+            productRange.maximumRateLbPerWeek,
+            Math.max(
+              productRange.minimumRateLbPerWeek,
+              roundRateToStep(requestedRate || recommendedRate),
+            ),
+          )
       : 0;
   const adjustment =
     selectedRate *
@@ -262,13 +287,29 @@ export function resolvePersonalizationPlan(
   const distance = Math.abs(currentWeightLb - input.targetWeightLb);
   const reached = distance <= 0.1;
   const ratePlanning =
-    adultPlanning && input.goalType !== 'maintain' && selectedRate >= 0.25
+    adultPlanning && productRange
       ? {
           status: 'available' as const,
-          minimumRateLbPerWeek: MIN_AUTOMATIC_RATE_LB_PER_WEEK,
+          minimumRateLbPerWeek: productRange.minimumRateLbPerWeek,
           selectedRateLbPerWeek: normalizeRateLbPerWeek(selectedRate),
-          maximumRateLbPerWeek: normalizeRateLbPerWeek(maximumRate),
+          maximumRateLbPerWeek: productRange.maximumRateLbPerWeek,
           calorieAdjustment: adjustment,
+          feasibility: {
+            status:
+              selectedRate <=
+                Math.min(
+                  productRange.maximumRateLbPerWeek,
+                  profileMaximumRate,
+                ) && profileMaximumRate >= productRange.minimumRateLbPerWeek
+                ? ('supported' as const)
+                : ('limited' as const),
+            maximumSupportedRateLbPerWeek: normalizeRateLbPerWeek(
+              Math.max(
+                0,
+                Math.min(productRange.maximumRateLbPerWeek, profileMaximumRate),
+              ),
+            ),
+          },
         }
       : {
           status: 'unavailable' as const,
@@ -284,7 +325,8 @@ export function resolvePersonalizationPlan(
         };
   const estimatedGoal = reached
     ? { status: 'reached' as const }
-    : ratePlanning.status === 'available'
+    : ratePlanning.status === 'available' &&
+        ratePlanning.feasibility.status === 'supported'
       ? {
           status: 'available' as const,
           date: estimateDate(
@@ -294,7 +336,13 @@ export function resolvePersonalizationPlan(
           ),
           weeks: Math.ceil(distance / ratePlanning.selectedRateLbPerWeek),
         }
-      : { status: 'unavailable' as const, reason: ratePlanning.reason };
+      : {
+          status: 'unavailable' as const,
+          reason:
+            ratePlanning.status === 'available'
+              ? ('rate_not_feasible' as const)
+              : ratePlanning.reason,
+        };
 
   return {
     age: { completedYears, years },

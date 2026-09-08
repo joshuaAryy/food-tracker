@@ -1001,28 +1001,42 @@ export default function OnboardingScreen() {
               ) : previewLoading ? (
                 <LoadingState message="Checking available rate range…" />
               ) : ratePlanning?.status === 'available' ? (
-                <WeeklyRateSlider
-                  // The state guard above narrows the preview to the available
-                  // planning contract before these backend-derived bounds are read.
-                  minimumValue={ratePlanning.minimumRateLbPerWeek}
-                  maximumValue={ratePlanning.maximumRateLbPerWeek}
-                  value={normalizeRateLbPerWeek(
-                    Number(values.targetRateLbPerWeek) ||
-                      ratePlanning.selectedRateLbPerWeek,
-                  )}
-                  onValueChange={(nextRate) => {
-                    const normalized = normalizeRateLbPerWeek(nextRate);
-                    setValue('targetRateLbPerWeek', String(normalized), {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    });
-                    setValue(
-                      'goalPace',
-                      compatibilityPaceForRate(goalType, normalized) ?? 'none',
-                      { shouldDirty: true },
-                    );
-                  }}
-                />
+                <>
+                  <WeeklyRateSlider
+                    // The state guard above narrows the preview to the available
+                    // planning contract before these backend-derived bounds are read.
+                    minimumValue={ratePlanning.minimumRateLbPerWeek}
+                    maximumValue={ratePlanning.maximumRateLbPerWeek}
+                    value={normalizeRateLbPerWeek(
+                      Number(values.targetRateLbPerWeek) ||
+                        ratePlanning.selectedRateLbPerWeek,
+                    )}
+                    onValueChange={(nextRate) => {
+                      const normalized = normalizeRateLbPerWeek(nextRate);
+                      setValue('targetRateLbPerWeek', String(normalized), {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                      setValue(
+                        'goalPace',
+                        compatibilityPaceForRate(goalType, normalized) ??
+                          'none',
+                        { shouldDirty: true },
+                      );
+                    }}
+                  />
+                  {ratePlanning.feasibility.status === 'limited' ? (
+                    <AppText muted>
+                      This rate is selectable, but current safety limits support
+                      up to{' '}
+                      {ratePlanning.feasibility.maximumSupportedRateLbPerWeek.toFixed(
+                        2,
+                      )}{' '}
+                      lb/week. Targets stay at the safe calorie boundary and no
+                      forecast is shown until the plan is feasible.
+                    </AppText>
+                  ) : null}
+                </>
               ) : ratePlanningState === 'unavailable' ? (
                 <AppText muted>
                   Automatic weekly-rate planning is not available for this

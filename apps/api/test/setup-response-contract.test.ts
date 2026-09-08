@@ -98,8 +98,37 @@ describe('setup response contracts', () => {
 
       expect(response.body.success).toBe(true);
       assertSchema(response.body.data, setupPreviewResultSchema);
+      expect(response.body.data.ratePlanning).toMatchObject(
+        _goal === 'lose'
+          ? {
+              minimumRateLbPerWeek: 0.25,
+              maximumRateLbPerWeek: 2,
+            }
+          : {
+              minimumRateLbPerWeek: 0.25,
+              maximumRateLbPerWeek: 1,
+            },
+      );
     },
   );
+
+  it('preserves an explicit policy-valid preview rate separately from feasibility', async () => {
+    const response = await request(app)
+      .post('/api/v1/setup/preview')
+      .send({
+        ...loseInput,
+        goals: { ...loseInput.goals, targetRateLbPerWeek: 1.15 },
+      })
+      .expect(200);
+
+    assertSchema(response.body.data, setupPreviewResultSchema);
+    expect(response.body.data.calculatedTargets.targetRateLbPerWeek).toBe(1.15);
+    expect(response.body.data.ratePlanning).toMatchObject({
+      minimumRateLbPerWeek: 0.25,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 1.15,
+    });
+  });
 
   it('returns a mobile-compatible Maintain setup response', async () => {
     const calculated = calculatePersonalizedTargets(maintainInput);

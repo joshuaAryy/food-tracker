@@ -67,10 +67,86 @@ describe('age-aware personalization', () => {
       minimumRateLbPerWeek: 0.25,
       selectedRateLbPerWeek: 0.55,
     });
-    expect(
-      plan.ratePlanning.status === 'available' &&
-        plan.ratePlanning.maximumRateLbPerWeek,
-    ).toBeGreaterThanOrEqual(0.55);
+    expect(plan.ratePlanning).toMatchObject({
+      maximumRateLbPerWeek: 2,
+      feasibility: {
+        status: 'supported',
+      },
+    });
+  });
+
+  it('uses the full loss policy range even when profile safety would be narrower', () => {
+    const plan = resolvePersonalizationPlan(
+      {
+        ...base,
+        sex: 'female',
+        heightInches: 58,
+        currentWeightLb: 90,
+        activityLevel: 'sedentary',
+        trainingStyle: 'none',
+        targetRateLbPerWeek: 1.15,
+      },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+
+    expect(plan.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.25,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 1.15,
+      feasibility: { status: 'limited' },
+    });
+    expect(plan.estimatedGoal.status).toBe('unavailable');
+  });
+
+  it('uses the profile-safe recommendation only for legacy/default input', () => {
+    const plan = resolvePersonalizationPlan(
+      {
+        ...base,
+        sex: 'female',
+        heightInches: 58,
+        currentWeightLb: 90,
+        activityLevel: 'sedentary',
+        trainingStyle: 'none',
+        targetRateLbPerWeek: 1.15,
+        targetRateSource: 'legacy',
+      },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+
+    expect(plan.ratePlanning).toMatchObject({
+      selectedRateLbPerWeek: 0.9,
+      maximumRateLbPerWeek: 2,
+      feasibility: {
+        status: 'supported',
+        maximumSupportedRateLbPerWeek: 0.9,
+      },
+    });
+  });
+
+  it('uses the full gain policy range without clipping an explicit selection', () => {
+    const plan = resolvePersonalizationPlan(
+      {
+        ...base,
+        goalType: 'gain',
+        targetWeightLb: 180,
+        currentWeightLb: 70,
+        heightInches: 65,
+        activityLevel: 'sedentary',
+        trainingStyle: 'none',
+        targetRateLbPerWeek: 0.8,
+      },
+      new Date('2026-08-29T12:00:00.000Z'),
+    );
+
+    expect(plan.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.25,
+      maximumRateLbPerWeek: 1,
+      selectedRateLbPerWeek: 0.8,
+      feasibility: { status: 'limited' },
+    });
+    expect(plan.estimatedGoal.status).toBe('unavailable');
   });
 
   it('uses age-specific sodium CDRR values', () => {

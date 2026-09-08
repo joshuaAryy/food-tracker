@@ -1,5 +1,6 @@
 import Slider from '@react-native-community/slider';
 import { View } from 'react-native';
+import { RATE_STEP_LB_PER_WEEK } from '@food-tracker/shared';
 import { AppText } from './app-text';
 
 interface WeeklyRateSliderProps {
@@ -22,7 +23,7 @@ export function WeeklyRateSlider({
         accessibilityLabel="Weekly rate"
         minimumValue={minimumValue}
         maximumValue={maximumValue}
-        step={0.05}
+        step={RATE_STEP_LB_PER_WEEK}
         value={value}
         onValueChange={onValueChange}
         minimumTrackTintColor="#2F6F63"
