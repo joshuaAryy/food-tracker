@@ -992,7 +992,7 @@ export default function OnboardingScreen() {
             <>
               <OnboardingQuestion
                 title="How fast should your plan move?"
-                subtitle="Move through small weekly-rate steps. Younger users and maintenance plans do not use automatic rate planning."
+                subtitle="Move through small weekly-rate steps. Maintenance plans do not use an automatic rate."
               />
               {goalType === 'maintain' ? (
                 <AppText muted>
@@ -1039,8 +1039,7 @@ export default function OnboardingScreen() {
                 </>
               ) : ratePlanningState === 'unavailable' ? (
                 <AppText muted>
-                  Automatic weekly-rate planning is not available for this
-                  profile. Your age-appropriate targets remain available.
+                  Automatic weekly-rate planning is not available for this plan.
                 </AppText>
               ) : null}
             </>

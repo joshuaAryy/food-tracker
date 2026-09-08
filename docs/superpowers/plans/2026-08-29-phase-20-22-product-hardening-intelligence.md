@@ -19,7 +19,7 @@
 - Use only a dedicated database ending in `_test` for destructive test migration work.
 - Do not reset development or benchmark databases.
 - Calories and protein remain required FoodLog columns and cannot be Unknown in this phase.
-- Age never blocks product access; automatic rate planning is age 19+ only.
+- Age never blocks product access or Lose/Gain rate planning; maintenance remains rate-free.
 - Health Canada/NASEM 2023 EER is the canonical energy model for all supported ages.
 - DRI targets require semantic/provider compatibility, not unit matching alone.
 - Target authority is effective resolver output; deprecated UserGoal columns are retained but never read as authority.
@@ -85,8 +85,8 @@
 - [ ] Adult vectors use EER, not Mifflin.
 - [ ] Activity mapping and athlete cap.
 - [ ] Latest valid WeightLog and starting-weight fallback.
-- [ ] Adult loss uses 0.25–2.00 lb/week and gain uses 0.25–1.00 lb/week in selectable 0.05 increments; personalization and floor constraints report feasibility without shrinking the product range. Maintenance remains rate-free.
-- [ ] Under-19 goals have baseline EER but no rate adjustment/date.
+- [ ] Lose and gain use 0.50–2.00 lb/week at every age in selectable 0.05 increments; personalization and floor constraints report feasibility without shrinking the product range. Maintenance remains rate-free.
+- [ ] Under-19 goals retain age-aware EER/protein calculations while Lose/Gain rate planning remains available.
 - [ ] Current-weight/profile changes update recommendations.
 - [ ] Deterministic rounding and legacy GoalPace mapping.
 
@@ -95,8 +95,8 @@
 - [ ] Encode exact Health Canada/NASEM 2023 coefficient tables and model version.
 - [ ] Implement fractional age/band selection.
 - [ ] Implement current-weight resolution.
-- [ ] Implement adult rate bounds and floor.
-- [ ] Implement younger-user unavailable rate status without access denial.
+- [ ] Implement automatic rate bounds and floor.
+- [ ] Keep Lose/Gain rate planning available without an age gate.
 - [ ] Use age/sex DRI protein RDA for younger users and preserve adult training protein with current-weight lower bound.
 - [ ] Add `targetRateLbPerWeek`; map legacy GoalPace while preserving current effective values through later overrides.
 
@@ -245,7 +245,7 @@
 **Tests first:**
 - [ ] Younger and adult onboarding flows.
 - [ ] Adult rate/date live updates.
-- [ ] Younger unavailable-rate explanation.
+- [ ] Maintenance-only no-rate explanation.
 - [ ] Recommended/custom/Use Recommended flow.
 - [ ] Target editor policy filtering.
 - [ ] Complex Unknown/zero flow.

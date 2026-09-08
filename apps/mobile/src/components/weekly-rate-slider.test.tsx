@@ -18,8 +18,8 @@ describe('WeeklyRateSlider', () => {
     const onValueChange = vi.fn();
     const { getByText, getByRole } = await render(
       <WeeklyRateSlider
-        minimumValue={0.25}
-        maximumValue={1.1}
+        minimumValue={0.5}
+        maximumValue={2}
         value={0.5}
         onValueChange={onValueChange}
       />,

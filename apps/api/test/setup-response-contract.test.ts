@@ -101,12 +101,12 @@ describe('setup response contracts', () => {
       expect(response.body.data.ratePlanning).toMatchObject(
         _goal === 'lose'
           ? {
-              minimumRateLbPerWeek: 0.25,
+              minimumRateLbPerWeek: 0.5,
               maximumRateLbPerWeek: 2,
             }
           : {
-              minimumRateLbPerWeek: 0.25,
-              maximumRateLbPerWeek: 1,
+              minimumRateLbPerWeek: 0.5,
+              maximumRateLbPerWeek: 2,
             },
       );
     },
@@ -124,9 +124,28 @@ describe('setup response contracts', () => {
     assertSchema(response.body.data, setupPreviewResultSchema);
     expect(response.body.data.calculatedTargets.targetRateLbPerWeek).toBe(1.15);
     expect(response.body.data.ratePlanning).toMatchObject({
-      minimumRateLbPerWeek: 0.25,
+      minimumRateLbPerWeek: 0.5,
       maximumRateLbPerWeek: 2,
       selectedRateLbPerWeek: 1.15,
+    });
+  });
+
+  it('returns an available rate plan for an under-19 Lose preview', async () => {
+    const response = await request(app)
+      .post('/api/v1/setup/preview')
+      .send({
+        ...loseInput,
+        profile: { ...loseInput.profile, birthDate: '2012-08-29' },
+        goals: { ...loseInput.goals, targetRateLbPerWeek: 0.75 },
+      })
+      .expect(200);
+
+    const data = assertSchema(response.body.data, setupPreviewResultSchema);
+    expect(data.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.5,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 0.75,
     });
   });
 

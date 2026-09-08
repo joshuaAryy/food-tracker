@@ -175,10 +175,7 @@ export type RatePlanning =
     }
   | {
       status: 'unavailable';
-      reason:
-        | 'age_model_not_supported'
-        | 'no_safe_rate'
-        | 'goal_type_not_supported';
+      reason: 'goal_type_not_supported';
     };
 
 export interface FoodLog {

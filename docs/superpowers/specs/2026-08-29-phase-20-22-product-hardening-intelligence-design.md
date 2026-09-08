@@ -12,7 +12,7 @@ This design is the authoritative implementation specification for the combined P
 - One effective-target resolver owns recommended, reference, derived, custom, and missing values.
 - Birth date is authoritative and age is derived. Age never blocks product use.
 - Health Canada/NASEM 2023 EER equations are canonical for all supported ages. Published child/adolescent equations, including growth energy, apply through age 18; adult equations begin at age 19.
-- Goal intent and progress exist at every age. Automatic rate-driven calorie adjustment and rate-date forecasts are available only for age 19+.
+- Goal intent and progress exist at every age. Lose/Gain automatic rate planning is available at every supported age; maintenance remains rate-free.
 - Calories and protein remain required FoodLog database fields. Complex Unknown correction applies to nullable column-backed nutrients and normalized `FoodLogNutrient` rows; row/nullable absence means Unknown and numeric zero is real zero.
 - Editing a FoodLog never mutates its trusted FoodItem or reusable custom-food definition.
 - Daily target editing is restricted to `TARGETABLE_NUTRIENT_POLICY`; catalog membership alone never grants target semantics.
@@ -38,9 +38,9 @@ athlete           -> very_active
 
 The exact published 2023 coefficient tables are stored under an explicit model version. Completed age chooses the band and fractional age within the birthday interval supplies the equation age input. Age 18 remains adolescent; age 19 selects adult.
 
-Adult loss rates use the product range 0.25–2.00 lb/week and adult gain rates use 0.25–1.00 lb/week, both in selectable 0.05-lb/week steps. Personalization chooses the recommended/default rate within those policy bounds; profile safety and calorie-floor calculations report feasibility separately and do not shrink the selectable range. The existing 500 kcal/day per lb/week adjustment is an initial estimate, not a physiological promise, and final calories are rounded to the nearest 10 kcal. Existing floors remain 1,200 kcal for female profiles and 1,500 kcal for male profiles.
+Lose and gain rates use the product range 0.50–2.00 lb/week in selectable 0.05-lb/week steps, with no age gate. Personalization chooses the recommended/default rate within those policy bounds; profile safety and calorie-floor calculations report feasibility separately and do not shrink the selectable range. The existing 500 kcal/day per lb/week adjustment is an initial estimate, not a physiological promise, and final calories are rounded to the nearest 10 kcal. Existing floors remain 1,200 kcal for female profiles and 1,500 kcal for male profiles.
 
-Under-19 users may choose lose, maintain, or gain, set target weight, track progress, receive age-appropriate EER/protein targets, and create custom targets. They receive no unsupported automatic rate adjustment or forecast; their goal remains valid and its rate-planning status is unavailable.
+Users of any supported age may choose lose, maintain, or gain, set target weight, track progress, receive age-aware EER/protein targets, and create custom targets. Lose and gain provide the same numeric Goal Pace policy at every age; maintenance remains rate-free.
 
 Protein for younger users uses age/sex DRI RDA per current weight. Adult protein retains the current training/goal multiplier, uses current weight, and cannot fall below the applicable DRI RDA. Carbohydrate, fat, fiber, and sugar retain the deterministic derived architecture and are labeled `derived`. Sodium uses an age-appropriate CDRR limit where published, otherwise it is missing unless customized.
 
@@ -50,7 +50,7 @@ Estimated completion uses:
 ceil(abs(currentWeight - targetWeight) / rate * 7) calendar days
 ```
 
-and is shown as an estimate only. Maintenance, reached targets, missing inputs, and unsupported younger-user rate planning do not produce a promised date.
+and is shown as an estimate only. Maintenance, reached targets, missing inputs, and limited-feasibility plans do not produce a promised date.
 
 ## Effective targets and DRI compatibility
 
@@ -135,7 +135,7 @@ staging deployment/schema/health remains a separate verified gate.
 
 ## Mobile and acceptance
 
-Onboarding adds a presentable numeric adult rate control and younger-user plan summary. Profile exposes Goal Plan and Nutrition Targets screens with recommended/effective/custom state and `Use recommended`. Complex FoodLog adds per-nutrient Unknown controls. Insights renders the canonical maximum-three recommendations. Notification permission is user-driven, and cold/warm/foreground routing is validated.
+Onboarding adds a presentable numeric Goal Pace control for Lose/Gain and a maintenance summary. Profile exposes Goal Plan and Nutrition Targets screens with recommended/effective/custom state and `Use recommended`. Complex FoodLog adds per-nutrient Unknown controls. Insights renders the canonical maximum-three recommendations. Notification permission is user-driven, and cold/warm/foreground routing is validated.
 
 Automated tests, Simulator checks, staging checks, and physical-device checks are separate evidence classes. Real APNs/FCM delivery, Railway execution, and lock-screen behavior remain user-owned physical/staging acceptance gates.
 

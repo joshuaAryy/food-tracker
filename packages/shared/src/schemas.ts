@@ -286,11 +286,7 @@ const ratePlanningSchema = z.union([
   }),
   z.strictObject({
     status: z.literal('unavailable'),
-    reason: z.enum([
-      'age_model_not_supported',
-      'no_safe_rate',
-      'goal_type_not_supported',
-    ]),
+    reason: z.enum(['goal_type_not_supported']),
   }),
 ]);
 

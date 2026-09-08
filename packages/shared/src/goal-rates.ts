@@ -1,9 +1,9 @@
 import type { GoalType } from './enums.js';
 
 export const RATE_STEP_LB_PER_WEEK = 0.05;
-export const MIN_AUTOMATIC_RATE_LB_PER_WEEK = 0.25;
+export const MIN_AUTOMATIC_RATE_LB_PER_WEEK = 0.5;
 export const MAX_AUTOMATIC_LOSS_RATE_LB_PER_WEEK = 2;
-export const MAX_AUTOMATIC_GAIN_RATE_LB_PER_WEEK = 1;
+export const MAX_AUTOMATIC_GAIN_RATE_LB_PER_WEEK = 2;
 
 export interface AutomaticRateRange {
   minimumRateLbPerWeek: number;

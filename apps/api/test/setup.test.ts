@@ -190,7 +190,7 @@ describe('setup API', () => {
       },
       ratePlanning: {
         status: 'available',
-        minimumRateLbPerWeek: 0.25,
+        minimumRateLbPerWeek: 0.5,
         maximumRateLbPerWeek: 2,
         selectedRateLbPerWeek: 1,
         feasibility: {
@@ -268,7 +268,7 @@ describe('setup API', () => {
     expect(response.body.data.goals.targetRateLbPerWeek).toBe(1.15);
     expect(response.body.data.calculatedTargets.targetRateLbPerWeek).toBe(1.15);
     expect(response.body.data.ratePlanning).toMatchObject({
-      minimumRateLbPerWeek: 0.25,
+      minimumRateLbPerWeek: 0.5,
       maximumRateLbPerWeek: 2,
       selectedRateLbPerWeek: 1.15,
     });
@@ -297,7 +297,7 @@ describe('setup API', () => {
       },
       ratePlanning: {
         status: 'available',
-        minimumRateLbPerWeek: 0.25,
+        minimumRateLbPerWeek: 0.5,
         maximumRateLbPerWeek: 2,
         selectedRateLbPerWeek: 1,
         feasibility: {

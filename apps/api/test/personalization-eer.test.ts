@@ -28,7 +28,7 @@ describe('age-aware personalization', () => {
     );
   });
 
-  it('uses the adolescent EER model with growth energy at age 18', () => {
+  it('uses the adolescent EER model while keeping Lose rate planning available', () => {
     const plan = resolvePersonalizationPlan(
       { ...base, birthDate: '2008-08-29' },
       new Date('2026-08-29T12:00:00.000Z'),
@@ -37,7 +37,11 @@ describe('age-aware personalization', () => {
     expect(plan.age.completedYears).toBe(18);
     expect(plan.energy.model).toBe('hc_nasem_eer_2023_adolescent');
     expect(plan.energy.includesGrowthEnergy).toBe(true);
-    expect(plan.ratePlanning.status).toBe('unavailable');
+    expect(plan.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.5,
+      maximumRateLbPerWeek: 2,
+    });
     expect(plan.goal.goalType).toBe('lose');
   });
 
@@ -56,7 +60,7 @@ describe('age-aware personalization', () => {
     expect(plan.recommendedTargets.sodiumMg).toBe(2300);
   });
 
-  it('normalizes adult rates to selectable 0.05 lb/week steps', () => {
+  it('normalizes automatic rates to selectable 0.05 lb/week steps', () => {
     const plan = resolvePersonalizationPlan(
       { ...base, targetRateLbPerWeek: 0.55 },
       new Date('2026-08-29T12:00:00.000Z'),
@@ -64,7 +68,7 @@ describe('age-aware personalization', () => {
 
     expect(plan.ratePlanning).toMatchObject({
       status: 'available',
-      minimumRateLbPerWeek: 0.25,
+      minimumRateLbPerWeek: 0.5,
       selectedRateLbPerWeek: 0.55,
     });
     expect(plan.ratePlanning).toMatchObject({
@@ -91,7 +95,7 @@ describe('age-aware personalization', () => {
 
     expect(plan.ratePlanning).toMatchObject({
       status: 'available',
-      minimumRateLbPerWeek: 0.25,
+      minimumRateLbPerWeek: 0.5,
       maximumRateLbPerWeek: 2,
       selectedRateLbPerWeek: 1.15,
       feasibility: { status: 'limited' },
@@ -141,8 +145,8 @@ describe('age-aware personalization', () => {
 
     expect(plan.ratePlanning).toMatchObject({
       status: 'available',
-      minimumRateLbPerWeek: 0.25,
-      maximumRateLbPerWeek: 1,
+      minimumRateLbPerWeek: 0.5,
+      maximumRateLbPerWeek: 2,
       selectedRateLbPerWeek: 0.8,
       feasibility: { status: 'limited' },
     });
@@ -167,16 +171,27 @@ describe('age-aware personalization', () => {
     expect(plan.currentWeight.valueLb).toBe(160);
   });
 
-  it('does not prescribe an adult rate to younger users', () => {
+  it('provides Gain rate planning to younger users without an age gate', () => {
     const plan = resolvePersonalizationPlan(
-      { ...base, birthDate: '2012-08-29', targetRateLbPerWeek: 1 },
+      {
+        ...base,
+        birthDate: '2012-08-29',
+        goalType: 'gain',
+        targetWeightLb: 180,
+        targetRateLbPerWeek: 1,
+      },
       new Date('2026-08-29T12:00:00.000Z'),
     );
 
-    expect(plan.ratePlanning.status).toBe('unavailable');
-    expect(plan.ratePlanning.calorieAdjustment).toBe(0);
+    expect(plan.ratePlanning).toMatchObject({
+      status: 'available',
+      minimumRateLbPerWeek: 0.5,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 1,
+    });
+    expect(plan.ratePlanning.calorieAdjustment).toBe(500);
     expect(plan.estimatedGoal.status).toBe('unavailable');
-    expect(plan.goal.targetWeightLb).toBe(150);
+    expect(plan.goal.targetWeightLb).toBe(180);
     expect(plan.protein.source).toBe('reference');
   });
 
