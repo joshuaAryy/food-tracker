@@ -1,9 +1,9 @@
 import {
   analyticsMetricForKey,
   NUTRIENT_CATALOG,
-  resolveReportingGoals,
   type AnalyticsMetricKey,
   type AnalyticsReference,
+  type ReportingGoals,
 } from '@food-tracker/shared';
 import { acceptedCalorieRange } from '../reporting/calendar-facts.js';
 
@@ -111,12 +111,21 @@ export function metricReference(
     targetFiberGrams: number | null;
     limitSugarGrams: number | null;
     limitSodiumMg: number | null;
+    reportingGoals?: ReportingGoals;
   },
 ): AnalyticsReference {
-  if (metric === 'calories') return calorieReference(input);
+  if (metric === 'calories')
+    return calorieReference({
+      goalType: input.goalType,
+      targetCalories:
+        input.reportingGoals?.calories?.value ?? input.targetCalories,
+    });
   if (!(metric in NUTRIENT_CATALOG)) return noReference(metric);
   const nutrientMetric = metric as keyof typeof NUTRIENT_CATALOG;
-  const reportingGoal = resolveReportingGoals(input)[nutrientMetric];
+  // Canonical analytics callers always provide the effective-target
+  // projection. Without it, an unsupported reference is unavailable rather
+  // than silently falling back to historical universal defaults.
+  const reportingGoal = input.reportingGoals?.[nutrientMetric];
   if (reportingGoal === undefined || reportingGoal.value === null) {
     return {
       kind: 'none',

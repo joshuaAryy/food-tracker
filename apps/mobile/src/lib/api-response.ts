@@ -64,6 +64,8 @@ export function sanitizePublicErrorDetails(
 ): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
 
+  if (details.retryable === true) safe.retryable = true;
+
   for (const key of ['entryIndex', 'itemIndex']) {
     const value = details[key];
     if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {

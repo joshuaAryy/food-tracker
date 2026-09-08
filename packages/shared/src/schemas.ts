@@ -40,6 +40,10 @@ import {
 } from './constants.js';
 import { parsedServingSuggestionSchema } from './serving-text.js';
 import type { AiFoodParseCandidate } from './types.js';
+import {
+  isRateWithinAutomaticPolicy,
+  isSelectableRateLbPerWeek,
+} from './goal-rates.js';
 
 const optionalNonNegativeDecimal = z
   .number()
@@ -103,9 +107,20 @@ export const profileSchema = z.strictObject({
   trainingStyle: trainingStyleSchema,
 });
 
+export const profileUpdateSchema = profileSchema.omit({ age: true });
+
 const goalsBaseSchema = z.strictObject({
   goalType: goalTypeSchema,
   goalPace: goalPaceSchema.nullable(),
+  targetRateLbPerWeek: z
+    .number()
+    .positive()
+    .refine(
+      isSelectableRateLbPerWeek,
+      'target rate must use 0.05 lb/week steps',
+    )
+    .nullable()
+    .optional(),
   targetWeightLb: z.number().positive(),
   targetCalories: z.number().int().nonnegative(),
   targetProteinGrams: z.number().nonnegative(),
@@ -138,20 +153,60 @@ const goalsMatchTypeMessage = {
   path: ['goalPace'],
 };
 
+const targetRateMatchesGoalType = ({
+  goalType,
+  targetRateLbPerWeek,
+}: {
+  goalType: GoalType;
+  targetRateLbPerWeek?: number | null | undefined;
+}) =>
+  targetRateLbPerWeek === undefined ||
+  targetRateLbPerWeek === null ||
+  isRateWithinAutomaticPolicy(goalType, targetRateLbPerWeek);
+
+const targetRateMatchesGoalTypeMessage = {
+  message: 'target rate must fit the goal type policy range',
+  path: ['targetRateLbPerWeek'],
+};
+
 export const goalsSchema = goalsBaseSchema
   .extend({
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
     targetCarbsGrams: z.number().positive().nullable(),
     targetFatGrams: z.number().positive().nullable(),
     targetFiberGrams: z.number().positive().nullable(),
     limitSugarGrams: z.number().positive().nullable(),
     limitSodiumMg: z.number().int().positive().nullable(),
   })
-  .refine(goalsMatchType, goalsMatchTypeMessage);
+  .refine(goalsMatchType, goalsMatchTypeMessage)
+  .refine(targetRateMatchesGoalType, targetRateMatchesGoalTypeMessage);
 
-export const goalsInputSchema = goalsBaseSchema.refine(
-  goalsMatchType,
-  goalsMatchTypeMessage,
-);
+export const goalsInputSchema = goalsBaseSchema
+  .extend({
+    targetOverrides: z.boolean().optional(),
+    targetOverrideFields: z
+      .array(
+        z.enum([
+          'calories',
+          'protein',
+          'carbs',
+          'fat',
+          'fiber',
+          'sugar',
+          'sodium',
+        ]),
+      )
+      .optional(),
+  })
+  .refine(goalsMatchType, goalsMatchTypeMessage)
+  .refine(targetRateMatchesGoalType, targetRateMatchesGoalTypeMessage);
 
 export const trackingPreferencesSchema = z.strictObject({
   mode: trackingModeSchema,
@@ -208,7 +263,32 @@ export const setupInputSchema = z
       message: 'goalPace must match goalType',
       path: ['goals', 'goalPace'],
     },
-  );
+  )
+  .refine(({ goals }) => targetRateMatchesGoalType(goals), {
+    ...targetRateMatchesGoalTypeMessage,
+    path: ['goals', 'targetRateLbPerWeek'],
+  });
+
+export const setupPreviewInputSchema = setupInputSchema.extend({
+  currentWeightLb: z.number().positive().nullable().optional(),
+});
+
+const ratePlanningSchema = z.union([
+  z.strictObject({
+    status: z.literal('available'),
+    minimumRateLbPerWeek: z.number().positive(),
+    maximumRateLbPerWeek: z.number().positive(),
+    selectedRateLbPerWeek: z.number().positive(),
+    feasibility: z.strictObject({
+      status: z.enum(['supported', 'limited']),
+      maximumSupportedRateLbPerWeek: z.number().nonnegative(),
+    }),
+  }),
+  z.strictObject({
+    status: z.literal('unavailable'),
+    reason: z.enum(['goal_type_not_supported']),
+  }),
+]);
 
 export const setupResultSchema = z.strictObject({
   profile: profileSchema,
@@ -221,12 +301,24 @@ export const setupResultSchema = z.strictObject({
     targetFatGrams: z.number().positive(),
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
-    limitSodiumMg: z.number().int().positive(),
+    limitSodiumMg: z.number().int().positive().nullable(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
+    estimatedGoalDate: localDateSchema.nullable(),
   }),
+  ratePlanning: ratePlanningSchema,
   status: setupStatusSchema,
 });
 
 export type SetupInput = z.infer<typeof setupInputSchema>;
+export type SetupPreviewInput = z.infer<typeof setupPreviewInputSchema>;
+export type ProfileUpdate = z.infer<typeof profileUpdateSchema>;
 
 export const setupPreviewResultSchema = z.strictObject({
   age: z.number().int().nonnegative(),
@@ -237,8 +329,18 @@ export const setupPreviewResultSchema = z.strictObject({
     targetFatGrams: z.number().positive(),
     targetFiberGrams: z.number().positive(),
     limitSugarGrams: z.number().positive(),
-    limitSodiumMg: z.number().int().positive(),
+    limitSodiumMg: z.number().int().positive().nullable(),
+    targetRateLbPerWeek: z
+      .number()
+      .positive()
+      .refine(
+        isSelectableRateLbPerWeek,
+        'target rate must use 0.05 lb/week steps',
+      )
+      .nullable(),
+    estimatedGoalDate: localDateSchema.nullable(),
   }),
+  ratePlanning: ratePlanningSchema,
 });
 
 export const nutrientUnitSchema = z.enum(NUTRIENT_UNITS);
@@ -273,6 +375,48 @@ export const normalizedNutrientsInputSchema = z
       }
     }
   });
+
+const normalizedNutrientsPatchSchema = z
+  .record(
+    z.string().trim().min(1),
+    z.strictObject({
+      amount: z.number().nonnegative().nullable(),
+      unit: nutrientUnitSchema,
+    }),
+  )
+  .superRefine((nutrients, context) => {
+    for (const [key, nutrient] of Object.entries(nutrients)) {
+      if (!NORMALIZED_NUTRIENT_KEYS.includes(key as NormalizedNutrientKey)) {
+        context.addIssue({
+          code: 'custom',
+          message: 'nutrient key must be a normalized nutrient',
+          path: [key],
+        });
+        continue;
+      }
+      const catalogEntry = NUTRIENT_CATALOG[key as NormalizedNutrientKey];
+      if (nutrient.unit !== catalogEntry.defaultUnit) {
+        context.addIssue({
+          code: 'custom',
+          message: `unit must be ${catalogEntry.defaultUnit} for ${key}`,
+          path: [key, 'unit'],
+        });
+      }
+    }
+  });
+
+const normalizedNutrientPatchSchema = z.discriminatedUnion('state', [
+  z.strictObject({
+    nutrientKey: normalizedNutrientKeySchema,
+    state: z.literal('known'),
+    amount: z.number().nonnegative(),
+    unit: nutrientUnitSchema,
+  }),
+  z.strictObject({
+    nutrientKey: normalizedNutrientKeySchema,
+    state: z.literal('unknown'),
+  }),
+]);
 
 const persistedServingNumberSchema = z
   .number()
@@ -822,9 +966,34 @@ const foodLogNutritionOverrideSchema = z
     fiber: optionalNonNegativeDecimal,
     sugar: optionalNonNegativeDecimal,
     sodium: z.number().int().nonnegative().nullable().optional(),
-    nutrients: normalizedNutrientsInputSchema.nullable().optional(),
+    nutrients: normalizedNutrientsPatchSchema.nullable().optional(),
+    nutrientPatches: z.array(normalizedNutrientPatchSchema).max(64).optional(),
   })
   .superRefine((override, context) => {
+    if (override.calories === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Calories are required and cannot be Unknown.',
+        path: ['calories'],
+      });
+    }
+    if (override.protein === null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Protein is required and cannot be Unknown.',
+        path: ['protein'],
+      });
+    }
+    if (
+      override.nutrients !== undefined &&
+      override.nutrientPatches !== undefined
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Use either nutrients or nutrientPatches, not both.',
+        path: ['nutrientPatches'],
+      });
+    }
     if (
       override.mode === 'simple' &&
       override.nutrients !== undefined &&
@@ -836,6 +1005,29 @@ const foodLogNutritionOverrideSchema = z
         message: 'Simple mode can only override main nutrients',
         path: ['nutrients'],
       });
+    }
+    if (
+      override.mode === 'simple' &&
+      override.nutrientPatches !== undefined &&
+      override.nutrientPatches.length > 0
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Simple mode can only override main nutrients',
+        path: ['nutrientPatches'],
+      });
+    }
+    for (const [index, patch] of (override.nutrientPatches ?? []).entries()) {
+      if (
+        patch.state === 'known' &&
+        patch.unit !== NUTRIENT_CATALOG[patch.nutrientKey].defaultUnit
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: `unit must be ${NUTRIENT_CATALOG[patch.nutrientKey].defaultUnit} for ${patch.nutrientKey}`,
+          path: ['nutrientPatches', index, 'unit'],
+        });
+      }
     }
   });
 

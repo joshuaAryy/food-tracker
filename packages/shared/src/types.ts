@@ -76,6 +76,7 @@ export interface Profile {
 export interface Goals {
   goalType: GoalType;
   goalPace: GoalPace | null;
+  targetRateLbPerWeek?: number | null;
   targetWeightLb: number;
   targetCalories: number;
   targetProteinGrams: number;
@@ -103,7 +104,12 @@ export type GoalsInput = Omit<
       | 'limitSugarGrams'
       | 'limitSodiumMg'
     >
-  >;
+  > & {
+    targetOverrides?: boolean;
+    targetOverrideFields?: Array<
+      'calories' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugar' | 'sodium'
+    >;
+  };
 
 export interface TrackingPreferences {
   mode: TrackingMode;
@@ -132,8 +138,11 @@ export interface SetupResult {
     targetFatGrams: number;
     targetFiberGrams: number;
     limitSugarGrams: number;
-    limitSodiumMg: number;
+    limitSodiumMg: number | null;
+    targetRateLbPerWeek?: number | null;
+    estimatedGoalDate?: string | null;
   };
+  ratePlanning: RatePlanning;
   status: SetupStatus;
 }
 
@@ -146,9 +155,28 @@ export interface SetupPreviewResult {
     targetFatGrams: number;
     targetFiberGrams: number;
     limitSugarGrams: number;
-    limitSodiumMg: number;
+    limitSodiumMg: number | null;
+    targetRateLbPerWeek?: number | null;
+    estimatedGoalDate?: string | null;
   };
+  ratePlanning: RatePlanning;
 }
+
+export type RatePlanning =
+  | {
+      status: 'available';
+      minimumRateLbPerWeek: number;
+      maximumRateLbPerWeek: number;
+      selectedRateLbPerWeek: number;
+      feasibility: {
+        status: 'supported' | 'limited';
+        maximumSupportedRateLbPerWeek: number;
+      };
+    }
+  | {
+      status: 'unavailable';
+      reason: 'goal_type_not_supported';
+    };
 
 export interface FoodLog {
   id: string;
@@ -689,6 +717,7 @@ export interface DailyNutrientTotals {
 export interface Recommendation {
   id: string;
   type: RecommendationType;
+  identityKey?: string;
   severity: RecommendationSeverity;
   title: string;
   message: string;

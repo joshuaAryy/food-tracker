@@ -1,11 +1,38 @@
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { Linking } from 'react-native';
+import type * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthBootstrap } from '@/components/auth/auth-bootstrap';
 import { colors } from '@/theme/tokens';
+import {
+  getLastNotificationResponse,
+  notificationDestinationForData,
+  subscribeToNotificationResponses,
+} from '@/services/notifications';
 import '../global.css';
 
 export default function RootLayout() {
+  useEffect(() => {
+    const openNotificationDestination = (
+      response: Notifications.NotificationResponse,
+    ) => {
+      const data = response.notification.request.content.data;
+      const destination = notificationDestinationForData(data);
+      if (destination !== null)
+        void Linking.openURL(
+          destination === '/food-log'
+            ? 'foodtracker://food-log'
+            : 'foodtracker://insights',
+        );
+    };
+    void getLastNotificationResponse().then((response) => {
+      if (response !== null) openNotificationDestination(response);
+    });
+    return subscribeToNotificationResponses(openNotificationDestination);
+  }, []);
+
   return (
     <GestureHandlerRootView testID="gesture-handler-root" style={{ flex: 1 }}>
       <AuthBootstrap>
@@ -21,6 +48,14 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="streaks" />
           <Stack.Screen name="trends" />
+          <Stack.Screen
+            name="nutrition-targets"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
+          <Stack.Screen
+            name="goal-plan"
+            options={{ presentation: 'modal', gestureEnabled: true }}
+          />
           <Stack.Screen
             name="trends/saved-views"
             options={{ presentation: 'modal', gestureEnabled: true }}

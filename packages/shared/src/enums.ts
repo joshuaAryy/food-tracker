@@ -57,6 +57,11 @@ export const RECOMMENDATION_TYPES = [
   'calories_over_target',
   'missing_recent_weight_logs',
   'inconsistent_food_logging',
+  'goal_progress_behind_rate',
+  'goal_progress_opposite_direction',
+  'maintenance_weight_drift',
+  'hydration_below_target',
+  'micronutrient_below_target',
 ] as const;
 
 export type GoalType = (typeof GOAL_TYPES)[number];

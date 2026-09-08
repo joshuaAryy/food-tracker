@@ -3,6 +3,7 @@ export interface SafeDiagnostic {
   statusClass?: `${2 | 3 | 4 | 5}xx`;
   operation?: string;
   errorCategory?: string;
+  attempt?: number;
 }
 
 function safeCategory(value: unknown): string | undefined {
@@ -37,12 +38,19 @@ export function createSafeDiagnostic(
   const operation = safeCategory(details.operation);
   const errorCategory = safeCategory(details.errorCategory);
   const responseStatusClass = statusClass(details.status);
+  const attempt =
+    typeof details.attempt === 'number' &&
+    Number.isInteger(details.attempt) &&
+    details.attempt > 0
+      ? details.attempt
+      : undefined;
 
   if (responseStatusClass !== undefined) {
     diagnostic.statusClass = responseStatusClass;
   }
   if (operation !== undefined) diagnostic.operation = operation;
   if (errorCategory !== undefined) diagnostic.errorCategory = errorCategory;
+  if (attempt !== undefined) diagnostic.attempt = attempt;
 
   return diagnostic;
 }

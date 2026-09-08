@@ -28,6 +28,7 @@ import {
   recipeSnapshotSchema,
   mixedMealSnapshotSchema,
 } from '@food-tracker/shared';
+import { calculateAge } from '../modules/personalization/resolver.js';
 
 export const roundTo = (value: number, decimalPlaces: number): number => {
   const factor = 10 ** decimalPlaces;
@@ -75,9 +76,17 @@ function parsedJsonOrNull<T>(
 }
 
 export function serializeProfile(profile: UserProfile): Profile {
+  const age =
+    profile.birthDate === null
+      ? (profile.age ?? 0)
+      : calculateAge(
+          profile.birthDate.toISOString().slice(0, 10),
+          new Date(),
+          profile.timezone,
+        );
   return {
     name: profile.name ?? '',
-    age: profile.age ?? 0,
+    age,
     birthDate: profile.birthDate?.toISOString().slice(0, 10) ?? '',
     sex: (profile.sex ?? '') as Profile['sex'],
     heightInches: profile.heightInches ?? 0,
@@ -92,6 +101,7 @@ export function serializeGoals(goals: UserGoal): Goals {
   return {
     goalType: goals.goalType,
     goalPace: goals.goalPace,
+    targetRateLbPerWeek: decimalToNumber(goals.targetRateLbPerWeek),
     targetWeightLb: decimalToNumber(goals.targetWeightLb) ?? 0,
     targetCalories: goals.targetCalories ?? 0,
     targetProteinGrams: decimalToNumber(goals.targetProteinGrams) ?? 0,
@@ -231,6 +241,7 @@ export function serializeRecommendation(
   return {
     id: recommendation.id,
     type: recommendation.type as RecommendationType,
+    identityKey: recommendation.identityKey || recommendation.type,
     severity: recommendation.severity,
     title: recommendation.title,
     message: recommendation.message,

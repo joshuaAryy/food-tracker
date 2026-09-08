@@ -20,7 +20,6 @@ import {
   type FoodItemServingOptions,
   type MealType,
   type NormalizedNutrientKey,
-  type NormalizedNutrientMap,
   type TrackingMode,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
@@ -410,6 +409,9 @@ export default function FoodLogScreen() {
         NORMALIZED_NUTRIENT_KEYS.map((key) => [key, '']),
       ) as Record<NormalizedNutrientKey, string>,
   );
+  const [complexNutrientTouched, setComplexNutrientTouched] = useState<
+    Partial<Record<NormalizedNutrientKey, boolean>>
+  >({});
   const [saveAsReusableFood, setSaveAsReusableFood] = useState(false);
   const [recentError, setRecentError] = useState<string | null>(null);
   const [savedFoodsError, setSavedFoodsError] = useState<string | null>(null);
@@ -722,6 +724,7 @@ export default function FoodLogScreen() {
       servingUnit: servingPreview.requestedServing?.unit ?? '',
     });
     setComplexNutrients(previewNutrientValues(servingPreview.nutrition));
+    setComplexNutrientTouched({});
   }, [getValues, nutritionEdited, reset, servingBasis, servingPreview]);
 
   const nutritionOverrideFromValues = (
@@ -741,25 +744,27 @@ export default function FoodLogScreen() {
     };
 
     if (trackingMode === 'complex') {
-      const nutrients = Object.fromEntries(
-        NORMALIZED_NUTRIENT_KEYS.flatMap((key) => {
+      type NutrientPatch = NonNullable<
+        FoodLogNutritionOverride['nutrientPatches']
+      >[number];
+      const nutrientPatches = NORMALIZED_NUTRIENT_KEYS.flatMap<NutrientPatch>(
+        (key) => {
+          if (!complexNutrientTouched[key]) return [];
           const value = complexNutrients[key].trim();
-          if (value === '') return [];
-          return [
-            [
-              key,
-              {
-                amount: Number(value),
-                unit: NUTRIENT_CATALOG[key].defaultUnit,
-              },
-            ],
-          ];
-        }),
-      ) as NormalizedNutrientMap;
-
-      if (Object.keys(nutrients).length > 0) {
-        override.nutrients = nutrients;
-      }
+          return value === ''
+            ? [{ nutrientKey: key, state: 'unknown' as const }]
+            : [
+                {
+                  nutrientKey: key,
+                  state: 'known' as const,
+                  amount: Number(value),
+                  unit: NUTRIENT_CATALOG[key].defaultUnit,
+                },
+              ];
+        },
+      );
+      if (nutrientPatches.length > 0)
+        override.nutrientPatches = nutrientPatches;
     }
 
     return override;
@@ -1032,6 +1037,7 @@ export default function FoodLogScreen() {
     setComplexNutrients(
       previewNutrientValues(servingBasisFromSource(source).nutrition),
     );
+    setComplexNutrientTouched({});
     setNutritionEdited(false);
     setSaveAsReusableFood(false);
     setShowMore(trackingMode === 'complex' || hasSourceOptionalDetails(source));
@@ -2117,6 +2123,10 @@ export default function FoodLogScreen() {
                       setComplexNutrients((current) => ({
                         ...current,
                         [key]: value,
+                      }));
+                      setComplexNutrientTouched((current) => ({
+                        ...current,
+                        [key]: true,
                       }));
                       markNutritionEdited();
                     }}

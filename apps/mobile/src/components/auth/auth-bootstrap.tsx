@@ -6,6 +6,7 @@ import {
   useState,
   type PropsWithChildren,
 } from 'react';
+import { AppState } from 'react-native';
 import { useRouter, useSegments, type Href } from 'expo-router';
 import type { ApiAuthSession } from '@/lib/api-auth-session';
 import { AuthRecoveryProvider } from '@/components/auth/auth-recovery-context';
@@ -18,6 +19,11 @@ import type { AuthenticationService } from '@/services/auth-service';
 import { GoogleAuthenticationService } from '@/services/google-authentication';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { purgeAnalyticsCache } from '@/lib/analytics/analytics-cache-runtime';
+import {
+  detachPushInstallation,
+  reconcilePendingPushInstallation,
+} from '@/services/notifications';
+import { cleanupPhotoFiles } from '@/lib/photo-image';
 
 interface AuthRuntimeContextValue {
   userId: string | null;
@@ -125,6 +131,8 @@ export function AuthBootstrap({
   const storeRef = useRef<ReturnType<typeof createAuthStore> | null>(null);
   const loadRuntimeRef = useRef(loadRuntime);
   const lastRedirectKeyRef = useRef<string | null>(null);
+  const reconciledInstallationUidRef = useRef<string | null>(null);
+  const lastAuthenticatedUidRef = useRef<string | null>(null);
 
   const purgeCurrentAnalyticsCache = async () => {
     const state = storeRef.current?.getState().authState;
@@ -134,6 +142,17 @@ export function AuthBootstrap({
     } catch {
       // Local cache cleanup never blocks authentication lifecycle actions.
     }
+  };
+
+  const cleanupCurrentPhotoSession = async () => {
+    const session = useAppStore.getState().photoLogSession;
+    if (session === null) return;
+    await cleanupPhotoFiles([
+      ...(session.originalOwnership === 'app_capture'
+        ? [{ uri: session.originalUri, ownership: 'app_capture' as const }]
+        : []),
+      { uri: session.normalizedUri, ownership: 'app_capture' },
+    ]);
   };
 
   useEffect(() => {
@@ -195,6 +214,16 @@ export function AuthBootstrap({
         setSignOut(() => async () => {
           pendingProviderCredential.clear('signOut');
           await purgeCurrentAnalyticsCache();
+          try {
+            await cleanupCurrentPhotoSession();
+          } catch {
+            // Local capture cleanup is best effort and never blocks sign-out.
+          }
+          try {
+            await detachPushInstallation();
+          } catch {
+            // Push detachment is best effort; Firebase/API sign-out remains authoritative.
+          }
           await store.getState().signOut();
           useAppStore.getState().resetUserData();
         });
@@ -205,6 +234,16 @@ export function AuthBootstrap({
           }
           await runtime.deleteAccount();
           await purgeCurrentAnalyticsCache();
+          try {
+            await cleanupCurrentPhotoSession();
+          } catch {
+            // The server deletion is authoritative even if local cleanup fails.
+          }
+          try {
+            await detachPushInstallation();
+          } catch {
+            // The server deletion is authoritative even if local push cleanup fails.
+          }
           try {
             await store.getState().signOut();
           } catch {
@@ -243,6 +282,56 @@ export function AuthBootstrap({
       stopStore?.();
     };
   }, [initializationAttempt]);
+
+  useEffect(() => {
+    if (
+      authState.status === 'signedInSetupUnknown' ||
+      authState.status === 'signedInSetupIncomplete' ||
+      authState.status === 'signedInReady'
+    ) {
+      const uid = authState.user.uid;
+      const previousUid = lastAuthenticatedUidRef.current;
+      if (previousUid !== null && previousUid !== uid) {
+        // Firebase identity changes are authoritative even when the prior
+        // sign-out was interrupted. Clear process-local user state immediately
+        // and purge only the previous user's analytics partition.
+        useAppStore.getState().resetUserData();
+        void purgeAnalyticsCache(previousUid).catch(() => undefined);
+        pendingProviderCredential.clear('signOut');
+      }
+      lastAuthenticatedUidRef.current = uid;
+    }
+    if (authState.status === 'signedOut') {
+      reconciledInstallationUidRef.current = null;
+      return;
+    }
+    if (
+      authState.status !== 'signedInSetupUnknown' &&
+      authState.status !== 'signedInSetupIncomplete' &&
+      authState.status !== 'signedInReady'
+    )
+      return;
+    const uid = authState.user.uid;
+    if (reconciledInstallationUidRef.current === uid) return;
+    reconciledInstallationUidRef.current = uid;
+    // Reconcile an installation that could not be detached during an offline
+    // sign-out before the new account can enable delivery.
+    void reconcilePendingPushInstallation().catch(() => undefined);
+  }, [authState]);
+
+  useEffect(() => {
+    if (
+      authState.status !== 'signedInSetupUnknown' &&
+      authState.status !== 'signedInSetupIncomplete' &&
+      authState.status !== 'signedInReady'
+    )
+      return;
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active')
+        void reconcilePendingPushInstallation().catch(() => undefined);
+    });
+    return subscription.remove;
+  }, [authState.status]);
 
   useEffect(() => {
     const matches = routeMatchesAuthState(authState, segments);

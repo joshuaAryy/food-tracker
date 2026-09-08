@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Activity,
   Beef,
@@ -36,13 +36,11 @@ import {
   GOAL_PACES,
   TRACKING_MODES,
   TRAINING_STYLES,
+  isRateWithinAutomaticPolicy,
 } from '@food-tracker/shared';
 import { AppInput } from '@/components/app-input';
 import { AccountSignOutButton } from '@/components/auth/account-sign-out-button';
-import {
-  DeleteAccountPanel,
-  type AccountDeletionActions,
-} from '@/components/auth/account-deletion';
+import { DeleteAccountPanel } from '@/components/auth/account-deletion';
 import { AppLogo } from '@/components/app-logo';
 import { AppScreen } from '@/components/app-screen';
 import { AppText } from '@/components/app-text';
@@ -56,9 +54,12 @@ import { syncLauncherIconToMode } from '@/lib/app-icon';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { targetOverrideFieldsForProfileEdit } from '@/lib/target-overrides';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
+import { isRemotePushEnabled } from '@/lib/remote-push-capability';
+import { registerPushInstallation } from '@/services/notifications';
 
 type SettingsIcon = ComponentType<{
   color?: string;
@@ -66,9 +67,13 @@ type SettingsIcon = ComponentType<{
   strokeWidth?: number;
 }>;
 
+type NotificationPreferences = {
+  recommendationInsightsEnabled: boolean;
+  loggingRemindersEnabled: boolean;
+};
+
 interface ProfileForm {
   name: string;
-  age: string;
   birthDate: string;
   sex: Sex;
   heightInches: string;
@@ -78,6 +83,7 @@ interface ProfileForm {
   trainingStyle: TrainingStyle;
   goalType: GoalType;
   goalPace: GoalPace | 'none';
+  targetRateLbPerWeek: string;
   targetWeightLb: string;
   targetCalories: string;
   targetProteinGrams: string;
@@ -107,6 +113,7 @@ const defaultGoals: Goals = {
   targetFiberGrams: null,
   limitSugarGrams: null,
   limitSodiumMg: null,
+  targetRateLbPerWeek: null,
 };
 
 const defaultPreferences: TrackingPreferences = {
@@ -121,7 +128,6 @@ function formValues(
 ): ProfileForm {
   return {
     name: profile.name,
-    age: String(profile.age),
     birthDate: profile.birthDate,
     sex: profile.sex,
     heightInches: String(profile.heightInches),
@@ -131,6 +137,11 @@ function formValues(
     trainingStyle: profile.trainingStyle,
     goalType: goals.goalType,
     goalPace: goals.goalPace ?? 'none',
+    targetRateLbPerWeek:
+      goals.targetRateLbPerWeek === null ||
+      goals.targetRateLbPerWeek === undefined
+        ? ''
+        : String(goals.targetRateLbPerWeek),
     targetWeightLb: String(goals.targetWeightLb),
     targetCalories: String(goals.targetCalories),
     targetProteinGrams: String(goals.targetProteinGrams),
@@ -517,18 +528,20 @@ function ProfileSkeleton() {
 }
 
 export default function ProfileScreen() {
-  const {
-    deleteAccount,
-    providerIds,
-    reauthenticateWithGoogle,
-    reauthenticateWithPassword,
-    signOut,
-  } = useAuthRuntime();
+  const router = useRouter();
+  const { deleteAccount, signOut } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const remotePushEnabled = isRemotePushEnabled();
+  const [notificationPreferences, setNotificationPreferences] =
+    useState<NotificationPreferences>({
+      recommendationInsightsEnabled: false,
+      loggingRemindersEnabled: false,
+    });
   const [hasMissingData, setHasMissingData] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [savedPreferences, setSavedPreferences] =
@@ -560,11 +573,13 @@ export default function ProfileScreen() {
       setNotice(null);
 
       try {
-        const [profile, goals, preferences] = await Promise.all([
-          optionalResource(api.profile.get, defaultProfile),
-          optionalResource(api.goals.get, defaultGoals),
-          optionalResource(api.trackingPreferences.get, defaultPreferences),
-        ]);
+        const [profile, goals, preferences, notificationSettings] =
+          await Promise.all([
+            optionalResource(api.profile.get, defaultProfile),
+            optionalResource(api.goals.get, defaultGoals),
+            optionalResource(api.trackingPreferences.get, defaultPreferences),
+            api.notifications.preferences.get(),
+          ]);
         const nextValues = formValues(
           profile.data,
           goals.data,
@@ -573,6 +588,7 @@ export default function ProfileScreen() {
         reset(nextValues);
         setLastSavedForm(nextValues);
         setSavedPreferences(preferences.data);
+        setNotificationPreferences(notificationSettings);
         setHasMissingData(
           profile.missing || goals.missing || preferences.missing,
         );
@@ -599,10 +615,14 @@ export default function ProfileScreen() {
 
     try {
       const goalPace = values.goalPace === 'none' ? null : values.goalPace;
+      const targetOverrideFields = targetOverrideFieldsForProfileEdit({
+        caloriesChanged: values.targetCalories !== lastSavedForm.targetCalories,
+        proteinChanged:
+          values.targetProteinGrams !== lastSavedForm.targetProteinGrams,
+      });
       const [profile, goals, preferences] = await Promise.all([
         api.profile.update({
           name: values.name.trim(),
-          age: Number(values.age),
           birthDate: values.birthDate.trim(),
           sex: values.sex,
           heightInches: Number(values.heightInches),
@@ -615,8 +635,14 @@ export default function ProfileScreen() {
           goalType: values.goalType,
           goalPace,
           targetWeightLb: Number(values.targetWeightLb),
+          targetRateLbPerWeek:
+            values.targetRateLbPerWeek.trim() === ''
+              ? null
+              : Number(values.targetRateLbPerWeek),
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
+          targetOverrides: targetOverrideFields.length > 0,
+          targetOverrideFields,
         }),
         api.trackingPreferences.update({
           mode: values.mode,
@@ -748,6 +774,24 @@ export default function ProfileScreen() {
           label="Daily protein"
           value={`${watchedValues.targetProteinGrams || '0'} g`}
         />
+        <Pressable
+          accessibilityLabel="Edit daily nutrition targets"
+          accessibilityRole="button"
+          className="rounded-full bg-primary-soft px-4 py-3"
+          onPress={() =>
+            router.push({ pathname: '/nutrition-targets' } as never)
+          }
+        >
+          <AppText variant="label">Edit daily nutrition targets</AppText>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Review goal plan"
+          accessibilityRole="button"
+          className="rounded-full bg-primary-soft px-4 py-3"
+          onPress={() => router.push({ pathname: '/goal-plan' } as never)}
+        >
+          <AppText variant="label">Review goal plan</AppText>
+        </Pressable>
       </SettingsSection>
 
       <SettingsSection title="Edit profile">
@@ -767,27 +811,6 @@ export default function ProfileScreen() {
                 onBlur={field.onBlur}
                 onChangeText={field.onChange}
                 error={errors.name?.message}
-              />
-            )}
-          />
-          <Controller
-            control={control}
-            name="age"
-            rules={{
-              required: 'Age is required.',
-              validate: (value) =>
-                Number.isInteger(Number(value)) && Number(value) >= 0
-                  ? true
-                  : 'Enter a whole number.',
-            }}
-            render={({ field }) => (
-              <AppInput
-                label="Age"
-                keyboardType="number-pad"
-                value={field.value}
-                onBlur={field.onBlur}
-                onChangeText={field.onChange}
-                error={errors.age?.message}
               />
             )}
           />
@@ -971,6 +994,34 @@ export default function ProfileScreen() {
               />
             )}
           />
+          <Controller
+            control={control}
+            name="targetRateLbPerWeek"
+            rules={{
+              validate: (value) =>
+                value.trim() === '' ||
+                isRateWithinAutomaticPolicy(
+                  watchedValues.goalType,
+                  Number(value),
+                )
+                  ? true
+                  : watchedValues.goalType === 'gain'
+                    ? 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.'
+                    : watchedValues.goalType === 'lose'
+                      ? 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.'
+                      : 'Maintain plans do not use a weekly rate.',
+            }}
+            render={({ field }) => (
+              <AppInput
+                label="Weekly rate (lb/week, optional)"
+                keyboardType="decimal-pad"
+                value={field.value}
+                onBlur={field.onBlur}
+                onChangeText={field.onChange}
+                error={errors.targetRateLbPerWeek?.message}
+              />
+            )}
+          />
         </FieldGroup>
 
         <FieldGroup title="Daily targets">
@@ -1086,20 +1137,106 @@ export default function ProfileScreen() {
       />
 
       <SettingsSection
+        title="Notifications"
+        description="Choose when Food Tracker can surface a private insight or logging reminder."
+      >
+        {!remotePushEnabled ? (
+          <AppText
+            variant="caption"
+            muted
+            className="rounded-2xl bg-surface px-4 py-3"
+          >
+            Push delivery is unavailable in this local build. Your notification
+            settings will be available in a push-capable release build.
+          </AppText>
+        ) : null}
+        <Pressable
+          className="rounded-full bg-primary-soft px-4 py-3"
+          disabled={notificationsBusy || !remotePushEnabled}
+          onPress={() => {
+            setNotificationsBusy(true);
+            const enable =
+              !notificationPreferences.recommendationInsightsEnabled;
+            const registration = enable
+              ? registerPushInstallation()
+              : Promise.resolve(true);
+            void registration
+              .then(async (registered) => {
+                if (registered) {
+                  await api.notifications.preferences.update({
+                    ...notificationPreferences,
+                    recommendationInsightsEnabled: enable,
+                  });
+                  setNotificationPreferences((current) => ({
+                    ...current,
+                    recommendationInsightsEnabled: enable,
+                  }));
+                }
+                setNotice(
+                  registered && enable
+                    ? 'Nutrition insights are enabled on this device.'
+                    : registered
+                      ? 'Nutrition insights are disabled.'
+                      : 'Notifications need a physical device and permission.',
+                );
+              })
+              .catch((registrationError) =>
+                setError(errorMessage(registrationError)),
+              )
+              .finally(() => setNotificationsBusy(false));
+          }}
+        >
+          <AppText variant="label">
+            {notificationPreferences.recommendationInsightsEnabled
+              ? 'Disable nutrition insights'
+              : 'Enable nutrition insights'}
+          </AppText>
+        </Pressable>
+        <Pressable
+          className="rounded-full border border-line px-4 py-3"
+          disabled={notificationsBusy || !remotePushEnabled}
+          onPress={() => {
+            setNotificationsBusy(true);
+            const enable = !notificationPreferences.loggingRemindersEnabled;
+            const registration = enable
+              ? registerPushInstallation()
+              : Promise.resolve(true);
+            void registration
+              .then(async (registered) => {
+                if (enable && !registered) {
+                  setNotice(
+                    'Notifications need a physical device and permission.',
+                  );
+                  return null;
+                }
+                return api.notifications.preferences.update({
+                  ...notificationPreferences,
+                  loggingRemindersEnabled: enable,
+                });
+              })
+              .then((next) => {
+                if (next !== null) setNotificationPreferences(next);
+              })
+              .catch((preferenceError) =>
+                setError(errorMessage(preferenceError)),
+              )
+              .finally(() => setNotificationsBusy(false));
+          }}
+        >
+          <AppText variant="label">
+            {notificationPreferences.loggingRemindersEnabled
+              ? 'Disable logging reminders'
+              : 'Enable logging reminders'}
+          </AppText>
+        </Pressable>
+      </SettingsSection>
+
+      <SettingsSection
         title="Account"
         description="Your data stays separated from other accounts on this device."
       >
         <AccountSignOutButton onSignOut={signOut} />
-        <DeleteAccountPanel
-          providerIds={providerIds}
-          actions={
-            {
-              deleteAccount,
-              reauthenticateWithGoogle,
-              reauthenticateWithPassword,
-            } satisfies AccountDeletionActions
-          }
-        />
+        <DeleteAccountPanel actions={{ deleteAccount }} />
       </SettingsSection>
     </AppScreen>
   );

@@ -16,6 +16,8 @@ export type ReportingGoalDirection = (typeof REPORTING_GOAL_DIRECTIONS)[number];
 
 export const REPORTING_GOAL_SOURCES = [
   'user',
+  'personalized',
+  'reference',
   'derived',
   'default',
   'missing',
@@ -158,6 +160,11 @@ function explicitOrDerived(
   return missingGoal(unit, direction);
 }
 
+/**
+ * Legacy pure projection retained for old consumers/tests. API reporting must
+ * use the server-owned effective-target adapter; the `default` values below
+ * are compatibility metadata, never personalized/reference authority.
+ */
 export function resolveReportingGoals(
   inputs: ReportingGoalInputs,
 ): ReportingGoals {

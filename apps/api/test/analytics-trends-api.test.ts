@@ -3,7 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
 import { recentLocalDate, recentLocalDateTime } from './helpers/dates.js';
-import { seedGoals, seedPreferences, seedProfile } from './helpers/seeds.js';
+import {
+  seedFoodItem,
+  seedGoals,
+  seedPreferences,
+  seedProfile,
+} from './helpers/seeds.js';
 
 const caloriesQuery = {
   primaryMetric: 'calories',
@@ -387,18 +392,17 @@ describe('canonical analytics trends API', () => {
           metric: 'leucine',
           average: 2.6,
           reference: {
-            kind: 'minimum',
-            value: 2.6,
+            kind: 'none',
+            reason: 'not_configured',
             unit: 'g',
-            source: 'default',
           },
-          percentage: 100,
-          status: 'meets_minimum',
+          percentage: null,
+          status: 'unknown',
         }),
         expect.objectContaining({
           metric: 'histidine',
           average: 1.2,
-          status: 'meets_minimum',
+          status: 'unknown',
         }),
       ]),
     });
@@ -611,9 +615,15 @@ describe('canonical analytics trends API', () => {
     await seedProfile();
     await seedPreferences({ mode: 'complex' });
     await seedGoals({ targetCalories: 2000, limitSodiumMg: null });
+    const foodItem = await seedFoodItem({
+      userId: null,
+      sourceType: 'app_owned',
+      name: 'Canonical mineral snapshot',
+    });
     const log = await prisma.foodLog.create({
       data: {
         userId: MOCK_USER_ID,
+        foodItemId: foodItem.id,
         foodName: 'Mineral snapshot',
         mealType: 'breakfast',
         calories: 200,
@@ -645,12 +655,12 @@ describe('canonical analytics trends API', () => {
     expect(response.body.data.relatedMetrics).toEqual(['potassium']);
     expect(response.body.data.comparison.reference).toMatchObject({
       kind: 'minimum',
-      value: 4700,
+      value: 3400,
     });
     expect(response.body.data.comparison).toMatchObject({
-      sharedAxisDomain: { minimum: 0, maximum: 0.5 },
-      primaryAxisDomain: { minimum: 0, maximum: 0.5 },
-      comparisonAxisDomain: { minimum: 0, maximum: 0.5 },
+      sharedAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
+      primaryAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
+      comparisonAxisDomain: { minimum: 0, maximum: 0.6911764705882353 },
     });
     expect(response.body.data.points).toEqual(
       expect.arrayContaining([
@@ -666,7 +676,7 @@ describe('canonical analytics trends API', () => {
         expect.objectContaining({
           date: recentLocalDate(6),
           value: 2350,
-          normalizedValue: 0.5,
+          normalizedValue: 0.6911764705882353,
         }),
         expect.objectContaining({ date: recentLocalDate(5), value: null }),
       ]),
@@ -802,12 +812,18 @@ describe('canonical analytics trends API', () => {
   it('keeps a complete logging day separate from partial Vitamin C snapshot coverage', async () => {
     await seedProfile();
     await seedPreferences({ mode: 'complex' });
+    const foodItem = await seedFoodItem({
+      userId: null,
+      sourceType: 'app_owned',
+      name: 'Canonical vitamin snapshot',
+    });
     const loggedAt = new Date(recentLocalDateTime(6));
     const [first, second, third] = await Promise.all(
       ['breakfast', 'lunch', 'dinner'].map((mealType) =>
         prisma.foodLog.create({
           data: {
             userId: MOCK_USER_ID,
+            foodItemId: foodItem.id,
             foodName: `${mealType} snapshot`,
             mealType: mealType as 'breakfast' | 'lunch' | 'dinner',
             calories: 200,

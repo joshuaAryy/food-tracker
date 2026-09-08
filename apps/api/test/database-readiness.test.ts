@@ -1,0 +1,368 @@
+import express from 'express';
+import { Prisma } from '@prisma/client';
+import request from 'supertest';
+import { describe, expect, it, vi } from 'vitest';
+import { errorHandler } from '../src/middleware/error-handler.js';
+import {
+  createDatabaseReadiness,
+  isTransientDatabaseReadinessError,
+} from '../src/lib/database-readiness.js';
+import { createDatabaseReadinessMiddleware } from '../src/middleware/database-readiness.js';
+
+function prismaError(code: string, message = code): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
+describe('database request readiness', () => {
+  it('probes once and continues immediately when the database is ready', async () => {
+    const probe = vi.fn().mockResolvedValue(undefined);
+    const readiness = createDatabaseReadiness({ probe });
+    const handler = vi.fn((_request, response) => response.sendStatus(204));
+    const app = express();
+    app.use(createDatabaseReadinessMiddleware(readiness));
+    app.get('/read', handler);
+
+    const response = await request(app).get('/read');
+
+    expect(response.status).toBe(204);
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries only transient connectivity failures with bounded backoff', async () => {
+    let now = 0;
+    let attempts = 0;
+    const delays: number[] = [];
+    const readiness = createDatabaseReadiness({
+      probe: async () => {
+        attempts += 1;
+        if (attempts < 3) throw prismaError('P1001');
+      },
+      now: () => now,
+      sleep: async (delayMs) => {
+        delays.push(delayMs);
+        now += delayMs;
+      },
+    });
+
+    await expect(readiness.ensureReady()).resolves.toBeUndefined();
+
+    expect(attempts).toBe(3);
+    expect(delays).toEqual([250, 500]);
+  });
+
+  it('does not retry non-transient Prisma failures', async () => {
+    const probe = vi.fn().mockRejectedValue(prismaError('P2002'));
+    const readiness = createDatabaseReadiness({
+      probe,
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await expect(readiness.ensureReady()).rejects.toMatchObject({
+      code: 'P2002',
+    });
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(isTransientDatabaseReadinessError(prismaError('P2002'))).toBe(false);
+  });
+
+  it('classifies only no-code Prisma initialization errors as transient by class', () => {
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientInitializationError(
+          'database is waking',
+          '6.19.2',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientInitializationError(
+          'database authentication failed',
+          '6.19.2',
+          'P1000',
+        ),
+      ),
+    ).toBe(false);
+    expect(
+      isTransientDatabaseReadinessError(new Error('database is waking')),
+    ).toBe(false);
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientValidationError('invalid query', {
+          clientVersion: '6.19.2',
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientRustPanicError('engine stopped', '6.19.2'),
+      ),
+    ).toBe(false);
+  });
+
+  it('retries a no-code Prisma initialization error and recovers on the next probe', async () => {
+    let attempts = 0;
+    const delays: number[] = [];
+    const readiness = createDatabaseReadiness({
+      probe: async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new Prisma.PrismaClientInitializationError(
+            'database is waking',
+            '6.19.2',
+          );
+        }
+      },
+      sleep: async (delayMs) => {
+        delays.push(delayMs);
+      },
+    });
+
+    await expect(readiness.ensureReady()).resolves.toBeUndefined();
+
+    expect(attempts).toBe(2);
+    expect(delays).toEqual([250]);
+  });
+
+  it('does not retry a generic no-code error', async () => {
+    const probe = vi.fn().mockRejectedValue(new Error('database is waking'));
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const readiness = createDatabaseReadiness({
+      probe,
+      sleep,
+      emitDiagnostic: vi.fn(),
+    });
+
+    await expect(readiness.ensureReady()).rejects.toThrow('database is waking');
+
+    expect(probe).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('emits safe structural metadata for an unclassified probe error', async () => {
+    class RailwayDatabaseWakeError extends Error {
+      code = 'RAILWAY_DATABASE_WAKE';
+      errorCode = 'RAILWAY_DATABASE_ERROR';
+      databaseUrl = 'postgresql://user:password@private-host/database';
+      authorization = 'Bearer private-token';
+      details = { privatePayload: 'do-not-serialize' };
+
+      constructor() {
+        super('private database wake failure');
+        this.name = 'RailwayDatabaseWakeError';
+      }
+    }
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = new RailwayDatabaseWakeError();
+    const readiness = createDatabaseReadiness({
+      probe: vi.fn().mockRejectedValue(error),
+    });
+
+    await expect(readiness.ensureReady()).rejects.toBe(error);
+
+    expect(warn).toHaveBeenCalledWith(
+      '[food-tracker:diagnostic]',
+      expect.objectContaining({
+        category: 'database_readiness_exhausted',
+        errorClass: 'RailwayDatabaseWakeError',
+        errorName: 'RailwayDatabaseWakeError',
+        code: 'RAILWAY_DATABASE_WAKE',
+        errorCode: 'RAILWAY_DATABASE_ERROR',
+        prismaErrorTypes: [],
+      }),
+    );
+    const serializedDiagnostics = JSON.stringify(warn.mock.calls);
+    expect(serializedDiagnostics).not.toContain('postgresql://');
+    expect(serializedDiagnostics).not.toContain('private-token');
+    expect(serializedDiagnostics).not.toContain('do-not-serialize');
+    warn.mockRestore();
+  });
+
+  it('classifies Prisma 6.19 connectivity errors without classifying integrity errors', () => {
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientInitializationError(
+          "Can't reach database server",
+          '6.19.2',
+          'P1001',
+        ),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientKnownRequestError('connection pool timeout', {
+          code: 'P2024',
+          clientVersion: '6.19.2',
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      isTransientDatabaseReadinessError(
+        new Prisma.PrismaClientKnownRequestError('unique constraint failed', {
+          code: 'P2002',
+          clientVersion: '6.19.2',
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('returns a controlled retryable failure after the recovery budget is exhausted', async () => {
+    let now = 0;
+    const readiness = createDatabaseReadiness({
+      probe: async () => {
+        throw prismaError('P1001');
+      },
+      now: () => now,
+      sleep: async (delayMs) => {
+        now += delayMs;
+      },
+    });
+    const app = express();
+    app.use(createDatabaseReadinessMiddleware(readiness));
+    app.get(
+      '/read',
+      vi.fn((_request, response) => response.sendStatus(204)),
+    );
+    app.use(errorHandler);
+
+    const response = await request(app).get('/read');
+
+    expect(response.status).toBe(503);
+    expect(response.headers['retry-after']).toBe('1');
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: 'DATABASE_NOT_READY',
+        message: 'The database is temporarily unavailable. Please try again.',
+        details: { retryable: true },
+      },
+    });
+  });
+
+  it('returns a controlled 503 when a no-code Prisma initialization error persists', async () => {
+    const probe = vi
+      .fn()
+      .mockRejectedValue(
+        new Prisma.PrismaClientInitializationError(
+          'database is still waking',
+          '6.19.2',
+        ),
+      );
+    const readiness = createDatabaseReadiness({
+      probe,
+      sleep: vi.fn().mockResolvedValue(undefined),
+      emitDiagnostic: vi.fn(),
+    });
+    const handler = vi.fn((_request, response) => response.sendStatus(204));
+    const app = express();
+    app.use(createDatabaseReadinessMiddleware(readiness));
+    app.post('/food-logs', handler);
+    app.use(errorHandler);
+
+    const response = await request(app).post('/food-logs').send({});
+
+    expect(response.status).toBe(503);
+    expect(response.headers['retry-after']).toBe('1');
+    expect(response.body).toEqual({
+      success: false,
+      error: {
+        code: 'DATABASE_NOT_READY',
+        message: 'The database is temporarily unavailable. Please try again.',
+        details: { retryable: true },
+      },
+    });
+    expect(handler).not.toHaveBeenCalled();
+    expect(probe).toHaveBeenCalledTimes(5);
+  });
+
+  it('allows a mutation handler to execute exactly once after readiness recovers', async () => {
+    let attempts = 0;
+    const readiness = createDatabaseReadiness({
+      probe: async () => {
+        attempts += 1;
+        if (attempts === 1) throw prismaError('P1001');
+      },
+      sleep: async () => undefined,
+    });
+    const handler = vi.fn((_request, response) =>
+      response.json({ created: true }),
+    );
+    const app = express();
+    app.use(createDatabaseReadinessMiddleware(readiness));
+    app.post('/food-logs', handler);
+
+    const response = await request(app).post('/food-logs').send({});
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(attempts).toBe(2);
+  });
+
+  it('executes a mutation exactly once after no-code Prisma readiness recovery', async () => {
+    let attempts = 0;
+    const readiness = createDatabaseReadiness({
+      probe: async () => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new Prisma.PrismaClientInitializationError(
+            'database is waking',
+            '6.19.2',
+          );
+        }
+      },
+      sleep: vi.fn().mockResolvedValue(undefined),
+    });
+    const handler = vi.fn((_request, response) =>
+      response.json({ created: true }),
+    );
+    const app = express();
+    app.use(createDatabaseReadinessMiddleware(readiness));
+    app.post('/food-logs', handler);
+
+    const response = await request(app).post('/food-logs').send({});
+
+    expect(response.status).toBe(200);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(attempts).toBe(2);
+  });
+
+  it('shares one in-flight recovery sequence across concurrent requests', async () => {
+    let releaseProbe!: () => void;
+    const probe = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseProbe = resolve;
+        }),
+    );
+    const readiness = createDatabaseReadiness({ probe });
+
+    const first = readiness.ensureReady();
+    const second = readiness.ensureReady();
+    expect(probe).toHaveBeenCalledTimes(1);
+
+    releaseProbe();
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+    expect(probe).toHaveBeenCalledTimes(1);
+  });
+
+  it('caches readiness briefly and probes again after the cache expires', async () => {
+    let now = 0;
+    const probe = vi.fn().mockResolvedValue(undefined);
+    const readiness = createDatabaseReadiness({
+      probe,
+      cacheMs: 100,
+      now: () => now,
+    });
+
+    await readiness.ensureReady();
+    await readiness.ensureReady();
+    now = 101;
+    await readiness.ensureReady();
+
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+});

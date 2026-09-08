@@ -237,6 +237,18 @@ corepack pnpm --filter @food-tracker/mobile ios:dev-build
 corepack pnpm --filter @food-tracker/mobile ios:dev-build:device
 ```
 
+For local physical UAT with an Apple Personal Team, use the separate
+push-disabled build mode:
+
+```bash
+corepack pnpm --filter @food-tracker/mobile ios:personal-team
+```
+
+It keeps notification code installed but omits the APNs entitlement and
+remote-push registration. The staging Release workflow remains push-capable,
+requires `IOS_REMOTE_PUSH_ENABLED=true` and the canonical EAS project ID, and
+is the path for eventual Expo/APNs acceptance (currently deferred).
+
 ### Free Xcode standalone Release checkpoint
 
 After confirming the required branch and Node/pnpm versions, create the ignored

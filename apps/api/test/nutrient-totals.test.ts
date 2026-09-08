@@ -68,22 +68,13 @@ describe('daily nutrient totals API', () => {
       percentages: {
         calories: null,
         protein: null,
-        caffeine: 35,
-        vitaminC: 66.7,
+        caffeine: null,
+        vitaminC: null,
       },
     });
-    expect(data.reportingGoals.calories).toMatchObject({
-      value: null,
-      unit: 'kcal',
-    });
-    expect(data.reportingGoals.caffeine).toMatchObject({
-      value: 400,
-      unit: 'mg',
-    });
-    expect(data.reportingGoals.vitaminC).toMatchObject({
-      value: 90,
-      unit: 'mg',
-    });
+    expect(data.reportingGoals.calories).toBeUndefined();
+    expect(data.reportingGoals.caffeine).toBeUndefined();
+    expect(data.reportingGoals.vitaminC).toBeUndefined();
     expect(data.nutrients.carbs).toBeUndefined();
     expect(data.nutrients.sodium).toBeUndefined();
   });

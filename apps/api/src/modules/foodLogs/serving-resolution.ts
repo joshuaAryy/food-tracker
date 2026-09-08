@@ -164,13 +164,28 @@ function roundOverrideNutrition(
       nutrition.nutrients = {};
     } else {
       for (const [nutrientKey, nutrient] of Object.entries(nutrients)) {
-        nutrition.nutrients[nutrientKey as NormalizedNutrientKey] = {
-          amount: roundDecimal(nutrient.amount, 4),
-          unit: nutrient.unit,
-        };
+        if (nutrient.amount === null) {
+          delete nutrition.nutrients[nutrientKey as NormalizedNutrientKey];
+        } else {
+          nutrition.nutrients[nutrientKey as NormalizedNutrientKey] = {
+            amount: roundDecimal(nutrient.amount, 4),
+            unit: nutrient.unit,
+          };
+        }
       }
     }
   }
+  for (const patch of override.nutrientPatches ?? []) {
+    if (patch.state === 'unknown') {
+      delete nutrition.nutrients[patch.nutrientKey];
+    } else {
+      nutrition.nutrients[patch.nutrientKey] = {
+        amount: roundDecimal(patch.amount, 4),
+        unit: patch.unit,
+      };
+    }
+  }
+  const nutrientPatchesApplied = (override.nutrientPatches?.length ?? 0) > 0;
 
   effective =
     caloriesApplied ||
@@ -180,7 +195,8 @@ function roundOverrideNutrition(
     fiberApplied ||
     sugarApplied ||
     sodiumApplied ||
-    nutrientsApplied;
+    nutrientsApplied ||
+    nutrientPatchesApplied;
   if (!effective) return { nutrition, snapshot: null };
 
   return {
@@ -196,7 +212,7 @@ function roundOverrideNutrition(
       sugar: field(sugarApplied, nutrition.sugar),
       sodium: field(sodiumApplied, nutrition.sodium),
       nutrients: field(
-        nutrientsApplied,
+        nutrientsApplied || nutrientPatchesApplied,
         nutrients === null ? null : nutrition.nutrients,
       ),
     },

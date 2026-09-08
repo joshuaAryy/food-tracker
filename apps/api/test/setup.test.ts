@@ -47,7 +47,9 @@ function expectedAge(birthDate: string): number {
   return age;
 }
 
-async function preview(input: typeof setupInput = setupInput) {
+async function preview(
+  input: SetupInput & { currentWeightLb?: number | null } = setupInput,
+) {
   const response = await api
     .post('/api/v1/setup/preview')
     .send(input)
@@ -150,6 +152,7 @@ describe('setup API', () => {
         calculatedTargets: {
           targetCalories: number;
           targetProteinGrams: number;
+          targetRateLbPerWeek: number | null;
         };
       };
     };
@@ -171,6 +174,7 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: 1,
       },
       preferences: { ...setupInput.preferences, dailyWaterGoalMl: 2000 },
       calculatedTargets: {
@@ -181,6 +185,18 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: 1,
+        estimatedGoalDate: expect.any(String),
+      },
+      ratePlanning: {
+        status: 'available',
+        minimumRateLbPerWeek: 0.5,
+        maximumRateLbPerWeek: 2,
+        selectedRateLbPerWeek: 1,
+        feasibility: {
+          status: 'supported',
+          maximumSupportedRateLbPerWeek: expect.any(Number),
+        },
       },
       status: {
         profileComplete: true,
@@ -203,6 +219,9 @@ describe('setup API', () => {
     expect(profile?.activityLevel).toBe('moderately_active');
     expect(profile?.trainingStyle).toBe('weight_training');
     expect(goals?.goalPace).toBe('moderate');
+    expect(goals?.targetRateLbPerWeek?.toNumber()).toBe(
+      body.data.calculatedTargets.targetRateLbPerWeek,
+    );
     expect(goals?.targetCalories).toBe(
       body.data.calculatedTargets.targetCalories,
     );
@@ -234,6 +253,32 @@ describe('setup API', () => {
     });
   });
 
+  it('persists an explicit policy-valid rate without replacing it with a legacy pace', async () => {
+    const response = await api
+      .put('/api/v1/setup')
+      .send({
+        ...setupInput,
+        goals: {
+          ...setupInput.goals,
+          targetRateLbPerWeek: 1.15,
+        },
+      })
+      .expect(200);
+
+    expect(response.body.data.goals.targetRateLbPerWeek).toBe(1.15);
+    expect(response.body.data.calculatedTargets.targetRateLbPerWeek).toBe(1.15);
+    expect(response.body.data.ratePlanning).toMatchObject({
+      minimumRateLbPerWeek: 0.5,
+      maximumRateLbPerWeek: 2,
+      selectedRateLbPerWeek: 1.15,
+    });
+
+    const goals = await prisma.userGoal.findUnique({
+      where: { userId: MOCK_USER_ID },
+    });
+    expect(goals?.targetRateLbPerWeek?.toNumber()).toBe(1.15);
+  });
+
   it('previews calculated targets without writing setup rows', async () => {
     const result = await preview();
 
@@ -247,6 +292,18 @@ describe('setup API', () => {
         targetFiberGrams: expect.any(Number),
         limitSugarGrams: expect.any(Number),
         limitSodiumMg: expect.any(Number),
+        targetRateLbPerWeek: 1,
+        estimatedGoalDate: expect.any(String),
+      },
+      ratePlanning: {
+        status: 'available',
+        minimumRateLbPerWeek: 0.5,
+        maximumRateLbPerWeek: 2,
+        selectedRateLbPerWeek: 1,
+        feasibility: {
+          status: 'supported',
+          maximumSupportedRateLbPerWeek: expect.any(Number),
+        },
       },
     });
     expect(
@@ -321,6 +378,15 @@ describe('setup API', () => {
     });
 
     expect(result.age).toBe(expectedAge('2000-01-01'));
+  });
+
+  it('uses an explicit current weight only for preview recalculation', async () => {
+    const starting = await preview(setupInput);
+    const current = await preview({ ...setupInput, currentWeightLb: 160 });
+
+    expect(current.calculatedTargets.targetCalories).not.toBe(
+      starting.calculatedTargets.targetCalories,
+    );
   });
 
   it('increases calorie targets for higher activity levels', async () => {

@@ -14,6 +14,7 @@ import {
   appendUniqueCandidate,
   candidateMatchReason,
   foodItemCandidate,
+  hasAuthoritativeNutritionBasis,
 } from '../../modules/foodItems/retrieval/candidate-generation.js';
 import { retrieveFuzzyFoodItemMatches } from '../../modules/foodItems/retrieval/fuzzy.js';
 import {
@@ -135,6 +136,7 @@ function appendFoodCandidate(input: {
     semanticScore: number | null;
   };
 }) {
+  if (!hasAuthoritativeNutritionBasis(input.food)) return;
   appendUniqueCandidate({
     candidates: input.candidates,
     seen: input.seen,

@@ -38,6 +38,7 @@ import {
   appendUniqueCandidate,
   candidateMatchReason,
   foodItemCandidate,
+  hasAuthoritativeNutritionBasis,
 } from '../foodItems/retrieval/candidate-generation.js';
 import type { ProviderParsedFoodItem } from './provider.js';
 import { photoAnalysisDiagnosticDetails } from './photo-diagnostics.js';
@@ -102,6 +103,7 @@ export async function retrieveParsedFoodItems(input: {
         semanticScore: number | null;
       },
     ) => {
+      if (!hasAuthoritativeNutritionBasis(foodItem)) return;
       appendUniqueCandidate({
         candidates,
         seen,

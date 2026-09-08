@@ -211,10 +211,11 @@ export function assertRequiredStagingReleaseBranch(
   if (
     branch !== 'phase-17-free-xcode-standalone' &&
     branch !== 'phase-17-5-custom-analytics' &&
+    branch !== 'phase-20-22-product-hardening-intelligence' &&
     branch !== 'main'
   ) {
     throw new Error(
-      'The staging Release workflow requires an approved Phase 17 staging branch or post-merge main.',
+      'The staging Release workflow requires an approved Phase 17 or Phase 20-22 staging branch or post-merge main.',
     );
   }
 }

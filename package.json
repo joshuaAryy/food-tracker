@@ -11,6 +11,7 @@
     "dev:mobile": "corepack pnpm --filter @food-tracker/mobile start",
     "ios:staging-release": "corepack pnpm --filter @food-tracker/mobile ios:staging-release",
     "ios:staging-simulator": "corepack pnpm --filter @food-tracker/mobile ios:staging-simulator",
+    "ios:personal-team": "corepack pnpm --filter @food-tracker/mobile ios:personal-team",
     "build": "corepack pnpm --filter @food-tracker/shared build && corepack pnpm --filter @food-tracker/api build",
     "typecheck": "corepack pnpm -r typecheck",
     "lint": "corepack pnpm -r lint",

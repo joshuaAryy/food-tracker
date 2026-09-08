@@ -15,7 +15,10 @@ import {
   validatedParams,
   validatedQuery,
 } from '../../middleware/validate.js';
-import { generateRecommendations } from './service.js';
+import {
+  comparePersistedRecommendations,
+  generateRecommendations,
+} from './service.js';
 
 type RecommendationsQuery = z.infer<typeof recommendationsQuerySchema>;
 type IdParams = z.infer<typeof idParamsSchema>;
@@ -28,13 +31,28 @@ recommendationsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const { status } = validatedQuery<RecommendationsQuery>(response);
+    const preferences = await prisma.trackingPreference.findUnique({
+      where: { userId },
+      select: { mode: true },
+    });
     const recommendations = await prisma.recommendation.findMany({
-      where: { userId, status },
-      orderBy: [{ createdAt: 'desc' }],
+      where: {
+        userId,
+        status,
+        ...(status === 'active' && preferences?.mode !== 'complex'
+          ? { type: { not: 'micronutrient_below_target' } }
+          : {}),
+      },
     });
 
     sendSuccess(response, {
-      recommendations: recommendations.map(serializeRecommendation),
+      recommendations: recommendations
+        .sort(comparePersistedRecommendations)
+        .slice(
+          status === 'active' ? 0 : undefined,
+          status === 'active' ? 3 : undefined,
+        )
+        .map(serializeRecommendation),
     });
   },
 );
@@ -65,7 +83,7 @@ recommendationsRouter.patch(
 
     const recommendation = await prisma.recommendation.update({
       where: { id },
-      data: { status: 'dismissed' },
+      data: { status: 'dismissed', dismissedAt: new Date() },
     });
 
     sendSuccess(response, serializeRecommendation(recommendation));

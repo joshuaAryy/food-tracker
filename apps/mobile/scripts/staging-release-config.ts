@@ -7,6 +7,7 @@ export const STAGING_RELEASE_PUBLIC_VARIABLES = [
   'EXPO_PUBLIC_API_URL',
   'EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED',
   'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
+  'EXPO_PUBLIC_EAS_PROJECT_ID',
 ] as const;
 
 export const STAGING_RELEASE_BUILD_VARIABLES = [
@@ -15,6 +16,7 @@ export const STAGING_RELEASE_BUILD_VARIABLES = [
   'GOOGLE_SERVICES_PLIST_PATH',
   'GOOGLE_IOS_URL_SCHEME',
   'EXPO_NO_DOTENV',
+  'IOS_REMOTE_PUSH_ENABLED',
 ] as const;
 
 const SERVER_VARIABLE_NAMES = new Set([
@@ -56,6 +58,8 @@ export interface StagingReleaseConfig {
   googleIosUrlScheme: string;
   googleWebClientId: string;
   googleServicesPlistPath: string;
+  easProjectId: string;
+  remotePushEnabled: true;
   firebase: FirebasePlistSummary;
   sanitized: Record<string, string>;
 }
@@ -354,6 +358,8 @@ export function createStagingReleaseXcodeEnvironment(
     ['EXPO_PUBLIC_API_URL', config.apiUrl],
     ['EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED', 'false'],
     ['EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID', config.googleWebClientId],
+    ['EXPO_PUBLIC_EAS_PROJECT_ID', config.easProjectId],
+    ['IOS_REMOTE_PUSH_ENABLED', 'true'],
     ['GOOGLE_IOS_URL_SCHEME', config.googleIosUrlScheme],
     ['GOOGLE_SERVICES_PLIST_PATH', config.googleServicesPlistPath],
     ['EXPO_NO_DOTENV', '1'],
@@ -389,6 +395,17 @@ export function validateStagingReleaseEnvironment(
   if (environment.EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED !== 'false') {
     throw new Error(
       'Apple Sign In must remain disabled for the free Release build.',
+    );
+  }
+  const easProjectId = environment.EXPO_PUBLIC_EAS_PROJECT_ID?.trim();
+  if (!nonEmpty(easProjectId)) {
+    throw new Error(
+      'EXPO_PUBLIC_EAS_PROJECT_ID is required for staging Release.',
+    );
+  }
+  if (environment.IOS_REMOTE_PUSH_ENABLED !== 'true') {
+    throw new Error(
+      'IOS_REMOTE_PUSH_ENABLED=true is required for staging Release.',
     );
   }
 
@@ -427,6 +444,8 @@ export function validateStagingReleaseEnvironment(
     appEnvironment: 'staging' as const,
     googleIosUrlScheme,
     googleWebClientId,
+    easProjectId,
+    remotePushEnabled: true as const,
     googleServicesPlistPath: resolve(
       environment.GOOGLE_SERVICES_PLIST_PATH as string,
     ),

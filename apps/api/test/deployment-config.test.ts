@@ -34,8 +34,8 @@ describe('Railway repository configuration', () => {
     expect(configuration.build?.watchPatterns).toEqual(
       expect.arrayContaining(['apps/api/**', 'packages/shared/**']),
     );
-    expect(configuration.deploy?.preDeployCommand).toContain(
-      'prisma migrate deploy',
+    expect(configuration.deploy?.preDeployCommand).toBe(
+      'corepack pnpm --filter @food-tracker/api migrate:deploy:ready',
     );
     expect(configuration.deploy?.startCommand).toBe(
       'corepack pnpm --filter @food-tracker/api start',

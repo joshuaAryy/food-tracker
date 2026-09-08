@@ -36,7 +36,7 @@ export async function computeAnalyticsContributors(
   });
   const firstLog = await prisma.foodLog.findFirst({
     where: { userId },
-    orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }],
+    orderBy: [{ loggedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
     select: { loggedAt: true },
   });
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;

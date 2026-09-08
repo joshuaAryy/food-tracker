@@ -77,7 +77,13 @@ export type AnalyticsOverviewResult<T> =
 const analyticsNumberSchema = z.number().finite();
 const percentageSchema = analyticsNumberSchema.min(0).max(100);
 const analyticsDateSchema = z.iso.date();
-const overviewReferenceSourceSchema = z.enum(['user', 'derived', 'default']);
+const overviewReferenceSourceSchema = z.enum([
+  'user',
+  'personalized',
+  'reference',
+  'derived',
+  'default',
+]);
 const overviewReferenceNoneReasonSchema = z.enum([
   'not_configured',
   'not_applicable',
@@ -109,7 +115,7 @@ export type AnalyticsOverviewEnergy = {
         lower: number;
         upper: number;
         unit: 'kcal';
-        source: 'user' | 'derived' | 'default';
+        source: 'user' | 'personalized' | 'reference' | 'derived' | 'default';
       }
     | {
         kind: 'none';
@@ -137,7 +143,12 @@ export type AnalyticsOverviewMacros = {
 };
 
 type AnalyticsOverviewNutrientAvailability = MetricDataState;
-type AnalyticsOverviewReferenceSource = 'user' | 'derived' | 'default';
+type AnalyticsOverviewReferenceSource =
+  | 'user'
+  | 'personalized'
+  | 'reference'
+  | 'derived'
+  | 'default';
 type AnalyticsOverviewNoReference = {
   kind: 'none';
   reason: 'not_configured' | 'not_applicable';

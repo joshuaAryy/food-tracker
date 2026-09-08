@@ -36,6 +36,15 @@ export function createPrismaAccountDeletionRepository(
           },
         });
         if (user !== null) {
+          await transaction.notificationInstallation.updateMany({
+            where: { userId: user.id },
+            data: {
+              userId: null,
+              expoPushToken: null,
+              tokenHash: null,
+              disabledAt: new Date(),
+            },
+          });
           await transaction.user.delete({ where: { id: user.id } });
         }
         return {

@@ -1,3 +1,4 @@
+import { classifyServingUnit } from '@food-tracker/shared';
 import type {
   AiFoodCandidateMatchReason,
   AiFoodParseCandidate,
@@ -10,6 +11,26 @@ export interface CandidateRetrievalEvidence {
   lexical: boolean;
   fuzzyDistance: number | null;
   semanticScore: number | null;
+}
+
+export function hasAuthoritativeNutritionBasis(
+  foodItem: Pick<
+    FoodItem,
+    'calories' | 'protein' | 'servingQuantity' | 'servingUnit'
+  >,
+): boolean {
+  return (
+    foodItem.calories !== null &&
+    Number.isFinite(foodItem.calories) &&
+    foodItem.protein !== null &&
+    Number.isFinite(foodItem.protein) &&
+    foodItem.servingQuantity !== null &&
+    Number.isFinite(foodItem.servingQuantity) &&
+    foodItem.servingQuantity > 0 &&
+    foodItem.servingUnit !== null &&
+    foodItem.servingUnit.trim().length > 0 &&
+    classifyServingUnit(foodItem.servingUnit) !== null
+  );
 }
 
 export function candidateMatchReason(input: {

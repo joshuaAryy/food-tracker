@@ -24,6 +24,8 @@ export const AUTHENTICATED_ROOT_ROUTE_GROUPS: readonly string[] = [
   'meal-describe',
   'weight-log',
   'water-log',
+  'nutrition-targets',
+  'goal-plan',
 ];
 
 export function routeForAuthState(state: AuthState): AuthDestination {

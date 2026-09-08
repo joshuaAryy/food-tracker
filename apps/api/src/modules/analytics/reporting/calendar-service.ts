@@ -3,6 +3,7 @@ import {
   type StreakCalendarResponse,
 } from '@food-tracker/shared';
 import { prisma } from '../../../lib/prisma.js';
+import { resolveUserNutritionTargets } from '../../nutritionTargets/service.js';
 import { addLocalDays, localDate } from '../../../lib/dates.js';
 import {
   acceptedCalorieRange,
@@ -47,20 +48,21 @@ export async function computeStreakCalendar(
   requestedMonth: string,
   now = new Date(),
 ): Promise<StreakCalendarResponse> {
-  const [profile, goal, foodLogs] = await Promise.all([
+  const [profile, goal, foodLogs, effectiveTargets] = await Promise.all([
     prisma.userProfile.findUnique({
       where: { userId },
       select: { timezone: true },
     }),
     prisma.userGoal.findUnique({
       where: { userId },
-      select: { goalType: true, targetCalories: true },
+      select: { goalType: true },
     }),
     prisma.foodLog.findMany({
       where: { userId },
       select: { loggedAt: true, calories: true },
       orderBy: { loggedAt: 'asc' },
     }),
+    resolveUserNutritionTargets(userId, now),
   ]);
 
   const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
@@ -83,7 +85,7 @@ export async function computeStreakCalendar(
   }
 
   const goalDirection = goal?.goalType ?? null;
-  const activeCalorieTarget = goal?.targetCalories ?? null;
+  const activeCalorieTarget = effectiveTargets.calories?.effectiveValue ?? null;
   const calorieRange = acceptedCalorieRange(goalDirection, activeCalorieTarget);
   const dates = datesBetween(
     boundaries.display.startDate,

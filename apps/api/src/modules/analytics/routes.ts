@@ -5,7 +5,6 @@ import {
   dashboardSummaryQuerySchema,
   DEFAULT_TIMEZONE,
   NUTRIENT_CATALOG,
-  resolveReportingGoals,
   type DashboardSummary,
   type DailyNutrientTotals,
   type NutrientAmount,
@@ -19,6 +18,8 @@ import { sendSuccess } from '../../lib/responses.js';
 import { roundTo } from '../../lib/serializers.js';
 import { validateQuery, validatedQuery } from '../../middleware/validate.js';
 import { computeAdvancedAnalytics } from './advanced.js';
+import { resolveUserReportingGoals } from '../nutritionTargets/reporting-adapter.js';
+import { resolveUserNutritionTargets } from '../nutritionTargets/service.js';
 
 type DashboardQuery = z.infer<typeof dashboardSummaryQuerySchema>;
 type AdvancedAnalyticsQuery = z.infer<typeof advancedAnalyticsQuerySchema>;
@@ -32,12 +33,13 @@ advancedAnalyticsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const query = validatedQuery<DashboardQuery>(response);
-    const [profile, goal] = await Promise.all([
+    const now = new Date();
+    const [profile, reportingGoals] = await Promise.all([
       prisma.userProfile.findUnique({
         where: { userId },
         select: { timezone: true },
       }),
-      prisma.userGoal.findUnique({ where: { userId } }),
+      resolveUserReportingGoals(userId, now),
     ]);
     const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
     const date = query.date ?? localDate(new Date(), timezone);
@@ -99,15 +101,6 @@ advancedAnalyticsRouter.get(
       };
     }
 
-    const reportingGoals = resolveReportingGoals({
-      targetCalories: goal?.targetCalories ?? null,
-      targetProteinGrams: goal?.targetProteinGrams?.toNumber() ?? null,
-      targetCarbsGrams: goal?.targetCarbsGrams?.toNumber() ?? null,
-      targetFatGrams: goal?.targetFatGrams?.toNumber() ?? null,
-      targetFiberGrams: goal?.targetFiberGrams?.toNumber() ?? null,
-      limitSugarGrams: goal?.limitSugarGrams?.toNumber() ?? null,
-      limitSodiumMg: goal?.limitSodiumMg ?? null,
-    });
     const percentages: DailyNutrientTotals['percentages'] = Object.fromEntries(
       Object.entries(nutrients).map(([key, amount]) => {
         const resolvedGoal = reportingGoals[key as NutrientKey];
@@ -151,18 +144,24 @@ analyticsRouter.get(
   async (_request, response) => {
     const userId = currentUserId(response);
     const query = validatedQuery<DashboardQuery>(response);
-    const [profile, goals, preferences, latestWeight] = await Promise.all([
-      prisma.userProfile.findUnique({
-        where: { userId },
-        select: { timezone: true },
-      }),
-      prisma.userGoal.findUnique({ where: { userId } }),
-      prisma.trackingPreference.findUnique({ where: { userId } }),
-      prisma.weightLog.findFirst({
-        where: { userId },
-        orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
-      }),
-    ]);
+    const now = new Date();
+    const [profile, preferences, latestWeight, effectiveTargets] =
+      await Promise.all([
+        prisma.userProfile.findUnique({
+          where: { userId },
+          select: { timezone: true },
+        }),
+        prisma.trackingPreference.findUnique({ where: { userId } }),
+        prisma.weightLog.findFirst({
+          where: { userId },
+          orderBy: [
+            { loggedAt: 'desc' },
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+        }),
+        resolveUserNutritionTargets(userId, now),
+      ]);
     const timezone = profile?.timezone ?? DEFAULT_TIMEZONE;
     const date = query.date ?? localDate(new Date(), timezone);
     const range = localDateRange(timezone, { date });
@@ -173,8 +172,8 @@ analyticsRouter.get(
     });
     const caloriesConsumed = totals._sum.calories ?? 0;
     const proteinConsumed = totals._sum.protein?.toNumber() ?? 0;
-    const calorieTarget = goals?.targetCalories ?? null;
-    const proteinTarget = goals?.targetProteinGrams?.toNumber() ?? null;
+    const calorieTarget = effectiveTargets.calories?.effectiveValue ?? null;
+    const proteinTarget = effectiveTargets.protein?.effectiveValue ?? null;
     const summary: DashboardSummary = {
       date,
       foodLogCount: totals._count._all,

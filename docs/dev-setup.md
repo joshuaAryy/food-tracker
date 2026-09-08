@@ -378,6 +378,30 @@ Platforms.
 
 ## 9. Phase 17 Free Xcode Standalone Release — Complete
 
+### Personal Team local UAT mode
+
+When a free Apple Personal Team is used for hands-on iPhone testing, use the
+dedicated local command:
+
+```bash
+corepack pnpm --filter @food-tracker/mobile ios:personal-team
+```
+
+This synchronizes the existing ignored iOS project without a clean prebuild,
+sets `IOS_REMOTE_PUSH_ENABLED=false`, and runs the app on a connected device.
+The generated app retains the notification source and dependency for ordinary
+app behavior, but omits the APNs `aps-environment` entitlement, does not
+register a remote-push installation, and explains in Notification settings
+that delivery is unavailable in this local build. It is intended for manual
+UAT with a Personal Team and is not physical APNs acceptance.
+
+The real staging Release workflow is separate and remains push-capable. Its
+validated ignored environment must set `IOS_REMOTE_PUSH_ENABLED=true` and
+provide the canonical `EXPO_PUBLIC_EAS_PROJECT_ID`; the workflow rejects a
+push-disabled staging Release before prebuild. An eligible paid Apple
+Developer Team is required for that native capability and for eventual remote
+push acceptance.
+
 Phase 17 delivered and physically validated a local Xcode Release installation
 for Josh's iPhone. It does not use EAS,
 EAS Submit, TestFlight, App Store Connect, a production Railway environment, or
@@ -406,6 +430,7 @@ contains only these categories:
   the public HTTPS API base;
 - the public Railway staging HTTPS API base ending in `/api/v1`;
 - `EXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false`;
+- `IOS_REMOTE_PUSH_ENABLED=true` for this push-capable Release workflow;
 - the public Google web client ID;
 - the Google reversed-client URL scheme and an absolute local path to the
   external Firebase plist;

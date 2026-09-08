@@ -13,7 +13,10 @@ import {
   assessFoodIntent,
   foodIntentFallbackQuery,
 } from '../src/modules/foodItems/food-intent.js';
-import { coverageSourceKey } from '../src/modules/foodItems/retrieval/candidate-generation.js';
+import {
+  coverageSourceKey,
+  hasAuthoritativeNutritionBasis,
+} from '../src/modules/foodItems/retrieval/candidate-generation.js';
 import { needsAdditionalCoverage } from '../src/modules/foodItems/routes.js';
 
 function candidate(
@@ -91,6 +94,26 @@ function regionalFoodItem(): FoodItem {
 }
 
 describe('candidate ranking helper', () => {
+  it('does not treat a metadata-only FoodItem as loggable', () => {
+    expect(
+      hasAuthoritativeNutritionBasis({
+        ...regionalFoodItem(),
+        calories: null,
+        protein: null,
+      }),
+    ).toBe(false);
+    expect(hasAuthoritativeNutritionBasis(regionalFoodItem())).toBe(true);
+  });
+
+  it('does not treat a non-canonical serving basis as loggable', () => {
+    expect(
+      hasAuthoritativeNutritionBasis({
+        ...regionalFoodItem(),
+        servingUnit: '1 large container',
+      }),
+    ).toBe(false);
+  });
+
   it('uses provider identity for manual-search coverage diversity', () => {
     const providers = ['cnf', 'ciqual', 'cofid'] as const;
     const keys = providers.map((sourceProvider, index) =>

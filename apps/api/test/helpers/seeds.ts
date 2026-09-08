@@ -48,6 +48,7 @@ export async function seedGoals(
       | 'moderate_bulk'
       | 'aggressive_bulk'
       | null;
+    targetRateLbPerWeek: number | null;
     targetWeightLb: number;
     targetCalories: number;
     targetProteinGrams: number;
@@ -62,7 +63,7 @@ export async function seedGoals(
   const goalPace =
     overrides.goalPace ?? (goalType === 'maintain' ? null : 'moderate_bulk');
 
-  return prisma.userGoal.create({
+  const goal = await prisma.userGoal.create({
     data: {
       userId: MOCK_USER_ID,
       goalType,
@@ -73,6 +74,31 @@ export async function seedGoals(
       ...overrides,
     },
   });
+  await prisma.userNutrientTargetOverride.createMany({
+    data: [
+      ...(goal.targetCalories === null
+        ? []
+        : [
+            {
+              userId: MOCK_USER_ID,
+              nutrientKey: 'calories' as const,
+              value: goal.targetCalories,
+              origin: 'user' as const,
+            },
+          ]),
+      ...(goal.targetProteinGrams === null
+        ? []
+        : [
+            {
+              userId: MOCK_USER_ID,
+              nutrientKey: 'protein' as const,
+              value: goal.targetProteinGrams,
+              origin: 'user' as const,
+            },
+          ]),
+    ],
+  });
+  return goal;
 }
 
 export async function seedPreferences(

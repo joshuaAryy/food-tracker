@@ -15,7 +15,10 @@ import {
   type BenchmarkObservation,
 } from '../src/benchmarks/food-retrieval/index.js';
 import { benchmarkSeedRows } from '../src/benchmarks/food-retrieval/seed.js';
-import { benchmarkSnapshotForObservations } from '../src/benchmarks/food-retrieval/live-cli.js';
+import {
+  benchmarkSnapshotForObservations,
+  isLiveBenchmarkCliEntrypoint,
+} from '../src/benchmarks/food-retrieval/live-cli.js';
 import { runFoodRetrievalBenchmarkCli } from '../src/benchmarks/food-retrieval/cli.js';
 
 function observation(
@@ -271,6 +274,21 @@ describe('food retrieval benchmark metrics', () => {
 });
 
 describe('food retrieval benchmark harness', () => {
+  it('recognizes only direct CLI execution as the live benchmark entrypoint', () => {
+    expect(
+      isLiveBenchmarkCliEntrypoint(
+        'file:///workspace/apps/api/src/benchmarks/food-retrieval/live-cli.ts',
+        '/workspace/apps/api/src/benchmarks/food-retrieval/live-cli.ts',
+      ),
+    ).toBe(true);
+    expect(
+      isLiveBenchmarkCliEntrypoint(
+        'file:///workspace/apps/api/src/benchmarks/food-retrieval/live-cli.ts',
+        '/workspace/apps/api/test/food-retrieval-benchmark.test.ts',
+      ),
+    ).toBe(false);
+  });
+
   it('requires a complete, unique snapshot for the permanent corpus', () => {
     const observations = FOOD_RETRIEVAL_CORPUS.map((query) =>
       observation(query.id),

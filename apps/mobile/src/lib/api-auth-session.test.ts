@@ -100,7 +100,7 @@ describe('central API authentication session', () => {
     const clearSession = vi.fn().mockResolvedValue(undefined);
     const session = authSession({ clearSession });
     configureApiAuthSession(session);
-    vi.mocked(fetch).mockRejectedValueOnce(
+    vi.mocked(fetch).mockRejectedValue(
       new TypeError('http://192.168.1.42:3000'),
     );
 
@@ -108,5 +108,6 @@ describe('central API authentication session', () => {
       code: 'NETWORK_ERROR',
     });
     expect(clearSession).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

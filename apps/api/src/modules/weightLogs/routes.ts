@@ -56,7 +56,7 @@ weightLogsRouter.get(
           ? {}
           : { loggedAt: range }),
       },
-      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }],
+      orderBy: [{ loggedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
     });
     sendSuccess(response, { weightLogs: weightLogs.map(serializeWeightLog) });
   },

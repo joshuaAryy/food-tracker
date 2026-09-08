@@ -250,6 +250,8 @@ describe('food items API', () => {
       sourceId: '173944',
       servingQuantity: 100,
       servingUnit: 'g',
+      calories: 89,
+      protein: 1.1,
       nutrients: { potassium: { amount: 358, unit: 'mg' } },
     });
     const repeated = await api
@@ -1422,6 +1424,9 @@ describe('food items API', () => {
         searchText: 'eggs',
         sourceType: 'app_owned',
         foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
         calories: 140,
         protein: 12,
       },
@@ -1446,6 +1451,97 @@ describe('food items API', () => {
       candidateType: 'food_item',
       foodItem: { id: localFood.id },
     });
+  });
+
+  it('does not surface a metadata-only reference row as a loggable candidate', async () => {
+    const metadataOnlyFood = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana metadata reference',
+        normalizedName: 'banana metadata reference',
+        searchText: 'banana metadata reference',
+        sourceType: 'app_owned',
+        rankingClass: 'reference',
+        sourceProvider: 'ciqual',
+        sourceId: 'metadata-only-banana',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: null,
+        protein: null,
+        nutrients: {
+          create: [
+            {
+              nutrientKey: 'calories',
+              amount: 89,
+              unit: 'kcal',
+              sourceProvider: 'ciqual',
+              sourceRecordId: 'metadata-only-banana',
+              sourceRelease: 'test',
+            },
+            {
+              nutrientKey: 'protein',
+              amount: 1.1,
+              unit: 'g',
+              sourceProvider: 'ciqual',
+              sourceRecordId: 'metadata-only-banana',
+              sourceRelease: 'test',
+            },
+          ],
+        },
+      },
+    });
+    const nutritionBackedFood = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana nutrition reference',
+        normalizedName: 'banana nutrition reference',
+        searchText: 'banana nutrition reference',
+        sourceType: 'app_owned',
+        rankingClass: 'reference',
+        sourceProvider: 'ciqual',
+        sourceId: 'nutrition-backed-banana',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 89,
+        protein: 1.1,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'banana', limit: 10 })
+      .expect(200);
+    const candidates = response.body.data.candidates as AiFoodParseCandidate[];
+    const foodItemCandidates = candidates.filter(
+      (candidate) => candidate.candidateType === 'food_item',
+    );
+
+    expect(
+      foodItemCandidates.some(
+        (candidate) =>
+          candidate.candidateType === 'food_item' &&
+          candidate.foodItem.id === metadataOnlyFood.id,
+      ),
+    ).toBe(false);
+    expect(
+      foodItemCandidates.some(
+        (candidate) =>
+          candidate.candidateType === 'food_item' &&
+          candidate.foodItem.id === nutritionBackedFood.id,
+      ),
+    ).toBe(true);
+    expect(
+      foodItemCandidates.every(
+        (candidate) =>
+          candidate.candidateType === 'food_item' &&
+          candidate.foodItem.calories !== null &&
+          candidate.foodItem.protein !== null,
+      ),
+    ).toBe(true);
   });
 
   it('does not expand manual search when lexical results already span providers', async () => {
@@ -1474,6 +1570,9 @@ describe('food items API', () => {
           sourceId: `coverage-${sourceProvider}`,
           sourceRegion: null,
           foodType: 'generic',
+          servingQuantity: 100,
+          servingUnit: 'g',
+          servingWeightGrams: 100,
           calories: 100,
           protein: 8,
         },
@@ -1546,6 +1645,9 @@ describe('food items API', () => {
         searchText: 'salmon',
         sourceType: 'app_owned',
         foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
         calories: 200,
         protein: 22,
       },

@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import {
   setupInputSchema,
+  setupPreviewInputSchema,
   type SetupInput,
+  type SetupPreviewInput,
   type SetupStatus,
 } from '@food-tracker/shared';
 import { currentUserId } from '../../lib/auth.js';
 import { calculatePersonalizedTargets } from '../../lib/personalization.js';
+import { AppError } from '../../lib/errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { sendSuccess } from '../../lib/responses.js';
 import {
@@ -18,6 +21,7 @@ import {
   isCompleteProfile,
 } from '../../lib/setup-completeness.js';
 import { validateBody, validatedBody } from '../../middleware/validate.js';
+import { isBirthDateInFuture } from '../personalization/resolver.js';
 
 export const setupRouter = Router();
 
@@ -57,10 +61,27 @@ setupRouter.get('/status', async (_request, response) => {
 
 setupRouter.post(
   '/preview',
-  validateBody(setupInputSchema),
+  validateBody(setupPreviewInputSchema),
   async (_request, response) => {
-    const input = validatedBody<SetupInput>(response);
-    const calculatedTargets = calculatePersonalizedTargets(input);
+    const input = validatedBody<SetupPreviewInput>(response);
+    if (isBirthDateInFuture(input.profile.birthDate, input.profile.timezone)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Birth date cannot be in the future.',
+      );
+    }
+    const calculatedTargets = calculatePersonalizedTargets({
+      ...input,
+      profile: {
+        ...input.profile,
+        ...(input.currentWeightLb === undefined
+          ? {}
+          : { currentWeightLb: input.currentWeightLb }),
+      },
+    } as SetupInput & {
+      profile: SetupInput['profile'] & { currentWeightLb?: number | null };
+    });
 
     sendSuccess(response, {
       age: calculatedTargets.age,
@@ -72,7 +93,10 @@ setupRouter.post(
         targetFiberGrams: calculatedTargets.targetFiberGrams,
         limitSugarGrams: calculatedTargets.limitSugarGrams,
         limitSodiumMg: calculatedTargets.limitSodiumMg,
+        targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
+        estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
+      ratePlanning: publicRatePlanning(calculatedTargets.ratePlanning),
     });
   },
 );
@@ -83,6 +107,13 @@ setupRouter.put(
   async (_request, response) => {
     const userId = currentUserId(response);
     const input = validatedBody<SetupInput>(response);
+    if (isBirthDateInFuture(input.profile.birthDate, input.profile.timezone)) {
+      throw new AppError(
+        400,
+        'VALIDATION_ERROR',
+        'Birth date cannot be in the future.',
+      );
+    }
     const calculatedTargets = calculatePersonalizedTargets(input);
     const profileData = {
       ...input.profile,
@@ -92,6 +123,7 @@ setupRouter.put(
     };
     const goalsData = {
       ...input.goals,
+      targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
       targetWeightLb: roundTo(input.goals.targetWeightLb, 1),
       targetCalories: calculatedTargets.targetCalories,
       targetProteinGrams: calculatedTargets.targetProteinGrams,
@@ -136,8 +168,25 @@ setupRouter.put(
         targetFiberGrams: calculatedTargets.targetFiberGrams,
         limitSugarGrams: calculatedTargets.limitSugarGrams,
         limitSodiumMg: calculatedTargets.limitSodiumMg,
+        targetRateLbPerWeek: calculatedTargets.targetRateLbPerWeek,
+        estimatedGoalDate: calculatedTargets.estimatedGoalDate,
       },
+      ratePlanning: publicRatePlanning(calculatedTargets.ratePlanning),
       status: setupStatus(true, true, true),
     });
   },
 );
+
+function publicRatePlanning(
+  ratePlanning: ReturnType<typeof calculatePersonalizedTargets>['ratePlanning'],
+) {
+  return ratePlanning.status === 'available'
+    ? {
+        status: ratePlanning.status,
+        minimumRateLbPerWeek: ratePlanning.minimumRateLbPerWeek,
+        maximumRateLbPerWeek: ratePlanning.maximumRateLbPerWeek,
+        selectedRateLbPerWeek: ratePlanning.selectedRateLbPerWeek,
+        feasibility: ratePlanning.feasibility,
+      }
+    : { status: ratePlanning.status, reason: ratePlanning.reason };
+}

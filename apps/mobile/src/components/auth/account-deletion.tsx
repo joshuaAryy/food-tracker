@@ -6,13 +6,10 @@ import { AppText } from '../app-text';
 import { toUserFacingError } from '@/lib/user-facing-errors';
 
 export interface AccountDeletionActions {
-  reauthenticateWithPassword(password: string): Promise<void>;
-  reauthenticateWithGoogle(): Promise<void>;
   deleteAccount(): Promise<void>;
 }
 
 interface DeleteAccountPanelProps {
-  providerIds: string[];
   actions: AccountDeletionActions;
 }
 
@@ -20,30 +17,18 @@ type DeletionStep = 'closed' | 'warning' | 'confirm';
 
 const DELETE_CONFIRMATION = 'DELETE';
 
-export function DeleteAccountPanel({
-  providerIds,
-  actions,
-}: DeleteAccountPanelProps) {
+export function DeleteAccountPanel({ actions }: DeleteAccountPanelProps) {
   const [step, setStep] = useState<DeletionStep>('closed');
   const [confirmation, setConfirmation] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const supportsPassword = providerIds.includes('password');
-  const supportsGoogle = providerIds.includes('google.com');
-  const supportsReauthentication = supportsPassword || supportsGoogle;
-  const canDelete =
-    confirmation === DELETE_CONFIRMATION &&
-    (!supportsPassword || password.length > 0) &&
-    supportsReauthentication &&
-    !loading;
+  const canDelete = confirmation === DELETE_CONFIRMATION && !loading;
 
   function close() {
     if (loading) return;
     setStep('closed');
     setConfirmation('');
-    setPassword('');
     setError(null);
   }
 
@@ -52,14 +37,6 @@ export function DeleteAccountPanel({
     setLoading(true);
     setError(null);
     try {
-      if (supportsPassword) {
-        await actions.reauthenticateWithPassword(password);
-      } else if (supportsGoogle) {
-        await actions.reauthenticateWithGoogle();
-      } else {
-        setError('This sign-in method cannot securely delete the account.');
-        return;
-      }
       await actions.deleteAccount();
     } catch (cause) {
       setError(
@@ -116,7 +93,7 @@ export function DeleteAccountPanel({
       ) : (
         <View className="gap-3">
           <AppText variant="label">
-            Type DELETE to confirm. You will need to verify your identity again.
+            Type DELETE to confirm this permanent action.
           </AppText>
           <AppInput
             accessibilityLabel="Deletion confirmation"
@@ -127,26 +104,6 @@ export function DeleteAccountPanel({
             value={confirmation}
             onChangeText={setConfirmation}
           />
-          {supportsPassword ? (
-            <AppInput
-              accessibilityLabel="Current password"
-              autoCapitalize="none"
-              autoCorrect={false}
-              label="Current password"
-              placeholder="Current password"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          ) : supportsGoogle ? (
-            <AppText variant="caption" muted>
-              Google will ask you to verify your account before deletion.
-            </AppText>
-          ) : (
-            <AppText variant="caption" className="text-error">
-              This sign-in method cannot securely delete the account.
-            </AppText>
-          )}
           {error === null ? null : (
             <AppText
               accessibilityRole="alert"

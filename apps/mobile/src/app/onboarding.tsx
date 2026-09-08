@@ -16,6 +16,7 @@ import {
   GOAL_TYPES,
   TRACKING_MODES,
   TRAINING_STYLES,
+  normalizeRateLbPerWeek,
 } from '@food-tracker/shared';
 import { AppButton } from '@/components/app-button';
 import { AppInput } from '@/components/app-input';
@@ -45,9 +46,16 @@ import {
   OnboardingWeightForecast,
 } from '@/components/onboarding-visual-modules';
 import { OnboardingWeightWheel } from '@/components/onboarding-weight-wheel';
+import { WeeklyRateSlider } from '@/components/weekly-rate-slider';
 import { SummaryRow } from '@/components/summary-row';
 import { api, errorMessage } from '@/lib/api-client';
+import {
+  nextOnboardingStepIndex,
+  previousOnboardingStepIndex,
+} from '@/lib/onboarding-navigation';
 import { trackingModeLabel } from '@/lib/reporting-ui';
+import { onboardingRatePlanningState } from '@/lib/onboarding-rate-planning';
+import { compatibilityPaceForRate } from '@/lib/weekly-rate';
 import { useAppStore } from '@/store/app-store';
 import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
@@ -82,6 +90,7 @@ interface OnboardingForm {
   activityLevel: ActivityLevel;
   goalType: GoalType;
   goalPace: GoalPace | 'none';
+  targetRateLbPerWeek: string;
   trainingStyle: TrainingStyle;
   mode: TrackingMode;
 }
@@ -139,16 +148,6 @@ const goalDescriptions: Record<GoalType, string> = {
   lose: 'A measured deficit toward a lower target weight.',
   maintain: 'Keep weight steady while building tracking consistency.',
   gain: 'A controlled surplus toward a higher target weight.',
-};
-
-const paceDescriptions: Record<GoalPace | 'none', string> = {
-  slow: 'Gentler deficit',
-  moderate: 'Balanced deficit',
-  aggressive: 'Faster deficit',
-  lean_bulk: 'Small surplus',
-  moderate_bulk: 'Balanced surplus',
-  aggressive_bulk: 'Faster surplus',
-  none: 'Steady maintenance',
 };
 
 const goalPaceOptions: Record<GoalType, ReadonlyArray<GoalPace | 'none'>> = {
@@ -351,6 +350,11 @@ function setupInput(values: OnboardingForm): SetupInput {
     goals: {
       goalType: values.goalType,
       goalPace: values.goalPace === 'none' ? null : values.goalPace,
+      targetRateLbPerWeek:
+        values.goalType === 'maintain' ||
+        values.targetRateLbPerWeek.trim() === ''
+          ? null
+          : Number(values.targetRateLbPerWeek),
       targetWeightLb: Number(values.targetWeightLb),
     },
     preferences: {
@@ -526,6 +530,7 @@ export default function OnboardingScreen() {
       activityLevel: 'lightly_active',
       goalType: 'maintain',
       goalPace: 'none',
+      targetRateLbPerWeek: '',
       trainingStyle: 'none',
       mode: 'simple',
     },
@@ -534,7 +539,8 @@ export default function OnboardingScreen() {
   const values = useWatch({ control });
   const mode = useWatch({ control, name: 'mode' });
   const goalType = useWatch({ control, name: 'goalType' });
-  const paceOptions = useMemo(() => goalPaceOptions[goalType], [goalType]);
+  const ratePlanningState = onboardingRatePlanningState(preview);
+  const ratePlanning = preview?.ratePlanning;
   const currentStep = steps[stepIndex] ?? firstStep;
   const stepKey = currentStep.key;
   const birthdayValue = useMemo<DateWheelValue>(
@@ -578,10 +584,32 @@ export default function OnboardingScreen() {
   }, [getValues]);
 
   useEffect(() => {
-    if (stepKey === 'review') {
+    if (stepKey === 'goalPace' || stepKey === 'review') {
       void refreshPreview();
     }
   }, [refreshPreview, stepKey]);
+
+  useEffect(() => {
+    if (
+      stepKey === 'goalPace' &&
+      preview?.ratePlanning.status === 'available' &&
+      getValues('targetRateLbPerWeek').trim() === ''
+    ) {
+      setValue(
+        'targetRateLbPerWeek',
+        String(preview.ratePlanning.selectedRateLbPerWeek),
+        { shouldDirty: true, shouldValidate: true },
+      );
+      setValue(
+        'goalPace',
+        compatibilityPaceForRate(
+          goalType,
+          preview.ratePlanning.selectedRateLbPerWeek,
+        ) ?? 'none',
+        { shouldDirty: true },
+      );
+    }
+  }, [getValues, goalType, preview, setValue, stepKey]);
 
   const validateStep = async () => {
     if (stepKey === 'name') return trigger('name');
@@ -616,14 +644,18 @@ export default function OnboardingScreen() {
     }
 
     setNavigationDirection('forward');
-    setStepIndex((current) => Math.min(steps.length - 1, current + 1));
+    setStepIndex((current) =>
+      nextOnboardingStepIndex(steps, current, getValues('goalType')),
+    );
   };
 
   const back = () => {
     if (transitioning) return;
     setError(null);
     setNavigationDirection('back');
-    setStepIndex((current) => Math.max(0, current - 1));
+    setStepIndex((current) =>
+      previousOnboardingStepIndex(steps, current, getValues('goalType')),
+    );
   };
 
   const save = handleSubmit(async (submittedValues) => {
@@ -959,24 +991,57 @@ export default function OnboardingScreen() {
           {stepKey === 'goalPace' ? (
             <>
               <OnboardingQuestion
-                title="What pace feels right?"
-                subtitle="This sets the size of the calorie adjustment."
+                title="How fast should your plan move?"
+                subtitle="Move through small weekly-rate steps. Maintenance plans do not use an automatic rate."
               />
-              <Controller
-                control={control}
-                name="goalPace"
-                render={({ field }) => (
-                  <OnboardingScale
-                    options={paceOptions.map((option) => ({
-                      value: option,
-                      label: label(option),
-                      description: paceDescriptions[option],
-                    }))}
-                    value={field.value}
-                    onChange={field.onChange}
+              {goalType === 'maintain' ? (
+                <AppText muted>
+                  Maintenance plans use no automatic weekly rate.
+                </AppText>
+              ) : previewLoading ? (
+                <LoadingState message="Checking available rate range…" />
+              ) : ratePlanning?.status === 'available' ? (
+                <>
+                  <WeeklyRateSlider
+                    // The state guard above narrows the preview to the available
+                    // planning contract before these backend-derived bounds are read.
+                    minimumValue={ratePlanning.minimumRateLbPerWeek}
+                    maximumValue={ratePlanning.maximumRateLbPerWeek}
+                    value={normalizeRateLbPerWeek(
+                      Number(values.targetRateLbPerWeek) ||
+                        ratePlanning.selectedRateLbPerWeek,
+                    )}
+                    onValueChange={(nextRate) => {
+                      const normalized = normalizeRateLbPerWeek(nextRate);
+                      setValue('targetRateLbPerWeek', String(normalized), {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      });
+                      setValue(
+                        'goalPace',
+                        compatibilityPaceForRate(goalType, normalized) ??
+                          'none',
+                        { shouldDirty: true },
+                      );
+                    }}
                   />
-                )}
-              />
+                  {ratePlanning.feasibility.status === 'limited' ? (
+                    <AppText muted>
+                      This rate is selectable, but current safety limits support
+                      up to{' '}
+                      {ratePlanning.feasibility.maximumSupportedRateLbPerWeek.toFixed(
+                        2,
+                      )}{' '}
+                      lb/week. Targets stay at the safe calorie boundary and no
+                      forecast is shown until the plan is feasible.
+                    </AppText>
+                  ) : null}
+                </>
+              ) : ratePlanningState === 'unavailable' ? (
+                <AppText muted>
+                  Automatic weekly-rate planning is not available for this plan.
+                </AppText>
+              ) : null}
             </>
           ) : null}
 

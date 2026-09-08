@@ -10,7 +10,7 @@
     ]
   },
   "deploy": {
-    "preDeployCommand": "corepack pnpm --filter @food-tracker/api exec prisma migrate deploy",
+    "preDeployCommand": "corepack pnpm --filter @food-tracker/api migrate:deploy:ready",
     "startCommand": "corepack pnpm --filter @food-tracker/api start",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,

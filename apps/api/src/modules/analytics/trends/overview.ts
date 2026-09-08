@@ -125,17 +125,21 @@ function asNumber(
   return Number.isFinite(result) ? result : null;
 }
 
-function referenceInputs(base: TrendRequestBase[2]) {
+function referenceInputs(
+  base: TrendRequestBase[2],
+  reportingGoals: TrendRequestBase[6],
+) {
   const goal = base;
   return {
     goalType: goal?.goalType ?? null,
-    targetCalories: goal?.targetCalories ?? null,
-    targetProteinGrams: asNumber(goal?.targetProteinGrams ?? null),
-    targetCarbsGrams: asNumber(goal?.targetCarbsGrams ?? null),
-    targetFatGrams: asNumber(goal?.targetFatGrams ?? null),
-    targetFiberGrams: asNumber(goal?.targetFiberGrams ?? null),
-    limitSugarGrams: asNumber(goal?.limitSugarGrams ?? null),
-    limitSodiumMg: goal?.limitSodiumMg ?? null,
+    targetCalories: reportingGoals.calories?.value ?? null,
+    targetProteinGrams: reportingGoals.protein?.value ?? null,
+    targetCarbsGrams: reportingGoals.carbs?.value ?? null,
+    targetFatGrams: reportingGoals.fat?.value ?? null,
+    targetFiberGrams: reportingGoals.fiber?.value ?? null,
+    limitSugarGrams: reportingGoals.sugar?.value ?? null,
+    limitSodiumMg: reportingGoals.sodium?.value ?? null,
+    reportingGoals,
   };
 }
 
@@ -322,7 +326,9 @@ function energy(
       ? null
       : previousDays.reduce((sum, day) => sum + day.calories, 0) /
         previousDays.length;
-  const reference = calorieReference(referenceInputs(context.base[2]));
+  const reference = calorieReference(
+    referenceInputs(context.base[2], context.base[6]),
+  );
   const comparisonPercentage =
     previousAverage === null || previousAverage === 0 || average === null
       ? null
@@ -437,7 +443,10 @@ function highlight(
     context.timezone,
     (log) => nutrientValue(log, metric),
   );
-  const reference = metricReference(metric, referenceInputs(context.base[2]));
+  const reference = metricReference(
+    metric,
+    referenceInputs(context.base[2], context.base[6]),
+  );
   const unit = metric === 'fiber' ? 'g' : 'mg';
   let typedReference: AnalyticsOverviewNutrientHighlight['reference'];
   if (reference.kind === 'none') {

@@ -44,6 +44,8 @@ function stagingConfig(): StagingReleaseConfig {
     appEnvironment: 'staging',
     googleIosUrlScheme: 'com.googleusercontent.apps.release',
     googleWebClientId: 'web-client',
+    easProjectId: 'eas-project',
+    remotePushEnabled: true,
     googleServicesPlistPath: '/tmp/GoogleService-Info.plist',
     firebase: {
       bundleIdentifier: 'ca.joshuaaryeetey.foodtracker',
@@ -390,6 +392,7 @@ describe('staging Release workflow', () => {
   it.each([
     'phase-17-5-custom-analytics',
     'phase-17-free-xcode-standalone',
+    'phase-20-22-product-hardening-intelligence',
     'main',
   ])('accepts the explicit staging Release branch %s', (branch) => {
     expect(() =>
@@ -404,7 +407,7 @@ describe('staging Release workflow', () => {
         () => 'feature/other\n',
       ),
     ).toThrow(
-      'requires an approved Phase 17 staging branch or post-merge main',
+      'requires an approved Phase 17 or Phase 20-22 staging branch or post-merge main',
     );
   });
 
@@ -1042,7 +1045,7 @@ end
     );
     writeFileSync(
       join(mobile, '.env.staging-release.local'),
-      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
+      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nEXPO_PUBLIC_EAS_PROJECT_ID=eas-project\nIOS_REMOTE_PUSH_ENABLED=true\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
     );
     const order: string[] = [];
     const writeGenerated = (): void => writeGeneratedReleaseFixture(root);
@@ -1082,7 +1085,7 @@ end
     );
     writeFileSync(
       join(mobile, '.env.staging-release.local'),
-      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
+      `APP_ENV=staging\nRAILWAY_STAGING_API_HOST=api.railway.test\nEXPO_PUBLIC_APP_ENV=staging\nEXPO_PUBLIC_API_URL=https://api.railway.test/api/v1\nEXPO_PUBLIC_APPLE_SIGN_IN_ENABLED=false\nEXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=web\nEXPO_PUBLIC_EAS_PROJECT_ID=eas-project\nIOS_REMOTE_PUSH_ENABLED=true\nGOOGLE_IOS_URL_SCHEME=com.googleusercontent.apps.release\nGOOGLE_SERVICES_PLIST_PATH=${plistPath}\nEXPO_NO_DOTENV=1\n`,
     );
     const capturedEnvironments: NodeJS.ProcessEnv[] = [];
     const originalSkipBundling = process.env.SKIP_BUNDLING;

@@ -5,6 +5,12 @@ import type { CorsOptions } from 'cors';
 import type { Express, RequestHandler } from 'express';
 import { API_BASE_PATH } from '@food-tracker/shared';
 import { emitServerDiagnostic } from './lib/diagnostics.js';
+import { prisma } from './lib/prisma.js';
+import {
+  createDatabaseReadiness,
+  type DatabaseReadiness,
+} from './lib/database-readiness.js';
+import { createDatabaseReadinessMiddleware } from './middleware/database-readiness.js';
 import { errorHandler } from './middleware/error-handler.js';
 import {
   createFirebaseAuthMiddleware,
@@ -13,13 +19,27 @@ import {
 import { notFound } from './middleware/not-found.js';
 import { requestContext } from './middleware/request-context.js';
 import { apiRouter } from './routes/api.js';
-import { healthRouter } from './routes/health.js';
+import { createHealthRouter } from './routes/health.js';
 import { createAccountRouter } from './modules/account/routes.js';
+
+export interface CreateAppOptions {
+  databaseReadiness?: DatabaseReadiness;
+}
 
 export function createApp(
   authMiddleware: RequestHandler = createFirebaseAuthMiddleware(),
+  options: CreateAppOptions = {},
 ): Express {
   const app = express();
+  const databaseReadiness =
+    options.databaseReadiness ??
+    createDatabaseReadiness({
+      probe: async () => {
+        await prisma.$queryRaw`SELECT 1`;
+      },
+    });
+  const databaseReadinessMiddleware =
+    createDatabaseReadinessMiddleware(databaseReadiness);
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -56,13 +76,19 @@ export function createApp(
 
   app.use(cors(corsOptions));
   app.use(express.json({ limit: '5mb', strict: true }));
-  app.use('/health', healthRouter);
+  app.use('/health', createHealthRouter(databaseReadiness));
   app.use(
     `${API_BASE_PATH}/account`,
+    databaseReadinessMiddleware,
     createFirebaseDeletionAuthMiddleware(),
     createAccountRouter(),
   );
-  app.use(API_BASE_PATH, authMiddleware, apiRouter);
+  app.use(
+    API_BASE_PATH,
+    databaseReadinessMiddleware,
+    authMiddleware,
+    apiRouter,
+  );
   app.use(notFound);
   app.use(errorHandler);
 
