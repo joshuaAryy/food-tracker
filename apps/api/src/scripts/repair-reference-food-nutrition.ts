@@ -97,6 +97,10 @@ async function main(): Promise<void> {
     verifiedAfterMissingCore: null,
     changedByProvider: {},
   };
+  const pendingUpdates: Array<{
+    id: string;
+    data: Partial<NutritionFields>;
+  }> = [];
 
   for (const food of foods) {
     const current = {
@@ -134,7 +138,23 @@ async function main(): Promise<void> {
     summary.changedByProvider[provider] =
       (summary.changedByProvider[provider] ?? 0) + 1;
     if (!dryRun) {
-      await prisma.foodItem.update({ where: { id: food.id }, data });
+      pendingUpdates.push({ id: food.id, data });
+    }
+  }
+
+  if (!dryRun) {
+    const updateBatchSize = 32;
+    for (
+      let offset = 0;
+      offset < pendingUpdates.length;
+      offset += updateBatchSize
+    ) {
+      const batch = pendingUpdates.slice(offset, offset + updateBatchSize);
+      await Promise.all(
+        batch.map(({ id, data }) =>
+          prisma.foodItem.update({ where: { id }, data }),
+        ),
+      );
     }
   }
 
