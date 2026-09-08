@@ -191,10 +191,12 @@ async function main(): Promise<void> {
       })),
     );
 
-    if (isMissingCoreNutrition(current)) summary.beforeMissingCore += 1;
-    if (isMissingCoreNutrition(target)) {
+    const currentMissingCore = isMissingCoreNutrition(current);
+    const targetMissingCore = isMissingCoreNutrition(target);
+    if (currentMissingCore) summary.beforeMissingCore += 1;
+    if (targetMissingCore && currentMissingCore) {
       summary.missingNormalizedBasis += 1;
-      if (isMissingCoreNutrition(current)) summary.afterMissingCore += 1;
+      summary.afterMissingCore += 1;
       if (!dryRun && Object.keys(servingData).length > 0) {
         pendingUpdates.push({ id: food.id, data: servingData });
       }
@@ -204,7 +206,7 @@ async function main(): Promise<void> {
     summary.eligible += 1;
     const data: FoodItemRepairData = {
       ...servingData,
-      ...repairData(current, target),
+      ...(targetMissingCore ? {} : repairData(current, target)),
     };
     if (Object.keys(data).length === 0) {
       summary.alreadyCorrect += 1;
