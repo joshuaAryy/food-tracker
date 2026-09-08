@@ -38,6 +38,8 @@ describe('AI food parse API', () => {
     process.env.AI_FOOD_PARSE_RATE_LIMIT_MAX = '100';
     process.env.AI_FOOD_PARSE_RATE_LIMIT_WINDOW = '600000';
     process.env.AI_FOOD_PARSE_DAILY_LIMIT = '100';
+    delete process.env.PINECONE_API_KEY;
+    delete process.env.PINECONE_INDEX_HOST;
   });
 
   afterEach(() => {
@@ -47,6 +49,8 @@ describe('AI food parse API', () => {
     delete process.env.USDA_FDC_API_KEY;
     delete process.env.USDA_FDC_SEARCH_LIMIT;
     delete process.env.USDA_FDC_TIMEOUT_MS;
+    delete process.env.PINECONE_API_KEY;
+    delete process.env.PINECONE_INDEX_HOST;
   });
 
   it('rejects unknown input fields', async () => {

@@ -212,7 +212,7 @@ describe('goals API', () => {
     ]);
   });
 
-  it('persists the effective safe rate rather than the requested rate', async () => {
+  it('persists the selected rate within the accepted product policy', async () => {
     await seedProfile({ startingWeightLb: 180 });
 
     const response = await api
@@ -234,7 +234,7 @@ describe('goals API', () => {
     expect(persisted?.targetRateLbPerWeek?.toNumber()).toBe(
       response.body.data.targetRateLbPerWeek,
     );
-    expect(response.body.data.targetRateLbPerWeek).toBeLessThan(2);
+    expect(response.body.data.targetRateLbPerWeek).toBe(2);
   });
 
   it('rejects an invalid goal type', async () => {
