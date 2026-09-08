@@ -3,7 +3,6 @@ import {
   deterministicRecordHash,
   dedupeAliases,
   normalizeDisplayName,
-  parseNullableNumber,
   type NormalizedProviderFood,
 } from './normalized.js';
 import { mapProviderNutrient } from './nutrient-mapping.js';
@@ -55,27 +54,6 @@ export function parseCnfCsv(
     ]),
   );
   const nutrientRows = rows(input.foodNutrients);
-  const measureRows = input.measures === undefined ? [] : rows(input.measures);
-  const measureNames = new Map(
-    (input.measureNames === undefined ? [] : rows(input.measureNames)).map(
-      (row) => [
-        value(row, ['Measure_Code', 'MeasureCode']),
-        value(row, [
-          'Measure_Description_and_Unit_EN',
-          'Measure_Description_EN',
-          'Measure_Name',
-        ]),
-      ],
-    ),
-  );
-  const measuresByFood = new Map<string, Record<string, string>[]>();
-  for (const row of measureRows) {
-    const id = value(row, ['Food_Code', 'FoodID', 'FoodCode', 'food_code']);
-    if (!id) continue;
-    const existing = measuresByFood.get(id) ?? [];
-    existing.push(row);
-    measuresByFood.set(id, existing);
-  }
   const byFood = new Map<string, typeof nutrientRows>();
   for (const row of nutrientRows) {
     const id = value(row, [
@@ -142,28 +120,6 @@ export function parseCnfCsv(
       value(row, ['FoodNameFrench', 'Food_Name_French', 'Food_Description_FR']),
       value(row, ['ScientificName', 'Scientific_Name']),
     ]);
-    const measure = (measuresByFood.get(sourceId) ?? []).find((candidate) => {
-      const grams = parseNullableNumber(
-        value(candidate, [
-          'Gram_Weight',
-          'Measure_Weight',
-          'Measure_Weight_Conversion',
-          'Weight_Grams',
-        ]),
-      );
-      return grams !== null && grams > 0;
-    });
-    const measureWeight =
-      measure === undefined
-        ? null
-        : parseNullableNumber(
-            value(measure, [
-              'Gram_Weight',
-              'Measure_Weight',
-              'Measure_Weight_Conversion',
-              'Weight_Grams',
-            ]),
-          );
     const record = {
       provider: 'cnf',
       release,
@@ -185,21 +141,13 @@ export function parseCnfCsv(
         category: value(row, ['FoodGroup', 'Food_Group']) || null,
         preparation: value(row, ['Preparation', 'preparation']) || null,
         region: 'CA',
-        servingQuantity:
-          parseNullableNumber(
-            value(row, ['ServingQuantity', 'MeasureQuantity']),
-          ) ?? (measureWeight === null ? null : 1),
-        servingUnit:
-          value(row, ['ServingUnit', 'MeasureUnit']) ||
-          (measure === undefined
-            ? 'g'
-            : measureNames.get(
-                value(measure, ['Measure_Code', 'MeasureCode']),
-              ) || 'g'),
-        servingWeightGrams:
-          parseNullableNumber(
-            value(row, ['ServingWeightGrams', 'GramWeight']),
-          ) ?? measureWeight,
+        // CNF nutrient amounts are reported per 100 g.  The measure tables
+        // describe display portions, but their free-form labels are not an
+        // authoritative serving unit and cannot be used as the snapshot
+        // basis without a separate trusted serving-option relationship.
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
         nutrients,
         sourceRecordHash: deterministicRecordHash(record),
       } satisfies NormalizedProviderFood,

@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import {
   DEFAULT_TIMEZONE,
   foodLogFromAiEstimateInputSchema,
+  NUTRIENT_CATALOG,
   photoAnalysisConfirmationInputSchema,
   type PhotoAnalysisConfirmationInput,
   type FoodLogFromAiEstimateInput,
@@ -648,10 +649,15 @@ function foodItemNutritionBasis(foodItem: VisibleFoodItem):
     sugar: foodItem.sugar?.toNumber() ?? null,
     sodium: foodItem.sodium,
     nutrients: Object.fromEntries(
-      foodItem.nutrients.map((nutrient) => [
-        nutrient.nutrientKey,
-        { amount: nutrient.amount.toNumber(), unit: nutrient.unit },
-      ]),
+      foodItem.nutrients
+        .filter(
+          (nutrient) =>
+            NUTRIENT_CATALOG[nutrient.nutrientKey].storage === 'normalized',
+        )
+        .map((nutrient) => [
+          nutrient.nutrientKey,
+          { amount: nutrient.amount.toNumber(), unit: nutrient.unit },
+        ]),
     ) as NormalizedNutrientMap,
   };
 }

@@ -128,6 +128,15 @@ function canonicalNutrients(row: NormalizedProviderFood): CanonicalNutrient[] {
   return [...nutrients.values()];
 }
 
+function normalizedNutrients(
+  nutrients: readonly CanonicalNutrient[],
+): CanonicalNutrient[] {
+  return nutrients.filter(
+    (nutrient) =>
+      NUTRIENT_CATALOG[nutrient.nutrientKey].storage === 'normalized',
+  );
+}
+
 function roundedNutritionColumn(
   nutrientsByKey: ReadonlyMap<NutrientKey, number>,
   nutrientKey: NutrientKey,
@@ -212,7 +221,7 @@ async function persistProviderRow(input: {
   existing: ExistingProviderFood | undefined;
   onStep?: RowPersistenceStepReporter;
 }): Promise<'imported' | 'updated' | 'skipped'> {
-  const expectedNutrients = canonicalNutrients(input.row);
+  const expectedNutrients = normalizedNutrients(canonicalNutrients(input.row));
   if (
     input.existing?.sourceRecordHash === input.row.sourceRecordHash &&
     nutrientsMatch(input.existing.nutrients, expectedNutrients)

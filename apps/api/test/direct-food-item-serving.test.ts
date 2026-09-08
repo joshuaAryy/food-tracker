@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import { api, expectErrorEnvelope } from './helpers/api.js';
+import { persistProviderFoods } from '../src/modules/foodItems/providers/importer.js';
+import type { NormalizedProviderFood } from '../src/modules/foodItems/providers/normalized.js';
 
 const loggedAt = '2026-06-15T17:00:00.000Z';
 
@@ -337,6 +339,166 @@ describe('direct authoritative FoodItem serving creation', () => {
         nutritionOverride: null,
       },
     });
+  });
+
+  it('logs a repaired reference food with column nutrition kept out of normalized nutrients', async () => {
+    const row: NormalizedProviderFood = {
+      provider: 'ciqual',
+      release: 'test-reference-serving-2026',
+      sourceId: 'reference-banana-13005',
+      name: 'Banana, flesh without skin, raw',
+      authoritativeAliases: [],
+      brandName: null,
+      foodType: 'generic',
+      category: 'Fruit',
+      preparation: null,
+      region: 'FR',
+      servingQuantity: 100,
+      servingUnit: 'g',
+      servingWeightGrams: 100,
+      nutrients: [
+        {
+          key: 'calories',
+          amount: 88.6712,
+          unit: 'kcal',
+          sourceLabel: 'Energy',
+          sourceUnit: 'kcal',
+          sourceValue: '88.6712',
+        },
+        {
+          key: 'protein',
+          amount: 1.06,
+          unit: 'g',
+          sourceLabel: 'Protein',
+          sourceUnit: 'g',
+          sourceValue: '1.06',
+        },
+        {
+          key: 'carbs',
+          amount: 19.7,
+          unit: 'g',
+          sourceLabel: 'Carbohydrates',
+          sourceUnit: 'g',
+          sourceValue: '19.7',
+        },
+        {
+          key: 'fat',
+          amount: 0.5,
+          unit: 'g',
+          sourceLabel: 'Fat',
+          sourceUnit: 'g',
+          sourceValue: '0.5',
+        },
+        {
+          key: 'fiber',
+          amount: 2.7,
+          unit: 'g',
+          sourceLabel: 'Fiber',
+          sourceUnit: 'g',
+          sourceValue: '2.7',
+        },
+        {
+          key: 'sodium',
+          amount: 5,
+          unit: 'mg',
+          sourceLabel: 'Sodium',
+          sourceUnit: 'mg',
+          sourceValue: '5',
+        },
+        {
+          key: 'potassium',
+          amount: 320,
+          unit: 'mg',
+          sourceLabel: 'Potassium',
+          sourceUnit: 'mg',
+          sourceValue: '320',
+        },
+        {
+          key: 'vitaminC',
+          amount: 7.16,
+          unit: 'mg',
+          sourceLabel: 'Vitamin C',
+          sourceUnit: 'mg',
+          sourceValue: '7.16',
+        },
+      ],
+      sourceRecordHash: 'reference-serving-banana-hash',
+    };
+
+    await prisma.foodDatasetRelease.deleteMany({
+      where: { provider: row.provider, release: row.release },
+    });
+    await persistProviderFoods({
+      prisma,
+      rows: [row],
+      sourceUri: 'https://example.test/ciqual-reference-serving.xlsx',
+      sourceSha256: 'reference-serving-sha',
+    });
+
+    const food = await prisma.foodItem.findFirstOrThrow({
+      where: {
+        sourceProvider: 'ciqual',
+        sourceId: row.sourceId,
+        datasetRelease: row.release,
+      },
+      include: { nutrients: true },
+    });
+    expect(food.calories).toBe(89);
+    expect(food.protein?.toNumber()).toBe(1.1);
+    expect(food.nutrients.map((nutrient) => nutrient.nutrientKey)).toEqual([
+      'potassium',
+      'vitaminC',
+    ]);
+
+    const response = await request(food.id, {
+      serving: { quantity: 200, unit: 'g' },
+      nutritionOverride: {
+        mode: 'complex',
+        nutrientPatches: [
+          { nutrientKey: 'potassium', state: 'known', amount: 0, unit: 'mg' },
+          { nutrientKey: 'vitaminC', state: 'unknown' },
+        ],
+      },
+    }).expect(200);
+
+    expect(response.body.data).toMatchObject({
+      calories: 178,
+      protein: 2.2,
+      carbs: 39.4,
+      fiber: 5.4,
+      sugar: null,
+      nutrients: {
+        potassium: { amount: 0, unit: 'mg' },
+      },
+      servingQuantity: 200,
+      servingUnit: 'g',
+      servingSnapshot: {
+        requestedServing: { quantity: 200, unit: 'g' },
+        basisNutrition: { calories: 89, protein: 1.1 },
+      },
+    });
+
+    const persistedLog = await prisma.foodLog.findFirstOrThrow({
+      where: { foodItemId: food.id },
+      include: { nutrients: true },
+    });
+    expect(persistedLog.calories).toBe(178);
+    expect(persistedLog.protein?.toNumber()).toBe(2.2);
+    expect(persistedLog.servingQuantity?.toNumber()).toBe(200);
+    expect(persistedLog.servingUnit).toBe('g');
+    expect(persistedLog.servingSnapshot).toMatchObject({
+      schemaVersion: 1,
+      requestedServing: { quantity: 200, unit: 'g' },
+      basisNutrition: { calories: 89, protein: 1.1 },
+    });
+    expect(persistedLog.nutrients).toMatchObject([
+      { nutrientKey: 'potassium', amount: expect.anything(), unit: 'mg' },
+    ]);
+    expect(persistedLog.nutrients).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ nutrientKey: 'vitaminC' }),
+      ]),
+    );
   });
 
   it('maps serving and multiplier conflict with no writes', async () => {

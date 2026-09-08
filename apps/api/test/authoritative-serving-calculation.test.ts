@@ -3,6 +3,7 @@ import {
   AuthoritativeServingInvariantError,
   type AuthoritativeServingCalculationInput,
 } from '../src/modules/foodLogs/serving-resolution.js';
+import { foodLogServingSnapshotSchema } from '@food-tracker/shared';
 import { describe, expect, it } from 'vitest';
 
 const provenance = {
@@ -49,6 +50,50 @@ function successful(
 }
 
 describe('calculateAuthoritativeServing', () => {
+  it('creates a valid snapshot for a repaired Ciqual reference basis', () => {
+    const result = calculateAuthoritativeServing({
+      basis: {
+        quantity: 100,
+        unit: 'g',
+        displayText: 'per 100 g',
+        equivalentWeightGrams: 100,
+        equivalentVolumeMl: null,
+      },
+      basisNutrition: {
+        calories: 89,
+        protein: 1.1,
+        carbs: 19.7,
+        fat: 0.5,
+        fiber: 2.7,
+        sugar: 15.6,
+        sodium: 5,
+        nutrients: {
+          potassium: { amount: 320, unit: 'mg' },
+          vitaminC: { amount: 7.16, unit: 'mg' },
+        },
+      },
+      servingOptions: null,
+      provenance: {
+        basisOrigin: 'food_item',
+        foodItemId: 'c92b177b-fcad-4050-8210-8571a0284bfb',
+        sourceType: 'app_owned',
+        sourceProvider: 'ciqual',
+        sourceId: '13005',
+        trustLevel: 'trusted',
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected serving snapshot success');
+    expect(
+      foodLogServingSnapshotSchema.safeParse(result.servingSnapshot).success,
+    ).toBe(true);
+    expect(result.servingSnapshot).toMatchObject({
+      requestedServing: { quantity: 100, unit: 'g' },
+      basisNutrition: { calories: 89, protein: 1.1 },
+    });
+  });
+
   it('defaults to one canonical basis serving', () => {
     const result = successful();
     expect(result.finalNutrition).toMatchObject({

@@ -2,7 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { NutrientKey } from '@prisma/client';
-import type { FoodItem } from '@food-tracker/shared';
+import {
+  COLUMN_BACKED_NUTRIENT_KEYS,
+  type FoodItem,
+} from '@food-tracker/shared';
 import { prisma } from '../src/lib/prisma.js';
 import { FOOD_RETRIEVAL_CORPUS } from '../src/benchmarks/food-retrieval/corpus.js';
 import { retrieveLiveBenchmarkObservation } from '../src/benchmarks/food-retrieval/live.js';
@@ -95,6 +98,14 @@ describe('provider normalization', () => {
           sourceUnit: 'g',
           sourceValue: String(input.protein ?? 10),
         },
+        {
+          key: 'potassium',
+          amount: input.protein ?? 10,
+          unit: 'mg',
+          sourceLabel: 'Potassium',
+          sourceUnit: 'mg',
+          sourceValue: String(input.protein ?? 10),
+        },
       ],
       sourceRecordHash: input.hash,
     };
@@ -145,15 +156,22 @@ describe('provider normalization', () => {
       },
     });
     await prisma.foodItemNutrient.createMany({
-      data: nutrients.map((nutrient) => ({
-        foodItemId: item.id,
-        nutrientKey: nutrient.key as NutrientKey,
-        amount: nutrient.amount,
-        unit: nutrient.unit,
-        sourceProvider: row.provider,
-        sourceRecordId: row.sourceId,
-        sourceRelease: row.release,
-      })),
+      data: nutrients
+        .filter(
+          (nutrient) =>
+            !COLUMN_BACKED_NUTRIENT_KEYS.includes(
+              nutrient.key as (typeof COLUMN_BACKED_NUTRIENT_KEYS)[number],
+            ),
+        )
+        .map((nutrient) => ({
+          foodItemId: item.id,
+          nutrientKey: nutrient.key as NutrientKey,
+          amount: nutrient.amount,
+          unit: nutrient.unit,
+          sourceProvider: row.provider,
+          sourceRecordId: row.sourceId,
+          sourceRelease: row.release,
+        })),
     });
     return { sourceUri, sourceSha256, item };
   }
@@ -178,7 +196,7 @@ describe('provider normalization', () => {
         'e0b1de25b3039028205e9d54a96892e403e1b313c2efeb41180fabe132627478',
     });
   });
-  it('preserves unknown CNF values instead of converting them to zero', () => {
+  it('uses the CNF composition basis instead of a free-form portion label', () => {
     const foods = parseCnfCsv({
       foods: 'FoodID,FoodName,FoodGroup\n1,Egg,Eggs\n',
       nutrients: 'NutrientID,NutrientName\n1,Protein\n2,Energy\n',
@@ -190,8 +208,9 @@ describe('provider normalization', () => {
     expect(foods).toHaveLength(1);
     expect(foods[0]?.nutrients).toHaveLength(1);
     expect(foods[0]?.nutrients[0]?.key).toBe('calories');
-    expect(foods[0]?.servingWeightGrams).toBe(52.5);
-    expect(foods[0]?.servingUnit).toBe('1 large egg');
+    expect(foods[0]?.servingQuantity).toBe(100);
+    expect(foods[0]?.servingWeightGrams).toBe(100);
+    expect(foods[0]?.servingUnit).toBe('g');
   });
 
   it('handles official CNF 2026 column names without guessing ambiguous nutrients', () => {
@@ -641,6 +660,14 @@ describe('provider normalization', () => {
           sourceUnit: 'kcal',
           sourceValue: '140',
         },
+        {
+          key: 'potassium',
+          amount: 180,
+          unit: 'mg',
+          sourceLabel: 'Potassium',
+          sourceUnit: 'mg',
+          sourceValue: '180',
+        },
       ],
     });
     try {
@@ -656,7 +683,7 @@ describe('provider normalization', () => {
         await prisma.foodItemNutrient.count({
           where: { sourceProvider: 'cnf', sourceRelease: release },
         }),
-      ).toBe(2);
+      ).toBe(1);
     } finally {
       await clearImportRelease('cnf', release);
     }
@@ -743,6 +770,7 @@ describe('provider normalization', () => {
 
   it('persists reference macro columns from authoritative normalized nutrients', async () => {
     let createdData: Record<string, unknown> | undefined;
+    let persistedNutrientKeys: string[] = [];
     const row = importRow({
       release: '2026',
       sourceId: 'macro-columns',
@@ -824,7 +852,13 @@ describe('provider normalization', () => {
       },
       foodItemNutrient: {
         deleteMany: async () => undefined,
-        createMany: async () => undefined,
+        createMany: async ({
+          data,
+        }: {
+          data: Array<{ nutrientKey: string }>;
+        }) => {
+          persistedNutrientKeys = data.map((nutrient) => nutrient.nutrientKey);
+        },
       },
       $transaction: async (callback: (transaction: unknown) => unknown) =>
         callback(fakePrisma),
@@ -846,6 +880,7 @@ describe('provider normalization', () => {
       sugar: 0,
       sodium: 55,
     });
+    expect(persistedNutrientKeys).toEqual([]);
   });
 
   it('looks up a staged provider row for the exact release when history exists', async () => {
@@ -1556,6 +1591,9 @@ describe('PostgreSQL fuzzy retrieval', () => {
             ? null
             : `${input.searchText}-${randomUUID()}`,
         rankingClass: input.rankingClass ?? 'app_curated',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
         calories: 100,
         protein: 10,
         archivedAt: input.archivedAt ?? null,

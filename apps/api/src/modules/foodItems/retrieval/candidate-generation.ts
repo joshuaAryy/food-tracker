@@ -1,3 +1,4 @@
+import { classifyServingUnit } from '@food-tracker/shared';
 import type {
   AiFoodCandidateMatchReason,
   AiFoodParseCandidate,
@@ -27,7 +28,8 @@ export function hasAuthoritativeNutritionBasis(
     Number.isFinite(foodItem.servingQuantity) &&
     foodItem.servingQuantity > 0 &&
     foodItem.servingUnit !== null &&
-    foodItem.servingUnit.trim().length > 0
+    foodItem.servingUnit.trim().length > 0 &&
+    classifyServingUnit(foodItem.servingUnit) !== null
   );
 }
 

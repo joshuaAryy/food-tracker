@@ -1,3 +1,4 @@
+import { COLUMN_BACKED_NUTRIENT_KEYS } from '@food-tracker/shared';
 import {
   FoodSourceProvider,
   PrismaClient,
@@ -35,8 +36,21 @@ interface RepairSummary {
   beforeMissingCore: number;
   afterMissingCore: number;
   verifiedAfterMissingCore: number | null;
+  foodsWithColumnBackedNutrients: number;
+  columnBackedNutrientRows: number;
+  removedColumnBackedNutrientRows: number | null;
+  verifiedColumnBackedNutrientRows: number | null;
+  cnfServingBasisCandidates: number;
+  changedCnfServingBasisRows: number;
+  verifiedNonCanonicalCnfServingBasisRows: number | null;
   changedByProvider: Record<string, number>;
 }
+
+type FoodItemRepairData = Partial<NutritionFields> & {
+  servingQuantity?: number;
+  servingUnit?: string;
+  servingWeightGrams?: number;
+};
 
 function isMissingCoreNutrition(
   nutrition: Pick<NutritionFields, 'calories' | 'protein'>,
@@ -56,6 +70,27 @@ function repairData(
     }
   }
   return data;
+}
+
+function cnfServingBasisRepairData(input: {
+  sourceProvider: FoodSourceProvider | null;
+  servingQuantity: number | null;
+  servingUnit: string | null;
+  servingWeightGrams: number | null;
+}): Partial<FoodItemRepairData> {
+  if (
+    input.sourceProvider !== FoodSourceProvider.cnf ||
+    (input.servingQuantity === 100 &&
+      input.servingUnit === 'g' &&
+      input.servingWeightGrams === 100)
+  ) {
+    return {};
+  }
+  return {
+    servingQuantity: 100,
+    servingUnit: 'g',
+    servingWeightGrams: 100,
+  };
 }
 
 async function main(): Promise<void> {
@@ -78,6 +113,9 @@ async function main(): Promise<void> {
       fiber: true,
       sugar: true,
       sodium: true,
+      servingQuantity: true,
+      servingUnit: true,
+      servingWeightGrams: true,
       nutrients: {
         select: { nutrientKey: true, amount: true },
       },
@@ -95,14 +133,34 @@ async function main(): Promise<void> {
     beforeMissingCore: 0,
     afterMissingCore: 0,
     verifiedAfterMissingCore: null,
+    foodsWithColumnBackedNutrients: 0,
+    columnBackedNutrientRows: 0,
+    removedColumnBackedNutrientRows: null,
+    verifiedColumnBackedNutrientRows: null,
+    cnfServingBasisCandidates: 0,
+    changedCnfServingBasisRows: 0,
+    verifiedNonCanonicalCnfServingBasisRows: null,
     changedByProvider: {},
   };
   const pendingUpdates: Array<{
     id: string;
-    data: Partial<NutritionFields>;
+    data: FoodItemRepairData;
   }> = [];
+  const pendingDeletes: string[] = [];
 
   for (const food of foods) {
+    const columnBackedNutrients = food.nutrients.filter((nutrient) =>
+      COLUMN_BACKED_NUTRIENT_KEYS.includes(
+        nutrient.nutrientKey as (typeof COLUMN_BACKED_NUTRIENT_KEYS)[number],
+      ),
+    );
+    if (columnBackedNutrients.length > 0) {
+      summary.foodsWithColumnBackedNutrients += 1;
+      summary.columnBackedNutrientRows += columnBackedNutrients.length;
+      if (!dryRun) {
+        pendingDeletes.push(food.id);
+      }
+    }
     const current = {
       calories: food.calories,
       protein: food.protein === null ? null : Number(food.protein),
@@ -112,6 +170,20 @@ async function main(): Promise<void> {
       sugar: food.sugar === null ? null : Number(food.sugar),
       sodium: food.sodium,
     } satisfies Record<RepairField, number | null>;
+    const servingData = cnfServingBasisRepairData({
+      sourceProvider: food.sourceProvider,
+      servingQuantity:
+        food.servingQuantity === null ? null : Number(food.servingQuantity),
+      servingUnit: food.servingUnit,
+      servingWeightGrams:
+        food.servingWeightGrams === null
+          ? null
+          : Number(food.servingWeightGrams),
+    });
+    if (Object.keys(servingData).length > 0) {
+      summary.cnfServingBasisCandidates += 1;
+      summary.changedCnfServingBasisRows += 1;
+    }
     const target = topLevelNutritionFromNutrients(
       food.nutrients.map((nutrient) => ({
         nutrientKey: nutrient.nutrientKey as NutrientKey,
@@ -123,11 +195,17 @@ async function main(): Promise<void> {
     if (isMissingCoreNutrition(target)) {
       summary.missingNormalizedBasis += 1;
       if (isMissingCoreNutrition(current)) summary.afterMissingCore += 1;
+      if (!dryRun && Object.keys(servingData).length > 0) {
+        pendingUpdates.push({ id: food.id, data: servingData });
+      }
       continue;
     }
 
     summary.eligible += 1;
-    const data = repairData(current, target);
+    const data: FoodItemRepairData = {
+      ...servingData,
+      ...repairData(current, target),
+    };
     if (Object.keys(data).length === 0) {
       summary.alreadyCorrect += 1;
       continue;
@@ -159,6 +237,31 @@ async function main(): Promise<void> {
   }
 
   if (!dryRun) {
+    const deleteBatchSize = 32;
+    let removedColumnBackedNutrientRows = 0;
+    for (
+      let offset = 0;
+      offset < pendingDeletes.length;
+      offset += deleteBatchSize
+    ) {
+      const batch = pendingDeletes.slice(offset, offset + deleteBatchSize);
+      const deleted = await Promise.all(
+        batch.map((foodItemId) =>
+          prisma.foodItemNutrient.deleteMany({
+            where: {
+              foodItemId,
+              nutrientKey: { in: [...COLUMN_BACKED_NUTRIENT_KEYS] },
+            },
+          }),
+        ),
+      );
+      removedColumnBackedNutrientRows += deleted.reduce(
+        (total, result) => total + result.count,
+        0,
+      );
+    }
+    summary.removedColumnBackedNutrientRows = removedColumnBackedNutrientRows;
+
     summary.verifiedAfterMissingCore = await prisma.foodItem.count({
       where: {
         userId: null,
@@ -169,6 +272,39 @@ async function main(): Promise<void> {
         OR: [{ calories: null }, { protein: null }],
       },
     });
+    summary.verifiedColumnBackedNutrientRows =
+      await prisma.foodItemNutrient.count({
+        where: {
+          nutrientKey: { in: [...COLUMN_BACKED_NUTRIENT_KEYS] },
+          foodItem: {
+            is: {
+              userId: null,
+              archivedAt: null,
+              sourceType: 'app_owned',
+              rankingClass: 'reference',
+              sourceProvider: { in: [...REFERENCE_PROVIDERS] },
+            },
+          },
+        },
+      });
+    summary.verifiedNonCanonicalCnfServingBasisRows =
+      await prisma.foodItem.count({
+        where: {
+          userId: null,
+          archivedAt: null,
+          sourceType: 'app_owned',
+          rankingClass: 'reference',
+          sourceProvider: FoodSourceProvider.cnf,
+          OR: [
+            { servingQuantity: null },
+            { servingQuantity: { not: 100 } },
+            { servingUnit: null },
+            { servingUnit: { not: 'g' } },
+            { servingWeightGrams: null },
+            { servingWeightGrams: { not: 100 } },
+          ],
+        },
+      });
   }
 
   console.log(JSON.stringify(summary, null, 2));
