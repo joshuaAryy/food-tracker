@@ -55,34 +55,34 @@ describe('AI serving suggestions', () => {
           );
         }
         return new Response(
-            JSON.stringify({
-              candidates: [
-                {
-                  content: {
-                    parts: [
-                      {
-                        text: JSON.stringify({
-                          items: [
-                            {
-                              name: 'eggs',
-                              quantityText: '2',
-                              servingText: '2 eggs',
-                            },
-                            {
-                              name: 'toast',
-                              quantityText: null,
-                              servingText: null,
-                            },
-                          ],
-                        }),
-                      },
-                    ],
-                  },
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        items: [
+                          {
+                            name: 'eggs',
+                            quantityText: '2',
+                            servingText: '2 eggs',
+                          },
+                          {
+                            name: 'toast',
+                            quantityText: null,
+                            servingText: null,
+                          },
+                        ],
+                      }),
+                    },
+                  ],
                 },
-              ],
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
       }),
     );
 

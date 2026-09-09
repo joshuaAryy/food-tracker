@@ -272,33 +272,33 @@ describe('AI food parse API', () => {
           );
         }
         return new Response(
-            JSON.stringify({
-              candidates: [
-                {
-                  content: {
-                    parts: [
-                      {
-                        text: [
-                          '```json',
-                          JSON.stringify({
-                            items: [
-                              {
-                                name: 'eggs',
-                                quantityText: '2',
-                                servingText: '2 eggs',
-                              },
-                            ],
-                          }),
-                          '```',
-                        ].join('\n'),
-                      },
-                    ],
-                  },
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: [
+                        '```json',
+                        JSON.stringify({
+                          items: [
+                            {
+                              name: 'eggs',
+                              quantityText: '2',
+                              servingText: '2 eggs',
+                            },
+                          ],
+                        }),
+                        '```',
+                      ].join('\n'),
+                    },
+                  ],
                 },
-              ],
-            }),
-            { status: 200, headers: { 'Content-Type': 'application/json' } },
-          );
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
       }),
     );
 

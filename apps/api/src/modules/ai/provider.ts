@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import type { AiFoodParseCandidate, AiFoodParsedItem } from '@food-tracker/shared';
+import type {
+  AiFoodParseCandidate,
+  AiFoodParsedItem,
+} from '@food-tracker/shared';
 import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { AppError } from '../../lib/errors.js';
 import type { AiFoodParseConfig } from './config.js';
@@ -433,8 +436,7 @@ function evaluationEvidence(items: AiFoodParsedItem[]) {
           candidate.candidateType === 'external_food'
             ? candidate.externalFood.servingBasisText
             : `${food.servingQuantity ?? 'unknown'} ${food.servingUnit ?? ''}`.trim(),
-        servingOptions:
-          'servingOptions' in food ? food.servingOptions : null,
+        servingOptions: 'servingOptions' in food ? food.servingOptions : null,
         retrievalEvidence: candidate.retrievalEvidence ?? null,
       };
     }),
@@ -617,7 +619,9 @@ class GeminiFoodParseProvider implements FoodParseProvider {
           status: response.status,
           operation: 'food_parse_evaluation',
         });
-        throw aiUnavailable('AI food adequacy evaluation could not be reached.');
+        throw aiUnavailable(
+          'AI food adequacy evaluation could not be reached.',
+        );
       }
 
       const payload = (await response.json()) as {
@@ -629,7 +633,9 @@ class GeminiFoodParseProvider implements FoodParseProvider {
           status: response.status,
           candidates: payload.candidates?.length ?? 0,
         });
-        throw aiUnavailable('AI food adequacy evaluation returned no decision.');
+        throw aiUnavailable(
+          'AI food adequacy evaluation returned no decision.',
+        );
       }
 
       let output: unknown;
@@ -639,7 +645,9 @@ class GeminiFoodParseProvider implements FoodParseProvider {
         logGeminiDiagnostic('evaluation_json_parse_failure', {
           operation: 'food_parse_evaluation',
         });
-        throw aiUnavailable('AI food adequacy evaluation returned invalid JSON.');
+        throw aiUnavailable(
+          'AI food adequacy evaluation returned invalid JSON.',
+        );
       }
 
       const parsed = evaluationOutputSchema.safeParse(output);
@@ -647,7 +655,9 @@ class GeminiFoodParseProvider implements FoodParseProvider {
         logGeminiDiagnostic('evaluation_schema_validation_failure', {
           errorCategory: 'schema_validation',
         });
-        throw aiUnavailable('AI food adequacy evaluation returned an invalid response.');
+        throw aiUnavailable(
+          'AI food adequacy evaluation returned an invalid response.',
+        );
       }
 
       return parsed.data.decisions;
