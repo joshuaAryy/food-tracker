@@ -8,7 +8,7 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 
 | ID | Scenario | Reproduction/evidence | Severity | Failing layer | Root-cause hypothesis | Regression test | Fix/commit | Re-run evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| — | No verified defects recorded yet. | — | — | — | — | — | — | — | OPEN |
+| — | No additional verified defects recorded beyond the entries below. | — | — | — | — | — | — | — | OPEN |
 | AI-RAG-001 | Text AI accepted deterministic retrieval without post-retrieval adequacy judgment | The first request-boundary regression run expected a parse request plus a bounded candidate-evaluation request, but observed only one Gemini request; the route's provider interface exposed parse only and `retrieveParsedFoodItems` output was returned directly. | P1 | API AI text orchestration | Parse and retrieval were separate, but no provider/evaluation boundary existed to classify excellent, review-required, or fallback-eligible candidates. | `ai-food-parse.test.ts` now proves candidate evidence is sent, an ambiguous candidate becomes `needs_review`, and invalid/incomplete evaluation cannot preserve a trusted result; neighboring AI/serving tests pass. | `c73d018`, `697236a`, `cb51c62` | Full API suite 116 files / 1,401 tests green; Simulator UI re-run blocked by `ENV-SIM-001`. | FIXED-AUTOMATED |
 
 ## Execution blockers (not product defects)
@@ -19,11 +19,11 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 | ENV-STAGE-001 | Railway staging provenance | Read-only Railway deployment metadata verifies the sleeping `food-tracker-staging-api` currently serves `3f155b6f133aabe9ec216204523b4efd1b79cbf9` from the older `phase-20-22-product-hardening-intelligence` branch, not this debugging branch. The exact archived candidate upload was attempted and Railway first returned 502, then rejected the SFO free-tier deploy during the 8 AM–8 PM America/Los_Angeles peak window. The health endpoint returned 200 only after waking the old service and is not treated as product evidence. | Cold-start/staging rows cannot be marked PASS against the current candidate; no deployment was performed. | After the provider window permits deployment, deploy the exact debugging-branch SHA under the authorized staging-only policy and re-verify Railway provenance before UAT. |
 | ENV-AUTH-001 | Dedicated QA identities | Repository inspection found no approved QA A/B/C credentials or identities. No everyday account was used, reset, reseeded, switched, or deleted. | Authenticated, isolation, deletion, and dependent Simulator rows remain blocked rather than substituted or bypassed. | Supply/use the explicitly designated Firebase-linked QA A/B accounts and disposable C account during the authorized execution checkpoint. |
 
-## Inspection findings awaiting behavioral proof
+## Inspection findings and dispositions
 
 | ID | Area | Finding | Required proof before remediation |
 | --- | --- | --- | --- |
-| AI-ARCH-HYPOTHESIS-001 | AI text logging | The current `/ai/food-parse` route calls the parse provider, then performs deterministic trusted retrieval/ranking; the text provider interface has no retrieval-evidence adjudication operation. This is an inspection finding, not yet a complete product-defect disposition. | Add request-boundary coverage and representative end-to-end evidence showing whether Gemini evaluates bounded retrieval candidates and whether trusted/review/fallback outcomes satisfy the canonical contract. If not, follow the root-cause loop and make the smallest architecture-preserving correction. |
+| AI-ARCH-HYPOTHESIS-001 | AI text logging | Execution proved the planning hypothesis: the first request-boundary regression observed only parsing/retrieval and no candidate-adequacy judgment. The defect is tracked as `AI-RAG-001` and fixed in the existing provider/retrieval boundary. | API request-boundary coverage now proves bounded evidence evaluation, trusted/review decisions, and invalid/incomplete-decision rejection. Real UI confirmation remains blocked by `ENV-SIM-001`; keep `AI-APPLE-MISSING-UNIT` as a separate UI recovery scenario. |
 
 ## Deferred visual-only findings
 
