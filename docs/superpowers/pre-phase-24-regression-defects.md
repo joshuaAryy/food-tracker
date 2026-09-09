@@ -9,6 +9,7 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 | ID | Scenario | Reproduction/evidence | Severity | Failing layer | Root-cause hypothesis | Regression test | Fix/commit | Re-run evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | — | No verified defects recorded yet. | — | — | — | — | — | — | — | OPEN |
+| AI-RAG-001 | Text AI accepted deterministic retrieval without post-retrieval adequacy judgment | The first request-boundary regression run expected a parse request plus a bounded candidate-evaluation request, but observed only one Gemini request; the route's provider interface exposed parse only and `retrieveParsedFoodItems` output was returned directly. | P1 | API AI text orchestration | Parse and retrieval were separate, but no provider/evaluation boundary existed to classify excellent, review-required, or fallback-eligible candidates. | `ai-food-parse.test.ts` now proves candidate evidence is sent and an ambiguous candidate becomes `needs_review`; neighboring AI/serving tests pass. | Pending focused commit | Full API suite 116 files / 1,400 tests green; Simulator UI re-run blocked by `ENV-SIM-001`. | FIXED-AUTOMATED |
 
 ## Execution blockers (not product defects)
 

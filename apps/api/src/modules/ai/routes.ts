@@ -18,7 +18,11 @@ import {
   parseCandidateId,
 } from '../foodItems/candidate-ranking.js';
 import { aiFoodParseConfig } from './config.js';
-import { foodParseProvider, nutritionEstimateProvider } from './provider.js';
+import {
+  foodParseProvider,
+  nutritionEstimateProvider,
+  type FoodParseEvaluationDecision,
+} from './provider.js';
 import { assertAiFoodParseLimit } from './rate-limit.js';
 import { createRequestRateLimitKey } from './rate-limit-key.js';
 import { retrieveParsedFoodItems } from './retrieval.js';
@@ -126,6 +130,76 @@ function rowHasRelevantTrustedCandidate(
   });
 }
 
+function applyFoodParseEvaluation(
+  items: AiFoodParsedItem[],
+  decisions: FoodParseEvaluationDecision[],
+): AiFoodParsedItem[] {
+  const itemIds = new Set(items.map((item) => item.id));
+  const decisionIds = decisions.map((decision) => decision.itemId);
+  if (
+    decisions.length !== items.length ||
+    new Set(decisionIds).size !== decisions.length ||
+    decisionIds.some((itemId) => !itemIds.has(itemId)) ||
+    items.some((item) => !decisionIds.includes(item.id))
+  ) {
+    throw new AppError(
+      503,
+      'AI_UNAVAILABLE',
+      'AI food adequacy evaluation returned incomplete decisions.',
+    );
+  }
+
+  const decisionByItemId = new Map(
+    decisions.map((decision) => [decision.itemId, decision]),
+  );
+
+  return items.map((item) => {
+    const decision = decisionByItemId.get(item.id);
+    if (decision === undefined) return item;
+
+    if (decision.decision === 'fallback') {
+      return {
+        ...item,
+        reviewStatus: 'unmatched',
+        loggable: false,
+        selectedCandidateId: null,
+      };
+    }
+
+    const selectedCandidateId =
+      decision.selectedCandidateId ?? item.selectedCandidateId;
+    const selectedCandidate = item.candidates.find(
+      (candidate) => parseCandidateId(candidate) === selectedCandidateId,
+    );
+
+    if (selectedCandidate === undefined) {
+      return {
+        ...item,
+        reviewStatus: 'needs_review',
+        loggable: false,
+        selectedCandidateId: null,
+      };
+    }
+
+    const evaluatedItem = {
+      ...item,
+      selectedCandidateId,
+      loggable: true,
+      reviewStatus:
+        decision.decision === 'trusted' &&
+        selectedCandidate.candidateType === 'food_item' &&
+        rowHasRelevantTrustedCandidate({
+          ...item,
+          selectedCandidateId,
+        })
+          ? ('matched' as const)
+          : ('needs_review' as const),
+    };
+
+    return evaluatedItem;
+  });
+}
+
 aiRouter.post(
   '/food-parse',
   validateBody(aiFoodParseInputSchema),
@@ -159,11 +233,21 @@ aiRouter.post(
       0,
       config.maxItems,
     );
-    const items = await retrieveParsedFoodItems({
+    const retrievedItems = await retrieveParsedFoodItems({
       userId,
       rateLimitKey,
       parsedItems,
     });
+    const items =
+      provider.evaluate === undefined
+        ? retrievedItems
+        : applyFoodParseEvaluation(
+            retrievedItems,
+            await provider.evaluate({
+              description: input.description,
+              items: retrievedItems,
+            }),
+          );
 
     sendSuccess(response, {
       description: input.description,

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AiFoodParseCandidate, AiFoodParsedItem } from '@food-tracker/shared';
 import { emitServerDiagnostic } from '../../lib/diagnostics.js';
 import { AppError } from '../../lib/errors.js';
 import type { AiFoodParseConfig } from './config.js';
@@ -11,6 +12,17 @@ export interface ProviderParsedFoodItem {
 
 export interface FoodParseProvider {
   parse(description: string): Promise<ProviderParsedFoodItem[]>;
+  evaluate?(input: {
+    description: string;
+    items: AiFoodParsedItem[];
+  }): Promise<FoodParseEvaluationDecision[]>;
+}
+
+export interface FoodParseEvaluationDecision {
+  itemId: string;
+  decision: 'trusted' | 'review' | 'fallback';
+  selectedCandidateId: string | null;
+  reason: string | null;
 }
 
 export interface ProviderNutritionEstimate {
@@ -42,6 +54,17 @@ const providerItemSchema = z.strictObject({
 
 const providerOutputSchema = z.strictObject({
   items: z.array(providerItemSchema).min(1).max(12),
+});
+
+const evaluationOutputSchema = z.strictObject({
+  decisions: z.array(
+    z.strictObject({
+      itemId: z.string().trim().min(1).max(80),
+      decision: z.enum(['trusted', 'review', 'fallback']),
+      selectedCandidateId: z.string().trim().min(1).nullable().default(null),
+      reason: z.string().trim().min(1).max(240).nullable().default(null),
+    }),
+  ),
 });
 
 const nutritionEstimateOutputSchema = z.strictObject({
@@ -89,6 +112,26 @@ const geminiNutritionEstimateResponseSchema = {
     sodium: { type: 'number' },
   },
   required: ['foodName', 'calories', 'protein', 'carbs', 'fat'],
+} as const;
+
+const geminiEvaluationResponseSchema = {
+  type: 'object',
+  properties: {
+    decisions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          itemId: { type: 'string' },
+          decision: { type: 'string', enum: ['trusted', 'review', 'fallback'] },
+          selectedCandidateId: { type: 'string', nullable: true },
+          reason: { type: 'string', nullable: true },
+        },
+        required: ['itemId', 'decision'],
+      },
+    },
+  },
+  required: ['decisions'],
 } as const;
 
 function aiUnavailable(
@@ -359,6 +402,45 @@ class MockNutritionEstimateProvider implements NutritionEstimateProvider {
   }
 }
 
+function parseCandidateId(candidate: AiFoodParseCandidate): string {
+  return candidate.candidateType === 'food_item'
+    ? candidate.foodItem.id
+    : `${candidate.externalFood.sourceProvider}:${candidate.externalFood.sourceId}`;
+}
+
+function evaluationEvidence(items: AiFoodParsedItem[]) {
+  return items.map((item) => ({
+    itemId: item.id,
+    parsedName: item.parsedName,
+    quantityText: item.quantityText,
+    servingText: item.servingText,
+    servingSuggestion: item.servingSuggestion,
+    candidates: item.candidates.slice(0, 5).map((candidate) => {
+      const food =
+        candidate.candidateType === 'food_item'
+          ? candidate.foodItem
+          : candidate.externalFood;
+      return {
+        candidateId: parseCandidateId(candidate),
+        candidateType: candidate.candidateType,
+        name: food.name,
+        brandName: food.brandName,
+        foodType: food.foodType,
+        sourceProvider: food.sourceProvider,
+        matchReason: candidate.matchReason,
+        confidence: candidate.confidence,
+        servingBasisText:
+          candidate.candidateType === 'external_food'
+            ? candidate.externalFood.servingBasisText
+            : `${food.servingQuantity ?? 'unknown'} ${food.servingUnit ?? ''}`.trim(),
+        servingOptions:
+          'servingOptions' in food ? food.servingOptions : null,
+        retrievalEvidence: candidate.retrievalEvidence ?? null,
+      };
+    }),
+  }));
+}
+
 class GeminiFoodParseProvider implements FoodParseProvider {
   constructor(private readonly config: AiFoodParseConfig) {}
 
@@ -471,6 +553,126 @@ class GeminiFoodParseProvider implements FoodParseProvider {
         error instanceof DOMException && error.name === 'AbortError'
           ? 'AI food parsing timed out.'
           : 'AI food parsing failed.',
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async evaluate(input: {
+    description: string;
+    items: AiFoodParsedItem[];
+  }): Promise<FoodParseEvaluationDecision[]> {
+    if (this.config.geminiApiKey === null) {
+      throw aiUnavailable('AI food adequacy evaluation is not configured.');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs);
+
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+          this.config.geminiModel,
+        )}:generateContent`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.config.geminiApiKey,
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: [
+                      'Evaluate whether each retrieved food candidate adequately represents the user intent.',
+                      'You are judging bounded trusted retrieval evidence, not calculating nutrition.',
+                      'Use trusted only for a clearly equivalent food candidate.',
+                      'Use review for a plausible but ambiguous or imperfect candidate.',
+                      'Use fallback only when trusted retrieval is materially inadequate.',
+                      'Never invent candidate IDs, nutrition values, or serving conversions.',
+                      'Return one decision for every itemId.',
+                      `Meal description: ${input.description}`,
+                      `Retrieved candidates: ${JSON.stringify(evaluationEvidence(input.items))}`,
+                    ].join('\n'),
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 768,
+              responseMimeType: 'application/json',
+              responseSchema: geminiEvaluationResponseSchema,
+            },
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        logGeminiDiagnostic('evaluation_non_ok_response', {
+          status: response.status,
+          operation: 'food_parse_evaluation',
+        });
+        throw aiUnavailable('AI food adequacy evaluation could not be reached.');
+      }
+
+      const payload = (await response.json()) as {
+        candidates?: { content?: { parts?: { text?: string }[] } }[];
+      };
+      const text = firstTextPart(payload);
+      if (typeof text !== 'string') {
+        logGeminiDiagnostic('evaluation_missing_text_part', {
+          status: response.status,
+          candidates: payload.candidates?.length ?? 0,
+        });
+        throw aiUnavailable('AI food adequacy evaluation returned no decision.');
+      }
+
+      let output: unknown;
+      try {
+        output = JSON.parse(extractJsonText(text));
+      } catch {
+        logGeminiDiagnostic('evaluation_json_parse_failure', {
+          operation: 'food_parse_evaluation',
+        });
+        throw aiUnavailable('AI food adequacy evaluation returned invalid JSON.');
+      }
+
+      const parsed = evaluationOutputSchema.safeParse(output);
+      if (!parsed.success) {
+        logGeminiDiagnostic('evaluation_schema_validation_failure', {
+          errorCategory: 'schema_validation',
+        });
+        throw aiUnavailable('AI food adequacy evaluation returned an invalid response.');
+      }
+
+      return parsed.data.decisions;
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+
+      logGeminiDiagnostic(
+        error instanceof DOMException && error.name === 'AbortError'
+          ? 'evaluation_timeout'
+          : 'evaluation_request_failure',
+        {
+          operation: 'food_parse_evaluation',
+          errorCategory:
+            error instanceof Error && error.name === 'AbortError'
+              ? 'timeout'
+              : 'network_or_provider',
+        },
+      );
+
+      throw aiUnavailable(
+        error instanceof DOMException && error.name === 'AbortError'
+          ? 'AI food adequacy evaluation timed out.'
+          : 'AI food adequacy evaluation failed.',
       );
     } finally {
       clearTimeout(timeout);

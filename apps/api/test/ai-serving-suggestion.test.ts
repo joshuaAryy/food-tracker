@@ -16,11 +16,45 @@ describe('AI serving suggestions', () => {
   });
 
   it('attaches deterministic serving suggestions while preserving raw AI fields', async () => {
+    let requestCount = 0;
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
+      vi.fn(async () => {
+        requestCount += 1;
+        if (requestCount > 1) {
+          return new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              itemId: 'item-1',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
+                            },
+                            {
+                              itemId: 'item-2',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(
             JSON.stringify({
               candidates: [
                 {
@@ -48,8 +82,8 @@ describe('AI serving suggestions', () => {
               ],
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
-      ),
+          );
+      }),
     );
 
     const response = await api
