@@ -235,6 +235,44 @@ describe('AI food parse API', () => {
     });
   });
 
+  it('does not preserve a trusted result when adequacy evaluation is invalid', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    let requestCount = 0;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        requestCount += 1;
+        const text =
+          requestCount === 1
+            ? JSON.stringify({
+                items: [
+                  {
+                    name: 'rice',
+                    quantityText: '1',
+                    servingText: '1 serving',
+                  },
+                ],
+              })
+            : JSON.stringify({ decisions: [{ itemId: 'unknown' }] });
+        return new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text }] } }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'rice' })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+  });
+
   it('accepts Gemini JSON wrapped in markdown code fences', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
