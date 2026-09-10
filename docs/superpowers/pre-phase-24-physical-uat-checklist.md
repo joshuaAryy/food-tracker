@@ -7,12 +7,27 @@ Simulator matrix.
 
 ## Preconditions supplied by Codex
 
-- Branch and candidate SHA:
-- Staging deployment ID and served provenance:
-- Simulator critical-journey result:
-- Automated validation counts:
-- QA account state and fixture anchor:
-- Device model / iOS version / build configuration:
+- Branch and candidate SHA: `pre-phase-24-product-regression-debugging` at
+  `cf68208c8a65b910ff19d9ec299bfdb67aca6ef0` (pushed; no PR or merge).
+- Staging deployment ID and served provenance: prior verified staging
+  deployment `f522fae3-825e-425c-810d-344fc850db6d`, built from the exact
+  archived API candidate `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`; a fresh
+  exact-HEAD upload was rejected before deployment by the Railway SFO
+  free-tier peak-hours gate and must be retried before current-HEAD staging
+  acceptance.
+- Simulator critical-journey result: signed-out and staging cold-launch
+  journeys are evidenced; the native candidate builds and installs on iOS 27.
+  Authenticated, mutation-heavy, and real AI-review journeys remain pending
+  approved QA identities, and are not inferred from automated coverage.
+- Automated validation counts: API 116 files / 1,401 tests; mobile Jest 68
+  suites / 203 tests; mobile Vitest 64 files / 438 tests; lint, typecheck,
+  build, Prisma generate/validate, and test-database migration checks pass.
+- QA account state and fixture anchor: dedicated QA A/B and disposable C
+  identities are unavailable; no everyday account was used, reset, reseeded,
+  switched, or deleted. Identity-dependent matrix rows remain blocked.
+- Device model / iOS version / build configuration: iOS 27 Simulator on
+  `Food Tracker Fresh QA iPhone 17`, Debug `FoodTracker` workspace build;
+  physical iPhone model/iOS and user-operated acceptance remain pending.
 
 Do not run this checklist against production. Do not use an everyday account
 for destructive testing. Account deletion remains restricted to explicitly
