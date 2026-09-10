@@ -16,7 +16,11 @@ launch, actions, observed UI state, and persistence checks where applicable.
 The validated source baseline for the current staging evidence is
 `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`. The active branch is
 `pre-phase-24-product-regression-debugging`; later documentation-only commits
-must not be treated as application-source changes.
+must not be treated as application-source changes. The latest application-code
+validation candidate is `cf68208c8a65b910ff19d9ec299bfdb67aca6ef0`; branch tip
+`d86f0ffaea51a6278a7aba6f6626c907f6394002` contains only subsequent evidence
+documentation. Current-HEAD staging reprovenance remains pending the Railway
+provider window.
 
 ## Canonical behavior register
 
