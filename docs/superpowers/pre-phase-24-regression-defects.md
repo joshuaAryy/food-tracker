@@ -27,6 +27,25 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 | --- | --- | --- | --- |
 | AI-ARCH-HYPOTHESIS-001 | AI text logging | Execution proved the planning hypothesis: the first request-boundary regression observed only parsing/retrieval and no candidate-adequacy judgment. The defect is tracked as `AI-RAG-001` and fixed in the existing provider/retrieval boundary. | API request-boundary coverage now proves bounded evidence evaluation, trusted/review decisions, and invalid/incomplete-decision rejection. Signed-out staging-target Simulator bootstrap is now evidenced; AI text UI confirmation remains gated by QA credentials. Keep `AI-APPLE-MISSING-UNIT` as a separate UI recovery scenario. |
 
+## Latest automated validation checkpoint
+
+The full validation run completed against application-code state
+`cf68208c8a65b910ff19d9ec299bfdb67aca6ef0` under Node `v22.23.0` and pnpm
+`10.34.3`. The current branch tip `d1f020661c927a2333d1376e7f5797ab49833fb0`
+adds only the physical-UAT handoff documentation recorded after that run; no
+application or test source changed.
+
+- API: 116 test files / 1,401 tests passed.
+- Mobile Jest: 68 suites / 203 tests passed.
+- Mobile Vitest: 64 files / 438 tests passed.
+- Lint, typecheck, workspace build, Prisma generate/validate, and test-database
+  migration status/deploy passed.
+- Changed-file Prettier checks and `git diff --check` passed.
+- Root `format:check` remains non-green only because of the known protected or
+  local files documented in the execution record; those files were not edited.
+- Current-HEAD Railway staging deployment and identity/device acceptance remain
+  external gates and are not inferred from these automated results.
+
 ## Deferred visual-only findings
 
 Record spacing, typography, color, hierarchy, card, animation, and chart
