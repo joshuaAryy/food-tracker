@@ -19,6 +19,25 @@ for destructive testing. Account deletion remains restricted to explicitly
 disposable QA C and is not performed on the physical device unless the
 execution record explicitly identifies C.
 
+## Codex stop-point and remaining QA-account work
+
+The current Codex checkpoint has automated contract evidence for the major
+backend slices and signed-out/staging Simulator evidence. Automated PASS does
+not close the corresponding real UI journey. Before the physical pass, use the
+approved identities as follows:
+
+- QA A: authenticated relaunch, the complete AI review corpus including the
+  `1 apple` recovery journey, and Simple/Complex continuity.
+- QA B: the recognizable second account for sign-out/account-switch isolation
+  and delayed-response checks.
+- Disposable QA C: confirmation, completion, post-delete routing, and owned-data
+  cleanup for the destructive deletion journey.
+
+Do not substitute an everyday account, bypass Firebase authentication, or
+reinterpret API-only evidence as Simulator UI evidence. If the identities are
+unavailable, leave those matrix rows blocked and continue only with independent
+work.
+
 ## Device-only checks
 
 Record `PASS`, `FAIL`, or `BLOCKED` plus a short observation for every item.
