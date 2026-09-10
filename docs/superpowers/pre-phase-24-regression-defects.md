@@ -41,8 +41,10 @@ application or test source changed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration status/deploy passed.
 - Changed-file Prettier checks and `git diff --check` passed.
-- Root `format:check` remains non-green only because of the known protected or
-  local files documented in the execution record; those files were not edited.
+- Root `format:check` exits 1 on 26 pre-existing protected/local files only: one
+  `.agents` skill, 24 `.superpowers/sdd` records, and
+  `apps/api/food_search_diagnostic.mjs`; all changed files pass targeted
+  Prettier checks and none of those files was edited.
 - Current-HEAD Railway staging deployment and identity/device acceptance remain
   external gates and are not inferred from these automated results.
 
