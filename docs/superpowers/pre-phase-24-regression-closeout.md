@@ -76,6 +76,11 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
 - The current docs-only candidate upload created `b4b203be` but was correctly
   marked `SKIPPED` because no watched runtime files changed; it is not staging
   runtime evidence.
+- The runtime-fix candidate `fdb7016` was archived from the exact committed
+  tree and submitted with explicit project/service/environment targeting, but
+  Railway returned a request error before creating a deployment. The served
+  runtime therefore remains the previously verified `f522fae3` candidate; no
+  current-HEAD staging behavior is inferred.
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
@@ -112,8 +117,9 @@ Detailed reproduction and evidence remain in
 2. QA C credentials are now verified, but deletion remains a destructive UI
    gate. Re-verify the QA C email and expected UID immediately before delete.
 3. Physical-iPhone acceptance remains a user-owned final gate.
-4. A current runtime-changing candidate still requires a real Railway
-   deployment and served-provenance check before current-HEAD staging UAT.
+4. The runtime-fix candidate still requires a successful Railway deployment and
+   served-provenance check before current-HEAD staging UAT. The latest upload
+   attempt failed before deployment during the current free-tier window.
 
 ## Intentional exclusions and deferrals
 
