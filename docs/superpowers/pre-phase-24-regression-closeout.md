@@ -33,14 +33,14 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 39
-- `PASS-SIMULATOR`: 12
+- `PASS-SIMULATOR`: 14
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `BLOCKED`: 4
+- `BLOCKED`: 3
 
-The four blocked scenarios are QA C deletion, the real-UI `1 apple`
-recoverability journey, QA C isolation deletion, and physical-device
-acceptance. QA A → QA B switching is now an observed Simulator pass.
+The three blocked scenarios are QA C deletion, QA C isolation deletion, and
+physical-device acceptance. QA A → QA B switching and the named real-UI
+`1 apple` recoverability journey are now observed Simulator passes.
 
 ## Automated validation
 
@@ -105,6 +105,16 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   weight entries; History showed no food entries, Insights showed 0 logged
   days, and a terminate/relaunch returned to the QA B home. Existing API
   ownership probes independently returned 404 for QA A resource IDs under QA B.
+- The named QA A `1 apple` AI journey was exercised in the real Simulator. The
+  flow produced an editable apple candidate, allowed serving amount/unit
+  editing, logged a valid 1 g result, showed the History row, and reopened it
+  with Save/Log again/Delete recovery actions; no trapped incomplete-unit state
+  was observed.
+- The QA A normal search journey searched `apple`, showed multiple ranked
+  canonical/provider candidates, selected Apple raw, edited its serving basis,
+  saved it, and observed the resulting History entry. The hydration journey
+  also covered Other Amount with a persisted 333 mL History row alongside the
+  250 mL quick-add row.
 - `MODE-ICON-001` was reproduced when native launcher-icon synchronization
   rejected after a successful mode save. The smallest correction made icon sync
   diagnostic-only on the Progress toggle; the focused red/green regression and
