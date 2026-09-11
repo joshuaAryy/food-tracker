@@ -75,6 +75,9 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
 - The current docs-only candidate upload created `b4b203be` but was correctly
   marked `SKIPPED` because no watched runtime files changed; it is not staging
   runtime evidence.
+- At this checkpoint the existing staging service responds `/health=200`,
+  `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
+  structured `AUTHORIZATION_REQUIRED` response.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
