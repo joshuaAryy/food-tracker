@@ -33,7 +33,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 29
-- `PASS-SIMULATOR`: 22
+- `PASS-SIMULATOR`: 23
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -183,6 +183,9 @@ an authenticated response boundary containing `eggs`, `toast`, and `banana`.
 A second response-boundary call for `chicken rice and peas` returned all three
 named components. The initial apparent omission was a partial-viewport
 observation and was closed as not reproduced; no AI meal was saved.
+The same AI review exposed matched trusted rows for eggs/banana and a
+needs-review toast row with editable serving and candidate controls, confirming
+the bounded trusted/review UI path without persisting a meal.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
