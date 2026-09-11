@@ -32,8 +32,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 36
-- `PASS-SIMULATOR`: 15
+- `PASS-AUTOMATED`: 34
+- `PASS-SIMULATOR`: 17
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 1
@@ -139,6 +139,10 @@ these documentation-only evidence updates:
 - The QA A Recommendations tab showed three active recommendations, dismissal
   reduced the count to two, and terminate/relaunch preserved that state. Water
   History editing was also observed for `333 mL → 500 mL`.
+- QA A Profile → Nutrition Targets showed Personalized, Derived, and Reference
+  source labels with explicit Recommended values. Calories was changed from
+  `2600` to `2500`, saved as custom, then reset with Use recommended and
+  returned to the `2600` recommendation.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
