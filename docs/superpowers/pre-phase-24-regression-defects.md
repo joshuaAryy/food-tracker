@@ -33,11 +33,9 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 
 ## Latest automated validation checkpoint
 
-The full validation run completed against application-code state
-`cf68208c8a65b910ff19d9ec299bfdb67aca6ef0` under Node `v22.23.0` and pnpm
-`10.34.3`. The current branch tip `d1f020661c927a2333d1376e7f5797ab49833fb0`
-adds only the physical-UAT handoff documentation recorded after that run; no
-application or test source changed.
+The fresh validation rerun completed under Node `v22.23.0` and pnpm
+`10.34.3` at branch tip `11fe6b2`. The commits since the last application
+checkpoint are documentation-only; no application or test source changed.
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Jest: 68 suites / 203 tests passed.
