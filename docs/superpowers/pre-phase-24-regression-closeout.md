@@ -32,17 +32,18 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 33
-- `PASS-SIMULATOR`: 18
+- `PASS-AUTOMATED`: 31
+- `PASS-SIMULATOR`: 19
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `OPEN-DEFECT`: 1
+- `OPEN-DEFECT`: 2
 - `BLOCKED`: 3
 
-The open defect is the multi-food AI component-completeness finding
-`AI-MULTI-001`. The three blocked scenarios are QA C deletion, QA C isolation
-deletion, and physical-device acceptance. QA A → QA B switching and the named
-real-UI `1 apple` recoverability journey are observed Simulator passes.
+The open defects are the multi-food AI component-completeness finding
+`AI-MULTI-001` and the mixed-meal preview handoff finding `MIX-UI-001`. The
+three blocked scenarios are QA C deletion, QA C isolation deletion, and
+physical-device acceptance. QA A → QA B switching and the named real-UI
+`1 apple` recoverability journey are observed Simulator passes.
 
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
@@ -58,7 +59,7 @@ after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 65 files / 439 tests passed.
-- Mobile Jest: 68 suites / 205 tests passed.
+- Mobile Jest: 68 suites / 207 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - `git diff --check` passed.
@@ -101,10 +102,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   structured `AUTHORIZATION_REQUIRED` response.
 - A fresh read-only QA A/B staging smoke returned 200 for setup, profile, goals,
   dashboard, food logs, water logs, weight logs, recommendations, saved views,
-  recipes, and nutrition targets. QA A remained at 560 food logs, 485 water
-  logs, 106 weights, two recommendations, four saved views, and zero recipes;
-  QA B remained empty for owned logs/recommendations/views/recipes while both
-  accounts returned 24 nutrition-target records.
+  recipes, and nutrition targets. That pre-recipe-journey snapshot recorded QA A
+  at 560 food logs, 485 water logs, 106 weights, two recommendations, four
+  saved views, and zero recipes; the later authenticated Simulator journey
+  created the named `QA Regression` recipe. QA B remained empty for owned
+  logs/recommendations/views/recipes while both accounts returned 24
+  nutrition-target records.
 - Additional cross-account probes using recognizable QA A resource IDs returned
   `404` to QA B for a water log, weight log, recommendation, and saved view.
 - A fresh Xcode-beta-built app was installed on the QA A iOS 27 Simulator. Real
@@ -159,12 +162,18 @@ after the Food Library eligibility correction and Simulator rebuild:
 
 The resumed QA A Simulator pass reached the Recipes entry point from Log food,
 opened the existing `QA Regression` recipe, displayed its frozen ingredient
-nutrition, logged one portion, and observed the resulting History edit action.
-The required recipe-edit-after-history immutability sequence is still pending.
+nutrition, and logged one portion. The recipe was then edited from 100 g to
+200 g Apple: the current recipe recalculated from `61 kcal` whole to `122 kcal`,
+while the previously logged History entry remained `31 kcal`; a new portion log
+then appeared in the day total as `61 kcal`. This completes the required
+recipe-edit-after-history immutability journey.
 The resumed QA A pass also reached the Mixed meal editor, verified the
 incomplete meal warning, and exposed the trusted-ingredient picker after
-scrolling the editor. Valid candidate selection/serving resolution, preview,
-retry, rapid-confirm, and persisted atomicity remain pending.
+scrolling the editor. A fresh trusted Apple selection then exposed a valid
+`ready` 100 g ingredient row while the authoritative preview remained empty;
+the same authenticated staging preview endpoint returned 200/61 kcal. Valid
+preview, retry, rapid-confirm, and persisted atomicity remain pending under
+`MIX-UI-001`.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
@@ -187,11 +196,11 @@ Detailed reproduction and evidence remain in
 
 ## Unresolved execution gates
 
-1. Remaining authenticated Simulator rows require completion of the recipe
-   immutability, valid mixed-meal, and broader launcher/deep-link/back/cancel
-   family; native password prompts must be dismissed without saving credentials
-   before logging flows continue.
-2. `AI-MULTI-001` and `PHOTO-SERVING-001` require request/state-boundary
+1. Remaining authenticated Simulator rows require completion of the valid
+   mixed-meal and broader launcher/deep-link/back/cancel family; native password
+   prompts must be dismissed without saving credentials before logging flows
+   continue.
+2. `AI-MULTI-001`, `MIX-UI-001`, and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
    disposition before phase completion.
 3. QA C credentials are now verified, but deletion remains a destructive UI
