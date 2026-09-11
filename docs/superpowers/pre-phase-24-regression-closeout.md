@@ -167,8 +167,9 @@ scrolling the editor. Valid candidate selection/serving resolution, preview,
 retry, rapid-confirm, and persisted atomicity remain pending.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
-(pinned/other views) were observed. Compare/save/pin mutation and relaunch
-persistence remain unverified.
+(pinned/other views) were observed. A new Calories · 30D view was created,
+pinned through More actions, and remained pinned after app relaunch. Compare
+and custom-name editing remain unverified.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
