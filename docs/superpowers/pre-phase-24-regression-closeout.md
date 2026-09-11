@@ -125,6 +125,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   the 250 mL control and water-only semantics, persisted a 250 mL row, and
   returned an editable History row; a read-only API check confirmed one local-day
   water record.
+- The QA A Food Library journey recovered from a transient unavailable state,
+  exercised Saved, My Foods, Recent, and Archived tabs, reused Recent Banana in
+  Food Log, and opened its editable library detail. Setting a 100 g default
+  serving persisted across closing and reopening the detail; the temporary
+  preference was then removed. Custom archive/restore remains pending.
 - The QA A → QA B account-switch journey was exercised through the real
   Simulator. QA B authenticated to Complex Progress with no QA A food or
   weight entries; History showed no food entries, Insights showed 0 logged
@@ -136,9 +141,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   with Save/Log again/Delete recovery actions; no trapped incomplete-unit state
   was observed.
 - Additional QA A text-AI corpus interaction reached the real review UI for
-  `chicken rice and peas` and `2 eggs, toast, banana`, but the visible rows did
-  not include every clearly named component. This is tracked as open
-  `AI-MULTI-001`; no AI result was saved while investigating it.
+  `chicken rice and peas` and `2 eggs, toast, banana`. An initial partial-
+  viewport omission concern was investigated and closed as not reproduced
+  after full-scroll and response-boundary checks; no AI result was saved while
+  investigating it.
 - The QA A normal search journey searched `apple`, showed multiple ranked
   canonical/provider candidates, selected Apple raw, edited its serving basis,
   saved it, and observed the resulting History entry. The hydration journey
@@ -162,6 +168,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   source labels with explicit Recommended values. Calories was changed from
   `2600` to `2500`, saved as custom, then reset with Use recommended and
   returned to the `2600` recommendation.
+- The QA A AI example path also exercised provider/model recovery: `2 eggs,
+  toast, banana` showed an explicit recognition-unavailable state with the
+  editable draft and Read meal retry still reachable; no fabricated confidence
+  or FoodLog mutation occurred.
 
 The resumed QA A Simulator pass reached the Recipes entry point from Log food,
 opened the existing `QA Regression` recipe, displayed its frozen ingredient
@@ -235,11 +245,12 @@ deferred; only verified unusability is fixed in this phase.
 
 ## Resume and completion requirements
 
-After the host is unlocked and approved QA C access is corrected, resume the
-blocked Simulator rows using the real UI and backend persistence checks. Then
-perform the full critical-journey re-sweep, targeted physical-iPhone pass,
-current runtime-changing staging cold-start validation, final automated checks,
-and closeout review. Do not mark this document complete until the matrix has no
-unresolved P0/P1 or meaningful functional P2, all required gates are evidenced,
-the final branch is pushed, and the working tree contains only intentional
-changes.
+The host-disk and QA-identity blockers are resolved. Resume the remaining
+authenticated Simulator rows using the real UI and backend persistence checks;
+QA C is prepared for destructive deletion but the final delete action still
+requires action-time confirmation. Then perform the full critical-journey
+re-sweep, targeted physical-iPhone pass, current runtime-changing staging
+cold-start validation, final automated checks, and closeout review. Do not mark
+this document complete until the matrix has no unresolved P0/P1 or meaningful
+functional P2, all required gates are evidenced, the final branch is pushed,
+and the working tree contains only intentional changes.
