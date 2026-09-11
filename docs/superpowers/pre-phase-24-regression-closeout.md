@@ -32,15 +32,15 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 40
-- `PASS-SIMULATOR`: 10
+- `PASS-AUTOMATED`: 39
+- `PASS-SIMULATOR`: 12
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `BLOCKED`: 5
+- `BLOCKED`: 4
 
-The five blocked scenarios are QA A → QA B switching, QA C deletion, the
-real-UI `1 apple` recoverability journey, QA C isolation deletion, and
-physical-device acceptance.
+The four blocked scenarios are QA C deletion, the real-UI `1 apple`
+recoverability journey, QA C isolation deletion, and physical-device
+acceptance. QA A → QA B switching is now an observed Simulator pass.
 
 ## Automated validation
 
@@ -100,6 +100,11 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   the 250 mL control and water-only semantics, persisted a 250 mL row, and
   returned an editable History row; a read-only API check confirmed one local-day
   water record.
+- The QA A → QA B account-switch journey was exercised through the real
+  Simulator. QA B authenticated to Complex Progress with no QA A food or
+  weight entries; History showed no food entries, Insights showed 0 logged
+  days, and a terminate/relaunch returned to the QA B home. Existing API
+  ownership probes independently returned 404 for QA A resource IDs under QA B.
 - `MODE-ICON-001` was reproduced when native launcher-icon synchronization
   rejected after a successful mode save. The smallest correction made icon sync
   diagnostic-only on the Progress toggle; the focused red/green regression and
@@ -112,8 +117,8 @@ Detailed reproduction and evidence remain in
 ## Unresolved execution gates
 
 1. Remaining authenticated Simulator rows require their own observed journeys;
-   the current native prompt must be dismissed without saving credentials
-   before the logging menu can be exercised.
+   native password prompts must be dismissed without saving credentials before
+   logging flows continue.
 2. QA C credentials are now verified, but deletion remains a destructive UI
    gate. Re-verify the QA C email and expected UID immediately before delete.
 3. Physical-iPhone acceptance remains a user-owned final gate.
