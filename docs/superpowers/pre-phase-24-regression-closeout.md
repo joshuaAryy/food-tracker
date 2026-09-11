@@ -32,11 +32,12 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 31
-- `PASS-SIMULATOR`: 19
+- `PASS-AUTOMATED`: 29
+- `PASS-SIMULATOR`: 21
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `OPEN-DEFECT`: 2
+- `OPEN-DEFECT`: 1
+- `OPEN-INVESTIGATION`: 1
 - `BLOCKED`: 3
 
 The open defects are the multi-food AI component-completeness finding
