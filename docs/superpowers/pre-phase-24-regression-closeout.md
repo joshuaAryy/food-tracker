@@ -79,6 +79,12 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
+- A fresh read-only QA A/B staging smoke returned 200 for setup, profile, goals,
+  dashboard, food logs, water logs, weight logs, recommendations, saved views,
+  recipes, and nutrition targets. QA A remained at 560 food logs, 485 water
+  logs, 106 weights, two recommendations, four saved views, and zero recipes;
+  QA B remained empty for owned logs/recommendations/views/recipes while both
+  accounts returned 24 nutrition-target records.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
