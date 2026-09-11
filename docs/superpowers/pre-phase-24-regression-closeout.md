@@ -157,14 +157,28 @@ after the Food Library eligibility correction and Simulator rebuild:
   `2600` to `2500`, saved as custom, then reset with Use recommended and
   returned to the `2600` recommendation.
 
+The resumed QA A Simulator pass reached the Recipes entry point from Log food,
+opened the existing `QA Regression` recipe, displayed its frozen ingredient
+nutrition, logged one portion, and observed the resulting History edit action.
+The required recipe-edit-after-history immutability sequence is still pending.
+The resumed QA A pass also reached the Mixed meal editor, verified the
+incomplete meal warning, and exposed the trusted-ingredient picker after
+scrolling the editor. Valid candidate selection/serving resolution, preview,
+retry, rapid-confirm, and persisted atomicity remain pending.
+Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
+Calories trend coverage (recorded/partial/unlogged), and Saved views management
+(pinned/other views) were observed. Compare/save/pin mutation and relaunch
+persistence remain unverified.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
 ## Unresolved execution gates
 
-1. Remaining authenticated Simulator rows require their own observed journeys;
-   native password prompts must be dismissed without saving credentials before
-   logging flows continue.
+1. Remaining authenticated Simulator rows require completion of the recipe
+   immutability, valid mixed-meal, and analytics saved-view journeys; native
+   password prompts must be dismissed without saving credentials before logging
+   flows continue.
 2. `AI-MULTI-001` and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
    disposition before phase completion.
