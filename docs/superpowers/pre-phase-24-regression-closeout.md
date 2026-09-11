@@ -32,15 +32,15 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 42
-- `PASS-SIMULATOR`: 7
+- `PASS-AUTOMATED`: 40
+- `PASS-SIMULATOR`: 10
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `BLOCKED`: 6
+- `BLOCKED`: 5
 
-The six blocked scenarios are authenticated relaunch, QA A → QA B switching,
-QA C deletion, the real-UI `1 apple` recoverability journey, QA C isolation
-deletion, and physical-device acceptance.
+The five blocked scenarios are QA A → QA B switching, QA C deletion, the
+real-UI `1 apple` recoverability journey, QA C isolation deletion, and
+physical-device acceptance.
 
 ## Automated validation
 
@@ -49,7 +49,7 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 64 files / 438 tests passed.
-- Mobile Jest: 68 suites / 203 tests passed.
+- Mobile Jest: 68 suites / 204 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - `git diff --check` passed.
@@ -87,20 +87,30 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   accounts returned 24 nutrition-target records.
 - Additional cross-account probes using recognizable QA A resource IDs returned
   `404` to QA B for a water log, weight log, recommendation, and saved view.
+- A fresh Xcode-beta-built app was installed on the QA A iOS 27 Simulator. Real
+  UI interaction authenticated QA A, displayed the Complex Progress home, and
+  a terminate/relaunch returned to the authenticated home without a loop. The
+  system Save Password prompt was dismissed without saving credentials.
+- The QA A water quick-add journey opened the Complex Log Water sheet, exposed
+  the 250 mL control and water-only semantics, persisted a 250 mL row, and
+  returned an editable History row; a read-only API check confirmed one local-day
+  water record.
+- `MODE-ICON-001` was reproduced when native launcher-icon synchronization
+  rejected after a successful mode save. The smallest correction made icon sync
+  diagnostic-only on the Progress toggle; the focused red/green regression and
+  a real QA A Complex → Simple → Complex Simulator re-run now show mode
+  persistence without a Progress error state.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
 ## Unresolved execution gates
 
-1. The macOS host session is locked or the display is unavailable. Simulator
-   snapshots can be captured, but XcodeBuildMCP actions do not produce an
-   observed state transition. No authenticated Simulator row is marked PASS
-   from action-return status or screenshots alone. The host must be unlocked by
-   the user before the authenticated matrix can resume.
-2. The supplied disposable QA C credential pair still returns Firebase
-   `INVALID_LOGIN_CREDENTIALS`. No substitute account has been created or
-   deleted. Re-verify the QA C email and expected UID before destructive tests.
+1. Remaining authenticated Simulator rows require their own observed journeys;
+   the current native prompt must be dismissed without saving credentials
+   before the logging menu can be exercised.
+2. QA C credentials are now verified, but deletion remains a destructive UI
+   gate. Re-verify the QA C email and expected UID immediately before delete.
 3. Physical-iPhone acceptance remains a user-owned final gate.
 4. A current runtime-changing candidate still requires a real Railway
    deployment and served-provenance check before current-HEAD staging UAT.

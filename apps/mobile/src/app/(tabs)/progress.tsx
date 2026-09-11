@@ -310,14 +310,10 @@ export default function ProgressScreen() {
       );
       markDataChanged();
 
-      void syncLauncherIconToMode(savedPreferences.mode).catch(
-        (iconSyncError) => {
-          setError(
-            `Tracking mode was saved, but the launcher icon could not be updated. ${errorMessage(
-              iconSyncError,
-            )}`,
-          );
-        },
+      void syncLauncherIconToMode(savedPreferences.mode).catch(() =>
+        reportDiagnostic('launcher_icon_sync_failed', {
+          operation: 'mode_icon_sync',
+        }),
       );
     } catch (switchError) {
       setPreferences(previousPreferences);

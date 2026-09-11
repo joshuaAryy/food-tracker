@@ -123,4 +123,30 @@ describe('Progress physical regressions', () => {
     expect(resolveIcon).toBeDefined();
     await act(async () => resolveIcon?.());
   });
+
+  it('keeps Progress usable when launcher icon synchronization rejects after mode save', async () => {
+    const iconSync = jest.requireMock('@/lib/app-icon')
+      .syncLauncherIconToMode as jest.Mock;
+    iconSync.mockRejectedValue(new Error('request could not be completed'));
+    jest.spyOn(api.trackingPreferences, 'update').mockResolvedValue({
+      ...progressRegressionNextModePreferences,
+      dailyWaterGoalMl: 2000,
+    });
+
+    const screen = await render(<ProgressScreen />);
+    const button = await screen.findByRole('button', {
+      name: 'Switch tracking mode. Current mode is Simple.',
+    });
+
+    await userEvent.setup().press(button);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: 'Switch tracking mode. Current mode is Complex.',
+        }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByText('Couldn’t refresh progress')).toBeNull();
+  });
 });
