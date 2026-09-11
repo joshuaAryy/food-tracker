@@ -53,11 +53,11 @@ Saved/My Foods/Recent/Archived consumer coverage remains pending.
 
 ## Automated validation
 
-The current focused validation completed under Node `v22.23.0` and pnpm
-`10.34.3` after the Food Library eligibility correction:
+The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
+after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
-- Mobile Vitest: 64 files / 438 tests passed.
+- Mobile Vitest: 65 files / 439 tests passed.
 - Mobile Jest: 68 suites / 204 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
@@ -65,6 +65,9 @@ The current focused validation completed under Node `v22.23.0` and pnpm
 - Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
   focused test was observed failing before the helper existed and passing after
   the correction.
+- A fresh Xcode-beta Debug Simulator build/install completed successfully on
+  the dedicated QA iPhone 17 Simulator. The app was exercised through LAN
+  Metro with QA A authenticated.
 - Root `format:check` still reports only the known 26 protected/local files;
   none was edited.
 
