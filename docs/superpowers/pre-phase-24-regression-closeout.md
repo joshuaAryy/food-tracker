@@ -204,8 +204,10 @@ Detailed reproduction and evidence remain in
 2. `AI-MULTI-001`, `MIX-UI-001`, and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
    disposition before phase completion.
-3. QA C credentials are now verified, but deletion remains a destructive UI
-   gate. Re-verify the QA C email and expected UID immediately before delete.
+3. QA C credentials are now verified, and the real Simulator is staged at the
+   final deletion confirmation with `DELETE` entered. The QA C email and UID
+   were re-verified immediately beforehand; the final destructive tap remains
+   pending explicit user confirmation and no deletion has occurred.
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a successful Railway deployment and
    served-provenance check before current-HEAD staging UAT. The latest upload
