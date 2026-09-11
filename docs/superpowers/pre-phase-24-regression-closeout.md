@@ -33,16 +33,18 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 29
-- `PASS-SIMULATOR`: 21
+- `PASS-SIMULATOR`: 22
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `OPEN-DEFECT`: 1
+- `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 1
 - `BLOCKED`: 3
 
-The open defects are the multi-food AI component-completeness finding
-`AI-MULTI-001` and the mixed-meal preview handoff finding `MIX-UI-001`. The
-three blocked scenarios are QA C deletion, QA C isolation deletion, and
+The remaining open investigation is the mixed-meal preview handoff finding
+`MIX-UI-001`. The earlier multi-food AI component-completeness finding
+`AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
+verification; it remains a named regression scenario rather than an open
+defect. The three blocked scenarios are QA C deletion, QA C isolation deletion, and
 physical-device acceptance. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
 
@@ -175,6 +177,12 @@ scrolling the editor. A fresh trusted Apple selection then exposed a valid
 the same authenticated staging preview endpoint returned 200/61 kcal. Valid
 preview, retry, rapid-confirm, and persisted atomicity remain pending under
 `MIX-UI-001`.
+The resumed QA A AI text pass entered `2 eggs, toast, banana`, observed the
+three-item review after scrolling the complete review container, and captured
+an authenticated response boundary containing `eggs`, `toast`, and `banana`.
+A second response-boundary call for `chicken rice and peas` returned all three
+named components. The initial apparent omission was a partial-viewport
+observation and was closed as not reproduced; no AI meal was saved.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
@@ -201,9 +209,10 @@ Detailed reproduction and evidence remain in
    mixed-meal and broader launcher/deep-link/back/cancel family; native password
    prompts must be dismissed without saving credentials before logging flows
    continue.
-2. `AI-MULTI-001`, `MIX-UI-001`, and `PHOTO-SERVING-001` require request/state-boundary
+2. `MIX-UI-001` and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
-   disposition before phase completion.
+   disposition before phase completion. `AI-MULTI-001` is closed as
+   not-reproduced after full-scroll and response-boundary evidence.
 3. QA C credentials are now verified, and the real Simulator is staged at the
    final deletion confirmation with `DELETE` entered. The QA C email and UID
    were re-verified immediately beforehand; the final destructive tap remains
