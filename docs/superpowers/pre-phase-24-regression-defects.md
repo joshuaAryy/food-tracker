@@ -38,7 +38,7 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 ## Latest automated validation checkpoint
 
 The fresh validation rerun completed under Node `v22.23.0` and pnpm
-`10.34.3` at branch tip `11fe6b2`. The commits since the last application
+`10.34.3` at branch tip `25b4978`. The commits since the last application
 checkpoint are documentation-only; no application or test source changed.
 
 - API: 116 test files / 1,401 tests passed.
@@ -51,7 +51,8 @@ checkpoint are documentation-only; no application or test source changed.
   `.agents` skill, 24 `.superpowers/sdd` records, and
   `apps/api/food_search_diagnostic.mjs`; all changed files pass targeted
   Prettier checks and none of those files was edited.
-- Current-HEAD Railway staging deployment and identity/device acceptance remain
+- Current-HEAD Railway staging upload `b4b203be` was recorded as `SKIPPED`
+  because no watched runtime files changed; identity/device acceptance remain
   external gates and are not inferred from these automated results.
 
 ## Deferred visual-only findings
