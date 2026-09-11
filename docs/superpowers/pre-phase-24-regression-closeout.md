@@ -85,6 +85,8 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   logs, 106 weights, two recommendations, four saved views, and zero recipes;
   QA B remained empty for owned logs/recommendations/views/recipes while both
   accounts returned 24 nutrition-target records.
+- Additional cross-account probes using recognizable QA A resource IDs returned
+  `404` to QA B for a water log, weight log, recommendation, and saved view.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
