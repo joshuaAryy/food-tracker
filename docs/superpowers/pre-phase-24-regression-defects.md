@@ -38,7 +38,7 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 ## Latest automated validation checkpoint
 
 The fresh validation rerun completed under Node `v22.23.0` and pnpm
-`10.34.3` at branch tip `25b4978`. The commits since the last application
+`10.34.3` at branch tip `3dbf388`. The commits since the last application
 checkpoint are documentation-only; no application or test source changed.
 
 - API: 116 test files / 1,401 tests passed.
