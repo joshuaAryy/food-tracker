@@ -44,10 +44,17 @@ The open defect is the multi-food AI component-completeness finding
 deletion, and physical-device acceptance. QA A → QA B switching and the named
 real-UI `1 apple` recoverability journey are observed Simulator passes.
 
+`LIB-REUSE-001` was reproduced during the authenticated History sweep: a
+provider-backed Apple log exposed `Save to My Foods`, but the server correctly
+rejected that unoverridden snapshot with HTTP 422. The mobile eligibility
+predicate was corrected with a focused regression test; Metro hot reload and a
+fresh QA A Simulator observation now hide the impossible action. Full
+Saved/My Foods/Recent/Archived consumer coverage remains pending.
+
 ## Automated validation
 
-Fresh validation completed under Node `v22.23.0` and pnpm `10.34.3` before
-these documentation-only evidence updates:
+The current focused validation completed under Node `v22.23.0` and pnpm
+`10.34.3` after the Food Library eligibility correction:
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 64 files / 438 tests passed.
@@ -55,6 +62,9 @@ these documentation-only evidence updates:
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - `git diff --check` passed.
+- Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
+  focused test was observed failing before the helper existed and passing after
+  the correction.
 - Root `format:check` still reports only the known 26 protected/local files;
   none was edited.
 
