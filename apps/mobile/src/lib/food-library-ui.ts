@@ -1,4 +1,24 @@
-import type { FoodItem, TrackingMode } from '@food-tracker/shared';
+import type { FoodItem, FoodLog, TrackingMode } from '@food-tracker/shared';
+
+type FoodLogReuseCandidate = Pick<
+  FoodLog,
+  'recipeSnapshot' | 'mixedMealSnapshot' | 'servingSnapshot'
+>;
+
+export function canSaveFoodLogToMyFoods(food: FoodLogReuseCandidate): boolean {
+  const provenance = food.servingSnapshot?.provenance;
+  const requiresPersistedOverride =
+    provenance?.basisOrigin === 'food_item' &&
+    provenance.sourceType !== 'user_custom' &&
+    food.servingSnapshot?.nutritionOverride === null;
+
+  return (
+    food.recipeSnapshot === null &&
+    food.mixedMealSnapshot === null &&
+    food.servingSnapshot?.provenance.basisOrigin !== 'ai_estimate' &&
+    !requiresPersistedOverride
+  );
+}
 
 export type ServingDraftPrefill = {
   amount: string;
