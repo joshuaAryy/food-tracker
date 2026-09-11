@@ -32,20 +32,22 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 39
-- `PASS-SIMULATOR`: 14
+- `PASS-AUTOMATED`: 36
+- `PASS-SIMULATOR`: 15
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
+- `OPEN-DEFECT`: 1
 - `BLOCKED`: 3
 
-The three blocked scenarios are QA C deletion, QA C isolation deletion, and
-physical-device acceptance. QA A → QA B switching and the named real-UI
-`1 apple` recoverability journey are now observed Simulator passes.
+The open defect is the multi-food AI component-completeness finding
+`AI-MULTI-001`. The three blocked scenarios are QA C deletion, QA C isolation
+deletion, and physical-device acceptance. QA A → QA B switching and the named
+real-UI `1 apple` recoverability journey are observed Simulator passes.
 
 ## Automated validation
 
-Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
-10.34.3:
+Fresh validation completed under Node `v22.23.0` and pnpm `10.34.3` before
+these documentation-only evidence updates:
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 64 files / 438 tests passed.
@@ -96,6 +98,10 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   UI interaction authenticated QA A, displayed the Complex Progress home, and
   a terminate/relaunch returned to the authenticated home without a loop. The
   system Save Password prompt was dismissed without saving credentials.
+- The approved Xcode beta at
+  `/Users/teiko/Downloads/Xcode-beta.app/Contents/Developer` produced a fresh
+  `** BUILD SUCCEEDED **`; the exact app bundle was installed and launched on
+  QA A simulator `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F`.
 - The QA A water quick-add journey opened the Complex Log Water sheet, exposed
   the 250 mL control and water-only semantics, persisted a 250 mL row, and
   returned an editable History row; a read-only API check confirmed one local-day
@@ -110,6 +116,10 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   editing, logged a valid 1 g result, showed the History row, and reopened it
   with Save/Log again/Delete recovery actions; no trapped incomplete-unit state
   was observed.
+- Additional QA A text-AI corpus interaction reached the real review UI for
+  `chicken rice and peas` and `2 eggs, toast, banana`, but the visible rows did
+  not include every clearly named component. This is tracked as open
+  `AI-MULTI-001`; no AI result was saved while investigating it.
 - The QA A normal search journey searched `apple`, showed multiple ranked
   canonical/provider candidates, selected Apple raw, edited its serving basis,
   saved it, and observed the resulting History entry. The hydration journey
@@ -120,6 +130,15 @@ Fresh validation at branch tip `3dbf388` completed under Node 22 and pnpm
   diagnostic-only on the Progress toggle; the focused red/green regression and
   a real QA A Complex → Simple → Complex Simulator re-run now show mode
   persistence without a Progress error state.
+- The QA A photo journey reached real Simulator review, excluded the
+  recognition-only `ice plant flower` row, added missed trusted `Apple, raw`
+  through search, edited its serving, reached atomic confirmation with a
+  recalculated `122 kcal preview`, and backed out without saving. The
+  intermediate review-preview discrepancy is tracked as `PHOTO-SERVING-001`;
+  physical camera/library/HEIC behavior remains a device gate.
+- The QA A Recommendations tab showed three active recommendations, dismissal
+  reduced the count to two, and terminate/relaunch preserved that state. Water
+  History editing was also observed for `333 mL → 500 mL`.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
@@ -129,10 +148,13 @@ Detailed reproduction and evidence remain in
 1. Remaining authenticated Simulator rows require their own observed journeys;
    native password prompts must be dismissed without saving credentials before
    logging flows continue.
-2. QA C credentials are now verified, but deletion remains a destructive UI
+2. `AI-MULTI-001` and `PHOTO-SERVING-001` require request/state-boundary
+   root-cause investigation and either minimal fixes or evidence-backed
+   disposition before phase completion.
+3. QA C credentials are now verified, but deletion remains a destructive UI
    gate. Re-verify the QA C email and expected UID immediately before delete.
-3. Physical-iPhone acceptance remains a user-owned final gate.
-4. The runtime-fix candidate still requires a successful Railway deployment and
+4. Physical-iPhone acceptance remains a user-owned final gate.
+5. The runtime-fix candidate still requires a successful Railway deployment and
    served-provenance check before current-HEAD staging UAT. The latest upload
    attempt failed before deployment during the current free-tier window.
 
