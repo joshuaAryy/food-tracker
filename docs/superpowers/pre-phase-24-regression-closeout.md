@@ -170,6 +170,11 @@ Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
 pinned through More actions, and remained pinned after app relaunch. Compare
 and custom-name editing remain unverified.
+The Saved Views route initially had no reachable back action: its Explore
+trends label was plain text while root headers were hidden. A focused red test
+and minimal Pressable/`router.back()` correction were added; Metro-reloaded QA
+A Simulator exposed `Back to Insights`, and tapping it returned to Explore
+trends. The broader navigation family remains in progress.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
@@ -177,9 +182,9 @@ Detailed reproduction and evidence remain in
 ## Unresolved execution gates
 
 1. Remaining authenticated Simulator rows require completion of the recipe
-   immutability, valid mixed-meal, and analytics saved-view journeys; native
-   password prompts must be dismissed without saving credentials before logging
-   flows continue.
+   immutability, valid mixed-meal, analytics compare/custom-name journeys, and
+   the broader launcher/deep-link/back/cancel family; native password prompts
+   must be dismissed without saving credentials before logging flows continue.
 2. `AI-MULTI-001` and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
    disposition before phase completion.

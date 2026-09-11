@@ -4,7 +4,7 @@ import { act, render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
 import SavedViewsScreen from '../saved-views';
 
-const mockRouter = { push: jest.fn() };
+const mockRouter = { push: jest.fn(), back: jest.fn() };
 let mockFocusInvoked = false;
 
 jest.mock('expo-constants', () => ({
@@ -42,6 +42,7 @@ describe('Saved Views screen', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     mockRouter.push.mockReset();
+    mockRouter.back.mockReset();
     mockFocusInvoked = false;
     jest.spyOn(api.analytics, 'preferences').mockResolvedValue({
       preferredSimpleMetric: 'calories',
@@ -150,6 +151,16 @@ describe('Saved Views screen', () => {
         }),
       },
     });
+  });
+
+  it('returns to Explore trends from the saved views route', async () => {
+    const screen = await render(<SavedViewsScreen />);
+
+    await userEvent.setup().press(
+      await screen.findByRole('button', { name: 'Back to Insights' }),
+    );
+
+    expect(mockRouter.back).toHaveBeenCalledTimes(1);
   });
 
   it('confirms destructive deletion with feedback after the request succeeds', async () => {
