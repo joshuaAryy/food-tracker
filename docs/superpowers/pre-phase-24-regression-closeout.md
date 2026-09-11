@@ -168,8 +168,14 @@ retry, rapid-confirm, and persisted atomicity remain pending.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
-pinned through More actions, and remained pinned after app relaunch. Compare
-and custom-name editing remain unverified.
+pinned through More actions, and remained pinned after app relaunch. QA A then
+renamed the pinned view to `Calories QA`, relaunched, changed its comparison
+configuration, and confirmed the modified Save View screen plus the post-update
+Saved Views list retained `Calories QA`. The Compare route initially omitted
+the selected comparison because Calories used a special renderer; the minimal
+shared comparison-renderer correction was reloaded in the Simulator, after
+which the route exposed `Calories + Sugar`, dual-axis copy, both legends, and a
+`Calories and Sugar comparison` accessibility target.
 The Saved Views route initially had no reachable back action: its Explore
 trends label was plain text while root headers were hidden. A focused red test
 and minimal Pressable/`router.back()` correction were added; Metro-reloaded QA
@@ -182,9 +188,9 @@ Detailed reproduction and evidence remain in
 ## Unresolved execution gates
 
 1. Remaining authenticated Simulator rows require completion of the recipe
-   immutability, valid mixed-meal, analytics compare/custom-name journeys, and
-   the broader launcher/deep-link/back/cancel family; native password prompts
-   must be dismissed without saving credentials before logging flows continue.
+   immutability, valid mixed-meal, and broader launcher/deep-link/back/cancel
+   family; native password prompts must be dismissed without saving credentials
+   before logging flows continue.
 2. `AI-MULTI-001` and `PHOTO-SERVING-001` require request/state-boundary
    root-cause investigation and either minimal fixes or evidence-backed
    disposition before phase completion.
