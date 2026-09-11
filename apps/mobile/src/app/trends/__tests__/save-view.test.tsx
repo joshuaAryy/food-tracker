@@ -1,4 +1,4 @@
-import { render, userEvent } from '../../../test/render';
+import { render, userEvent, waitFor } from '../../../test/render';
 import { api } from '../../../lib/api-client';
 import SaveViewScreen from '../save-view';
 
@@ -78,5 +78,63 @@ describe('Save view screen', () => {
     });
     expect(create).not.toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith('/trends/saved-views');
+  });
+
+  it('preserves a custom saved-view name when updating its configuration', async () => {
+    jest.spyOn(api.analytics, 'savedViews').mockResolvedValue([
+      {
+        id: 'saved-view-1',
+        name: 'Custom Protein View',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:01:00.000Z',
+        unavailableMetrics: [],
+      },
+    ]);
+    const update = jest
+      .spyOn(api.analytics, 'updateSavedView')
+      .mockResolvedValue({
+        id: 'saved-view-1',
+        name: 'Custom Protein View',
+        primaryMetric: 'protein',
+        comparisonMetric: null,
+        periodDays: 30,
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+        sortOrder: 0,
+        createdAt: '2026-08-09T00:00:00.000Z',
+        updatedAt: '2026-08-09T00:01:00.000Z',
+        unavailableMetrics: [],
+      });
+    const screen = await render(<SaveViewScreen />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Custom Protein View').length).toBeGreaterThan(
+        0,
+      ),
+    );
+    await userEvent
+      .setup()
+      .press(screen.getByRole('button', { name: 'Update existing view' }));
+
+    expect(update).toHaveBeenCalledWith('saved-view-1', {
+      name: 'Custom Protein View',
+      primaryMetric: 'protein',
+      comparisonMetric: null,
+      periodDays: 30,
+      aggregation: 'automatic',
+      visualization: 'automatic',
+      showReference: true,
+      coverageFilter: 'all_logged_days',
+    });
   });
 });

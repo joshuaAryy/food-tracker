@@ -578,7 +578,19 @@ export default function TrendDetailScreen() {
         </AppText>
       ) : null}
       {trend !== null && trendResource.status !== 'loading' ? (
-        metric === 'calories' ? (
+        comparisonChart !== null ? (
+          <ComparisonTrendReport
+            primaryMetric={metric}
+            comparisonMetric={comparisonChart.metric}
+            strategy={comparisonChart.strategy}
+            primary={dailyPoints}
+            comparison={comparisonChart.comparisonPoints}
+            primaryAxis={comparisonChart.primaryAxis}
+            comparisonAxis={comparisonChart.comparisonAxis}
+            primaryAverage={trend.summary.average}
+            width={width}
+          />
+        ) : metric === 'calories' ? (
           <CaloriesReport
             trend={trend}
             width={width}
@@ -732,18 +744,6 @@ export default function TrendDetailScreen() {
                   gaps rather than zero.
                 </AppText>
               </View>
-            ) : comparisonChart !== null ? (
-              <ComparisonTrendReport
-                primaryMetric={metric}
-                comparisonMetric={comparisonChart.metric}
-                strategy={comparisonChart.strategy}
-                primary={dailyPoints}
-                comparison={comparisonChart.comparisonPoints}
-                primaryAxis={comparisonChart.primaryAxis}
-                comparisonAxis={comparisonChart.comparisonAxis}
-                primaryAverage={trend.summary.average}
-                width={width}
-              />
             ) : trend.forecast?.kind === 'available' ? (
               <ForecastChart
                 historical={dailyPoints.map((point) => point.value)}

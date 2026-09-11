@@ -87,6 +87,24 @@ export default function SaveViewScreen() {
     };
   }, [savedViewId, trend]);
 
+  useEffect(() => {
+    if (savedViewId === undefined) return;
+    let active = true;
+    void api.analytics
+      .savedViews()
+      .then((savedViews) => {
+        const savedView = savedViews.find((view) => view.id === savedViewId);
+        if (active && savedView !== undefined) setName(savedView.name);
+      })
+      .catch(() => {
+        // Keep the generated name when the saved-view lookup is unavailable.
+        // The existing preview/error state remains the recovery surface.
+      });
+    return () => {
+      active = false;
+    };
+  }, [savedViewId]);
+
   if (trend === null) {
     return (
       <AppScreen>

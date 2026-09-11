@@ -105,6 +105,39 @@ describe('Trend detail screen', () => {
     );
   });
 
+  it('renders the comparison report for a Calories comparison route', async () => {
+    mockRouteParams = {
+      metric: 'calories',
+      query: JSON.stringify({
+        primaryMetric: 'calories',
+        comparisonMetric: 'weight',
+        period: { kind: 'relative', days: 30 },
+        aggregation: 'automatic',
+        visualization: 'automatic',
+        showReference: true,
+        coverageFilter: 'all_logged_days',
+      }),
+    };
+    jest.spyOn(api.analytics, 'trend').mockResolvedValue({
+      ...trendResponse,
+      trackingMode: 'complex',
+      comparison: {
+        strategy: 'dual_axis',
+        metric: 'weight',
+        points: trendResponse.points,
+        reference: { kind: 'none', unit: 'lb', reason: 'not_configured' },
+        sharedAxisDomain: null,
+        primaryAxisDomain: { minimum: 0, maximum: 3000 },
+        comparisonAxisDomain: { minimum: 150, maximum: 200 },
+      },
+    } as never);
+
+    const screen = await render(<TrendDetailScreen />);
+
+    expect(await screen.findByTestId('comparison-trend-report')).toBeTruthy();
+    expect(screen.queryByTestId('calories-report')).toBeNull();
+  });
+
   it('uses the protein chart family for generic nutrient bar trends', async () => {
     mockRouteParams = { metric: 'protein' };
     jest.spyOn(api.analytics, 'trend').mockResolvedValue({
