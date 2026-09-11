@@ -10,7 +10,8 @@ API evidence into Simulator or physical-device acceptance.
 
 - Base/main merge baseline: `619f9eac17109f536eb12defb44f0589b29024fa`.
 - Active branch: `pre-phase-24-product-regression-debugging`.
-- Current branch tip: `97d7e7e` (this closeout checkpoint).
+- Current branch includes this closeout checkpoint; verify the exact tip with
+  `git rev-parse HEAD` during final closeout.
 - Node: `v22.23.0`; pnpm: `10.34.3`.
 - Protected and pre-existing local state remains untouched, including the
   modified Phase 17.5 ledger and known untracked/protected paths.
