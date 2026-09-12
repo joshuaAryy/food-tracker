@@ -31,6 +31,7 @@ import {
   aiServingBasis,
   availableAiServingChoices,
   changeAiCandidateServing,
+  changeAiServingChoice,
   initialAiServingState,
   type AiServingCandidate,
   type AiServingState,
@@ -38,7 +39,6 @@ import {
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import {
   backendServingMessage,
-  convertServingAmountForUnitChange,
   nutritionBasisLabel,
 } from '@/lib/serving-preview';
 import { colors } from '@/theme/tokens';
@@ -1019,27 +1019,22 @@ export default function MealDescribeScreen() {
                                 clearRowError(item.id);
                               }}
                               onSelectChoice={(choice) => {
-                                const converted =
-                                  convertServingAmountForUnitChange({
-                                    amount: Number(servingState.amount),
-                                    fromUnit: servingState.unit,
-                                    toUnit: choice.unit,
-                                  });
-                                if (converted.kind === 'converted') {
+                                const nextState = changeAiServingChoice(
+                                  servingState,
+                                  choice,
+                                );
+                                if (nextState.error === undefined) {
                                   clearRowError(item.id);
                                   setServingStates((current) => ({
                                     ...current,
                                     [item.id]: {
-                                      ...servingState,
-                                      amount: converted.displayText,
-                                      unit: choice.unit,
-                                      servingOptionId: choice.servingOptionId,
+                                      ...nextState,
                                     },
                                   }));
-                                } else if (converted.kind === 'too_small') {
+                                } else {
                                   setRowErrors((current) => ({
                                     ...current,
-                                    [item.id]: converted.reason,
+                                    [item.id]: nextState.error!,
                                   }));
                                 }
                               }}
