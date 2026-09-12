@@ -470,6 +470,16 @@ route retrieves candidates for every parsed item, invokes the provider
 evaluator when available, validates one decision per parsed item, and applies
 trusted/review/fallback disposition before response persistence; the mobile
 review renders every non-removed response row in a vertical scroll container.
+The staging-targeted Fresh QA Simulator then exercised the same count-shaped
+example by tapping `2 eggs, toast, banana`. Review preserved the parsed egg
+amount as `2`, but the selected prepared-egg candidate had no trusted
+whole-item/count relationship, so the row correctly remained in `Check this
+serving` instead of silently interpreting the value as eggs or grams. Choosing
+`Use g` explicitly produced a `2.0 g / 5 kcal` provisional preview; replacing
+the candidate reset its amount to the candidate's `110 g` basis and remained
+editable. No log was saved. This adds real Simulator count/missing-unit
+recovery evidence while leaving authoritative count conversion covered by the
+existing automated serving tests.
 The Gemini parse prompt does not yet explicitly require preservation/reporting
 of every clearly named component, so real-provider completeness remains a
 named final-sweep risk. This is an inspection finding, not proof of a current
