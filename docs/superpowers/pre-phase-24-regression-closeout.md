@@ -70,8 +70,9 @@ The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
 after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
-- Mobile Vitest: 65 files / 439 tests passed before the resumed nutrient-state
-  correction; the focused post-fix helper suite is 2/2 passing.
+- Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
+  run is 66 files / 441 tests passed, including the 2-test nutrient-state
+  helper suite.
 - Mobile Jest: 68 suites / 207 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
@@ -83,9 +84,11 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
   focused test was observed failing before the helper existed and passing after
   the correction.
-- The resumed normalized-nutrient correction passes its focused Vitest suite
-  (2 tests), mobile typecheck, and mobile lint. Its real Simulator reopen
-  journey remains an open investigation pending persisted-snapshot evidence.
+- The resumed normalized-nutrient correction passes its focused Vitest suite,
+  the full 66-file Vitest run, mobile typecheck, and mobile lint. Its real
+  Simulator reopen journey remains an open investigation pending
+  persisted-snapshot evidence; the current Computer Use input path could not
+  prove a mutation was committed.
 - A fresh Xcode-beta Debug Simulator build/install completed successfully on
   the dedicated QA iPhone 17 Simulator. The app was exercised through LAN
   Metro with QA A authenticated.
