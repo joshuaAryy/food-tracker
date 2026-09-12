@@ -572,6 +572,7 @@ export default function ProfileScreen() {
     control,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<ProfileForm>({
@@ -633,6 +634,7 @@ export default function ProfileScreen() {
 
     try {
       const targetRateLbPerWeek =
+        values.goalType === 'maintain' ||
         values.targetRateLbPerWeek.trim() === ''
           ? null
           : Number(values.targetRateLbPerWeek);
@@ -982,7 +984,12 @@ export default function ProfileScreen() {
                 <ChoiceRow
                   values={GOAL_TYPES}
                   value={field.value}
-                  onChange={field.onChange}
+                  onChange={(value) => {
+                    field.onChange(value);
+                    if (value === 'maintain') {
+                      setValue('targetRateLbPerWeek', '');
+                    }
+                  }}
                 />
               </View>
             )}
