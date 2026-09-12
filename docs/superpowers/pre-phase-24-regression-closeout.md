@@ -128,6 +128,18 @@ selected` remained available for the resolved rows only, and no meal was saved.
 The earlier apparent omission was a viewport-observation error; the direct
 authenticated staging response and the complete UI review agree.
 
+The resumed QA A Debug/Metro `1 apple` recheck also remained recoverable. The
+authenticated parse response preserved quantity `1` and returned a bounded
+Apple candidate with a trusted medium-item relationship (200 g); the real
+Simulator Review screen exposed editable amount, unit, and candidate controls
+and showed the corresponding 122 kcal provisional preview. Changing the
+amount to `1` recalculated the preview to 1 kcal / 1 g, and cancelling returned
+to the Log food form without saving. The serving suggestion itself was marked
+needs-review for the missing unit, so no high-confidence nutrition inference
+is claimed; existing serving-state tests cover the candidate-specific
+whole-item conversion. No new defect or code change was inferred from this
+recheck.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
