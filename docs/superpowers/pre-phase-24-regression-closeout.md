@@ -395,6 +395,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   diagnostic-only on the Progress toggle; the focused red/green regression and
   a real QA A Complex → Simple → Complex Simulator re-run now show mode
   persistence without a Progress error state.
+- A saved Profile Simple selection was also re-observed on QA A: after saving,
+  navigation to Progress and History retained Simple mode and Friday History
+  still showed 8 entries and 172 kcal. Progress then toggled back to Complex;
+  the launcher confirmation was dismissed and the final Complex state remained
+  usable.
 - The QA A photo journey reached real Simulator review, excluded the
   recognition-only `ice plant flower` row, added missed trusted `Apple, raw`
   through search, edited its serving, reached atomic confirmation with a
