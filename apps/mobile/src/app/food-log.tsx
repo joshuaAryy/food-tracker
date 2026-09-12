@@ -56,6 +56,7 @@ import {
 } from '@/lib/serving-preview';
 import { defaultServingDraft } from '@/lib/food-library-ui';
 import {
+  editMainNutrientValuesAfterServingPreview,
   editNutrientValuesAfterServingPreview,
   editNutrientValuesFromSnapshot,
 } from '@/lib/food-log-nutrient-state';
@@ -734,15 +735,27 @@ export default function FoodLogScreen() {
     }
 
     const current = getValues();
+    const preserveSnapshotOverride =
+      snapshotServingLog !== null &&
+      snapshotServingLog.servingSnapshot !== null &&
+      snapshotServingLog.servingSnapshot.nutritionOverride !== null &&
+      !clearNutritionOverride;
+    const mainNutritionValues = editMainNutrientValuesAfterServingPreview(
+      {
+        calories: current.calories,
+        protein: current.protein,
+        carbs: current.carbs,
+        fat: current.fat,
+        fiber: current.fiber,
+        sugar: current.sugar,
+        sodium: current.sodium,
+      },
+      servingPreview.nutrition,
+      preserveSnapshotOverride,
+    );
     reset({
       ...current,
-      calories: optionalNumber(servingPreview.nutrition.calories),
-      protein: optionalNumber(servingPreview.nutrition.protein),
-      carbs: optionalNumber(servingPreview.nutrition.carbs),
-      fat: optionalNumber(servingPreview.nutrition.fat),
-      fiber: optionalNumber(servingPreview.nutrition.fiber),
-      sugar: optionalNumber(servingPreview.nutrition.sugar),
-      sodium: optionalNumber(servingPreview.nutrition.sodium),
+      ...mainNutritionValues,
       servingQuantity: String(servingPreview.requestedServing?.quantity ?? ''),
       servingUnit: servingPreview.requestedServing?.unit ?? '',
     });
@@ -758,7 +771,15 @@ export default function FoodLogScreen() {
         : previewNutrientValues(servingPreview.nutrition),
     );
     setComplexNutrientTouched({});
-  }, [getValues, nutritionEdited, reset, servingBasis, servingPreview]);
+  }, [
+    clearNutritionOverride,
+    getValues,
+    nutritionEdited,
+    reset,
+    servingBasis,
+    servingPreview,
+    snapshotServingLog,
+  ]);
 
   const nutritionOverrideFromValues = (
     values: FoodForm,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  editMainNutrientValuesAfterServingPreview,
   editNutrientValuesAfterServingPreview,
   editNutrientValuesFromSnapshot,
 } from './food-log-nutrient-state';
@@ -69,5 +70,49 @@ describe('FoodLog normalized nutrient edit state', () => {
         false,
       ).addedSugar,
     ).toBe('0');
+  });
+
+  it('keeps persisted top-level overrides when a serving preview arrives', () => {
+    const currentValues = {
+      calories: '172',
+      protein: '1.7',
+      carbs: '38.6',
+      fat: '1.4',
+      fiber: '',
+      sugar: '',
+      sodium: '',
+    };
+    const previewNutrition = {
+      calories: 10,
+      protein: 1,
+      carbs: 2,
+      fat: 0.5,
+      fiber: null,
+      sugar: null,
+      sodium: null,
+    };
+
+    expect(
+      editMainNutrientValuesAfterServingPreview(
+        currentValues,
+        previewNutrition,
+        true,
+      ),
+    ).toEqual(currentValues);
+    expect(
+      editMainNutrientValuesAfterServingPreview(
+        currentValues,
+        previewNutrition,
+        false,
+      ),
+    ).toEqual({
+      calories: '10',
+      protein: '1',
+      carbs: '2',
+      fat: '0.5',
+      fiber: '',
+      sugar: '',
+      sodium: '',
+    });
   });
 });

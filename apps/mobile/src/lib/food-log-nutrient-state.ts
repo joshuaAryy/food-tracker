@@ -10,6 +10,26 @@ type NutrientValue = {
 
 type NutrientMap = Partial<Record<NormalizedNutrientKey, NutrientValue>>;
 
+export type MainNutritionValues = {
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+  fiber: string;
+  sugar: string;
+  sodium: string;
+};
+
+export type MainNutrition = {
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  fiber: number | null;
+  sugar: number | null;
+  sodium: number | null;
+};
+
 type SnapshotNutrientState = {
   basisNutrition: {
     nutrients: NutrientMap;
@@ -31,6 +51,32 @@ function editableValuesFromNutrients(
       return [key, nutrient === undefined ? '' : String(nutrient.amount)];
     }),
   ) as Record<NormalizedNutrientKey, string>;
+}
+
+function editableValuesFromMainNutrition(
+  nutrition: MainNutrition,
+): MainNutritionValues {
+  return Object.fromEntries(
+    Object.entries(nutrition).map(([key, value]) => [
+      key,
+      value === null ? '' : String(value),
+    ]),
+  ) as MainNutritionValues;
+}
+
+/**
+ * Keep persisted top-level nutrition overrides visible while a serving preview
+ * recalculates from the immutable basis. Once an override is explicitly
+ * cleared, the preview becomes the edit source again.
+ */
+export function editMainNutrientValuesAfterServingPreview(
+  currentValues: MainNutritionValues,
+  previewNutrition: MainNutrition,
+  preserveSnapshotOverride: boolean,
+): MainNutritionValues {
+  return preserveSnapshotOverride
+    ? currentValues
+    : editableValuesFromMainNutrition(previewNutrition);
 }
 
 /**
