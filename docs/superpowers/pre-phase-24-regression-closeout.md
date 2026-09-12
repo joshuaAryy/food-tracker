@@ -326,10 +326,11 @@ Detailed reproduction and evidence remain in
    not-reproduced after controlled photo serving, explicit-name/full-scroll,
    and response-boundary evidence. Keep the named photo serving scenario in
    the final critical re-sweep in case it recurs.
-3. QA C credentials are now verified, and the real Simulator is staged at the
-   final deletion confirmation with `DELETE` entered. The QA C email and UID
-   were re-verified immediately beforehand; the final destructive tap remains
-   pending explicit user confirmation and no deletion has occurred.
+3. QA C credentials are verified and a fresh real-Simulator sign-in displayed
+   the independently recognizable `testacct4659` profile. The lower account
+   controls currently mis-target the logging menu under the iOS 27 Simulator
+   harness, so the deletion form/final destructive action was not attempted;
+   QA C remains intact and A/B remain untouched.
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. Deployment
@@ -349,8 +350,8 @@ deferred; only verified unusability is fixed in this phase.
 
 The host-disk and QA-identity blockers are resolved. Resume the remaining
 authenticated Simulator rows using the real UI and backend persistence checks;
-QA C is prepared for destructive deletion but the final delete action still
-requires action-time confirmation. Then perform the full critical-journey
+resolve the lower-account-control targeting issue before performing the
+authorized QA C deletion lifecycle. Then perform the full critical-journey
 re-sweep, targeted physical-iPhone pass, current runtime-changing staging
 cold-start validation, final automated checks, and closeout review. Do not mark
 this document complete until the matrix has no unresolved P0/P1 or meaningful
