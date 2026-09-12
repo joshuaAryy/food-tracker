@@ -19,7 +19,7 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
-mobile Vitest (66 files / 442 tests), mobile Jest (69 suites / 209 tests),
+mobile Vitest (66 files / 443 tests), mobile Jest (69 suites / 209 tests),
 workspace typecheck, workspace lint, workspace build, Prisma generate, and
 Prisma validate. The API Vitest suite still stops in global setup before
 executing tests because the dedicated `food_tracker_test` database returns
@@ -28,8 +28,8 @@ database was used. Root `format:check` still reports the pre-existing
 protected/untracked documentation set plus tracked profile-goal-pace and
 saved-views test formatting warnings; no unrelated formatting was changed.
 
-A subsequent mobile-only rerun on the same unchanged source checkpoint again
-passed all 66 Vitest files / 442 tests and all 69 Jest suites / 209 tests.
+A subsequent mobile-only rerun after the snapshot-macro correction passed all
+66 Vitest files / 443 tests and all 69 Jest suites / 209 tests.
 
 ## Product-contract authority
 
@@ -72,6 +72,19 @@ nutrient and `nutritionOverride` value as `2`. Source tracing identified the
 serving-preview effect clobbering the hydrated snapshot override; the minimal
 state helper/effect correction preserves it while retaining preview behavior
 for non-overridden entries.
+
+`SNAPSHOT-MACRO-001` was then reproduced at the same History edit boundary:
+the persisted QA A `QA Archive Probe` macros (172 kcal / 1.7 g protein /
+38.6 g carbs / 1.4 g fat) were shown alongside a 10 kcal / 1.0 g protein
+serving preview, while source tracing showed the preview effect could replace
+those top-level values before a later normalized edit submitted an override.
+The focused helper regression was made deliberately red (preview values
+replaced the persisted macros), restored, and passed; commit `ce09db2`
+preserves snapshot macros unless the user explicitly clears the adjustment.
+The updated Simulator bundle observed the persisted macros and adjustment
+recovery controls, but iOS 27 text-entry automation left the normalized field
+unchanged, so save-after-edit persistence remains a final-sweep follow-up
+rather than an inferred Simulator pass.
 
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
@@ -120,7 +133,7 @@ after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
-  run is 66 files / 442 tests passed, including the 3-test nutrient-state
+  run is 66 files / 443 tests passed, including the 4-test nutrient-state
   helper suite.
 - Mobile Jest: 69 suites / 209 tests passed, including the Profile Goal Pace
   and account-deletion reauthentication regressions.
@@ -135,7 +148,7 @@ after the Food Library eligibility correction and Simulator rebuild:
   focused test was observed failing before the helper existed and passing after
   the correction.
 - The resumed normalized-nutrient correction passes its focused Vitest suite,
-  the full 66-file Vitest run (442 tests), mobile Jest (68 suites / 207 tests),
+  the full 66-file Vitest run (443 tests), mobile Jest (69 suites / 209 tests),
   mobile typecheck, and mobile lint. Its real Simulator edit → save → reopen
   journey and authenticated persisted-snapshot readback now agree on
   `Added Sugar = 2 g`.
