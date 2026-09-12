@@ -68,6 +68,10 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Mobile Jest: 68 suites / 207 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
+- A resumed full API-test attempt was made against the dedicated
+  `food_tracker_test` database with Pinecone credentials cleared; Prisma
+  migration setup still failed with `P1001` (database server unreachable), so
+  no fresh API test result is claimed from that attempt.
 - `git diff --check` passed.
 - Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
   focused test was observed failing before the helper existed and passing after
