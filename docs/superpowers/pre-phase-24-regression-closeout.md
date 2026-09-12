@@ -140,6 +140,15 @@ is claimed; existing serving-state tests cover the candidate-specific
 whole-item conversion. No new defect or code change was inferred from this
 recheck.
 
+The QA A Simulator also exercised the photo logger's camera path with the
+iOS-simulator black-camera surface. Capture produced an editable photo review
+where the recognition-only `black screen` row could be excluded or restored;
+`Add a missed food` opened trusted-food search, selecting Apple produced an
+editable 100 g row with mass/whole-item serving controls, and `Cancel photo
+log` returned without saving. This is Simulator evidence for review
+recoverability only; real camera, orientation/HEIC, permissions, and
+device-library behavior remain in the physical acceptance gate.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
