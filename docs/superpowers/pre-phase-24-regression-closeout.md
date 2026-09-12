@@ -19,7 +19,7 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
-mobile Vitest (66 files / 443 tests), mobile Jest (69 suites / 209 tests),
+mobile Vitest (67 files / 444 tests), mobile Jest (69 suites / 210 tests),
 workspace typecheck, workspace lint, workspace build, Prisma generate, and
 Prisma validate. The API Vitest suite still stops in global setup before
 executing tests because the dedicated `food_tracker_test` database returns
@@ -31,7 +31,7 @@ protected/untracked documentation set plus tracked profile-goal-pace and
 saved-views test formatting warnings; no unrelated formatting was changed.
 
 A subsequent mobile-only rerun after the snapshot-macro correction passed all
-66 Vitest files / 443 tests and all 69 Jest suites / 209 tests.
+67 Vitest files / 444 tests and all 69 Jest suites / 210 tests.
 
 ## Product-contract authority
 
@@ -44,11 +44,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 59
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 60
 scenarios:
 
-- `PASS-AUTOMATED`: 13
-- `PASS-SIMULATOR`: 43
+- `PASS-AUTOMATED`: 12
+- `PASS-SIMULATOR`: 45
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
