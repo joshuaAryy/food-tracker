@@ -33,10 +33,10 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 13
-- `PASS-SIMULATOR`: 41
+- `PASS-SIMULATOR`: 42
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `OPEN-DEFECT`: 1 (`AI-PARTIAL-001`, pending root-cause correction)
+- `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
 - `BLOCKED`: 1
 
@@ -91,14 +91,14 @@ password field, `Verify identity`, successful permanent deletion, and signed-out
 routing. QA C was the only account deleted; QA A, QA B, and everyday data were
 not touched.
 
-`AI-PARTIAL-001` remains an open P1/P0-contract investigation. An initial QA A
-Simulator observation appeared to render only the first three editable rows for
-`chicken, rice, peas, mystery house sauce`, but a direct authenticated staging
-request for the identical description returned all four items, preserving the
-sauce as `unmatched` and non-loggable. The complete review still needs a fresh
-full-scroll observation before deciding whether this is a real mobile rendering
-defect or an incomplete viewport observation. No log was saved, and success is
-not inferred from the green backend suite.
+`AI-PARTIAL-001` was closed as not reproduced. A fresh QA A Simulator run entered
+`chicken, rice, peas, mystery house sauce` and scrolled the complete review:
+chicken, rice, and peas appeared as separate checked editable rows, while the
+sauce appeared as a separate unchecked `Needs food` row with remove/review
+controls and a displayed candidate that was not silently selected. `Log
+selected` remained available for the resolved rows only, and no meal was saved.
+The earlier apparent omission was a viewport-observation error; the direct
+authenticated staging response and the complete UI review agree.
 
 ## Automated validation
 
