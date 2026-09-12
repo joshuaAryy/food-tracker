@@ -128,10 +128,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   tree and submitted with explicit project/service/environment targeting, but
   Railway returned a request error before creating a deployment. A subsequent
   exact archive of candidate `17b85b0` created deployment `3bbfb81`, which
-  remained `INITIALIZING` without commit metadata or build logs during
-  observation. The served runtime therefore remains the previously verified
-  `f522fae3` candidate; no current-HEAD staging behavior is inferred from the
-  initializing deployment or the continuing `/health=200` response.
+  later failed during code-snapshot creation with Railway configuration error
+  `Failed to create code snapshot. Please review your last commit, or try
+  again.` No build logs or served-commit metadata were produced. The served
+  runtime therefore remains the previously verified `f522fae3` candidate; no
+  current-HEAD staging behavior is inferred from the failed deployment or the
+  continuing `/health=200` response.
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
@@ -306,9 +308,9 @@ Detailed reproduction and evidence remain in
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. Deployment
-   `3bbfb81` for exact candidate `17b85b0` is still `INITIALIZING`; inspect its
-   terminal status and source provenance before treating staging behavior as
-   evidence.
+   `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
+   creation; inspect any later validated deployment's terminal status and
+   source provenance before treating staging behavior as evidence.
 
 ## Intentional exclusions and deferrals
 
