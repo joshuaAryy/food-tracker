@@ -32,8 +32,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 22
-- `PASS-SIMULATOR`: 30
+- `PASS-AUTOMATED`: 19
+- `PASS-SIMULATOR`: 33
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -152,6 +152,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   saved it, and observed the resulting History entry. The hydration journey
   also covered Other Amount with a persisted 333 mL History row alongside the
   250 mL quick-add row.
+- The resumed QA A Simulator search variation returned a recoverable no-result
+  state for the typo `appls`, then ranked Apple candidates for plural `apples`
+  with raw/cooked/preparation variants. A trusted egg candidate was edited from
+  100 g to 2 g; the 5 kcal provisional preview matched the resulting History
+  entry after one save.
 - `MODE-ICON-001` was reproduced when native launcher-icon synchronization
   rejected after a successful mode save. The smallest correction made icon sync
   diagnostic-only on the Progress toggle; the focused red/green regression and
@@ -186,9 +191,10 @@ The resumed QA A pass also reached the Mixed meal editor, verified the
 incomplete meal warning, and exposed the trusted-ingredient picker after
 scrolling the editor. A fresh trusted Apple selection then exposed a valid
 `ready` 100 g ingredient row while the authoritative preview remained empty;
-the same authenticated staging preview endpoint returned 200/61 kcal. Valid
-preview, retry, rapid-confirm, and persisted atomicity remain pending under
-`MIX-UI-001`.
+the same authenticated staging preview endpoint returned 200/61 kcal. The
+earlier `MIX-UI-001` concern remains closed as not reproduced after the
+explicit meal-name and authoritative-preview rerun; any remaining mixed-meal
+coverage is part of the final critical re-sweep, not an open defect.
 The resumed QA A AI text pass entered `2 eggs, toast, banana`, observed the
 three-item review after scrolling the complete review container, and captured
 an authenticated response boundary containing `eggs`, `toast`, and `banana`.
@@ -198,6 +204,11 @@ observation and was closed as not reproduced; no AI meal was saved.
 The same AI review exposed matched trusted rows for eggs/banana and a
 needs-review toast row with editable serving and candidate controls, confirming
 the bounded trusted/review UI path without persisting a meal.
+The resumed Simulator AI variation entered `rice bowl with chicken`, surfaced a
+Rice cooked candidate in Review with an initially missing amount, and kept the
+screen recoverable: after entering 100 g it showed a 226 kcal provisional
+preview plus explicit no-trusted-cup-conversion guidance, with candidate and
+serving controls still available and no save performed.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
