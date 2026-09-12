@@ -54,11 +54,9 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 ## Latest automated validation checkpoint
 
 The latest committed-source validation rerun completed under Node `v22.23.0`
-and pnpm `10.34.3` after `ce09db2`. Mobile and workspace source checks are
-current; the API's last known green suite remains the earlier 116-file /
-1,401-test run, while a fresh attempt is blocked in Prisma setup by P1001.
-TCP port 5432 accepts connections, but read-only process inspection shows
-multiple `com.docker.backend` listeners and no responding PostgreSQL protocol.
+and pnpm `10.34.3` after `b077624`. Docker PostgreSQL was restarted
+non-destructively; the dedicated test database accepted the connection and
+the full API suite completed successfully.
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Jest: 70 suites / 211 tests passed.
@@ -66,9 +64,10 @@ multiple `com.docker.backend` listeners and no responding PostgreSQL protocol.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration status/deploy passed.
 - Changed-file Prettier checks and `git diff --check` passed.
-- Root `format:check` exits 1 on 26 pre-existing protected/local files only: one
-  `.agents` skill, 24 `.superpowers/sdd` records, and
-  `apps/api/food_search_diagnostic.mjs`; all changed files pass targeted
+- Root `format:check` exits 1 on 27 pre-existing protected/local files only:
+  one `.agents` skill, 24 `.superpowers/sdd` records,
+  `apps/api/food_search_diagnostic.mjs`, and the unchanged
+  `apps/mobile/src/app/trends/__tests__/saved-views.test.tsx`; all changed files pass targeted
   Prettier checks and none of those files was edited.
 - Current-HEAD Railway staging upload `b4b203be` was recorded as `SKIPPED`
   because no watched runtime files changed; identity/device acceptance remain

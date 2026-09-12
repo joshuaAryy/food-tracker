@@ -19,13 +19,10 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
-mobile Vitest (67 files / 444 tests), mobile Jest (70 suites / 211 tests),
-workspace typecheck, workspace lint, workspace build, Prisma generate, and
-Prisma validate. The API Vitest suite still stops in global setup before
-executing tests because the dedicated `food_tracker_test` database returns
-Prisma `P1001` despite TCP port 5432 accepting connections; read-only
-diagnostics show multiple `com.docker.backend` listeners rather than a
-responding PostgreSQL server. No development database was used. Root
+API Vitest (116 files / 1,401 tests), mobile Vitest (67 files / 444 tests),
+mobile Jest (70 suites / 211 tests), workspace typecheck, workspace lint,
+workspace build, Prisma generate/validate, and test-database migration
+deploy/status. No development database was used. Root
 `format:check` still reports the pre-existing
 protected/untracked documentation set plus the tracked saved-views test
 formatting warning; no unrelated formatting was changed.
@@ -209,9 +206,9 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - A resumed full API-test attempt was made against the dedicated
-  `food_tracker_test` database with Pinecone credentials cleared; Prisma
-  migration setup still failed with `P1001` (database server unreachable), so
-  no fresh API test result is claimed from that attempt.
+  `food_tracker_test` database with Pinecone credentials cleared; Docker
+  PostgreSQL was restarted non-destructively and the full API suite then
+  passed 116 files / 1,401 tests with no pending migrations.
 - `git diff --check` passed.
 - After `f658b30`, the workspace typecheck, workspace lint, and shared/API
   build completed successfully under Node `v22.23.0` and pnpm `10.34.3`.
