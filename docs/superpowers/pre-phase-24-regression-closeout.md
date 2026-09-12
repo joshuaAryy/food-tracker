@@ -375,6 +375,13 @@ and minimal Pressable/`router.back()` correction were added; Metro-reloaded QA
 A Simulator exposed `Back to Insights`, and tapping it returned to Explore
 trends. The broader navigation family remains in progress.
 
+The latest QA A Simulator photo pass reopened the real Photo logging sheet and
+observed its one-time-analysis, normalized-JPEG, max-edge, and 5 MiB contract
+copy. Choosing the Simulator library path did not provide a selectable image in
+this environment, so no review/save result is inferred; after stopping and
+relaunching, authenticated Progress returned normally. Real library/HEIC,
+camera permissions, and device photo review remain physical-gate checks.
+
 On 2026-09-12 the installed QA A Simulator bundle was relaunched after a
 terminate/launch cycle and returned directly to authenticated Progress. The
 Profile mode controls were exercised Simple → Complex with the same goal and
