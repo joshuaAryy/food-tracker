@@ -300,7 +300,10 @@ serving controls still available and no save performed.
 A supplemental QA A Simulator search for `milk` returned multiple distinct
 generic/preparation candidates (whole pasteurised, sheep whole, human mature,
 and chocolate 2%); provider/source labels were not exposed in that UI, so
-provider-attribution remains an automated/API concern. A direct `1 cup cooked
+provider-attribution remains an automated/API concern. The opaque `protein
+shake with milk` variant also reached Review foods as one editable high-protein
+candidate with serving controls and alternate candidates; no meal was saved.
+A direct `1 cup cooked
 rice` search selected a generic cooked-rice candidate with only g/kg/oz/lb
 controls and a per-100 g basis, with no cup conversion offered or silently
 applied. The real Scan barcode surface also opened with Ready to scan guidance
