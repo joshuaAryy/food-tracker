@@ -480,6 +480,12 @@ control, and bottom Add 250 mL action after scrolling; Close returned to
 Progress. These checks provide direct reachability/recovery evidence and do
 not replace the existing persistence rows.
 
+Finally, the QA A Debug/Metro app was explicitly terminated and relaunched
+from the current authenticated fixture. The launch settled on Complex Progress
+with the expected tabs, logging launcher, trend controls, and no sign-in or
+bootstrap error. This is a fresh session-persistence observation; it does not
+close the separate cross-account or cold-start gates.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
