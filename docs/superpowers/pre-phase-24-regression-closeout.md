@@ -33,7 +33,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 17
-- `PASS-SIMULATOR`: 35
+- `PASS-SIMULATOR`: 34
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -123,9 +123,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   runtime evidence.
 - The runtime-fix candidate `fdb7016` was archived from the exact committed
   tree and submitted with explicit project/service/environment targeting, but
-  Railway returned a request error before creating a deployment. The served
-  runtime therefore remains the previously verified `f522fae3` candidate; no
-  current-HEAD staging behavior is inferred.
+  Railway returned a request error before creating a deployment. A subsequent
+  exact archive of candidate `17b85b0` created deployment `3bbfb81`, which
+  remained `INITIALIZING` without commit metadata or build logs during
+  observation. The served runtime therefore remains the previously verified
+  `f522fae3` candidate; no current-HEAD staging behavior is inferred from the
+  initializing deployment or the continuing `/health=200` response.
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
@@ -298,9 +301,11 @@ Detailed reproduction and evidence remain in
    were re-verified immediately beforehand; the final destructive tap remains
    pending explicit user confirmation and no deletion has occurred.
 4. Physical-iPhone acceptance remains a user-owned final gate.
-5. The runtime-fix candidate still requires a successful Railway deployment and
-   served-provenance check before current-HEAD staging UAT. The latest upload
-   attempt failed before deployment during the current free-tier window.
+5. The runtime-fix candidate still requires a completed Railway deployment and
+   served-provenance check before current-HEAD staging UAT. Deployment
+   `3bbfb81` for exact candidate `17b85b0` is still `INITIALIZING`; inspect its
+   terminal status and source provenance before treating staging behavior as
+   evidence.
 
 ## Intentional exclusions and deferrals
 
