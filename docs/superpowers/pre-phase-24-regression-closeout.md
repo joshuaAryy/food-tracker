@@ -18,6 +18,16 @@ API evidence into Simulator or physical-device acceptance.
 - No PR was created, no merge was performed, and no production deployment or
   production data mutation occurred.
 
+Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
+mobile Vitest (66 files / 442 tests), mobile Jest (69 suites / 209 tests),
+workspace typecheck, workspace lint, workspace build, Prisma generate, and
+Prisma validate. The API Vitest suite still stops in global setup before
+executing tests because the dedicated `food_tracker_test` database returns
+Prisma `P1001` despite TCP port 5432 accepting connections; no development
+database was used. Root `format:check` still reports the pre-existing
+protected/untracked documentation set plus tracked profile-goal-pace and
+saved-views test formatting warnings; no unrelated formatting was changed.
+
 ## Product-contract authority
 
 The canonical contract is recorded in
