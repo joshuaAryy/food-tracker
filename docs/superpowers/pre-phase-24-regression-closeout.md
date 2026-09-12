@@ -32,16 +32,16 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 18
-- `PASS-SIMULATOR`: 34
+- `PASS-AUTOMATED`: 17
+- `PASS-SIMULATOR`: 35
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
-- `OPEN-INVESTIGATION`: 1
+- `OPEN-INVESTIGATION`: 0
 - `BLOCKED`: 3
 
-The remaining open investigation is the photo-review serving-preview finding
-`PHOTO-SERVING-001`. The earlier mixed-meal preview handoff finding
+The photo-review serving-preview finding `PHOTO-SERVING-001` was closed as not
+reproduced after a controlled real-photo rerun. The earlier mixed-meal preview handoff finding
 `MIX-UI-001` was resolved as not reproduced after explicit meal-name entry and
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
@@ -179,8 +179,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   recognition-only `ice plant flower` row, added missed trusted `Apple, raw`
   through search, edited its serving, reached atomic confirmation with a
   recalculated `122 kcal preview`, and backed out without saving. The
-  intermediate review-preview discrepancy is tracked as `PHOTO-SERVING-001`;
-  physical camera/library/HEIC behavior remains a device gate.
+  physical camera/library/HEIC behavior remains a device gate. A controlled
+  rerun replaced an unresolved row with trusted Apple, kept the 61 kcal preview
+  visible through a 100 g → 3.53 oz edit, and reached matching confirmation;
+  `PHOTO-SERVING-001` was closed as not reproduced.
 - The QA A Recommendations tab showed three active recommendations, dismissal
   reduced the count to two, and terminate/relaunch preserved that state. Water
   History editing was also observed for `333 mL → 500 mL`.
@@ -240,8 +242,8 @@ Delete food entry? confirmation and reopened Sunday to verify the entry was
 gone and the day count dropped from 3 to 2 logs, with no unrelated deletion.
 A Node 22 source-boundary probe of the photo serving helpers returned exact and
 converted nutrition after gram/ounce edits for an equivalent trusted FoodItem;
-`PHOTO-SERVING-001` therefore remains an unresolved review-screen state/wiring
-question pending a controlled real-photo rerun.
+the controlled Simulator rerun confirmed the same preview behavior in the real
+review/confirmation flow.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
@@ -268,10 +270,10 @@ Detailed reproduction and evidence remain in
    launcher/deep-link/back/cancel family and final critical re-sweep; native
    password prompts must be dismissed without saving credentials before logging
    flows continue.
-2. `PHOTO-SERVING-001` requires request/state-boundary root-cause investigation
-   and either a minimal fix or evidence-backed disposition before phase
-   completion. `MIX-UI-001` and `AI-MULTI-001` are closed as not-reproduced after
-   explicit-name/full-scroll and response-boundary evidence.
+2. `PHOTO-SERVING-001`, `MIX-UI-001`, and `AI-MULTI-001` are closed as
+   not-reproduced after controlled photo serving, explicit-name/full-scroll,
+   and response-boundary evidence. Keep the named photo serving scenario in
+   the final critical re-sweep in case it recurs.
 3. QA C credentials are now verified, and the real Simulator is staged at the
    final deletion confirmation with `DELETE` entered. The QA C email and UID
    were re-verified immediately beforehand; the final destructive tap remains
