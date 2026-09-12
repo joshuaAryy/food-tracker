@@ -456,6 +456,15 @@ profile endpoint remained healthy and the current QA A Debug/Metro Profile
 route loaded correctly. Therefore this observation is retained as stale-bundle
 environment evidence, not as a current-product defect or a basis for a fix.
 
+The current QA A Debug/Metro Profile route was then rechecked without mutation.
+It displayed the saved Lose goal at `0.55 lb/week`, the propagated 2,320 kcal
+and 153.7 g protein targets, and Simple/Complex controls with Complex selected.
+Opening Nutrition targets showed the expected source labels (Personalized,
+Derived, and Reference), editable values, recommended values, and the
+explicit custom-versus-recommended copy. The target editor was exited through
+Back without saving; this supplements the existing persistence tests without
+claiming a new override mutation.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
