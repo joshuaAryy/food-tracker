@@ -54,6 +54,8 @@ The latest committed-source validation rerun completed under Node `v22.23.0`
 and pnpm `10.34.3` after `ce09db2`. Mobile and workspace source checks are
 current; the API's last known green suite remains the earlier 116-file /
 1,401-test run, while a fresh attempt is blocked in Prisma setup by P1001.
+TCP port 5432 accepts connections, but read-only process inspection shows
+multiple `com.docker.backend` listeners and no responding PostgreSQL protocol.
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Jest: 69 suites / 209 tests passed.

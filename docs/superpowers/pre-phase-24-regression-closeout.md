@@ -23,8 +23,10 @@ mobile Vitest (66 files / 443 tests), mobile Jest (69 suites / 209 tests),
 workspace typecheck, workspace lint, workspace build, Prisma generate, and
 Prisma validate. The API Vitest suite still stops in global setup before
 executing tests because the dedicated `food_tracker_test` database returns
-Prisma `P1001` despite TCP port 5432 accepting connections; no development
-database was used. Root `format:check` still reports the pre-existing
+Prisma `P1001` despite TCP port 5432 accepting connections; read-only
+diagnostics show multiple `com.docker.backend` listeners rather than a
+responding PostgreSQL server. No development database was used. Root
+`format:check` still reports the pre-existing
 protected/untracked documentation set plus tracked profile-goal-pace and
 saved-views test formatting warnings; no unrelated formatting was changed.
 
