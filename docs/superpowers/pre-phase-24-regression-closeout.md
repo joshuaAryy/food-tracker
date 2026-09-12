@@ -19,7 +19,7 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
-mobile Vitest (67 files / 444 tests), mobile Jest (69 suites / 210 tests),
+mobile Vitest (67 files / 444 tests), mobile Jest (70 suites / 211 tests),
 workspace typecheck, workspace lint, workspace build, Prisma generate, and
 Prisma validate. The API Vitest suite still stops in global setup before
 executing tests because the dedicated `food_tracker_test` database returns
@@ -53,8 +53,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 60
 scenarios:
 
-- `PASS-AUTOMATED`: 11
-- `PASS-SIMULATOR`: 46
+- `PASS-AUTOMATED`: 10
+- `PASS-SIMULATOR`: 47
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -96,6 +96,16 @@ adjustment was removed, the serving restored to 100 g, and Friday's fixture
 totals/row were confirmed restored. This closes the Simulator portion of
 `SNAPSHOT-MACRO-001` without changing the reusable QA fixture.
 
+`HIST-003` then exercised the canonical Food Library snapshot boundary. QA A
+changed the `QA Archive Probe` manual-food calories from 10 to 20 in the real
+Simulator, returned from the nested editor, and immediately saw the refreshed
+20 kcal detail. The old Friday History row remained 170 kcal, proving the
+historical snapshot was unchanged. The canonical food was restored to 10 kcal
+and the fresh library detail/list confirmed the fixture value. The initial
+reproduction (before the focused correction) showed the detail staying stale
+until a full library reopen; `FoodLibraryDetailScreen` now reloads on focus,
+covered by `library-detail.test.tsx`.
+
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
 rejected that unoverridden snapshot with HTTP 422. The mobile eligibility
@@ -103,6 +113,14 @@ predicate was corrected with a focused regression test; Metro hot reload and a
 fresh QA A Simulator observation now hide the impossible action. The resumed
 pass completed Saved/My Foods/Recent/Archived consumer coverage, including
 custom archive/restore.
+
+`LIB-DETAIL-001` was reproduced while validating FoodItem immutability: after
+editing `QA Archive Probe` from 10 to 20 kcal, the nested manual-food editor
+returned to a stale detail view even though the server-backed library list had
+the new value. `FoodLibraryDetailScreen` now reloads on route focus, with a
+red/green `library-detail.test.tsx` regression. The fresh beta-built QA A
+Simulator showed 20 kcal immediately on return from the editor; the canonical
+food was restored to 10 kcal and the old History snapshot remained unchanged.
 
 `GOAL-PACE-001` was reproduced in QA A Profile → Edit goals: selecting Lose
 exposed stale categorical pace choices and allowed the canonical numeric rate
@@ -186,7 +204,7 @@ after the Food Library eligibility correction and Simulator rebuild:
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 67 files / 444 tests passed, including the AI serving and
   nutrient-state helper suites.
-- Mobile Jest: 69 suites / 210 tests passed, including the Profile Goal Pace
+- Mobile Jest: 70 suites / 211 tests passed, including the Profile Goal Pace
   and account-deletion reauthentication regressions.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
@@ -201,7 +219,7 @@ after the Food Library eligibility correction and Simulator rebuild:
   focused test was observed failing before the helper existed and passing after
   the correction.
 - The resumed normalized-nutrient correction passes its focused Vitest suite,
-  the full 66-file Vitest run (443 tests), mobile Jest (69 suites / 209 tests),
+  the full 66-file Vitest run (443 tests), mobile Jest (70 suites / 211 tests),
   mobile typecheck, and mobile lint. Its real Simulator edit → save → reopen
   journey and authenticated persisted-snapshot readback now agree on
   `Added Sugar = 2 g`.
