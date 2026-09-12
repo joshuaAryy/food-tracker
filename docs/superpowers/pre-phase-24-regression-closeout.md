@@ -36,6 +36,12 @@ on QA A Simulator `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F`, and launched the
 current Metro bundle. The rebuilt app remained authenticated and rendered the
 QA A fixture; generated native/build caches remain local and untracked.
 
+An authorized staging retry used a clean `git archive` of committed candidate
+`42b4d5b` and the existing `food-tracker-staging-api` service/environment.
+Railway CLI stopped during source indexing with `prefix not found` before a
+deployment was created; deployment history still shows the prior failed
+`3bbfb81d` attempt and the last verified served deployment `f522fae3`.
+
 ## Product-contract authority
 
 The canonical contract is recorded in
@@ -209,6 +215,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   `food_tracker_test` database with Pinecone credentials cleared; Docker
   PostgreSQL was restarted non-destructively and the full API suite then
   passed 116 files / 1,401 tests with no pending migrations.
+- A current-candidate staging retry from a clean `git archive` of `42b4d5b`
+  was attempted with explicit project/environment/service selectors; Railway
+  CLI failed during indexing with `prefix not found`, so no new deployment or
+  served-SHA claim is made.
 - `git diff --check` passed.
 - After `f658b30`, the workspace typecheck, workspace lint, and shared/API
   build completed successfully under Node `v22.23.0` and pnpm `10.34.3`.
