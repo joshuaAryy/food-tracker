@@ -28,6 +28,9 @@ database was used. Root `format:check` still reports the pre-existing
 protected/untracked documentation set plus tracked profile-goal-pace and
 saved-views test formatting warnings; no unrelated formatting was changed.
 
+A subsequent mobile-only rerun on the same unchanged source checkpoint again
+passed all 66 Vitest files / 442 tests and all 69 Jest suites / 209 tests.
+
 ## Product-contract authority
 
 The canonical contract is recorded in
