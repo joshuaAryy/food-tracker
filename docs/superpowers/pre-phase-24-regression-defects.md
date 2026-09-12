@@ -62,7 +62,7 @@ multiple `com.docker.backend` listeners and no responding PostgreSQL protocol.
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Jest: 70 suites / 211 tests passed.
-- Mobile Vitest: 66 files / 443 tests passed.
+- Mobile Vitest: 67 files / 444 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration status/deploy passed.
 - Changed-file Prettier checks and `git diff --check` passed.
@@ -73,6 +73,10 @@ multiple `com.docker.backend` listeners and no responding PostgreSQL protocol.
 - Current-HEAD Railway staging upload `b4b203be` was recorded as `SKIPPED`
   because no watched runtime files changed; identity/device acceptance remain
   external gates and are not inferred from these automated results.
+
+The older per-defect validation prose above may retain historical test counts
+from the checkpoint at which that defect was fixed. The superseding current
+validation is 67 Vitest files / 444 tests and 70 Jest suites / 211 tests.
 
 ## Deferred visual-only findings
 

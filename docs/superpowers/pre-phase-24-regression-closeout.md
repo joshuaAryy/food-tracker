@@ -31,7 +31,7 @@ protected/untracked documentation set plus the tracked saved-views test
 formatting warning; no unrelated formatting was changed.
 
 A subsequent mobile-only rerun after the snapshot-macro correction passed all
-67 Vitest files / 444 tests and all 69 Jest suites / 210 tests.
+67 Vitest files / 444 tests and all 70 Jest suites / 211 tests.
 
 The approved per-command Xcode beta retry then completed a fresh Debug build
 against iOS 27 (`** BUILD SUCCEEDED **`), installed the exact `FoodTracker.app`
@@ -219,7 +219,7 @@ after the Food Library eligibility correction and Simulator rebuild:
   focused test was observed failing before the helper existed and passing after
   the correction.
 - The resumed normalized-nutrient correction passes its focused Vitest suite,
-  the full 66-file Vitest run (443 tests), mobile Jest (70 suites / 211 tests),
+  the full 67-file Vitest run (444 tests), mobile Jest (70 suites / 211 tests),
   mobile typecheck, and mobile lint. Its real Simulator edit → save → reopen
   journey and authenticated persisted-snapshot readback now agree on
   `Added Sugar = 2 g`.
