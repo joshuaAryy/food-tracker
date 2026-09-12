@@ -33,6 +33,12 @@ formatting warning; no unrelated formatting was changed.
 A subsequent mobile-only rerun after the snapshot-macro correction passed all
 67 Vitest files / 444 tests and all 69 Jest suites / 210 tests.
 
+The approved per-command Xcode beta retry then completed a fresh Debug build
+against iOS 27 (`** BUILD SUCCEEDED **`), installed the exact `FoodTracker.app`
+on QA A Simulator `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F`, and launched the
+current Metro bundle. The rebuilt app remained authenticated and rendered the
+QA A fixture; generated native/build caches remain local and untracked.
+
 ## Product-contract authority
 
 The canonical contract is recorded in
@@ -47,8 +53,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 60
 scenarios:
 
-- `PASS-AUTOMATED`: 12
-- `PASS-SIMULATOR`: 45
+- `PASS-AUTOMATED`: 11
+- `PASS-SIMULATOR`: 46
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -83,10 +89,12 @@ those top-level values before a later normalized edit submitted an override.
 The focused helper regression was made deliberately red (preview values
 replaced the persisted macros), restored, and passed; commit `ce09db2`
 preserves snapshot macros unless the user explicitly clears the adjustment.
-The updated Simulator bundle observed the persisted macros and adjustment
-recovery controls, but iOS 27 text-entry automation left the normalized field
-unchanged, so save-after-edit persistence remains a final-sweep follow-up
-rather than an inferred Simulator pass.
+The rebuilt Simulator then changed serving from 100 g to 200 g, entered
+`Added Sugar = 2 g`, invoked the off-screen `Save changes` action, and
+reopened the row with the 200 g preview and Added Sugar 2 persisted. The
+adjustment was removed, the serving restored to 100 g, and Friday's fixture
+totals/row were confirmed restored. This closes the Simulator portion of
+`SNAPSHOT-MACRO-001` without changing the reusable QA fixture.
 
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
@@ -580,10 +588,9 @@ deferred; only verified unusability is fixed in this phase.
 
 ## Resume and completion requirements
 
-The QA-identity blocker is resolved. The existing installed Simulator bundle
-remains usable for real UI checks; a new native rebuild is currently
-space-constrained after the documented retry. Resume remaining authenticated
-Simulator rows using the real UI and backend persistence checks.
+The QA-identity blocker is resolved. The fresh Xcode-beta Debug build and
+install are now complete; continue remaining authenticated Simulator rows
+using the real UI and backend persistence checks.
 The authorized QA C deletion lifecycle is complete. Then perform the full critical-journey
 re-sweep, targeted physical-iPhone pass, current runtime-changing staging
 cold-start validation, final automated checks, and closeout review. Do not mark
