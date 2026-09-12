@@ -408,6 +408,12 @@ Back from Trends returned to Explore, and Back to Insights returned to the
 Insights report. No mutation occurred during these navigation checks; the
 broader launcher/deep-link/cancel matrix remains for the final re-sweep.
 
+From Progress, the logging menu reopened and closed cleanly; Log water opened
+its sheet and Close returned without mutation, and Log weight opened its form
+and Close likewise returned without mutation. These are additional recovery
+observations, not a claim that the wider launcher/deep-link/cancel family is
+complete.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
