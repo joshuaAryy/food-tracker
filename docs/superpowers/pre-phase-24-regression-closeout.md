@@ -363,6 +363,16 @@ and minimal Pressable/`router.back()` correction were added; Metro-reloaded QA
 A Simulator exposed `Back to Insights`, and tapping it returned to Explore
 trends. The broader navigation family remains in progress.
 
+On 2026-09-12 the installed QA A Simulator bundle was relaunched after a
+terminate/launch cycle and returned directly to authenticated Progress. The
+Profile mode controls were exercised Simple → Complex with the same goal and
+target values visible in both modes; Goal plan opened and returned through its
+Back control; Nutrition targets opened and returned without mutation. History
+Previous day/Next day/Return to today and the Food Log modal Close path were
+rechecked, with no save or data mutation. These observations extend the
+critical re-sweep but do not close the remaining broader launcher/deep-link/
+back/cancel and final critical-journey gates.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
