@@ -235,8 +235,9 @@ handling, and physical scanner behavior remain pending gates rather than
 inferred passes.
 The QA A Simulator also opened an older Sunday Sep 6 History entry, changed
 Protein from 32.8 g to 135 g, saved, returned to Today, and reopened the older
-day to observe the persisted 135.0 g breakfast value. Delete/cancel and
-post-delete refresh remain outstanding for the complete older-entry row.
+day to observe the persisted 135.0 g breakfast value. It then used the explicit
+Delete food entry? confirmation and reopened Sunday to verify the entry was
+gone and the day count dropped from 3 to 2 logs, with no unrelated deletion.
 A Node 22 source-boundary probe of the photo serving helpers returned exact and
 converted nutrition after gram/ounce edits for an equivalent trusted FoodItem;
 `PHOTO-SERVING-001` therefore remains an unresolved review-screen state/wiring
