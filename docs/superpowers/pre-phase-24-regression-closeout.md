@@ -382,6 +382,12 @@ this environment, so no review/save result is inferred; after stopping and
 relaunching, authenticated Progress returned normally. Real library/HEIC,
 camera permissions, and device photo review remain physical-gate checks.
 
+The barcode path was also reopened from the QA A Log food flow. Simulator
+evidence showed the Ready to scan state, guidance text, scanner-light toggle
+(on → off), and Cancel barcode scan returning to the editable Log food form
+without a mutation. Known/unknown barcode lookup and real camera scanning remain
+the API/physical-device portions of the acceptance gate.
+
 On 2026-09-12 the installed QA A Simulator bundle was relaunched after a
 terminate/launch cycle and returned directly to authenticated Progress. The
 Profile mode controls were exercised Simple → Complex with the same goal and
