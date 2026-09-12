@@ -214,6 +214,10 @@ Rice cooked candidate in Review with an initially missing amount, and kept the
 screen recoverable: after entering 100 g it showed a 226 kcal provisional
 preview plus explicit no-trusted-cup-conversion guidance, with candidate and
 serving controls still available and no save performed.
+A Node 22 source-boundary probe of the photo serving helpers returned exact and
+converted nutrition after gram/ounce edits for an equivalent trusted FoodItem;
+`PHOTO-SERVING-001` therefore remains an unresolved review-screen state/wiring
+question pending a controlled real-photo rerun.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
 Calories trend coverage (recorded/partial/unlogged), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
