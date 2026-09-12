@@ -307,7 +307,10 @@ generic/preparation candidates (whole pasteurised, sheep whole, human mature,
 and chocolate 2%); provider/source labels were not exposed in that UI, so
 provider-attribution remains an automated/API concern. The opaque `protein
 shake with milk` variant also reached Review foods as one editable high-protein
-candidate with serving controls and alternate candidates; no meal was saved.
+candidate with serving controls and alternate candidates; `a bowl of beef stew`
+also reached a single editable trusted candidate with explicit no-cup-
+conversion guidance and a disabled Log selected action until serving was
+resolved. Both variants were cancelled and no meal was saved.
 A fresh full-scroll run of `chicken, rice, peas, mystery house sauce` showed
 all four named components. Chicken, rice, and peas were checked trusted rows;
 the sauce remained a separate unchecked `Needs food` row with remove/review
