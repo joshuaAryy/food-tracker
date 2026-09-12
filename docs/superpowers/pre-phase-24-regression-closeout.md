@@ -108,7 +108,11 @@ after the Food Library eligibility correction and Simulator rebuild:
 
 - `AI-RAG-001`: post-retrieval adequacy evaluation was proven missing at the
   request boundary, fixed in the existing AI/retrieval boundary, and covered by
-  regression tests. The named `1 apple` UI recovery scenario remains separate.
+  regression tests. QA credentials are now resolved; the real Simulator reached
+  Describe meal, while the remaining exact/partial/opaque UI rows require a
+  reliable current text-entry/result observation and are not inferred from API
+  or automated evidence. The named `1 apple` UI recovery scenario remains a
+  separate observed pass.
 - `AUTH-BOOTSTRAP-001`: rejected auth-session cleanup was reproduced, fixed,
   and covered by a focused regression test.
 - QA A/B Firebase identity mapping, deterministic QA A staging fixture, and
