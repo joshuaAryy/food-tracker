@@ -32,16 +32,18 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 24
-- `PASS-SIMULATOR`: 27
+- `PASS-AUTOMATED`: 22
+- `PASS-SIMULATOR`: 30
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 1
 - `BLOCKED`: 3
 
-The remaining open investigation is the mixed-meal preview handoff finding
-`MIX-UI-001`. The earlier multi-food AI component-completeness finding
+The remaining open investigation is the photo-review serving-preview finding
+`PHOTO-SERVING-001`. The earlier mixed-meal preview handoff finding
+`MIX-UI-001` was resolved as not reproduced after explicit meal-name entry and
+authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
 defect. The three blocked scenarios are QA C deletion, QA C isolation deletion, and
@@ -218,14 +220,14 @@ Detailed reproduction and evidence remain in
 
 ## Unresolved execution gates
 
-1. Remaining authenticated Simulator rows require completion of the valid
-   mixed-meal and broader launcher/deep-link/back/cancel family; native password
-   prompts must be dismissed without saving credentials before logging flows
-   continue.
-2. `MIX-UI-001` and `PHOTO-SERVING-001` require request/state-boundary
-   root-cause investigation and either minimal fixes or evidence-backed
-   disposition before phase completion. `AI-MULTI-001` is closed as
-   not-reproduced after full-scroll and response-boundary evidence.
+1. Remaining authenticated Simulator rows require completion of the broader
+   launcher/deep-link/back/cancel family and final critical re-sweep; native
+   password prompts must be dismissed without saving credentials before logging
+   flows continue.
+2. `PHOTO-SERVING-001` requires request/state-boundary root-cause investigation
+   and either a minimal fix or evidence-backed disposition before phase
+   completion. `MIX-UI-001` and `AI-MULTI-001` are closed as not-reproduced after
+   explicit-name/full-scroll and response-boundary evidence.
 3. QA C credentials are now verified, and the real Simulator is staged at the
    final deletion confirmation with `DELETE` entered. The QA C email and UID
    were re-verified immediately beforehand; the final destructive tap remains
