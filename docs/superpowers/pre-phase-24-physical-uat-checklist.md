@@ -8,23 +8,27 @@ Simulator matrix.
 ## Preconditions supplied by Codex
 
 - Branch and candidate SHA: `pre-phase-24-product-regression-debugging` at
-  `cf68208c8a65b910ff19d9ec299bfdb67aca6ef0` (pushed; no PR or merge).
+  `bd2248fd7863c741c3ab39f32a6678b66ab94bfd` (pushed; no PR or merge).
 - Staging deployment ID and served provenance: prior verified staging
   deployment `f522fae3-825e-425c-810d-344fc850db6d`, built from the exact
   archived API candidate `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`; a fresh
-  exact-HEAD upload was rejected before deployment by the Railway SFO
-  free-tier peak-hours gate and must be retried before current-HEAD staging
+  exact-HEAD upload of committed candidate `42b4d5b` using `--path-as-root`
+  was accepted through indexing/upload but rejected by the Railway SFO
+  free-tier peak-hours gate (8 AM–8 PM America/Los_Angeles); no new deployment
+  was created. Retry outside that window before current-candidate staging
   acceptance.
-- Simulator critical-journey result: signed-out and staging cold-launch
-  journeys are evidenced; the native candidate builds and installs on iOS 27.
-  Authenticated, mutation-heavy, and real AI-review journeys remain pending
-  approved QA identities, and are not inferred from automated coverage.
-- Automated validation counts: API 116 files / 1,401 tests; mobile Jest 68
-  suites / 203 tests; mobile Vitest 64 files / 438 tests; lint, typecheck,
-  build, Prisma generate/validate, and test-database migration checks pass.
-- QA account state and fixture anchor: dedicated QA A/B and disposable C
-  identities are unavailable; no everyday account was used, reset, reseeded,
-  switched, or deleted. Identity-dependent matrix rows remain blocked.
+- Simulator critical-journey result: authenticated QA A/B switching,
+  mutation-heavy logging/history/library/analytics journeys, AI review and
+  recovery, and staging cold-launch are evidenced on iOS 27. The native
+  candidate builds and installs successfully with the approved Xcode beta.
+- Automated validation counts: API 116 files / 1,401 tests; mobile Jest 70
+  suites / 211 tests; mobile Vitest 67 files / 444 tests; workspace lint,
+  typecheck, build, Prisma generate/validate, and test-database migration
+  checks pass.
+- QA account state and fixture anchor: dedicated QA A and B are available and
+  verified; QA C was verified and permanently deleted through the authorized
+  deletion journey. QA A's canonical `QA Archive Probe` fixture was restored;
+  no everyday account was used or mutated.
 - Device model / iOS version / build configuration: iOS 27 Simulator on
   `Food Tracker Fresh QA iPhone 17`, Debug `FoodTracker` workspace build;
   physical iPhone model/iOS and user-operated acceptance remain pending.
@@ -34,24 +38,23 @@ for destructive testing. Account deletion remains restricted to explicitly
 disposable QA C and is not performed on the physical device unless the
 execution record explicitly identifies C.
 
-## Codex stop-point and remaining QA-account work
+## Codex stop-point and account coverage
 
-The current Codex checkpoint has automated contract evidence for the major
-backend slices and signed-out/staging Simulator evidence. Automated PASS does
-not close the corresponding real UI journey. Before the physical pass, use the
-approved identities as follows:
+The current Codex checkpoint has green automated contract evidence and broad
+authenticated Simulator coverage. Automated PASS does not replace observed
+UI evidence; the matrix records those evidence types separately. Account
+coverage is complete for the planned non-destructive A/B journeys:
 
 - QA A: authenticated relaunch, the complete AI review corpus including the
   `1 apple` recovery journey, and Simple/Complex continuity.
 - QA B: the recognizable second account for sign-out/account-switch isolation
   and delayed-response checks.
 - Disposable QA C: confirmation, completion, post-delete routing, and owned-data
-  cleanup for the destructive deletion journey.
+  cleanup were completed; C must not be recreated or reused.
 
-Do not substitute an everyday account, bypass Firebase authentication, or
-reinterpret API-only evidence as Simulator UI evidence. If the identities are
-unavailable, leave those matrix rows blocked and continue only with independent
-work.
+Do not substitute an everyday account or bypass Firebase authentication. Do not
+reinterpret API-only evidence as Simulator UI evidence. No further destructive
+account action is authorized.
 
 ## Device-only checks
 
