@@ -601,10 +601,11 @@ Detailed reproduction and evidence remain in
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. Deployment
    `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
-   creation; a read-only check on 2026-09-12 still showed that deployment as
-   the latest failed deployment while `/health/ready` returned 200 from the
-   prior successful service. Inspect any later validated deployment's terminal
-   status and source provenance before treating staging behavior as evidence.
+   creation. A later exact archive of committed candidate `42b4d5b` using
+   `--path-as-root` reached indexing/upload but was rejected by the free-tier
+   SFO peak-hours gate, so no deployment was created. Inspect any later
+   validated deployment's terminal status and source provenance before treating
+   staging behavior as evidence.
 
 ## Intentional exclusions and deferrals
 
