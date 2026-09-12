@@ -8,7 +8,7 @@ Simulator matrix.
 ## Preconditions supplied by Codex
 
 - Branch and candidate SHA: `pre-phase-24-product-regression-debugging` at
-  `99e9300b33a4ec405881b19f2bd28adc513b7676` (pushed; no PR or merge).
+  `18b8977a87b43ad50ecaa34de8f76db6e03bb73a` (pushed; no PR or merge).
 - Staging deployment ID and served provenance: prior verified staging
   deployment `f522fae3-825e-425c-810d-344fc850db6d`, built from the exact
   archived API candidate `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`; a fresh
