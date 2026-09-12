@@ -187,6 +187,8 @@ after the Food Library eligibility correction and Simulator rebuild:
   migration setup still failed with `P1001` (database server unreachable), so
   no fresh API test result is claimed from that attempt.
 - `git diff --check` passed.
+- After `f658b30`, the workspace typecheck, workspace lint, and shared/API
+  build completed successfully under Node `v22.23.0` and pnpm `10.34.3`.
 - Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
   focused test was observed failing before the helper existed and passing after
   the correction.
