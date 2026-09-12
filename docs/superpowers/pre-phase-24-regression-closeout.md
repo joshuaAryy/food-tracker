@@ -72,7 +72,11 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The remaining blocked scenario is physical-device acceptance. QA C deletion and
+defect. The only matrix row currently marked `BLOCKED` is physical-device
+acceptance. Ten automated-only rows still require Simulator-specific variants
+or controlled-injection evidence before they can be promoted to Simulator PASS:
+`ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
+`PHOTO-001`, `FAIL-001`, and `FAIL-002`. QA C deletion and
 QA C isolation deletion are now observed passes after the authorized
 reauthentication/deletion recovery correction. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
