@@ -33,8 +33,9 @@ the local PostgreSQL/Docker service was unavailable; no migration or database
 mutation was attempted. The earlier full baseline remains the authoritative
 green migration deploy/status evidence until the service is restored.
 
-A subsequent mobile-only rerun after the snapshot-macro correction passed all
-67 Vitest files / 444 tests and all 70 Jest suites / 211 tests.
+A subsequent mobile-only rerun after the snapshot-macro and meal-keyboard
+corrections passed all 67 Vitest files / 444 tests and all 71 Jest suites /
+212 tests.
 
 The approved per-command Xcode beta retry then completed a fresh Debug build
 against iOS 27 (`** BUILD SUCCEEDED **`), installed the exact `FoodTracker.app`
