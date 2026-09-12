@@ -32,8 +32,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
 scenarios:
 
-- `PASS-AUTOMATED`: 19
-- `PASS-SIMULATOR`: 33
+- `PASS-AUTOMATED`: 18
+- `PASS-SIMULATOR`: 34
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -159,6 +159,9 @@ after the Food Library eligibility correction and Simulator rebuild:
   with raw/cooked/preparation variants. A trusted egg candidate was edited from
   100 g to 2 g; the 5 kcal provisional preview matched the resulting History
   entry after one save.
+- The QA A Complex History edit for `QA Archive Probe` preserved three nutrient
+  states across save/reopen: Protein `1 g` numeric, Fiber `0 g` explicit zero,
+  and omitted Sugar as Unknown. The reusable FoodItem stayed unchanged.
 - `MODE-ICON-001` was reproduced when native launcher-icon synchronization
   rejected after a successful mode save. The smallest correction made icon sync
   diagnostic-only on the Progress toggle; the focused red/green regression and
