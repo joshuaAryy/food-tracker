@@ -108,6 +108,14 @@ termination/relaunch, Profile still showed Lose / `0.55 lb/week` and Progress
 showed the propagated `2,320 kcal` target. The focused correction is committed
 as `63ece53`; no historical FoodLog mutation was observed.
 
+`GOAL-PACE-002` was reproduced from the same QA A loss plan by selecting
+Maintain while `0.55 lb/week` remained in the form. Before correction, the
+stale value made the form invalid and the save boundary would have submitted
+it instead of canonical `null`. The focused Jest regression was red before the
+correction and green after `f658b30`. The corrected Simulator flow clears the
+rate immediately, shows `No pace`, persists Maintain targets, and then restores
+QA A to Lose / `0.55 lb/week` and `2,320 kcal` for continued regression work.
+
 `ACCOUNT-DELETE-001` was reproduced during the authorized disposable-account
 lifecycle: the API's recent-auth guard correctly rejected a stale deletion
 request, but the mobile panel exposed no way to reauthenticate. The minimal
@@ -168,10 +176,9 @@ The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
 after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
-- Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
-  run is 66 files / 443 tests passed, including the 4-test nutrient-state
-  helper suite.
-- Mobile Jest: 69 suites / 209 tests passed, including the Profile Goal Pace
+- Mobile Vitest: 67 files / 444 tests passed, including the AI serving and
+  nutrient-state helper suites.
+- Mobile Jest: 69 suites / 210 tests passed, including the Profile Goal Pace
   and account-deletion reauthentication regressions.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
