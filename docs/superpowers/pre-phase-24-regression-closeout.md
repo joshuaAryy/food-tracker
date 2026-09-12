@@ -73,11 +73,11 @@ to remain blank. The mobile correction removes those user-facing legacy
 choices, requires 0.50–2.00 lb/week in 0.05 steps for Lose/Gain, preserves
 Maintain as null-rate, and derives the legacy compatibility enum only when
 saving. The focused Jest regression was red before the correction and green
-after it. A real QA A Simulator rerun confirmed the numeric-only controls and
-recoverable missing-rate validation; valid numeric save/readback remains a
-final critical-journey check because Simulator text entry was unreliable in
-this pass. The focused correction is committed as `63ece53`; the valid numeric
-save/readback remains explicitly pending for the final critical-journey sweep.
+after it. A real QA A Simulator rerun confirmed the numeric-only controls,
+recoverable missing-rate validation, and a valid `0.55` save. After
+termination/relaunch, Profile still showed Lose / `0.55 lb/week` and Progress
+showed the propagated `2,320 kcal` target. The focused correction is committed
+as `63ece53`; no historical FoodLog mutation was observed.
 
 ## Automated validation
 
