@@ -142,7 +142,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   lint, workspace build, Prisma generate, Prisma validate, and `git diff --check`.
 - A fresh Xcode-beta Debug Simulator build/install completed successfully on
   the dedicated QA iPhone 17 Simulator. The app was exercised through LAN
-  Metro with QA A authenticated.
+  Metro with QA A authenticated. A later per-command Xcode-beta rebuild retry
+  reached the iOS 27 destination but failed with `No space left on device`
+  while writing temporary DerivedData; that exact temporary output was removed
+  and the previously installed bundle was retained for UAT. No repository or
+  protected state was changed by the retry.
 - Root `format:check` still reports only the known 26 protected/local files;
   none was edited.
 
@@ -151,10 +155,11 @@ after the Food Library eligibility correction and Simulator rebuild:
 - `AI-RAG-001`: post-retrieval adequacy evaluation was proven missing at the
   request boundary, fixed in the existing AI/retrieval boundary, and covered by
   regression tests. QA credentials are now resolved; the real Simulator reached
-  Describe meal, while the remaining exact/partial/opaque UI rows require a
-  reliable current text-entry/result observation and are not inferred from API
-  or automated evidence. The named `1 apple` UI recovery scenario remains a
-  separate observed pass.
+  Describe meal and exercised the editable multi-food, partial-fallback, and
+  opaque protein-shake variants. The exact trusted-match and exact
+  beef-stew/shawarma UI variants remain final-sweep work and are not inferred
+  from API or automated evidence. The named `1 apple` UI recovery scenario
+  remains a separate observed pass.
 - `AUTH-BOOTSTRAP-001`: rejected auth-session cleanup was reproduced, fixed,
   and covered by a focused regression test.
 - QA A/B Firebase identity mapping, deterministic QA A staging fixture, and
@@ -303,6 +308,13 @@ and chocolate 2%); provider/source labels were not exposed in that UI, so
 provider-attribution remains an automated/API concern. The opaque `protein
 shake with milk` variant also reached Review foods as one editable high-protein
 candidate with serving controls and alternate candidates; no meal was saved.
+A fresh full-scroll run of `chicken, rice, peas, mystery house sauce` showed
+all four named components. Chicken, rice, and peas were checked trusted rows;
+the sauce remained a separate unchecked `Needs food` row with remove/review
+controls and a displayed candidate that was not silently selected. `Log
+selected` therefore remained scoped to the resolved rows, and no meal was
+saved. This closes `AI-PARTIAL-001` as a viewport-observation error rather
+than a rendering defect.
 A direct `1 cup cooked
 rice` search selected a generic cooked-rice candidate with only g/kg/oz/lb
 controls and a per-100 g basis, with no cup conversion offered or silently
@@ -373,8 +385,10 @@ deferred; only verified unusability is fixed in this phase.
 
 ## Resume and completion requirements
 
-The host-disk and QA-identity blockers are resolved. Resume the remaining
-authenticated Simulator rows using the real UI and backend persistence checks.
+The QA-identity blocker is resolved. The existing installed Simulator bundle
+remains usable for real UI checks; a new native rebuild is currently
+space-constrained after the documented retry. Resume remaining authenticated
+Simulator rows using the real UI and backend persistence checks.
 The authorized QA C deletion lifecycle is complete. Then perform the full critical-journey
 re-sweep, targeted physical-iPhone pass, current runtime-changing staging
 cold-start validation, final automated checks, and closeout review. Do not mark
