@@ -8,17 +8,30 @@ type NutrientValue = {
   unit: string;
 };
 
+type NutrientMap = Partial<Record<NormalizedNutrientKey, NutrientValue>>;
+
 type SnapshotNutrientState = {
   basisNutrition: {
-    nutrients: Partial<Record<NormalizedNutrientKey, NutrientValue>>;
+    nutrients: NutrientMap;
   };
   nutritionOverride: {
     nutrients: {
       applied: boolean;
-      value: Partial<Record<NormalizedNutrientKey, NutrientValue>> | null;
+      value: NutrientMap | null;
     };
   } | null;
 };
+
+function editableValuesFromNutrients(
+  nutrients: NutrientMap,
+): Record<NormalizedNutrientKey, string> {
+  return Object.fromEntries(
+    NORMALIZED_NUTRIENT_KEYS.map((key) => {
+      const nutrient = nutrients[key];
+      return [key, nutrient === undefined ? '' : String(nutrient.amount)];
+    }),
+  ) as Record<NormalizedNutrientKey, string>;
+}
 
 /**
  * Return editable normalized nutrient text without collapsing explicit zero
@@ -34,10 +47,20 @@ export function editNutrientValuesFromSnapshot(
       ? (override.nutrients.value ?? {})
       : snapshot.basisNutrition.nutrients;
 
-  return Object.fromEntries(
-    NORMALIZED_NUTRIENT_KEYS.map((key) => {
-      const nutrient = nutrients[key];
-      return [key, nutrient === undefined ? '' : String(nutrient.amount)];
-    }),
-  ) as Record<NormalizedNutrientKey, string>;
+  return editableValuesFromNutrients(nutrients);
+}
+
+/**
+ * Keep a persisted normalized override visible when a serving preview
+ * recalculates from the immutable basis. A cleared override must instead use
+ * the preview's basis nutrients.
+ */
+export function editNutrientValuesAfterServingPreview(
+  snapshot: SnapshotNutrientState,
+  previewNutrients: NutrientMap,
+  preserveSnapshotOverride: boolean,
+): Record<NormalizedNutrientKey, string> {
+  return preserveSnapshotOverride
+    ? editNutrientValuesFromSnapshot(snapshot)
+    : editableValuesFromNutrients(previewNutrients);
 }

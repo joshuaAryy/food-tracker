@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { editNutrientValuesFromSnapshot } from './food-log-nutrient-state';
+import {
+  editNutrientValuesAfterServingPreview,
+  editNutrientValuesFromSnapshot,
+} from './food-log-nutrient-state';
 
 describe('FoodLog normalized nutrient edit state', () => {
   it('hydrates numeric, explicit zero, and Unknown from a persisted override', () => {
@@ -39,5 +42,32 @@ describe('FoodLog normalized nutrient edit state', () => {
 
     expect(values.addedSugar).toBe('1.5');
     expect(values.starch).toBe('');
+  });
+
+  it('does not let a serving preview clobber a persisted override', () => {
+    const snapshot = {
+      basisNutrition: { nutrients: { addedSugar: { amount: 0, unit: 'g' } } },
+      nutritionOverride: {
+        nutrients: {
+          applied: true,
+          value: { addedSugar: { amount: 2, unit: 'g' } },
+        },
+      },
+    };
+
+    expect(
+      editNutrientValuesAfterServingPreview(
+        snapshot,
+        { addedSugar: { amount: 0, unit: 'g' } },
+        true,
+      ).addedSugar,
+    ).toBe('2');
+    expect(
+      editNutrientValuesAfterServingPreview(
+        snapshot,
+        { addedSugar: { amount: 0, unit: 'g' } },
+        false,
+      ).addedSugar,
+    ).toBe('0');
   });
 });

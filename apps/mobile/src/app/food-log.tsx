@@ -55,7 +55,10 @@ import {
   type ServingPreviewBasis,
 } from '@/lib/serving-preview';
 import { defaultServingDraft } from '@/lib/food-library-ui';
-import { editNutrientValuesFromSnapshot } from '@/lib/food-log-nutrient-state';
+import {
+  editNutrientValuesAfterServingPreview,
+  editNutrientValuesFromSnapshot,
+} from '@/lib/food-log-nutrient-state';
 
 interface FoodForm {
   foodName: string;
@@ -743,7 +746,17 @@ export default function FoodLogScreen() {
       servingQuantity: String(servingPreview.requestedServing?.quantity ?? ''),
       servingUnit: servingPreview.requestedServing?.unit ?? '',
     });
-    setComplexNutrients(previewNutrientValues(servingPreview.nutrition));
+    setComplexNutrients(
+      snapshotServingLog?.servingSnapshot !== null &&
+        snapshotServingLog?.servingSnapshot !== undefined &&
+        !clearNutritionOverride
+        ? editNutrientValuesAfterServingPreview(
+            snapshotServingLog.servingSnapshot,
+            servingPreview.nutrition.nutrients,
+            true,
+          )
+        : previewNutrientValues(servingPreview.nutrition),
+    );
     setComplexNutrientTouched({});
   }, [getValues, nutritionEdited, reset, servingBasis, servingPreview]);
 

@@ -33,11 +33,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 17
-- `PASS-SIMULATOR`: 34
+- `PASS-SIMULATOR`: 35
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
-- `OPEN-INVESTIGATION`: 1 (`NUTRIENT-EDIT-001` / `HIST-002`)
+- `OPEN-INVESTIGATION`: 0
 - `BLOCKED`: 3
 
 The photo-review serving-preview finding `PHOTO-SERVING-001` was closed as not
@@ -50,11 +50,14 @@ defect. The three blocked scenarios are QA C deletion, QA C isolation deletion, 
 physical-device acceptance. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
 
-The resumed Complex nutrient recheck opened `NUTRIENT-EDIT-001`: a saved
-normalized Added Sugar override was not visible when the FoodLog was reopened.
-The client hydration gap is corrected with focused coverage, but the existing
-probe row still requires independent persisted-snapshot evidence and a clean
-Simulator re-run before this investigation can close.
+The resumed Complex nutrient recheck closed `NUTRIENT-EDIT-001`: after setting
+`Added Sugar = 2 g`, saving, leaving, and reopening `QA Archive Probe` through
+the real Simulator History route, the live field value remained `2`. An
+authenticated staging readback of the same FoodLog recorded both the final
+nutrient and `nutritionOverride` value as `2`. Source tracing identified the
+serving-preview effect clobbering the hydrated snapshot override; the minimal
+state helper/effect correction preserves it while retaining preview behavior
+for non-overridden entries.
 
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
@@ -71,7 +74,7 @@ after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
-  run is 66 files / 441 tests passed, including the 2-test nutrient-state
+  run is 66 files / 442 tests passed, including the 3-test nutrient-state
   helper suite.
 - Mobile Jest: 68 suites / 207 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
@@ -85,10 +88,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   focused test was observed failing before the helper existed and passing after
   the correction.
 - The resumed normalized-nutrient correction passes its focused Vitest suite,
-  the full 66-file Vitest run, mobile typecheck, and mobile lint. Its real
-  Simulator reopen journey remains an open investigation pending
-  persisted-snapshot evidence; the current Computer Use input path could not
-  prove a mutation was committed.
+  the full 66-file Vitest run (442 tests), mobile Jest (68 suites / 207 tests),
+  mobile typecheck, and mobile lint. Its real Simulator edit → save → reopen
+  journey and authenticated persisted-snapshot readback now agree on
+  `Added Sugar = 2 g`.
 - A Node 22 direct `calculateAuthoritativeServing` probe independently retained
   an explicit normalized zero in the final/snapshot nutrients and omitted an
   Unknown patch, confirming the backend calculation semantics while database
