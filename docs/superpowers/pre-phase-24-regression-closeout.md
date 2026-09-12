@@ -33,7 +33,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 17
-- `PASS-SIMULATOR`: 35
+- `PASS-SIMULATOR`: 36
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -92,6 +92,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   mobile typecheck, and mobile lint. Its real Simulator edit → save → reopen
   journey and authenticated persisted-snapshot readback now agree on
   `Added Sugar = 2 g`.
+- The authenticated serving review recheck exercised a cooked-rice candidate
+  with no trustworthy cup relationship: the real Simulator exposed only
+  supported mass controls, required an amount, and did not offer or silently
+  apply a cup conversion. The review remained recoverable and no log was
+  saved.
 - A Node 22 direct `calculateAuthoritativeServing` probe independently retained
   an explicit normalized zero in the final/snapshot nutrients and omitted an
   Unknown patch, confirming the backend calculation semantics while database
