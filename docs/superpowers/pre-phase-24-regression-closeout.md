@@ -149,6 +149,13 @@ log` returned without saving. This is Simulator evidence for review
 recoverability only; real camera, orientation/HEIC, permissions, and
 device-library behavior remain in the physical acceptance gate.
 
+The QA A hydration recheck completed the reversible edit/delete path in the
+Simulator: an existing 250 mL History entry was opened, changed to 500 mL,
+saved, reopened with the updated amount, and permanently removed through the
+explicit Delete water entry confirmation. The row disappeared from Water
+History afterward. This supplements the prior quick-add, Other Amount, and
+local Undo evidence without changing the water-only contract.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
