@@ -414,6 +414,13 @@ and Close likewise returned without mutation. These are additional recovery
 observations, not a claim that the wider launcher/deep-link/cancel family is
 complete.
 
+The same Progress launcher pass opened Streak calendar, rendered past/gold,
+partial, missed, today, and future day states, navigated Previous month to
+August 2026 and Next month back to September 2026, then returned via Back.
+Logging Consistency Trend opened with complete/partial/unlogged/in-progress
+coverage and Back returned to Progress. No data mutation occurred in either
+route.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
