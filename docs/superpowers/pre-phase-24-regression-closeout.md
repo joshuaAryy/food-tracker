@@ -421,6 +421,12 @@ Logging Consistency Trend opened with complete/partial/unlogged/in-progress
 coverage and Back returned to Progress. No data mutation occurred in either
 route.
 
+Profile account recovery was also exercised on QA A: Delete account opened the
+irreversible warning, scrolling exposed Continue and Cancel, and Cancel
+returned to the editable Profile without sign-out or mutation. This validates
+the non-destructive recovery path; it does not authorize or substitute for the
+separate QA C deletion lifecycle already completed.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
