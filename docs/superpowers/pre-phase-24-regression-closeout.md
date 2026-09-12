@@ -20,7 +20,7 @@ API evidence into Simulator or physical-device acceptance.
 
 Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
 API Vitest (116 files / 1,401 tests), mobile Vitest (67 files / 444 tests),
-mobile Jest (70 suites / 211 tests), workspace typecheck, workspace lint,
+mobile Jest (71 suites / 212 tests), workspace typecheck, workspace lint,
 workspace build, Prisma generate/validate, and test-database migration
 deploy/status. No development database was used. Root
 `format:check` still reports the pre-existing
@@ -32,9 +32,12 @@ A subsequent mobile-only rerun after the snapshot-macro correction passed all
 
 The approved per-command Xcode beta retry then completed a fresh Debug build
 against iOS 27 (`** BUILD SUCCEEDED **`), installed the exact `FoodTracker.app`
-on QA A Simulator `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F`, and launched the
-current Metro bundle. The rebuilt app remained authenticated and rendered the
-QA A fixture; generated native/build caches remain local and untracked.
+on Fresh QA Simulator `A716FD01-3A7D-4D5C-90D7-71C139F9EAD1`, and exercised the
+current authenticated route. Generated native/build caches remain local and
+untracked. The focused follow-up commit `1a52472` makes the multiline meal
+description recoverable: its Done key dismisses the keyboard and the required
+Read meal footer then activates into editable Review foods. The real Simulator
+rerun observed candidate/serving controls and Log selected without saving a log.
 
 An authorized staging retry used a clean `git archive` of committed candidate
 `42b4d5b` and the existing `food-tracker-staging-api` service/environment.
@@ -65,6 +68,11 @@ scenarios:
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
 - `BLOCKED`: 1
+
+The matrix's existing `AI-001` row now records the `AI-KEYBOARD-001` P1 defect
+and its `1a52472` correction. The previously reproduced keyboard trap is no
+longer open; the broader `1 apple` recoverability and AI corpus remain required
+final-sweep journeys.
 
 The photo-review serving-preview finding `PHOTO-SERVING-001` was closed as not
 reproduced after a controlled real-photo rerun. The earlier mixed-meal preview handoff finding
