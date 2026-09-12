@@ -138,6 +138,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   serving persisted across closing and reopening the detail; the temporary
   preference was then removed. A disposable `QA Archive Probe` manual food was
   archived, observed in Archived, restored, and observed again in My Foods.
+- A separate QA A History navigation briefly surfaced a recoverable unavailable
+  state; the visible Try again action restored the History list without a crash
+  or duplicate mutation. Because the failure cause was not controlled, the
+  dedicated API-outage/slow-request row remains automated-only.
 - The QA A → QA B account-switch journey was exercised through the real
   Simulator. QA B authenticated to Complex Progress with no QA A food or
   weight entries; History showed no food entries, Insights showed 0 logged
