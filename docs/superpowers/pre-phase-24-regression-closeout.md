@@ -222,6 +222,17 @@ Rice cooked candidate in Review with an initially missing amount, and kept the
 screen recoverable: after entering 100 g it showed a 226 kcal provisional
 preview plus explicit no-trusted-cup-conversion guidance, with candidate and
 serving controls still available and no save performed.
+A supplemental QA A Simulator search for `milk` returned multiple distinct
+generic/preparation candidates (whole pasteurised, sheep whole, human mature,
+and chocolate 2%); provider/source labels were not exposed in that UI, so
+provider-attribution remains an automated/API concern. A direct `1 cup cooked
+rice` search selected a generic cooked-rice candidate with only g/kg/oz/lb
+controls and a per-100 g basis, with no cup conversion offered or silently
+applied. The real Scan barcode surface also opened with Ready to scan guidance
+and scanner-light control; cancelling returned to the editable Log food form
+without a mutation. Known-code persistence, invalid/unknown scan-result
+handling, and physical scanner behavior remain pending gates rather than
+inferred passes.
 A Node 22 source-boundary probe of the photo serving helpers returned exact and
 converted nutrition after gram/ounce edits for an equivalent trusted FoodItem;
 `PHOTO-SERVING-001` therefore remains an unresolved review-screen state/wiring
