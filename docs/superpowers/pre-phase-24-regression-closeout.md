@@ -37,7 +37,7 @@ scenarios:
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
-- `OPEN-INVESTIGATION`: 0
+- `OPEN-INVESTIGATION`: 1 (`NUTRIENT-EDIT-001` / `HIST-002`)
 - `BLOCKED`: 3
 
 The photo-review serving-preview finding `PHOTO-SERVING-001` was closed as not
@@ -49,6 +49,12 @@ verification; it remains a named regression scenario rather than an open
 defect. The three blocked scenarios are QA C deletion, QA C isolation deletion, and
 physical-device acceptance. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
+
+The resumed Complex nutrient recheck opened `NUTRIENT-EDIT-001`: a saved
+normalized Added Sugar override was not visible when the FoodLog was reopened.
+The client hydration gap is corrected with focused coverage, but the existing
+probe row still requires independent persisted-snapshot evidence and a clean
+Simulator re-run before this investigation can close.
 
 `LIB-REUSE-001` was reproduced during the authenticated History sweep: a
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
@@ -64,7 +70,8 @@ The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
 after the Food Library eligibility correction and Simulator rebuild:
 
 - API: 116 test files / 1,401 tests passed.
-- Mobile Vitest: 65 files / 439 tests passed.
+- Mobile Vitest: 65 files / 439 tests passed before the resumed nutrient-state
+  correction; the focused post-fix helper suite is 2/2 passing.
 - Mobile Jest: 68 suites / 207 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
@@ -76,6 +83,9 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Mobile typecheck, lint, and the focused `food-library-ui.test.ts` passed. The
   focused test was observed failing before the helper existed and passing after
   the correction.
+- The resumed normalized-nutrient correction passes its focused Vitest suite
+  (2 tests), mobile typecheck, and mobile lint. Its real Simulator reopen
+  journey remains an open investigation pending persisted-snapshot evidence.
 - A fresh Xcode-beta Debug Simulator build/install completed successfully on
   the dedicated QA iPhone 17 Simulator. The app was exercised through LAN
   Metro with QA A authenticated.

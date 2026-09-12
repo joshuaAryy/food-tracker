@@ -55,6 +55,7 @@ import {
   type ServingPreviewBasis,
 } from '@/lib/serving-preview';
 import { defaultServingDraft } from '@/lib/food-library-ui';
+import { editNutrientValuesFromSnapshot } from '@/lib/food-log-nutrient-state';
 
 interface FoodForm {
   foodName: string;
@@ -518,6 +519,12 @@ export default function FoodLogScreen() {
       setCurrentEditServingOptions(null);
       setClearNutritionOverride(false);
       setNutritionEdited(false);
+      setComplexNutrients(
+        Object.fromEntries(
+          NORMALIZED_NUTRIENT_KEYS.map((key) => [key, '']),
+        ) as Record<NormalizedNutrientKey, string>,
+      );
+      setComplexNutrientTouched({});
       setLoadingRecord(false);
       return;
     }
@@ -537,6 +544,19 @@ export default function FoodLogScreen() {
             time: now.time,
           };
       reset(formValuesFromFood(foodLog, timestamp));
+      setComplexNutrients(
+        foodLog.servingSnapshot === null
+          ? (Object.fromEntries(
+              NORMALIZED_NUTRIENT_KEYS.map((key) => [
+                key,
+                foodLog.nutrients[key] === undefined
+                  ? ''
+                  : String(foodLog.nutrients[key].amount),
+              ]),
+            ) as Record<NormalizedNutrientKey, string>)
+          : editNutrientValuesFromSnapshot(foodLog.servingSnapshot),
+      );
+      setComplexNutrientTouched({});
       setShowMore(
         nextTrackingMode === 'complex' || hasOptionalDetails(foodLog),
       );
