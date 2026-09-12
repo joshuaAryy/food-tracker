@@ -91,12 +91,14 @@ password field, `Verify identity`, successful permanent deletion, and signed-out
 routing. QA C was the only account deleted; QA A, QA B, and everyday data were
 not touched.
 
-`AI-PARTIAL-001` is now an open P1/P0-contract defect pending request-boundary
-root-cause tracing: the real QA A Simulator input `chicken, rice, peas,
-mystery house sauce` rendered only the first three editable rows and silently
-omitted the named sauce instead of preserving it as review/fallback-eligible.
-No log was saved. This keeps the partial-fallback row open rather than inferring
-success from the green backend suite.
+`AI-PARTIAL-001` remains an open P1/P0-contract investigation. An initial QA A
+Simulator observation appeared to render only the first three editable rows for
+`chicken, rice, peas, mystery house sauce`, but a direct authenticated staging
+request for the identical description returned all four items, preserving the
+sauce as `unmatched` and non-loggable. The complete review still needs a fresh
+full-scroll observation before deciding whether this is a real mobile rendering
+defect or an incomplete viewport observation. No log was saved, and success is
+not inferred from the green backend suite.
 
 ## Automated validation
 
