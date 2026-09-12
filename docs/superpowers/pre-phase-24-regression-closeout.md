@@ -27,8 +27,8 @@ Prisma `P1001` despite TCP port 5432 accepting connections; read-only
 diagnostics show multiple `com.docker.backend` listeners rather than a
 responding PostgreSQL server. No development database was used. Root
 `format:check` still reports the pre-existing
-protected/untracked documentation set plus tracked profile-goal-pace and
-saved-views test formatting warnings; no unrelated formatting was changed.
+protected/untracked documentation set plus the tracked saved-views test
+formatting warning; no unrelated formatting was changed.
 
 A subsequent mobile-only rerun after the snapshot-macro correction passed all
 67 Vitest files / 444 tests and all 69 Jest suites / 210 tests.
@@ -216,7 +216,7 @@ after the Food Library eligibility correction and Simulator rebuild:
   while writing temporary DerivedData; that exact temporary output was removed
   and the previously installed bundle was retained for UAT. No repository or
   protected state was changed by the retry.
-- Root `format:check` still reports only the known 26 protected/local files;
+- Root `format:check` still reports only the known 27 protected/local files;
   none was edited.
 
 ## Verified regression evidence
