@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Search, Sparkles, X } from 'lucide-react-native';
 import type {
@@ -602,6 +602,7 @@ export default function MealDescribeScreen() {
 
   return (
     <AppScreen
+      keyboardDismissMode="on-drag"
       footer={
         result === null ? (
           <AppButton loading={parsing} onPress={parseMeal}>
@@ -660,6 +661,9 @@ export default function MealDescribeScreen() {
               label="Meal description"
               multiline
               numberOfLines={5}
+              blurOnSubmit
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
               placeholder="2 eggs, toast with butter, and a banana"
               value={description}
               onChangeText={setDescription}
