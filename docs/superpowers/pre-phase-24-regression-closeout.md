@@ -218,10 +218,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   request boundary, fixed in the existing AI/retrieval boundary, and covered by
   regression tests. QA credentials are now resolved; the real Simulator reached
   Describe meal and exercised the editable multi-food, partial-fallback, and
-  opaque protein-shake variants. The exact trusted-match and exact
-  beef-stew/shawarma UI variants remain final-sweep work and are not inferred
-  from API or automated evidence. The named `1 apple` UI recovery scenario
-  remains a separate observed pass.
+  opaque protein-shake variants. The exact trusted-match and beef-stew UI
+  variants remain final-sweep work; the exact `large chicken shawarma plate`
+  variant is now a Simulator pass with the blank-unit recovery fix. The named
+  `1 apple` UI recovery scenario remains a separate observed pass.
 - `AUTH-BOOTSTRAP-001`: rejected auth-session cleanup was reproduced, fixed,
   and covered by a focused regression test.
 - QA A/B Firebase identity mapping, deterministic QA A staging fixture, and
@@ -378,8 +378,21 @@ all four named components. Chicken, rice, and peas were checked trusted rows;
 the sauce remained a separate unchecked `Needs food` row with remove/review
 controls and a displayed candidate that was not silently selected. `Log
 selected` therefore remained scoped to the resolved rows, and no meal was
-saved. This closes `AI-PARTIAL-001` as a viewport-observation error rather
-than a rendering defect.
+  saved. This closes `AI-PARTIAL-001` as a viewport-observation error rather
+  than a rendering defect.
+
+The resumed QA A opaque-composite Simulator journey entered `large chicken
+shawarma plate` against the rebuilt Debug bundle. The review showed one
+editable `chicken shawarma` row matched to a trusted chicken candidate, with
+alternate candidates and no fictional decomposition. Its parsed quantity was
+`1` with no unit, so `Log selected` stayed disabled and the row explained the
+supported-unit requirement. Selecting `Use g` recovered the row to a
+provisional `2 kcal · 0.3 g protein` preview at `1.0 g`; changing the amount to
+`200` produced `376 kcal · 52.2 g protein` at `200.0 g`. The row became
+checkable and Close returned to Log food with zero saved entries. The original
+blank-unit handler defect was fixed in `d35eb09` with a focused regression test;
+this journey now demonstrates editable recovery without a fabricated fallback
+or historical mutation.
 
 A read-only source-boundary audit on 2026-09-12 confirmed that the current AI
 route retrieves candidates for every parsed item, invokes the provider
