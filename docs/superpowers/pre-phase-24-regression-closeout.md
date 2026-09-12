@@ -29,11 +29,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 57
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 58
 scenarios:
 
-- `PASS-AUTOMATED`: 17
-- `PASS-SIMULATOR`: 38
+- `PASS-AUTOMATED`: 14
+- `PASS-SIMULATOR`: 39
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -67,6 +67,18 @@ fresh QA A Simulator observation now hide the impossible action. The resumed
 pass completed Saved/My Foods/Recent/Archived consumer coverage, including
 custom archive/restore.
 
+`GOAL-PACE-001` was reproduced in QA A Profile → Edit goals: selecting Lose
+exposed stale categorical pace choices and allowed the canonical numeric rate
+to remain blank. The mobile correction removes those user-facing legacy
+choices, requires 0.50–2.00 lb/week in 0.05 steps for Lose/Gain, preserves
+Maintain as null-rate, and derives the legacy compatibility enum only when
+saving. The focused Jest regression was red before the correction and green
+after it. A real QA A Simulator rerun confirmed the numeric-only controls and
+recoverable missing-rate validation; valid numeric save/readback remains a
+final critical-journey check because Simulator text entry was unreliable in
+this pass. The focused correction is committed as `63ece53`; the valid numeric
+save/readback remains explicitly pending for the final critical-journey sweep.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
@@ -76,7 +88,8 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
   run is 66 files / 442 tests passed, including the 3-test nutrient-state
   helper suite.
-- Mobile Jest: 68 suites / 207 tests passed.
+- Mobile Jest: 69 suites / 208 tests passed, including the Profile Goal Pace
+  regression.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - A resumed full API-test attempt was made against the dedicated
