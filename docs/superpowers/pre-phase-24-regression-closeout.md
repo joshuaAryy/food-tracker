@@ -156,6 +156,12 @@ explicit Delete water entry confirmation. The row disappeared from Water
 History afterward. This supplements the prior quick-add, Other Amount, and
 local Undo evidence without changing the water-only contract.
 
+The QA A Complex History recheck also completed the three-state nutrient
+journey at the real UI boundary. `Added Sugar` was set to explicit `0`, saved,
+and reopened as `0`; it was then cleared, saved, and reopened with no value,
+retaining the distinct Unknown state. This uses the existing QA Archive Probe
+fixture and does not alter the canonical FoodItem.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
