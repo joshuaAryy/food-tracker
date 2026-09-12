@@ -299,6 +299,11 @@ after the Food Library eligibility correction and Simulator rebuild:
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
+- A fresh read-only recheck on 2026-09-12 at 20:21 UTC returned the same
+  `/health=200`, `/health/ready=200`, and structured `401
+  AUTHORIZATION_REQUIRED` setup response. Railway reported failed latest
+  deployment `3bbfb81d` with active deployment `f522fae3`; no current-candidate
+  runtime evidence is inferred from this healthy legacy deployment.
 - A fresh read-only QA A/B staging smoke returned 200 for setup, profile, goals,
   dashboard, food logs, water logs, weight logs, recommendations, saved views,
   recipes, and nutrition targets. That pre-recipe-journey snapshot recorded QA A
