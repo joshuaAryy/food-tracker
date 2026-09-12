@@ -355,11 +355,13 @@ after the Food Library eligibility correction and Simulator rebuild:
   tapping `Try again` restored authenticated Progress without mutation or
   duplicate submission. This promotes `FAIL-001` to Simulator PASS; slow-save
   timing remains covered by automated tests.
-- The QA A → QA B account-switch journey was exercised through the real
-  Simulator. QA B authenticated to Complex Progress with no QA A food or
-  weight entries; History showed no food entries, Insights showed 0 logged
-  days, and a terminate/relaunch returned to the QA B home. Existing API
-  ownership probes independently returned 404 for QA A resource IDs under QA B.
+- The QA A → QA B account-switch journey was exercised through the real Fresh QA
+  Simulator. QA B authenticated through the email/password form to Complex
+  Progress with no QA A food or weight entries; the home showed 0 food entries
+  and 0 logged days, and the authenticated state remained after relaunch.
+  The system password-save prompt was dismissed without saving credentials.
+  Existing API ownership probes independently returned 404 for QA A resource
+  IDs under QA B. This refreshes the prior switch evidence on 2026-09-12.
 - The named QA A `1 apple` AI journey was exercised in the real Simulator. The
   flow produced an editable apple candidate, allowed serving amount/unit
   editing, logged a valid 1 g result, showed the History row, and reopened it
