@@ -47,8 +47,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 59
 scenarios:
 
-- `PASS-AUTOMATED`: 14
-- `PASS-SIMULATOR`: 42
+- `PASS-AUTOMATED`: 13
+- `PASS-SIMULATOR`: 43
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
