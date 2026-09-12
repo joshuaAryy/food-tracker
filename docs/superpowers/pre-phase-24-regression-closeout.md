@@ -54,8 +54,9 @@ physical-device acceptance. QA A → QA B switching and the named real-UI
 provider-backed Apple log exposed `Save to My Foods`, but the server correctly
 rejected that unoverridden snapshot with HTTP 422. The mobile eligibility
 predicate was corrected with a focused regression test; Metro hot reload and a
-fresh QA A Simulator observation now hide the impossible action. Full
-Saved/My Foods/Recent/Archived consumer coverage remains pending.
+fresh QA A Simulator observation now hide the impossible action. The resumed
+pass completed Saved/My Foods/Recent/Archived consumer coverage, including
+custom archive/restore.
 
 ## Automated validation
 
@@ -131,7 +132,8 @@ after the Food Library eligibility correction and Simulator rebuild:
   exercised Saved, My Foods, Recent, and Archived tabs, reused Recent Banana in
   Food Log, and opened its editable library detail. Setting a 100 g default
   serving persisted across closing and reopening the detail; the temporary
-  preference was then removed. Custom archive/restore remains pending.
+  preference was then removed. A disposable `QA Archive Probe` manual food was
+  archived, observed in Archived, restored, and observed again in My Foods.
 - The QA A → QA B account-switch journey was exercised through the real
   Simulator. QA B authenticated to Complex Progress with no QA A food or
   weight entries; History showed no food entries, Insights showed 0 logged
