@@ -465,6 +465,12 @@ explicit custom-versus-recommended copy. The target editor was exited through
 Back without saving; this supplements the existing persistence tests without
 claiming a new override mutation.
 
+Within the same Profile editor, the tracking-style control was toggled from
+Complex to Simple and the live state changed to `Simple mode` with the
+Simple-specific copy, while the goal, target, and profile values stayed
+unchanged. Complex was selected again before leaving, so the QA A fixture
+remains in its prior Complex state and no mode mutation was persisted.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
