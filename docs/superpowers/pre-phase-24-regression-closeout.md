@@ -361,7 +361,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   and 0 logged days. History showed no food entries and Insights showed 0
   logged days; stopping and relaunching the app returned to authenticated QA B
   Complex Progress with the same empty state.
-  The system password-save prompt was dismissed without saving credentials.
+  Signing back into QA A restored its recognizable Friday History state (8
+  entries, 172 kcal, including `QA Archive Probe`) without cross-account
+  residue. The system password-save prompts were dismissed without saving
+  credentials.
   Existing API ownership probes independently returned 404 for QA A resource
   IDs under QA B. This refreshes the prior switch evidence on 2026-09-12.
 - The named QA A `1 apple` AI journey was exercised in the real Simulator. The
