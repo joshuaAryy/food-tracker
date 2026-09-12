@@ -27,6 +27,12 @@ deploy/status. No development database was used. Root
 protected/untracked documentation set plus the tracked saved-views test
 formatting warning; no unrelated formatting was changed.
 
+Post-fix workspace typecheck, lint, and build plus Prisma generate/validate also
+pass. A later read-only `prisma migrate status` check returned `P1001` because
+the local PostgreSQL/Docker service was unavailable; no migration or database
+mutation was attempted. The earlier full baseline remains the authoritative
+green migration deploy/status evidence until the service is restored.
+
 A subsequent mobile-only rerun after the snapshot-macro correction passed all
 67 Vitest files / 444 tests and all 70 Jest suites / 211 tests.
 
