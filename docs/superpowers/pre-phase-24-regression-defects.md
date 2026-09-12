@@ -50,14 +50,14 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 
 ## Latest automated validation checkpoint
 
-The fresh validation rerun completed under Node `v22.23.0` and pnpm
-`10.34.3` before the current documentation-only evidence updates. The commits
-since the last application checkpoint are documentation-only; no application or
-test source changed.
+The latest committed-source validation rerun completed under Node `v22.23.0`
+and pnpm `10.34.3` after `ce09db2`. Mobile and workspace source checks are
+current; the API's last known green suite remains the earlier 116-file /
+1,401-test run, while a fresh attempt is blocked in Prisma setup by P1001.
 
 - API: 116 test files / 1,401 tests passed.
 - Mobile Jest: 69 suites / 209 tests passed.
-- Mobile Vitest: 66 files / 442 tests passed.
+- Mobile Vitest: 66 files / 443 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration status/deploy passed.
 - Changed-file Prettier checks and `git diff --check` passed.
