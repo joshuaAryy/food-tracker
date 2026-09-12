@@ -89,6 +89,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   Simulator reopen journey remains an open investigation pending
   persisted-snapshot evidence; the current Computer Use input path could not
   prove a mutation was committed.
+- A Node 22 direct `calculateAuthoritativeServing` probe independently retained
+  an explicit normalized zero in the final/snapshot nutrients and omitted an
+  Unknown patch, confirming the backend calculation semantics while database
+  integration remains unavailable.
 - A fresh Xcode-beta Debug Simulator build/install completed successfully on
   the dedicated QA iPhone 17 Simulator. The app was exercised through LAN
   Metro with QA A authenticated.
