@@ -33,7 +33,6 @@ import type {
 import {
   ACTIVITY_LEVELS,
   GOAL_TYPES,
-  GOAL_PACES,
   TRACKING_MODES,
   TRAINING_STYLES,
   isRateWithinAutomaticPolicy,
@@ -55,6 +54,7 @@ import { useAuthRuntime } from '@/components/auth/auth-bootstrap';
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import { trackingModeLabel } from '@/lib/reporting-ui';
 import { targetOverrideFieldsForProfileEdit } from '@/lib/target-overrides';
+import { compatibilityPaceForRate } from '@/lib/weekly-rate';
 import { reportDiagnostic } from '@/lib/safe-diagnostics';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
@@ -183,6 +183,18 @@ function goalLabel(value: GoalType): string {
 function paceLabel(value: GoalPace | 'none'): string {
   if (value === 'none') return 'No pace';
   return label(value);
+}
+
+function profilePaceLabel(
+  goalType: GoalType,
+  targetRateLbPerWeek: string,
+  legacyPace: GoalPace | 'none',
+): string {
+  if (goalType === 'maintain') return 'No pace';
+  const rate = Number(targetRateLbPerWeek);
+  return isRateWithinAutomaticPolicy(goalType, rate)
+    ? `${rate.toFixed(2)} lb/week`
+    : paceLabel(legacyPace);
 }
 
 function IconDot({
@@ -614,7 +626,17 @@ export default function ProfileScreen() {
     setNotice(null);
 
     try {
-      const goalPace = values.goalPace === 'none' ? null : values.goalPace;
+      const targetRateLbPerWeek =
+        values.targetRateLbPerWeek.trim() === ''
+          ? null
+          : Number(values.targetRateLbPerWeek);
+      const goalPace =
+        values.goalType === 'maintain'
+          ? null
+          : compatibilityPaceForRate(
+              values.goalType,
+              targetRateLbPerWeek ?? 0,
+            );
       const targetOverrideFields = targetOverrideFieldsForProfileEdit({
         caloriesChanged: values.targetCalories !== lastSavedForm.targetCalories,
         proteinChanged:
@@ -635,10 +657,7 @@ export default function ProfileScreen() {
           goalType: values.goalType,
           goalPace,
           targetWeightLb: Number(values.targetWeightLb),
-          targetRateLbPerWeek:
-            values.targetRateLbPerWeek.trim() === ''
-              ? null
-              : Number(values.targetRateLbPerWeek),
+          targetRateLbPerWeek,
           targetCalories: Number(values.targetCalories),
           targetProteinGrams: Number(values.targetProteinGrams),
           targetOverrides: targetOverrideFields.length > 0,
@@ -754,7 +773,11 @@ export default function ProfileScreen() {
           Icon={Goal}
           label="Goal direction"
           value={goalLabel(watchedValues.goalType)}
-          detail={paceLabel(watchedValues.goalPace)}
+          detail={profilePaceLabel(
+            watchedValues.goalType,
+            watchedValues.targetRateLbPerWeek,
+            watchedValues.goalPace,
+          )}
         />
         <SettingsRow
           Icon={Scale}
@@ -963,20 +986,6 @@ export default function ProfileScreen() {
           />
           <Controller
             control={control}
-            name="goalPace"
-            render={({ field }) => (
-              <View className="gap-2">
-                <AppText variant="label">Goal pace</AppText>
-                <ChoiceRow
-                  values={['none', ...GOAL_PACES] as const}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              </View>
-            )}
-          />
-          <Controller
-            control={control}
             name="targetWeightLb"
             rules={{
               required: 'Target weight is required.',
@@ -998,22 +1007,26 @@ export default function ProfileScreen() {
             control={control}
             name="targetRateLbPerWeek"
             rules={{
-              validate: (value) =>
-                value.trim() === '' ||
-                isRateWithinAutomaticPolicy(
+              validate: (value) => {
+                if (watchedValues.goalType === 'maintain') {
+                  return value.trim() === ''
+                    ? true
+                    : 'Maintain plans do not use a weekly rate.';
+                }
+                if (value.trim() === '') {
+                  return 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.';
+                }
+                return isRateWithinAutomaticPolicy(
                   watchedValues.goalType,
                   Number(value),
                 )
                   ? true
-                  : watchedValues.goalType === 'gain'
-                    ? 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.'
-                    : watchedValues.goalType === 'lose'
-                      ? 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.'
-                      : 'Maintain plans do not use a weekly rate.',
+                  : 'Enter a rate from 0.50 to 2 lb/week in 0.05 steps.';
+              },
             }}
             render={({ field }) => (
               <AppInput
-                label="Weekly rate (lb/week, optional)"
+                label="Weekly rate (lb/week)"
                 keyboardType="decimal-pad"
                 value={field.value}
                 onBlur={field.onBlur}
@@ -1022,6 +1035,11 @@ export default function ProfileScreen() {
               />
             )}
           />
+          {watchedValues.goalType === 'maintain' ? (
+            <AppText variant="caption" muted>
+              Maintain plans do not use an automatic weekly rate.
+            </AppText>
+          ) : null}
         </FieldGroup>
 
         <FieldGroup title="Daily targets">
@@ -1125,7 +1143,11 @@ export default function ProfileScreen() {
         <SettingsRow
           Icon={Target}
           label="Goal pace"
-          value={paceLabel(watchedValues.goalPace)}
+          value={profilePaceLabel(
+            watchedValues.goalType,
+            watchedValues.targetRateLbPerWeek,
+            watchedValues.goalPace,
+          )}
         />
       </SettingsSection>
 
