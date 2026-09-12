@@ -541,7 +541,13 @@ function ProfileSkeleton() {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { deleteAccount, signOut } = useAuthRuntime();
+  const {
+    deleteAccount,
+    providerIds,
+    reauthenticateWithGoogle,
+    reauthenticateWithPassword,
+    signOut,
+  } = useAuthRuntime();
   const markDataChanged = useAppStore((state) => state.markDataChanged);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -633,10 +639,7 @@ export default function ProfileScreen() {
       const goalPace =
         values.goalType === 'maintain'
           ? null
-          : compatibilityPaceForRate(
-              values.goalType,
-              targetRateLbPerWeek ?? 0,
-            );
+          : compatibilityPaceForRate(values.goalType, targetRateLbPerWeek ?? 0);
       const targetOverrideFields = targetOverrideFieldsForProfileEdit({
         caloriesChanged: values.targetCalories !== lastSavedForm.targetCalories,
         proteinChanged:
@@ -1258,7 +1261,14 @@ export default function ProfileScreen() {
         description="Your data stays separated from other accounts on this device."
       >
         <AccountSignOutButton onSignOut={signOut} />
-        <DeleteAccountPanel actions={{ deleteAccount }} />
+        <DeleteAccountPanel
+          actions={{
+            deleteAccount,
+            providerIds,
+            reauthenticateWithGoogle,
+            reauthenticateWithPassword,
+          }}
+        />
       </SettingsSection>
     </AppScreen>
   );

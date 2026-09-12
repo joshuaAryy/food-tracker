@@ -7,6 +7,9 @@ import { toUserFacingError } from '@/lib/user-facing-errors';
 
 export interface AccountDeletionActions {
   deleteAccount(): Promise<void>;
+  providerIds?: string[];
+  reauthenticateWithPassword?(password: string): Promise<void>;
+  reauthenticateWithGoogle?(): Promise<void>;
 }
 
 interface DeleteAccountPanelProps {
@@ -21,15 +24,27 @@ export function DeleteAccountPanel({ actions }: DeleteAccountPanelProps) {
   const [step, setStep] = useState<DeletionStep>('closed');
   const [confirmation, setConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  const [reauthRequired, setReauthRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canDelete = confirmation === DELETE_CONFIRMATION && !loading;
+  const canDelete =
+    confirmation === DELETE_CONFIRMATION && !loading && !reauthLoading;
 
   function close() {
     if (loading) return;
     setStep('closed');
     setConfirmation('');
+    setReauthPassword('');
+    setReauthRequired(false);
     setError(null);
+  }
+
+  function errorCode(cause: unknown): string | undefined {
+    if (typeof cause !== 'object' || cause === null) return undefined;
+    const code = (cause as { code?: unknown }).code;
+    return typeof code === 'string' ? code : undefined;
   }
 
   async function deleteAccount() {
@@ -39,6 +54,9 @@ export function DeleteAccountPanel({ actions }: DeleteAccountPanelProps) {
     try {
       await actions.deleteAccount();
     } catch (cause) {
+      if (errorCode(cause) === 'RECENT_AUTH_REQUIRED') {
+        setReauthRequired(true);
+      }
       setError(
         toUserFacingError(
           cause,
@@ -47,6 +65,42 @@ export function DeleteAccountPanel({ actions }: DeleteAccountPanelProps) {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function reauthenticate() {
+    if (reauthLoading) return;
+    const hasPassword =
+      actions.providerIds?.includes('password') === true &&
+      actions.reauthenticateWithPassword !== undefined;
+    const hasGoogle =
+      actions.providerIds?.includes('google.com') === true &&
+      actions.reauthenticateWithGoogle !== undefined;
+    if (!hasPassword && !hasGoogle) return;
+    setReauthLoading(true);
+    setError(null);
+    try {
+      if (hasPassword) {
+        if (reauthPassword === '') return;
+        await actions.reauthenticateWithPassword?.(reauthPassword);
+      } else {
+        await actions.reauthenticateWithGoogle?.();
+      }
+      setReauthRequired(false);
+      setReauthPassword('');
+      await actions.deleteAccount();
+    } catch (cause) {
+      if (errorCode(cause) === 'RECENT_AUTH_REQUIRED') {
+        setReauthRequired(true);
+      }
+      setError(
+        toUserFacingError(
+          cause,
+          'We could not verify your identity. Try again.',
+        ),
+      );
+    } finally {
+      setReauthLoading(false);
     }
   }
 
@@ -113,6 +167,45 @@ export function DeleteAccountPanel({ actions }: DeleteAccountPanelProps) {
               {error}
             </AppText>
           )}
+          {reauthRequired ? (
+            <View className="gap-3">
+              <AppText>
+                Verify your identity to continue deleting this account.
+              </AppText>
+              {actions.providerIds?.includes('password') === true &&
+              actions.reauthenticateWithPassword !== undefined ? (
+                <AppInput
+                  accessibilityLabel="Current password"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  label="Current password"
+                  placeholder="Current password"
+                  secureTextEntry
+                  value={reauthPassword}
+                  onChangeText={setReauthPassword}
+                />
+              ) : null}
+              <AppButton
+                accessibilityLabel={
+                  actions.providerIds?.includes('password') === true
+                    ? 'Verify identity'
+                    : 'Verify with Google'
+                }
+                disabled={
+                  reauthLoading ||
+                  (actions.providerIds?.includes('password') === true &&
+                    reauthPassword === '')
+                }
+                loading={reauthLoading}
+                variant="secondary"
+                onPress={() => void reauthenticate()}
+              >
+                {actions.providerIds?.includes('password') === true
+                  ? 'Verify identity'
+                  : 'Verify with Google'}
+              </AppButton>
+            </View>
+          ) : null}
           <AppButton
             accessibilityLabel="Permanently delete account"
             accessibilityHint="Permanently deletes this account and its data"

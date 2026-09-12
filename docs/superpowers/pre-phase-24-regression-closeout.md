@@ -33,12 +33,12 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 14
-- `PASS-SIMULATOR`: 39
+- `PASS-SIMULATOR`: 41
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
-- `BLOCKED`: 3
+- `BLOCKED`: 1
 
 The photo-review serving-preview finding `PHOTO-SERVING-001` was closed as not
 reproduced after a controlled real-photo rerun. The earlier mixed-meal preview handoff finding
@@ -46,8 +46,9 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The three blocked scenarios are QA C deletion, QA C isolation deletion, and
-physical-device acceptance. QA A → QA B switching and the named real-UI
+defect. The remaining blocked scenario is physical-device acceptance. QA C deletion and
+QA C isolation deletion are now observed passes after the authorized
+reauthentication/deletion recovery correction. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
 
 The resumed Complex nutrient recheck closed `NUTRIENT-EDIT-001`: after setting
@@ -79,6 +80,17 @@ termination/relaunch, Profile still showed Lose / `0.55 lb/week` and Progress
 showed the propagated `2,320 kcal` target. The focused correction is committed
 as `63ece53`; no historical FoodLog mutation was observed.
 
+`ACCOUNT-DELETE-001` was reproduced during the authorized disposable-account
+lifecycle: the API's recent-auth guard correctly rejected a stale deletion
+request, but the mobile panel exposed no way to reauthenticate. The minimal
+mobile correction wires the existing Firebase password/Google reauthentication
+actions into the deletion panel, keeps the confirmation editable, and retries
+deletion only after successful identity verification. The focused account
+deletion suite is green, and QA C's real Simulator flow showed the current
+password field, `Verify identity`, successful permanent deletion, and signed-out
+routing. QA C was the only account deleted; QA A, QA B, and everyday data were
+not touched.
+
 ## Automated validation
 
 The current validation completed under Node `v22.23.0` and pnpm `10.34.3`
@@ -88,8 +100,8 @@ after the Food Library eligibility correction and Simulator rebuild:
 - Mobile Vitest: the pre-fix baseline was 65 files / 439 tests; the post-fix
   run is 66 files / 442 tests passed, including the 3-test nutrient-state
   helper suite.
-- Mobile Jest: 69 suites / 208 tests passed, including the Profile Goal Pace
-  regression.
+- Mobile Jest: 69 suites / 209 tests passed, including the Profile Goal Pace
+  and account-deletion reauthentication regressions.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - A resumed full API-test attempt was made against the dedicated
@@ -326,11 +338,12 @@ Detailed reproduction and evidence remain in
    not-reproduced after controlled photo serving, explicit-name/full-scroll,
    and response-boundary evidence. Keep the named photo serving scenario in
    the final critical re-sweep in case it recurs.
-3. QA C credentials are verified and a fresh real-Simulator sign-in displayed
-   the independently recognizable `testacct4659` profile. The lower account
-   controls currently mis-target the logging menu under the iOS 27 Simulator
-   harness, so the deletion form/final destructive action was not attempted;
-   QA C remains intact and A/B remain untouched.
+3. QA C credentials and the approved UID were verified before the authorized
+   destructive lifecycle. The real Simulator reached deletion confirmation,
+   surfaced the recent-auth requirement, completed current-password
+   reauthentication through the corrected panel, permanently deleted only QA C,
+   and routed to signed-out state. QA A, QA B, and everyday data remain
+   untouched.
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. Deployment
@@ -349,9 +362,8 @@ deferred; only verified unusability is fixed in this phase.
 ## Resume and completion requirements
 
 The host-disk and QA-identity blockers are resolved. Resume the remaining
-authenticated Simulator rows using the real UI and backend persistence checks;
-resolve the lower-account-control targeting issue before performing the
-authorized QA C deletion lifecycle. Then perform the full critical-journey
+authenticated Simulator rows using the real UI and backend persistence checks.
+The authorized QA C deletion lifecycle is complete. Then perform the full critical-journey
 re-sweep, targeted physical-iPhone pass, current runtime-changing staging
 cold-start validation, final automated checks, and closeout review. Do not mark
 this document complete until the matrix has no unresolved P0/P1 or meaningful
