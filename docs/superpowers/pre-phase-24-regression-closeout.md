@@ -58,8 +58,8 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 60
 scenarios:
 
-- `PASS-AUTOMATED`: 10
-- `PASS-SIMULATOR`: 47
+- `PASS-AUTOMATED`: 9
+- `PASS-SIMULATOR`: 48
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -73,10 +73,10 @@ authoritative preview confirmation. The earlier multi-food AI component-complete
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
 defect. The only matrix row currently marked `BLOCKED` is physical-device
-acceptance. Ten automated-only rows still require Simulator-specific variants
+acceptance. Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
-`PHOTO-001`, `FAIL-001`, and `FAIL-002`. QA C deletion and
+`PHOTO-001`, and `FAIL-002`. QA C deletion and
 QA C isolation deletion are now observed passes after the authorized
 reauthentication/deletion recovery correction. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
@@ -327,10 +327,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   serving persisted across closing and reopening the detail; the temporary
   preference was then removed. A disposable `QA Archive Probe` manual food was
   archived, observed in Archived, restored, and observed again in My Foods.
-- A separate QA A History navigation briefly surfaced a recoverable unavailable
-  state; the visible Try again action restored the History list without a crash
-  or duplicate mutation. Because the failure cause was not controlled, the
-  dedicated API-outage/slow-request row remains automated-only.
+- A controlled QA A Simulator outage stopped the local API before relaunch. The
+  authenticated app showed the recoverable `We couldn't load your account`
+  state with `Try again` and `Sign out` and no crash; after the API restarted,
+  tapping `Try again` restored authenticated Progress without mutation or
+  duplicate submission. This promotes `FAIL-001` to Simulator PASS; slow-save
+  timing remains covered by automated tests.
 - The QA A → QA B account-switch journey was exercised through the real
   Simulator. QA B authenticated to Complex Progress with no QA A food or
   weight entries; History showed no food entries, Insights showed 0 logged
