@@ -442,6 +442,20 @@ returned to the editable Profile without sign-out or mutation. This validates
 the non-destructive recovery path; it does not authorize or substitute for the
 separate QA C deletion lifecycle already completed.
 
+On 2026-09-12, the separate Fresh QA iPhone 17 Simulator was installed from
+the already-built standalone Release bundle to exercise the signed-out launch
+boundary without resetting QA A. The real UI displayed the expected Welcome
+back sign-in form and Create account route; returning from Create account to
+Sign in worked. Transient QA A credentials were entered only through the UI,
+authentication reached Complex Progress, and a relaunch preserved the
+authenticated route. The standalone bundle then showed an unexpected-response
+settings state when Profile was opened and its Try again action did not recover
+within the observed interval. This bundle is an older standalone artifact,
+not the current Debug/LAN-Metro candidate; the direct authenticated staging
+profile endpoint remained healthy and the current QA A Debug/Metro Profile
+route loaded correctly. Therefore this observation is retained as stale-bundle
+environment evidence, not as a current-product defect or a basis for a fix.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
