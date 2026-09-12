@@ -471,6 +471,15 @@ Simple-specific copy, while the goal, target, and profile values stayed
 unchanged. Complex was selected again before leaving, so the QA A fixture
 remains in its prior Complex state and no mode mutation was persisted.
 
+The QA A Progress launcher was also re-swept through the current Debug/Metro
+bundle. The logging menu exposed Log weight, Log water, Log food, and Close;
+Log weight opened with date/time fields and a reachable Save weight action,
+accepted a decimal `181.5` value through the native field, and was cancelled
+without mutation. Log water exposed its quick amounts, Other Amount, logged-at
+control, and bottom Add 250 mL action after scrolling; Close returned to
+Progress. These checks provide direct reachability/recovery evidence and do
+not replace the existing persistence rows.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
