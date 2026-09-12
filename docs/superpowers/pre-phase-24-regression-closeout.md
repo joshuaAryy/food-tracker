@@ -401,6 +401,13 @@ rechecked, with no save or data mutation. These observations extend the
 critical re-sweep but do not close the remaining broader launcher/deep-link/
 back/cancel and final critical-journey gates.
 
+The same QA A Simulator pass also exercised the Insights navigation family:
+Explore trends opened from Insights, Calories trends opened, the 30D → 7D →
+90D selectors changed the displayed ranges (Sep 6–12 through Jun 15–Sep 12),
+Back from Trends returned to Explore, and Back to Insights returned to the
+Insights report. No mutation occurred during these navigation checks; the
+broader launcher/deep-link/cancel matrix remains for the final re-sweep.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
