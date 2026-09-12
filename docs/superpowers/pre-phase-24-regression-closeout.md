@@ -32,11 +32,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 `docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 58
 scenarios:
 
-- `PASS-AUTOMATED`: 14
+- `PASS-AUTOMATED`: 13
 - `PASS-SIMULATOR`: 41
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
-- `OPEN-DEFECT`: 0
+- `OPEN-DEFECT`: 1 (`AI-PARTIAL-001`, pending root-cause correction)
 - `OPEN-INVESTIGATION`: 0
 - `BLOCKED`: 1
 
@@ -90,6 +90,13 @@ deletion suite is green, and QA C's real Simulator flow showed the current
 password field, `Verify identity`, successful permanent deletion, and signed-out
 routing. QA C was the only account deleted; QA A, QA B, and everyday data were
 not touched.
+
+`AI-PARTIAL-001` is now an open P1/P0-contract defect pending request-boundary
+root-cause tracing: the real QA A Simulator input `chicken, rice, peas,
+mystery house sauce` rendered only the first three editable rows and silently
+omitted the named sauce instead of preserving it as review/fallback-eligible.
+No log was saved. This keeps the partial-fallback row open rather than inferring
+success from the green backend suite.
 
 ## Automated validation
 
