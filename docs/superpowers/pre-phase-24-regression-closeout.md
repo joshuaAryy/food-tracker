@@ -91,7 +91,9 @@ defect. The only matrix row currently marked `BLOCKED` is physical-device
 acceptance. Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
-`PHOTO-001`, and `FAIL-002`. QA C deletion and
+`PHOTO-001`, and `FAIL-002`. `FAIL-002` now also has supplemental real-Simulator
+rapid-selector evidence (7D followed by 90D settled on 90D), but controlled
+delayed-response injection remains automated-only. QA C deletion and
 QA C isolation deletion are now observed passes after the authorized
 reauthentication/deletion recovery correction. QA A → QA B switching and the named real-UI
 `1 apple` recoverability journey are observed Simulator passes.
