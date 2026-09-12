@@ -336,7 +336,8 @@ converted nutrition after gram/ounce edits for an equivalent trusted FoodItem;
 the controlled Simulator rerun confirmed the same preview behavior in the real
 review/confirmation flow.
 Insights Month reports, Explore trends, a 3-day custom range (Sep 9–11),
-Calories trend coverage (recorded/partial/unlogged), and Saved views management
+Calories trend coverage (recorded/partial/unlogged), Progress Logging consistency
+trend coverage (Complete/Partial/Unlogged/In progress), and Saved views management
 (pinned/other views) were observed. A new Calories · 30D view was created,
 pinned through More actions, and remained pinned after app relaunch. QA A then
 renamed the pinned view to `Calories QA`, relaunched, changed its comparison
