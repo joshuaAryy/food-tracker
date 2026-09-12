@@ -328,6 +328,18 @@ controls and a displayed candidate that was not silently selected. `Log
 selected` therefore remained scoped to the resolved rows, and no meal was
 saved. This closes `AI-PARTIAL-001` as a viewport-observation error rather
 than a rendering defect.
+
+A read-only source-boundary audit on 2026-09-12 confirmed that the current AI
+route retrieves candidates for every parsed item, invokes the provider
+evaluator when available, validates one decision per parsed item, and applies
+trusted/review/fallback disposition before response persistence; the mobile
+review renders every non-removed response row in a vertical scroll container.
+The Gemini parse prompt does not yet explicitly require preservation/reporting
+of every clearly named component, so real-provider completeness remains a
+named final-sweep risk. This is an inspection finding, not proof of a current
+defect or permission for a speculative prompt/RAG rewrite; the required
+execution evidence remains Gemini parse names versus API response names versus
+the complete Simulator-rendered list.
 A direct `1 cup cooked
 rice` search selected a generic cooked-rice candidate with only g/kg/oz/lb
 controls and a per-100 g basis, with no cup conversion offered or silently
