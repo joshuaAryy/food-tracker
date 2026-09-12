@@ -33,7 +33,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 scenarios:
 
 - `PASS-AUTOMATED`: 17
-- `PASS-SIMULATOR`: 36
+- `PASS-SIMULATOR`: 38
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -97,6 +97,9 @@ after the Food Library eligibility correction and Simulator rebuild:
   supported mass controls, required an amount, and did not offer or silently
   apply a cup conversion. The review remained recoverable and no log was
   saved.
+- QA A Simulator Calories trends exercised the ineligible forecast state: the
+  app explained that recent complete-day coverage was insufficient and showed
+  no fabricated future line, while recorded history remained visible.
 - A Node 22 direct `calculateAuthoritativeServing` probe independently retained
   an explicit normalized zero in the final/snapshot nutrients and omitted an
   Unknown patch, confirming the backend calculation semantics while database
