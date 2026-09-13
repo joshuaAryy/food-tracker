@@ -46,15 +46,28 @@ description recoverable: its Done key dismisses the keyboard and the required
 Read meal footer then activates into editable Review foods. The real Simulator
 rerun observed candidate/serving controls and Log selected without saving a log.
 
-An authorized staging retry used a clean `git archive` of current committed
-candidate `3c40b5d42390cd77febdb4ea0ffae63db987fe25` and the existing
-`food-tracker-staging-api` service/environment. With the documented
-`--path-as-root` mode, Railway indexed and uploaded the archive and created
-deployment `d1485467-a075-4bec-84b5-ad09cc4ae9cc`; Railway then marked it
-`SKIPPED` because no configured watch paths changed, so no build/deploy ran and
-no current candidate was served. The previously verified served deployment
-`f522fae3` remains the only current runtime provenance; no staging behavior is
-inferred from the skipped deployment.
+The earlier archive retry for `3c40b5d` and deployment
+`d1485467-a075-4bec-84b5-ad09cc4ae9cc` remains historical evidence only; it was
+correctly marked `SKIPPED` because no configured watch paths changed. After the
+Railway source selector was changed to the authorized debugging branch, Railway
+created deployment `94a303eb-5cce-4a90-9a67-8f4c14828b78` from exact commit
+`251ef3ce36e652172832b9feda906b26a98f080e`. Its build generated Prisma,
+compiled shared/API TypeScript, pushed the image, and passed `/health`; the
+deployment reached `SUCCESS` before the cold-start exercise.
+
+`COLD-002` was then executed without manually requesting `/health` or another
+warm-up endpoint. Railway status immediately before launch showed both the API
+and Postgres `SLEEPING`. The real QA A staging-target Simulator launch produced
+the first app-triggered setup request at `06:29:06.750Z`; Railway recorded
+transient connection-refused wake attempts and a 5.441-second 401 response,
+followed by a 200 setup response at `06:29:07.184Z` after the service/database
+recovered. Authenticated profile, tracking-preferences, dashboard, analytics,
+and goals requests then returned 200. The Simulator settled on QA A's
+authenticated Complex Progress and Profile states, with no crash, bootstrap
+loop, duplicate mutation, or data corruption. Deployment/runtime logs recorded
+database-readiness retries followed by recovery, and Railway status afterward
+was `SUCCESS`. This is the current served provenance and authenticated
+scale-to-zero evidence for the debugging branch.
 
 ## Product-contract authority
 
@@ -76,7 +89,7 @@ scenarios:
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
-- `BLOCKED`: 2
+- `BLOCKED`: 1
 
 The matrix's existing `AI-001` row now records the `AI-KEYBOARD-001` P1 defect
 and its `1a52472` correction. The previously reproduced keyboard trap is no
@@ -89,9 +102,9 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The two matrix rows currently marked `BLOCKED` are physical-device
-acceptance and the current debugging-candidate staging provenance/cold-start
-gate (`COLD-002`). Nine automated-only rows still require Simulator-specific variants
+defect. The only matrix row currently marked `BLOCKED` is physical-device
+acceptance; the current debugging-candidate staging provenance/cold-start gate
+(`COLD-002`) is now `PASS-STAGING-SIMULATOR`. Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
 `PHOTO-001`, and `FAIL-002`. `FAIL-002` now also has supplemental real-Simulator
@@ -302,8 +315,8 @@ after the Food Library eligibility correction and Simulator rebuild:
   candidate `3c40b5d42390cd77febdb4ea0ffae63db987fe25`; Railway created
   deployment `d1485467-a075-4bec-84b5-ad09cc4ae9cc` but marked it `SKIPPED`
   because no configured watch paths changed. It produced no deploy logs and
-  does not establish served-candidate provenance, so the authenticated
-  staging/cold-start row remains blocked.
+  did not establish served-candidate provenance at that earlier checkpoint;
+  this was superseded by the successful `COLD-002` deployment recorded above.
 - `git diff --check` passed.
 - After `f658b30`, the workspace typecheck, workspace lint, and shared/API
   build completed successfully under Node `v22.23.0` and pnpm `10.34.3`.
@@ -361,14 +374,20 @@ after the Food Library eligibility correction and Simulator rebuild:
   were read-only verified against the seeded staging service.
 - The verified Railway deployment `f522fae3` remains the runtime evidence for
   its exact candidate `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`.
+- Current COLD-002 provenance supersedes the historical staging bullets below:
+  Railway source configuration now selects `pre-phase-24-product-regression-debugging`,
+  and deployment `94a303eb-5cce-4a90-9a67-8f4c14828b78` served exact commit
+  `251ef3ce36e652172832b9feda906b26a98f080e` with successful build/deploy logs.
+  The authenticated QA A launch from a sleeping API and Postgres recovered from
+  transient wake refusals to 200 setup/profile/dashboard/analytics/goals
+  responses and a settled Complex Progress/Profile UI.
 - The current docs-only candidate upload created `b4b203be` but was correctly
   marked `SKIPPED` because no watched runtime files changed; it is not staging
   runtime evidence.
-- A read-only Railway configuration check on 2026-09-13 confirmed that the
-  existing `food-tracker-staging-api` source selector still points at
-  `phase-20-22-product-hardening-intelligence`, not this debugging branch. Its
-  latest deployment is `5865a859-b33a-49ea-b465-0cb343830821` (`FAILED`), so
-  local branch HEAD cannot be treated as the served staging revision.
+- A read-only Railway configuration check earlier on 2026-09-13 recorded the
+  old source selector and failed deployment; that observation is historical and
+  was superseded when the selector changed to the debugging branch. The current
+  selector and served commit are recorded in the COLD-002 evidence above.
 - The runtime-fix candidate `fdb7016` was archived from the exact committed
   tree and submitted with explicit project/service/environment targeting, but
   Railway returned a request error before creating a deployment. A subsequent
@@ -377,8 +396,9 @@ after the Food Library eligibility correction and Simulator rebuild:
   `Failed to create code snapshot. Please review your last commit, or try
   again.` No build logs or served-commit metadata were produced. The served
   runtime therefore remains the previously verified `f522fae3` candidate; no
-  current-HEAD staging behavior is inferred from the failed deployment or the
-  continuing `/health=200` response.
+  current-HEAD staging behavior was not inferred from those failed deployments
+  or the continuing `/health=200` response; the later successful COLD-002
+  deployment is the authoritative current staging evidence.
 - At this checkpoint the existing staging service responds `/health=200`,
   `/health/ready=200`, and unauthenticated `/api/v1/setup/status=401` with the
   structured `AUTHORIZATION_REQUIRED` response.
@@ -809,28 +829,11 @@ none of these checks is marked complete by Simulator or API evidence:
    and routed to signed-out state. QA A, QA B, and everyday data remain
    untouched.
 4. Physical-iPhone acceptance remains a user-owned final gate.
-5. The runtime-fix candidate still requires a completed Railway deployment and
-   served-provenance check before current-HEAD staging UAT. The matrix's
-   `COLD-002` row tracks the exact current candidate `3c40b5d`; it remains
-   blocked until that committed SHA can be deployed and verified as served.
-   Deployment
-   `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
-   creation. A later exact archive of committed candidate `42b4d5b` using
-   `--path-as-root` reached indexing/upload but was rejected by the free-tier
-   SFO peak-hours gate, so no deployment was created. The subsequent exact
-   archive of `27bde59` created deployment
-   `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which reached terminal `FAILED` at
-   `2026-09-13T04:05:43.201Z` with no build/deploy logs and no served
-   provenance. A further exact archive of current committed tip `8f039c4`
-   created deployment `5865a859-b33a-49ea-b465-0cb343830821`, which later
-   reached terminal `FAILED` at `2026-09-13T04:29:26.894Z` with zero build or
-   deploy logs. Inspect any later validated deployment's terminal status and
-   source provenance before treating staging behavior as evidence; the failed
-   candidate does not provide current-HEAD staging UAT. The latest exact
-   archive of committed `3c40b5d` created deployment
-   `d1485467-a075-4bec-84b5-ad09cc4ae9cc`, which fetched a 36 MB snapshot but
-   was marked `SKIPPED` because no configured watch paths changed; it produced
-   no build/deploy run and no served provenance, so `COLD-002` remains blocked.
+5. `COLD-002` is now `PASS-STAGING-SIMULATOR`: deployment
+   `94a303eb-5cce-4a90-9a67-8f4c14828b78` served exact commit `251ef3c` from
+   the debugging branch, and the un-prewarmed authenticated QA A cold launch
+   recovered through API/DB wake and reached a usable authenticated UI. The
+   earlier failed/skipped deployment attempts remain historical evidence only.
 
 ## Intentional exclusions and deferrals
 
@@ -843,12 +846,8 @@ deferred; only verified unusability is fixed in this phase.
 ## Resume and completion requirements
 
 The QA-identity blocker is resolved. The fresh Xcode-beta Debug build and
-install are now complete; continue any remaining Simulator-promotable rows
-using the real UI and backend persistence checks, while preserving explicit
-automated-only classifications where the required evidence is unavailable.
-The authorized QA C deletion lifecycle is complete. Then perform the full critical-journey
-re-sweep, targeted physical-iPhone pass, current runtime-changing staging
-cold-start validation, final automated checks, and closeout review. Do not mark
-this document complete until the matrix has no unresolved P0/P1 or meaningful
-functional P2, all required gates are evidenced, the final branch is pushed,
-and the working tree contains only intentional changes.
+install are complete, the authorized QA C deletion lifecycle is complete, and
+the current-candidate Railway cold-start gate (`COLD-002`) is now green. The
+next handoff is the short user-owned physical-iPhone checklist; do not repeat
+the Simulator matrix. This document remains in progress until the physical
+gate and final closeout checks are completed by the authorized owner.

@@ -13,13 +13,14 @@ then existing tests. A build, HTTP 200, rendered component, or passing unit
 test never proves a complete product journey. A Simulator PASS requires real
 launch, actions, observed UI state, and persistence checks where applicable.
 
-The validated source baseline for the current staging evidence is
-`14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`. The active branch is
-`pre-phase-24-product-regression-debugging`; later documentation-only commits
-must not be treated as application-source changes. The latest
-application-code validation candidate is `1a52472`; subsequent checkpoints
-contain only evidence documentation. Current-HEAD staging reprovenance remains
-pending the Railway provider window.
+The latest validated staging deployment is
+`94a303eb-5cce-4a90-9a67-8f4c14828b78`, served from exact commit
+`251ef3ce36e652172832b9feda906b26a98f080e` on the active
+`pre-phase-24-product-regression-debugging` source branch. That commit is a
+documentation-only descendant of the latest application-code candidate
+`1a52472`; later documentation-only commits must not be treated as
+application-source changes. The prior exact API baseline
+`14c0472c1aeb59abe75e4f0cf8507dd70e74a98a` remains historical evidence only.
 
 ## Canonical behavior register
 

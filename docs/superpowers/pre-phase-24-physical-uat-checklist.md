@@ -12,13 +12,14 @@ Simulator matrix.
   documentation-only and do not change this runtime. Verify the exact branch
   tip with `git rev-parse HEAD`. The installed Debug bundle was built from
   this unchanged runtime source (pushed; no PR or merge).
-- Staging deployment evidence: prior verified staging deployment
-  `f522fae3-825e-425c-810d-344fc850db6d` served exact API candidate
-  `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`. The current candidate
-  `3c40b5d42390cd77febdb4ea0ffae63db987fe25` produced deployment
-  `d1485467-a075-4bec-84b5-ad09cc4ae9cc`, which Railway marked `SKIPPED`
-  because no configured watch paths changed; it has no served provenance.
-  Current-candidate staging/cold-start acceptance is therefore still blocked.
+- Staging deployment evidence: current deployment
+  `94a303eb-5cce-4a90-9a67-8f4c14828b78` served exact commit
+  `251ef3ce36e652172832b9feda906b26a98f080e` from the debugging branch. Both
+  API and Postgres were sleeping before the un-prewarmed QA A Simulator launch;
+  the first app-triggered request recorded transient wake refusals, then setup,
+  profile, dashboard, analytics, and goals recovered with 200 responses. The
+  Simulator reached authenticated Complex Progress/Profile without a crash or
+  bootstrap loop, so COLD-002 is green.
 - Simulator critical-journey result: authenticated QA A/B switching,
   mutation-heavy logging/history/library/analytics journeys, and AI review and
   recovery are evidenced on iOS 27. The native candidate builds and installs
