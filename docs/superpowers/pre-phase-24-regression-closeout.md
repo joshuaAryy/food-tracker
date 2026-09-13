@@ -646,6 +646,11 @@ returned to authenticated Progress and cleared transient route state. The
 not treated as a product defect; the wider launcher/deep-link/cancel family
 and final critical re-sweep remain pending.
 
+The same run opened the `recipes/editor` deep link with the Name field focused
+and the native keyboard visible. Close recipe editor remained reachable above
+the keyboard; tapping it returned to authenticated Progress without creating a
+recipe or mutating QA A data.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
