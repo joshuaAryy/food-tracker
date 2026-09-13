@@ -55,12 +55,12 @@ Simulator re-run, persistence/downstream verification, and focused commit.
 ## Latest automated validation checkpoint
 
 The latest committed-source validation rerun completed under Node `v22.23.0`
-and pnpm `10.34.3` after `b077624`. Docker PostgreSQL was restarted
+and pnpm `10.34.3` at the current source checkpoint after `1a52472`. Docker PostgreSQL was restarted
 non-destructively; the dedicated test database accepted the connection and
 the full API suite completed successfully.
 
 - API: 116 test files / 1,401 tests passed.
-- Mobile Jest: 70 suites / 211 tests passed.
+- Mobile Jest: 71 suites / 212 tests passed.
 - Mobile Vitest: 67 files / 444 tests passed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration status/deploy passed.
@@ -70,13 +70,14 @@ the full API suite completed successfully.
   `apps/api/food_search_diagnostic.mjs`, and the unchanged
   `apps/mobile/src/app/trends/__tests__/saved-views.test.tsx`; all changed files pass targeted
   Prettier checks and none of those files was edited.
-- Current-HEAD Railway staging upload `b4b203be` was recorded as `SKIPPED`
-  because no watched runtime files changed; identity/device acceptance remain
-  external gates and are not inferred from these automated results.
+- Current-candidate Railway deployment `d1485467-a075-4bec-84b5-ad09cc4ae9cc`
+  was recorded as `SKIPPED` because no watched runtime files changed; it has no
+  served provenance. Identity/device and current-candidate staging acceptance
+  remain external gates and are not inferred from these automated results.
 
 The older per-defect validation prose above may retain historical test counts
 from the checkpoint at which that defect was fixed. The superseding current
-validation is 67 Vitest files / 444 tests and 70 Jest suites / 211 tests.
+validation is 67 Vitest files / 444 tests and 71 Jest suites / 212 tests.
 
 ## Deferred visual-only findings
 
