@@ -117,8 +117,9 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The only matrix row currently marked `BLOCKED` is physical-device
-acceptance; the current debugging-candidate staging provenance/cold-start gate
+defect. The physical-device aggregate and the newly split PHYS-04 barcode
+serving row are currently marked `BLOCKED` pending the corrected-build retest;
+the current debugging-candidate staging provenance/cold-start gate
 (`COLD-002`) is now `PASS-STAGING-SIMULATOR`. Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
