@@ -364,6 +364,11 @@ after the Food Library eligibility correction and Simulator rebuild:
 - The current docs-only candidate upload created `b4b203be` but was correctly
   marked `SKIPPED` because no watched runtime files changed; it is not staging
   runtime evidence.
+- A read-only Railway configuration check on 2026-09-13 confirmed that the
+  existing `food-tracker-staging-api` source selector still points at
+  `phase-20-22-product-hardening-intelligence`, not this debugging branch. Its
+  latest deployment is `5865a859-b33a-49ea-b465-0cb343830821` (`FAILED`), so
+  local branch HEAD cannot be treated as the served staging revision.
 - The runtime-fix candidate `fdb7016` was archived from the exact committed
   tree and submitted with explicit project/service/environment targeting, but
   Railway returned a request error before creating a deployment. A subsequent
