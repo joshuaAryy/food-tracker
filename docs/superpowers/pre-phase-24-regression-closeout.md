@@ -18,7 +18,7 @@ API evidence into Simulator or physical-device acceptance.
 - No PR was created, no merge was performed, and no production deployment or
   production data mutation occurred.
 
-Latest mechanical recheck (2026-09-12) under Node 22/pnpm 10.34.3 passed
+Latest mechanical recheck (2026-09-13) under Node 22/pnpm 10.34.3 passed
 API Vitest (116 files / 1,401 tests), mobile Vitest (67 files / 444 tests),
 mobile Jest (71 suites / 212 tests), workspace typecheck, workspace lint,
 workspace build, Prisma generate/validate, and test-database migration
@@ -275,7 +275,7 @@ after the Food Library eligibility correction and Simulator rebuild:
 - API: 116 test files / 1,401 tests passed.
 - Mobile Vitest: 67 files / 444 tests passed, including the AI serving and
   nutrient-state helper suites.
-- Mobile Jest: 70 suites / 211 tests passed, including the Profile Goal Pace
+- Mobile Jest: 71 suites / 212 tests passed, including the Profile Goal Pace
   and account-deletion reauthentication regressions.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
@@ -288,6 +288,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   `--path-as-root`; Railway uploaded the archive but rejected the deploy during
   the free-tier SFO peak window, so no new deployment or served-SHA claim is
   made.
+- On 2026-09-13, the same exact-archive deployment workflow was rechecked for
+  candidate `3c40b5d42390cd77febdb4ea0ffae63db987fe25`; Railway created
+  deployment `d1485467-a075-4bec-84b5-ad09cc4ae9cc` but marked it `SKIPPED`
+  because no configured watch paths changed. It produced no deploy logs and
+  does not establish served-candidate provenance, so the authenticated
+  staging/cold-start row remains blocked.
 - `git diff --check` passed.
 - After `f658b30`, the workspace typecheck, workspace lint, and shared/API
   build completed successfully under Node `v22.23.0` and pnpm `10.34.3`.
