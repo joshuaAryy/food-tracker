@@ -633,6 +633,19 @@ with the expected tabs, logging launcher, trend controls, and no sign-in or
 bootstrap error. This is a fresh session-persistence observation; it does not
 close the separate cross-account or cold-start gates.
 
+On 2026-09-13, authenticated QA A deep-link routes were exercised directly
+through the installed Debug/Metro app. The canonical `/recipes` route loaded
+the seeded `QA Regression` recipe; its detail view exposed frozen ingredient
+nutrition and returned through Close. The saved-views route loaded pinned and
+other views, opened the Calories comparison, and returned through Back from
+Compare and Back to Insights. Nutrition Targets showed editable values with
+Personalized/Derived/Recommended source context, while Water Log and Weight
+Log opened their forms and closed without mutation. Relaunching afterward
+returned to authenticated Progress and cleared transient route state. The
+`/recipes/index` URL is not the canonical Expo Router index deep link and was
+not treated as a product defect; the wider launcher/deep-link/cancel family
+and final critical re-sweep remain pending.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
