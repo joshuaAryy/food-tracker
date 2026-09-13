@@ -652,8 +652,10 @@ Personalized/Derived/Recommended source context, while Water Log and Weight
 Log opened their forms and closed without mutation. Relaunching afterward
 returned to authenticated Progress and cleared transient route state. The
 `/recipes/index` URL is not the canonical Expo Router index deep link and was
-not treated as a product defect; the wider launcher/deep-link/cancel family
-and final critical re-sweep remain pending.
+not treated as a product defect. Representative launcher/deep-link/cancel
+routes are now covered by `NAV-002`, `NAV-003`, `RESWEEP-002`, and `LOG-003`;
+the exhaustive remaining route family and final critical re-sweep remain
+pending.
 
 The same run opened the `recipes/editor` deep link with the Name field focused
 and the native keyboard visible. Close recipe editor remained reachable above
