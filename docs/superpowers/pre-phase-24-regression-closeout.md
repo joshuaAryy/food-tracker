@@ -65,11 +65,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 67
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 68
 scenarios:
 
 - `PASS-AUTOMATED`: 9
-- `PASS-SIMULATOR`: 54
+- `PASS-SIMULATOR`: 55
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -107,6 +107,23 @@ that evidence is recorded as `RESWEEP-003`.
 The normal Log food form was also opened with the native keyboard visible;
 host-window accessibility located its Close action, which returned to Progress
 without saving or leaving a stale overlay (`LOG-003`).
+
+On 2026-09-13 the current installed QA A Simulator was re-observed after
+relaunch and transient-route recovery. The real UI traversed Profile →
+Nutrition targets (Personalized/Derived/Recommended source context) → History
+Today and Friday September 11 (empty-state and 8-entry/172 kcal historical
+state) → an older FoodLog editor (serving basis, unit choices, Save/Log/Delete/
+Close recovery) → Insights → Explore trends → Manage saved views → Back to
+Insights. Log food, Log weight, and Log water were each opened and closed
+without mutation; the water sheet exposed quick amounts, Other Amount, logged
+time, and the explicit water-only rule. A stop/launch cycle returned to
+authenticated Complex Progress. The same run observed the Simple mode view and
+restored Complex after the system icon confirmation was cleared. No crash,
+bootstrap loop, stale draft, duplicate mutation, or cross-feature data fork was
+observed. These observations refresh `RESWEEP-001`, `RESWEEP-002`,
+`RESWEEP-003`, `MODE-001`, `HYD-001`, `WEIGHT-001`, `AN-002`, and `LOG-003`;
+the dedicated `RESWEEP-004` row records this run. The exhaustive corpus and
+physical-only rows remain separate gates.
 
 The resumed Complex nutrient recheck closed `NUTRIENT-EDIT-001`: after setting
 `Added Sugar = 2 g`, saving, leaving, and reopening `QA Archive Probe` through
@@ -771,10 +788,11 @@ none of these checks is marked complete by Simulator or API evidence:
    `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which reached terminal `FAILED` at
    `2026-09-13T04:05:43.201Z` with no build/deploy logs and no served
    provenance. A further exact archive of current committed tip `8f039c4`
-   created deployment `5865a859-b33a-49ea-b465-0cb343830821`, still
-   `INITIALIZING` with no logs after repeated polls. Inspect any later
-   validated deployment's terminal status and source provenance before
-   treating staging behavior as evidence.
+   created deployment `5865a859-b33a-49ea-b465-0cb343830821`, which later
+   reached terminal `FAILED` at `2026-09-13T04:29:26.894Z` with zero build or
+   deploy logs. Inspect any later validated deployment's terminal status and
+   source provenance before treating staging behavior as evidence; the failed
+   candidate does not provide current-HEAD staging UAT.
 
 ## Intentional exclusions and deferrals
 
