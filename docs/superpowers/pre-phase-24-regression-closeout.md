@@ -65,11 +65,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 64
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 65
 scenarios:
 
 - `PASS-AUTOMATED`: 9
-- `PASS-SIMULATOR`: 52
+- `PASS-SIMULATOR`: 53
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -100,7 +100,9 @@ reauthentication/deletion recovery correction. QA A → QA B switching and the n
 critical continuity pass opened a seeded Friday FoodLog editor, verified
 serving/unit and Save/Log/Delete/Close recovery controls, closed without
 mutation, then traversed Progress, Insights, and Profile again with QA A still
-in Complex mode; this is recorded as `RESWEEP-002`.
+in Complex mode; this is recorded as `RESWEEP-002`. A subsequent stop/launch
+cycle settled back to authenticated Complex Progress without a bootstrap loop;
+that evidence is recorded as `RESWEEP-003`.
 
 The resumed Complex nutrient recheck closed `NUTRIENT-EDIT-001`: after setting
 `Added Sugar = 2 g`, saving, leaving, and reopening `QA Archive Probe` through
