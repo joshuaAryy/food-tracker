@@ -210,6 +210,17 @@ is claimed; existing serving-state tests cover the candidate-specific
 whole-item conversion. No new defect or code change was inferred from this
 recheck.
 
+The exact `2 eggs` text journey was then exercised through the real Fresh QA
+Simulator. Retrieval returned only prepared-egg candidates, so the row stayed
+in editable Review rather than being silently accepted as an exact whole-egg
+match or converted to AI nutrition. Changing the serving amount to `2 g`
+updated the provisional preview to `4 kcal` and `0.2 g` protein. Replacing the
+candidate with another result kept the row recoverable; returning to the valid
+oil-prepared candidate reset the amount to its `110 g` nutrition basis and
+restored the preview. No log was saved. This supplies Simulator evidence for
+review, serving edit, replacement, and recovery while the exact high-confidence
+match remains unproven.
+
 The QA A Simulator also exercised the photo logger's camera path with the
 iOS-simulator black-camera surface. Capture produced an editable photo review
 where the recognition-only `black screen` row could be excluded or restored;
