@@ -163,6 +163,12 @@ mobile typecheck/lint, and workspace build are green. No staging/API behavior
 changed, so the already-passed COLD-002 evidence remains valid and was not
 repeated.
 
+An existing Metro-backed installed QA Simulator bundle was launched and its
+authenticated Progress screen was observed. That bundle predates `75a64ec`,
+and the Simulator cannot supply the real packaged-food scanner input, so no
+barcode-serving PASS was inferred from it and no rebuild was attempted under
+the current low-disk condition.
+
 The fix is not yet installed on the user's physical iPhone. PHYS-04 therefore
 remains a physical acceptance gate: install a build containing `75a64ec`, scan
 a real packaged-food barcode, verify amount and a selected supported unit are
