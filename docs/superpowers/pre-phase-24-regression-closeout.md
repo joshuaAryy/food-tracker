@@ -283,6 +283,10 @@ after the Food Library eligibility correction and Simulator rebuild:
   Vitest files / 444 tests, and 71 mobile Jest suites / 212 tests. The known
   Expo-notifications and React `act(...)` diagnostics remained non-failing and
   excluded from acceptance.
+- The 2026-09-13 mechanical rerun also passed workspace lint, workspace
+  typecheck, shared/API build, Prisma generate, Prisma validate, and
+  `git diff --check` under the same Node/pnpm versions. No source, schema, or
+  generated-native files changed.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - A resumed full API-test attempt was made against the dedicated
