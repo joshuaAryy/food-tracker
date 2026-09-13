@@ -685,6 +685,26 @@ deployed.
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
+## Physical-iPhone handoff checklist
+
+This is the intentionally short user-owned gate after Simulator completion;
+none of these checks is marked complete by Simulator or API evidence:
+
+1. Install the verified candidate on the user iPhone and confirm a cold launch,
+   signed-in QA A route, background/foreground recovery, and no bootstrap loop.
+2. Grant camera and photo-library permissions; take a real portrait and
+   landscape photo, choose a library image including HEIC if available, and
+   complete or cancel Photo Logging without deleting the original asset.
+3. Scan a real packaged-food barcode, verify known/unknown/error recovery,
+   serving edit, and one successful persisted FoodLog; cancel also must return
+   to the prior form without mutation.
+4. Exercise representative touch and keyboard flows on the physical viewport:
+   normal food search/log, `1 apple` recovery, History edit, Water Log, and
+   Goal/Target/Profile navigation. Confirm required actions remain reachable.
+5. Record device model/OS, build/source SHA, permissions, each observed result,
+   screenshots or logs where useful, and any hardware-only limitation. Do not
+   repeat the full Simulator matrix or include credentials/tokens.
+
 ## Unresolved execution gates
 
 1. Remaining authenticated Simulator rows require completion of the broader
