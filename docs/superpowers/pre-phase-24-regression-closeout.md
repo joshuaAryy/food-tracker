@@ -768,11 +768,10 @@ none of these checks is marked complete by Simulator or API evidence:
    `--path-as-root` reached indexing/upload but was rejected by the free-tier
    SFO peak-hours gate, so no deployment was created. The subsequent exact
    archive of `27bde59` created deployment
-   `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which remains `INITIALIZING` with
-   no build/deploy logs after repeated Railway status polls; it has not
-   produced served provenance. Inspect any later validated deployment's
-   terminal status and source provenance before treating staging behavior as
-   evidence.
+   `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which reached terminal `FAILED` at
+   `2026-09-13T04:05:43.201Z` with no build/deploy logs and no served
+   provenance. Inspect any later validated deployment's terminal status and
+   source provenance before treating staging behavior as evidence.
 
 ## Intentional exclusions and deferrals
 
