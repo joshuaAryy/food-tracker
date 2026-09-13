@@ -65,11 +65,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 62
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 63
 scenarios:
 
 - `PASS-AUTOMATED`: 9
-- `PASS-SIMULATOR`: 50
+- `PASS-SIMULATOR`: 51
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
@@ -650,6 +650,13 @@ The same run opened the `recipes/editor` deep link with the Name field focused
 and the native keyboard visible. Close recipe editor remained reachable above
 the keyboard; tapping it returned to authenticated Progress without creating a
 recipe or mutating QA A data.
+
+A fresh cross-feature QA A re-sweep then observed Today with 0 food entries and
+the explicit empty-state copy, switched History to Friday September 11 with 8
+entries and 172 kcal, opened Insights showing Sep 6–12 with 5 logged days and
+partial-day messaging, and opened Profile showing Complex mode, Lose at
+0.55 lb/week, 2,320 kcal, and 153.7 g protein. No route error or mutation was
+observed; the full critical re-sweep remains pending.
 
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
