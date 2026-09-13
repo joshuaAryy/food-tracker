@@ -394,6 +394,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   serving persisted across closing and reopening the detail; the temporary
   preference was then removed. A disposable `QA Archive Probe` manual food was
   archived, observed in Archived, restored, and observed again in My Foods.
+- A fresh 2026-09-13 host-window Simulator pass reopened Food Library from the
+  real Log food route and observed QA Archive Probe in Saved, My Foods, and
+  Recent, provider Apple and scrambled eggs in Recent, and the explicit empty
+  Archived state. Opening the saved detail showed the manual 100 g basis and
+  preserved `Fiber 0` versus `Sugar Unknown` semantics; closing caused no
+  mutation.
 - A controlled QA A Simulator outage stopped the local API before relaunch. The
   authenticated app showed the recoverable `We couldn't load your account`
   state with `Try again` and `Sign out` and no crash; after the API restarted,
