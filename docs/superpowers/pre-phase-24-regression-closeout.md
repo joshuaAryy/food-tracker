@@ -65,7 +65,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 66
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 67
 scenarios:
 
 - `PASS-AUTOMATED`: 9
@@ -74,7 +74,7 @@ scenarios:
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
-- `BLOCKED`: 1
+- `BLOCKED`: 2
 
 The matrix's existing `AI-001` row now records the `AI-KEYBOARD-001` P1 defect
 and its `1a52472` correction. The previously reproduced keyboard trap is no
@@ -87,8 +87,9 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The only matrix row currently marked `BLOCKED` is physical-device
-acceptance. Nine automated-only rows still require Simulator-specific variants
+defect. The two matrix rows currently marked `BLOCKED` are physical-device
+acceptance and the current debugging-candidate staging provenance/cold-start
+gate (`COLD-002`). Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
 `PHOTO-001`, and `FAIL-002`. `FAIL-002` now also has supplemental real-Simulator
@@ -743,7 +744,10 @@ none of these checks is marked complete by Simulator or API evidence:
    untouched.
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
-   served-provenance check before current-HEAD staging UAT. Deployment
+   served-provenance check before current-HEAD staging UAT. The matrix's
+   `COLD-002` row tracks the exact current candidate `27bde59`; it remains
+   blocked until that committed SHA can be deployed and verified as served.
+   Deployment
    `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
    creation. A later exact archive of committed candidate `42b4d5b` using
    `--path-as-root` reached indexing/upload but was rejected by the free-tier
