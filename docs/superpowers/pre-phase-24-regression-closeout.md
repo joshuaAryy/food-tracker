@@ -681,7 +681,9 @@ The current workspace validation was also rerun under Node `v22.23.0`:
 `corepack pnpm typecheck`, `corepack pnpm lint`, and `corepack pnpm build` all
 passed across shared, mobile, and API packages. `corepack pnpm prisma:generate`
 and `corepack pnpm prisma:validate` also passed (Prisma `6.19.2`). These checks
-did not mutate application source or schema state.
+did not mutate application source or schema state. A subsequent exact rerun of
+the same five workspace commands also exited successfully under Node
+`v22.23.0`.
 
 A fresh dedicated-test-database `prisma migrate status` probe still returns
 `P1001` because PostgreSQL at `127.0.0.1:5432` is unreachable. No migration
