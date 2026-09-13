@@ -658,6 +658,12 @@ partial-day messaging, and opened Profile showing Complex mode, Lose at
 0.55 lb/week, 2,320 kcal, and 153.7 g protein. No route error or mutation was
 observed; the full critical re-sweep remains pending.
 
+On 2026-09-12 under Node `v22.23.0`, the current mobile source re-ran the
+Vitest suite (`67` files / `444` tests) and Jest suite (`71` suites / `212`
+tests); both passed. Existing non-failing diagnostic and act-environment
+warnings remain excluded from acceptance, and no source changes were made by
+these checks.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
