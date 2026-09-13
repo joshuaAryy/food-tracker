@@ -65,11 +65,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 60
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 62
 scenarios:
 
 - `PASS-AUTOMATED`: 9
-- `PASS-SIMULATOR`: 48
+- `PASS-SIMULATOR`: 50
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
