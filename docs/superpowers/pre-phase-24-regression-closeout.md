@@ -19,8 +19,8 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-13) under Node 22/pnpm 10.34.3 passed
-API Vitest (116 files / 1,401 tests), mobile Vitest (67 files / 444 tests),
-mobile Jest (71 suites / 212 tests), workspace typecheck, workspace lint,
+API Vitest (116 files / 1,401 tests), mobile Vitest (68 files / 445 tests),
+mobile Jest (72 suites / 213 tests), workspace typecheck, workspace lint,
 workspace build, Prisma generate/validate, and test-database migration
 deploy/status. No development database was used. Root
 `format:check` still reports the pre-existing
@@ -95,7 +95,7 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 68
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 69
 scenarios:
 
 - `PASS-AUTOMATED`: 9
@@ -104,7 +104,7 @@ scenarios:
 - `PASS-STAGING-SIMULATOR`: 1
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
-- `BLOCKED`: 1
+- `BLOCKED`: 2
 
 The matrix's existing `AI-001` row now records the `AI-KEYBOARD-001` P1 defect
 and its `1a52472` correction. The previously reproduced keyboard trap is no
@@ -137,6 +137,38 @@ that evidence is recorded as `RESWEEP-003`.
 The normal Log food form was also opened with the native keyboard visible;
 host-window accessibility located its Close action, which returned to Progress
 without saving or leaving a stale overlay (`LOG-003`).
+
+## PHYS-04 barcode serving defect
+
+The physical iPhone 18 Pro / iOS 27 run reproduced a P1 functional defect:
+barcode detection and lookup succeeded, but the resulting FoodLog initially
+had blank amount and unit state, and the visible mass-unit controls ignored
+taps until Reset assigned the `100 g` nutrition basis. Source-level request
+ordering and a deterministic FoodLog Jest regression proved that the scan
+effect could initialize the FoodItem before the general source-null
+`loadForm()` completion, which then cleared serving amount/unit/option state.
+A separate Vitest regression proved that the FoodLog handlers also bypassed
+the shared `changeServingChoice()` transition and attempted conversion from a
+blank source unit, making the first unit selection impossible.
+
+Commit `75a64ec` applies the smallest correction: scanned routes no longer run
+the source-specific blank-form reset after the scan basis can be selected, and
+both FoodLog serving handlers use the shared transition helper. The helper now
+establishes a supported first unit while preserving the entered amount (or a
+listed choice quantity when the amount is blank); it does not invent a
+conversion or household/count relationship. Focused red/green coverage,
+mobile Vitest (68 files / 445 tests), mobile Jest (72 suites / 213 tests),
+mobile typecheck/lint, and workspace build are green. No staging/API behavior
+changed, so the already-passed COLD-002 evidence remains valid and was not
+repeated.
+
+The fix is not yet installed on the user's physical iPhone. PHYS-04 therefore
+remains a physical acceptance gate: install a build containing `75a64ec`, scan
+a real packaged-food barcode, verify amount and a selected supported unit are
+immediately usable without Reset, edit amount and unit with preview updates,
+save and reopen the FoodLog/History snapshot, and verify cancel/retry remain
+recoverable. Record the device/build evidence before promoting the row to
+physical PASS.
 
 On 2026-09-13 the current installed QA A Simulator was re-observed after
 relaunch and transient-route recovery. The real UI traversed Profile →
