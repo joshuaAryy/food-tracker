@@ -369,7 +369,11 @@ after the Food Library eligibility correction and Simulator rebuild:
   state with `Try again` and `Sign out` and no crash; after the API restarted,
   tapping `Try again` restored authenticated Progress without mutation or
   duplicate submission. This promotes `FAIL-001` to Simulator PASS; slow-save
-  timing remains covered by automated tests.
+  timing remains covered by automated tests. A later Fresh QA relaunch on
+  2026-09-12 surfaced the same recoverable state while the local target was
+  unreachable; tapping `Try again` again restored authenticated Complex
+  Progress with no duplicate request or data mutation. This confirms the
+  existing recovery behavior and is not treated as a new product defect.
 - The QA A → QA B account-switch journey was exercised through the real Fresh QA
   Simulator. QA B authenticated through the email/password form to Complex
   Progress with no QA A food or weight entries; the home showed 0 food entries
