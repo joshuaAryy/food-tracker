@@ -685,6 +685,11 @@ did not mutate application source or schema state. A subsequent exact rerun of
 the same five workspace commands also exited successfully under Node
 `v22.23.0`.
 
+The staging/release guard subset was also rerun directly: the
+`staging-release-config`, `staging-release-workflow`, and `staging-simulator`
+files passed (`3` files / `74` tests), including unsafe-target, environment,
+and simulator handoff guards.
+
 A fresh dedicated-test-database `prisma migrate status` probe still returns
 `P1001` because PostgreSQL at `127.0.0.1:5432` is unreachable. No migration
 deploy or database mutation was attempted; API/database validation remains an
