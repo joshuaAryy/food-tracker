@@ -69,6 +69,21 @@ database-readiness retries followed by recovery, and Railway status afterward
 was `SUCCESS`. This is the current served provenance and authenticated
 scale-to-zero evidence for the debugging branch.
 
+On the resumed COLD-002 audit, Railway again reported the API and Postgres
+sleeping before the launch. The pushed documentation-only commit `606ea92`
+created deployment `e707bf8c-87e3-4d2b-bdf8-d5dbd45054d` and Railway correctly
+marked it `SKIPPED` because no watched runtime files changed; it did not replace
+the served runtime. The active deployment `94a303eb…` remained the exact
+`251ef3ce…` debugging-branch candidate. Without a health prewarm, the first
+app-triggered setup request at `13:46:44.536Z` recorded transient connection
+refusals and a 5.860-second 401 while the service woke; the next setup request
+returned 200 at `13:46:44.985Z`, followed by authenticated setup,
+tracking-preferences, profile, dashboard, and analytics requests. The real QA A
+Simulator again settled on authenticated Complex Progress with no crash,
+bootstrap loop, duplicate mutation, or data corruption. This revalidation
+preserves COLD-002 as `PASS-STAGING-SIMULATOR` and confirms the same served
+source provenance after the latest branch push.
+
 ## Product-contract authority
 
 The canonical contract is recorded in
