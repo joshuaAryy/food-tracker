@@ -20,4 +20,39 @@ describe('serving choice transitions', () => {
       servingOptionId: null,
     });
   });
+
+  it('keeps compatible mass conversion behavior', () => {
+    expect(
+      changeServingChoice(
+        { amount: '1000', unit: 'g', servingOptionId: null },
+        {
+          id: 'unit:kg',
+          label: 'kg',
+          unit: 'kg',
+          servingOptionId: null,
+          quantity: 100,
+        },
+      ),
+    ).toEqual({ amount: '1', unit: 'kg', servingOptionId: null });
+  });
+
+  it('keeps incompatible unit changes recoverable', () => {
+    expect(
+      changeServingChoice(
+        { amount: '100', unit: 'g', servingOptionId: null },
+        {
+          id: 'unit:ml',
+          label: 'mL',
+          unit: 'ml',
+          servingOptionId: null,
+          quantity: 100,
+        },
+      ),
+    ).toEqual({
+      amount: '100',
+      unit: 'g',
+      servingOptionId: null,
+      error: 'Choose a compatible unit or a listed serving for this food.',
+    });
+  });
 });
