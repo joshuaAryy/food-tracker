@@ -673,7 +673,9 @@ On 2026-09-12 under Node `v22.23.0`, the current mobile source re-ran the
 Vitest suite (`67` files / `444` tests) and Jest suite (`71` suites / `212`
 tests); both passed. Existing non-failing diagnostic and act-environment
 warnings remain excluded from acceptance, and no source changes were made by
-these checks.
+these checks. A subsequent exact-script rerun on the same Node 22 environment
+also passed Jest (`71` suites / `212` tests) and Vitest (`67` files / `444`
+tests) after the authenticated Simulator resweeps.
 
 The current workspace validation was also rerun under Node `v22.23.0`:
 `corepack pnpm typecheck`, `corepack pnpm lint`, and `corepack pnpm build` all
