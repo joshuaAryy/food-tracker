@@ -675,6 +675,13 @@ A fresh dedicated-test-database `prisma migrate status` probe still returns
 deploy or database mutation was attempted; API/database validation remains an
 environment gate until the local test service is available.
 
+The existing Railway staging domain was rechecked without mutation: `/health`
+and `/health/ready` returned HTTP 200 with `ok`/`ready`, while the protected
+`/api/v1/setup/status` endpoint correctly returned HTTP 401 without credentials.
+This confirms service reachability and the unauthenticated authorization
+boundary only; it is not evidence that the current debugging-branch commit is
+deployed.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
