@@ -7,23 +7,25 @@ Simulator matrix.
 
 ## Preconditions supplied by Codex
 
-- Branch and verified runtime candidate SHA: `pre-phase-24-product-regression-debugging`
-  at `f0a637ae7c2552fd57a71d432ead94ba333d179c` (pushed; no PR or merge).
-  Later documentation-only checkpoints do not change this runtime candidate.
-- Staging deployment ID and served provenance: prior verified staging
-  deployment `f522fae3-825e-425c-810d-344fc850db6d`, built from the exact
-  archived API candidate `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`; a fresh
-  exact-HEAD upload of committed candidate `42b4d5b` using `--path-as-root`
-  was accepted through indexing/upload but rejected by the Railway SFO
-  free-tier peak-hours gate (8 AM–8 PM America/Los_Angeles); no new deployment
-  was created. Retry outside that window before current-candidate staging
-  acceptance.
+- Runtime source candidate: latest source-changing commit `1a52472` on
+  `pre-phase-24-product-regression-debugging`; later branch checkpoints are
+  documentation-only and do not change this runtime. Verify the exact branch
+  tip with `git rev-parse HEAD`. The installed Debug bundle was built from
+  this unchanged runtime source (pushed; no PR or merge).
+- Staging deployment evidence: prior verified staging deployment
+  `f522fae3-825e-425c-810d-344fc850db6d` served exact API candidate
+  `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a`. The current candidate
+  `3c40b5d42390cd77febdb4ea0ffae63db987fe25` produced deployment
+  `d1485467-a075-4bec-84b5-ad09cc4ae9cc`, which Railway marked `SKIPPED`
+  because no configured watch paths changed; it has no served provenance.
+  Current-candidate staging/cold-start acceptance is therefore still blocked.
 - Simulator critical-journey result: authenticated QA A/B switching,
-  mutation-heavy logging/history/library/analytics journeys, AI review and
-  recovery, and staging cold-launch are evidenced on iOS 27. The native
-  candidate builds and installs successfully with the approved Xcode beta.
-- Automated validation counts: API 116 files / 1,401 tests; mobile Jest 70
-  suites / 211 tests; mobile Vitest 67 files / 444 tests; workspace lint,
+  mutation-heavy logging/history/library/analytics journeys, and AI review and
+  recovery are evidenced on iOS 27. The native candidate builds and installs
+  successfully with the approved Xcode beta; staging cold-launch is not
+  claimed from the blocked deployment.
+- Automated validation counts: API 116 files / 1,401 tests; mobile Jest 71
+  suites / 212 tests; mobile Vitest 67 files / 444 tests; workspace lint,
   typecheck, build, Prisma generate/validate, and test-database migration
   checks pass.
 - QA account state and fixture anchor: dedicated QA A and B are available and
