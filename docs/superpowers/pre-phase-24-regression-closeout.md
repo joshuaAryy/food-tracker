@@ -46,13 +46,15 @@ description recoverable: its Done key dismisses the keyboard and the required
 Read meal footer then activates into editable Review foods. The real Simulator
 rerun observed candidate/serving controls and Log selected without saving a log.
 
-An authorized staging retry used a clean `git archive` of committed candidate
-`42b4d5b` and the existing `food-tracker-staging-api` service/environment.
-With the documented `--path-as-root` mode, Railway indexed and uploaded the
-archive but rejected the deployment because free-tier SFO deploys are
-unavailable during the peak window (8 AM–8 PM America/Los_Angeles). No new
-deployment was created; deployment history still shows the prior failed
-`3bbfb81d` attempt and the last verified served deployment `f522fae3`.
+An authorized staging retry used a clean `git archive` of current committed
+candidate `3c40b5d42390cd77febdb4ea0ffae63db987fe25` and the existing
+`food-tracker-staging-api` service/environment. With the documented
+`--path-as-root` mode, Railway indexed and uploaded the archive and created
+deployment `d1485467-a075-4bec-84b5-ad09cc4ae9cc`; Railway then marked it
+`SKIPPED` because no configured watch paths changed, so no build/deploy ran and
+no current candidate was served. The previously verified served deployment
+`f522fae3` remains the only current runtime provenance; no staging behavior is
+inferred from the skipped deployment.
 
 ## Product-contract authority
 
@@ -777,7 +779,7 @@ none of these checks is marked complete by Simulator or API evidence:
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. The matrix's
-   `COLD-002` row tracks the exact current candidate `8f039c4`; it remains
+   `COLD-002` row tracks the exact current candidate `3c40b5d`; it remains
    blocked until that committed SHA can be deployed and verified as served.
    Deployment
    `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
@@ -792,7 +794,11 @@ none of these checks is marked complete by Simulator or API evidence:
    reached terminal `FAILED` at `2026-09-13T04:29:26.894Z` with zero build or
    deploy logs. Inspect any later validated deployment's terminal status and
    source provenance before treating staging behavior as evidence; the failed
-   candidate does not provide current-HEAD staging UAT.
+   candidate does not provide current-HEAD staging UAT. The latest exact
+   archive of committed `3c40b5d` created deployment
+   `d1485467-a075-4bec-84b5-ad09cc4ae9cc`, which fetched a 36 MB snapshot but
+   was marked `SKIPPED` because no configured watch paths changed; it produced
+   no build/deploy run and no served provenance, so `COLD-002` remains blocked.
 
 ## Intentional exclusions and deferrals
 
