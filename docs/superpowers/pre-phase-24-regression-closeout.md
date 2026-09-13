@@ -19,7 +19,7 @@ API evidence into Simulator or physical-device acceptance.
   production data mutation occurred.
 
 Latest mechanical recheck (2026-09-13) under Node 22/pnpm 10.34.3 passed
-API Vitest (116 files / 1,401 tests), mobile Vitest (68 files / 445 tests),
+API Vitest (116 files / 1,401 tests), mobile Vitest (68 files / 447 tests),
 mobile Jest (72 suites / 213 tests), workspace typecheck, workspace lint,
 workspace build, Prisma generate/validate, and test-database migration
 deploy/status. No development database was used. Root
@@ -158,7 +158,7 @@ both FoodLog serving handlers use the shared transition helper. The helper now
 establishes a supported first unit while preserving the entered amount (or a
 listed choice quantity when the amount is blank); it does not invent a
 conversion or household/count relationship. Focused red/green coverage,
-mobile Vitest (68 files / 445 tests), mobile Jest (72 suites / 213 tests),
+mobile Vitest (68 files / 447 tests), mobile Jest (72 suites / 213 tests),
 mobile typecheck/lint, and workspace build are green. No staging/API behavior
 changed, so the already-passed COLD-002 evidence remains valid and was not
 repeated.
