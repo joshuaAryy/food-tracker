@@ -97,6 +97,25 @@ export function changeServingChoice(
   state: ServingChoiceState,
   choice: ServingChoice,
 ): ServingChoiceState & { error?: string } {
+  if (state.unit.trim() === '') {
+    if (classifyServingUnit(choice.unit) === null) {
+      return {
+        ...state,
+        error: 'Choose a compatible unit or a listed serving for this food.',
+      };
+    }
+    return {
+      amount:
+        state.amount.trim() === '' &&
+        choice.quantity !== undefined &&
+        Number.isFinite(choice.quantity) &&
+        choice.quantity > 0
+          ? String(choice.quantity)
+          : state.amount,
+      unit: choice.unit,
+      servingOptionId: choice.servingOptionId,
+    };
+  }
   if (
     state.amount.trim() === '' &&
     choice.quantity !== undefined &&

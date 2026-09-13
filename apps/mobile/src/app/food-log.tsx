@@ -48,7 +48,7 @@ import { colors } from '@/theme/tokens';
 import {
   availableServingChoices,
   backendServingMessage,
-  convertServingAmountForUnitChange,
+  changeServingChoice,
   nutritionBasisLabel,
   provisionalServingPreview,
   type ServingChoice,
@@ -510,25 +510,25 @@ export default function FoodLogScreen() {
     const now = dateTimeFieldsInTimezone(new Date(), nextTimezone);
 
     if (sourceId === null) {
-      setShowMore(nextTrackingMode === 'complex');
       if (scannedFoodItemId === null) {
+        setShowMore(nextTrackingMode === 'complex');
         setSelectedFood(null);
         setSelectedExternalFood(null);
+        setServingAmount('');
+        setServingUnit('');
+        setSelectedServingOptionId(null);
+        setSnapshotServingLog(null);
+        setRecipeOriginLog(null);
+        setCurrentEditServingOptions(null);
+        setClearNutritionOverride(false);
+        setNutritionEdited(false);
+        setComplexNutrients(
+          Object.fromEntries(
+            NORMALIZED_NUTRIENT_KEYS.map((key) => [key, '']),
+          ) as Record<NormalizedNutrientKey, string>,
+        );
+        setComplexNutrientTouched({});
       }
-      setServingAmount('');
-      setServingUnit('');
-      setSelectedServingOptionId(null);
-      setSnapshotServingLog(null);
-      setRecipeOriginLog(null);
-      setCurrentEditServingOptions(null);
-      setClearNutritionOverride(false);
-      setNutritionEdited(false);
-      setComplexNutrients(
-        Object.fromEntries(
-          NORMALIZED_NUTRIENT_KEYS.map((key) => [key, '']),
-        ) as Record<NormalizedNutrientKey, string>,
-      );
-      setComplexNutrientTouched({});
       setLoadingRecord(false);
       return;
     }
@@ -1706,15 +1706,18 @@ export default function FoodLogScreen() {
                     setNutritionEdited(false);
                   }}
                   onSelectChoice={(choice: ServingChoice) => {
-                    const converted = convertServingAmountForUnitChange({
-                      amount: Number(servingAmount),
-                      fromUnit: servingUnit,
-                      toUnit: choice.unit,
-                    });
-                    if (converted.kind === 'converted') {
-                      setServingAmount(converted.displayText);
-                      setServingUnit(choice.unit);
-                      setSelectedServingOptionId(choice.servingOptionId);
+                    const next = changeServingChoice(
+                      {
+                        amount: servingAmount,
+                        unit: servingUnit,
+                        servingOptionId: selectedServingOptionId,
+                      },
+                      choice,
+                    );
+                    if (next.error === undefined) {
+                      setServingAmount(next.amount);
+                      setServingUnit(next.unit);
+                      setSelectedServingOptionId(next.servingOptionId);
                     }
                   }}
                   preview={servingControlPreview}
@@ -1927,15 +1930,18 @@ export default function FoodLogScreen() {
               setNutritionEdited(false);
             }}
             onSelectChoice={(choice: ServingChoice) => {
-              const converted = convertServingAmountForUnitChange({
-                amount: Number(servingAmount),
-                fromUnit: servingUnit,
-                toUnit: choice.unit,
-              });
-              if (converted.kind === 'converted') {
-                setServingAmount(converted.displayText);
-                setServingUnit(choice.unit);
-                setSelectedServingOptionId(choice.servingOptionId);
+              const next = changeServingChoice(
+                {
+                  amount: servingAmount,
+                  unit: servingUnit,
+                  servingOptionId: selectedServingOptionId,
+                },
+                choice,
+              );
+              if (next.error === undefined) {
+                setServingAmount(next.amount);
+                setServingUnit(next.unit);
+                setSelectedServingOptionId(next.servingOptionId);
               }
             }}
             preview={servingControlPreview}
