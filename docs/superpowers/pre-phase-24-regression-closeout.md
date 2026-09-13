@@ -664,6 +664,12 @@ tests); both passed. Existing non-failing diagnostic and act-environment
 warnings remain excluded from acceptance, and no source changes were made by
 these checks.
 
+The current workspace validation was also rerun under Node `v22.23.0`:
+`corepack pnpm typecheck`, `corepack pnpm lint`, and `corepack pnpm build` all
+passed across shared, mobile, and API packages. `corepack pnpm prisma:generate`
+and `corepack pnpm prisma:validate` also passed (Prisma `6.19.2`). These checks
+did not mutate application source or schema state.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
