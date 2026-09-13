@@ -766,9 +766,13 @@ none of these checks is marked complete by Simulator or API evidence:
    `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
    creation. A later exact archive of committed candidate `42b4d5b` using
    `--path-as-root` reached indexing/upload but was rejected by the free-tier
-   SFO peak-hours gate, so no deployment was created. Inspect any later
-   validated deployment's terminal status and source provenance before treating
-   staging behavior as evidence.
+   SFO peak-hours gate, so no deployment was created. The subsequent exact
+   archive of `27bde59` created deployment
+   `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which remains `INITIALIZING` with
+   no build/deploy logs after repeated Railway status polls; it has not
+   produced served provenance. Inspect any later validated deployment's
+   terminal status and source provenance before treating staging behavior as
+   evidence.
 
 ## Intentional exclusions and deferrals
 
