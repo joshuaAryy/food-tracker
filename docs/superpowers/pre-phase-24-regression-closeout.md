@@ -700,9 +700,10 @@ Log opened their forms and closed without mutation. Relaunching afterward
 returned to authenticated Progress and cleared transient route state. The
 `/recipes/index` URL is not the canonical Expo Router index deep link and was
 not treated as a product defect. Representative launcher/deep-link/cancel
-routes are now covered by `NAV-002`, `NAV-003`, `RESWEEP-002`, and `LOG-003`;
-the exhaustive remaining route family and final critical re-sweep remain
-pending.
+routes are now covered by `NAV-002`, `NAV-003`, `RESWEEP-002`, and `LOG-003`.
+The observed QA A critical continuity journey is complete; the nine explicitly
+listed automated-only variants and the physical/staging gates remain separate
+acceptance dependencies.
 
 The same run opened the `recipes/editor` deep link with the Name field focused
 and the native keyboard visible. Close recipe editor remained reachable above
@@ -714,7 +715,8 @@ the explicit empty-state copy, switched History to Friday September 11 with 8
 entries and 172 kcal, opened Insights showing Sep 6–12 with 5 logged days and
 partial-day messaging, and opened Profile showing Complex mode, Lose at
 0.55 lb/week, 2,320 kcal, and 153.7 g protein. No route error or mutation was
-observed; the full critical re-sweep remains pending.
+observed; this observed critical continuity pass is complete, while the
+explicitly listed automated-only, physical-device, and staging gates remain.
 
 On 2026-09-12 under Node `v22.23.0`, the current mobile source re-ran the
 Vitest suite (`67` files / `444` tests) and Jest suite (`71` suites / `212`
@@ -774,10 +776,13 @@ none of these checks is marked complete by Simulator or API evidence:
 
 ## Unresolved execution gates
 
-1. Remaining authenticated Simulator rows require completion of the broader
-   launcher/deep-link/back/cancel family and final critical re-sweep; native
-   password prompts must be dismissed without saving credentials before logging
-   flows continue.
+1. Nine rows remain `PASS-AUTOMATED` rather than Simulator PASS because their
+   remaining evidence requires an incomplete-profile fixture, provider
+   attribution that the current UI does not expose, controlled delayed-response
+   injection, physical scanner/camera behavior, or a selectable library asset.
+   Do not infer Simulator PASS from the automated suites; native password prompts
+   must be dismissed without saving credentials if any further authenticated flow
+   is exercised.
 2. `PHOTO-SERVING-001`, `MIX-UI-001`, and `AI-MULTI-001` are closed as
    not-reproduced after controlled photo serving, explicit-name/full-scroll,
    and response-boundary evidence. Keep the named photo serving scenario in
@@ -823,8 +828,9 @@ deferred; only verified unusability is fixed in this phase.
 ## Resume and completion requirements
 
 The QA-identity blocker is resolved. The fresh Xcode-beta Debug build and
-install are now complete; continue remaining authenticated Simulator rows
-using the real UI and backend persistence checks.
+install are now complete; continue any remaining Simulator-promotable rows
+using the real UI and backend persistence checks, while preserving explicit
+automated-only classifications where the required evidence is unavailable.
 The authorized QA C deletion lifecycle is complete. Then perform the full critical-journey
 re-sweep, targeted physical-iPhone pass, current runtime-changing staging
 cold-start validation, final automated checks, and closeout review. Do not mark
