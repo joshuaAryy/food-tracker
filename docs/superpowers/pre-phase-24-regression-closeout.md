@@ -777,7 +777,7 @@ none of these checks is marked complete by Simulator or API evidence:
 4. Physical-iPhone acceptance remains a user-owned final gate.
 5. The runtime-fix candidate still requires a completed Railway deployment and
    served-provenance check before current-HEAD staging UAT. The matrix's
-   `COLD-002` row tracks the exact current candidate `27bde59`; it remains
+   `COLD-002` row tracks the exact current candidate `8f039c4`; it remains
    blocked until that committed SHA can be deployed and verified as served.
    Deployment
    `3bbfb81` for exact candidate `17b85b0` failed during code-snapshot
