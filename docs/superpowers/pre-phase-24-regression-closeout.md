@@ -770,8 +770,11 @@ none of these checks is marked complete by Simulator or API evidence:
    archive of `27bde59` created deployment
    `0e96cd56-8193-4263-9c57-b2babbbf9fff`, which reached terminal `FAILED` at
    `2026-09-13T04:05:43.201Z` with no build/deploy logs and no served
-   provenance. Inspect any later validated deployment's terminal status and
-   source provenance before treating staging behavior as evidence.
+   provenance. A further exact archive of current committed tip `8f039c4`
+   created deployment `5865a859-b33a-49ea-b465-0cb343830821`, still
+   `INITIALIZING` with no logs after repeated polls. Inspect any later
+   validated deployment's terminal status and source provenance before
+   treating staging behavior as evidence.
 
 ## Intentional exclusions and deferrals
 
