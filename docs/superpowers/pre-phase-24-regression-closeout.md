@@ -277,6 +277,12 @@ after the Food Library eligibility correction and Simulator rebuild:
   nutrient-state helper suites.
 - Mobile Jest: 71 suites / 212 tests passed, including the Profile Goal Pace
   and account-deletion reauthentication regressions.
+- On 2026-09-13, an exact rerun of the API command with
+  `food_tracker_test` and Pinecone credentials cleared, followed by the mobile
+  Vitest and Jest commands, again passed 116 API files / 1,401 tests, 67 mobile
+  Vitest files / 444 tests, and 71 mobile Jest suites / 212 tests. The known
+  Expo-notifications and React `act(...)` diagnostics remained non-failing and
+  excluded from acceptance.
 - Lint, typecheck, workspace build, Prisma generate/validate, and test-database
   migration deploy/status passed.
 - A resumed full API-test attempt was made against the dedicated
