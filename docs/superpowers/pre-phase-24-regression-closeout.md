@@ -216,6 +216,11 @@ explicit Delete water entry confirmation. The row disappeared from Water
 History afterward. This supplements the prior quick-add, Other Amount, and
 local Undo evidence without changing the water-only contract.
 
+In the same Fresh Simulator session, QA A toggled to Simple and opened the
+shared Log water sheet. The 250/350/500/750 mL controls, Other Amount,
+logged-at control, and explicit water-only semantics were reachable; closing
+without saving left no mutation. Complex was restored afterward.
+
 The QA A Complex History recheck also completed the three-state nutrient
 journey at the real UI boundary. `Added Sugar` was set to explicit `0`, saved,
 and reopened as `0`; it was then cleared, saved, and reopened with no value,
