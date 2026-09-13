@@ -670,6 +670,11 @@ passed across shared, mobile, and API packages. `corepack pnpm prisma:generate`
 and `corepack pnpm prisma:validate` also passed (Prisma `6.19.2`). These checks
 did not mutate application source or schema state.
 
+A fresh dedicated-test-database `prisma migrate status` probe still returns
+`P1001` because PostgreSQL at `127.0.0.1:5432` is unreachable. No migration
+deploy or database mutation was attempted; API/database validation remains an
+environment gate until the local test service is available.
+
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
