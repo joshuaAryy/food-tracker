@@ -948,6 +948,18 @@ the completed results are recorded in the physical-UAT checklist and matrix.
    recovered through API/DB wake and reached a usable authenticated UI. It was
    not rerun for this documentation-only closeout.
 
+5. The post-fix current-app search smoke was attempted on QA A Simulator
+   `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F` using the current branch's Metro
+   bundle and staging API target. The development client launched and the
+   staging API target was resolved, but Firebase email sign-in remained
+   unavailable in the native Simulator session (the app showed its generic
+   credential error while the same QA credential was independently verified
+   against the Firebase REST endpoint). Because authentication did not reach
+   the Food Tracker search UI, no Simulator PASS is claimed for the
+   typo/preparation/bad-branded user-facing search check. API route tests,
+   diagnostics, and live benchmarks remain valid; repeat this single UI row
+   once the native Firebase Simulator session is available.
+
 ## Intentional exclusions and deferrals
 
 Notifications/APNs, Apple Sign-In provisioning, supplements, drink taxonomy,
