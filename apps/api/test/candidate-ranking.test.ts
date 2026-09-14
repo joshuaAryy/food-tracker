@@ -281,6 +281,90 @@ describe('candidate ranking helper', () => {
     },
   );
 
+  it.each([
+    ['bannana', 'Banana'],
+    ['aplpe', 'Apple'],
+    ['avacado', 'Avocado'],
+    ['brocolli', 'Broccoli'],
+    ['salmn', 'Salmon'],
+    ['strwberry', 'Strawberry'],
+    ['pototo', 'Potato'],
+    ['spagetti', 'Spaghetti'],
+  ])('keeps a close fuzzy whole-string typo visible for %s', (query, name) => {
+    const score = scoreFoodCandidate({
+      query,
+      candidate: candidate({
+        name,
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.2,
+          semanticScore: null,
+        },
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.selectionEligible).toBe(false);
+  });
+
+  it('keeps an exact candidate ahead of a fuzzy-only typo candidate', () => {
+    const exact = foodItemCandidateForRegion('CA');
+    const fuzzy = foodItemCandidateForRegion('CA');
+    if (
+      exact.candidateType !== 'food_item' ||
+      fuzzy.candidateType !== 'food_item'
+    ) {
+      throw new Error('expected food item candidates');
+    }
+    exact.foodItem.id = 'exact-bannana';
+    exact.foodItem.name = 'Bannana';
+    fuzzy.foodItem.id = 'fuzzy-banana';
+    fuzzy.foodItem.name = 'Banana';
+    fuzzy.retrievalEvidence = {
+      lexical: false,
+      fuzzyDistance: 0.2,
+      semanticScore: null,
+    };
+    const ranked = rankParseCandidates('bannana', [fuzzy, exact]);
+    expect(ranked[0]?.foodItem?.id).toBe('exact-bannana');
+  });
+
+  it('does not treat a strict-word coincidence as a trusted branded match', () => {
+    const wrong = scoreFoodCandidate({
+      query: 'tim hortons double double',
+      candidate: candidate({
+        name: 'Sweets, jam type spread, Double Fruit',
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.632,
+          fuzzyKind: 'strict_word',
+          semanticScore: null,
+        },
+      }),
+    });
+    expect(wrong.selectionEligible).toBe(false);
+    expect(wrong.defaultSuitable).toBe(false);
+    expect(confidenceForScore(wrong)).not.toBe('high');
+  });
+
+  it('honors an explicit no-skin modifier when ranking chicken candidates', () => {
+    const skinOn = scoreFoodCandidate({
+      query: 'chicken no skin cooked',
+      candidate: candidate({
+        name: 'Chicken, breast, meat and skin, cooked',
+      }),
+    });
+    const skinless = scoreFoodCandidate({
+      query: 'chicken no skin cooked',
+      candidate: candidate({
+        name: 'Chicken, breast, without skin, cooked',
+      }),
+    });
+    expect(skinOn.selectionEligible).toBe(false);
+    expect(skinOn.penalties).toContain('negative_descriptor');
+    expect(skinless.selectionEligible).toBe(true);
+    expect(skinless.score).toBeGreaterThan(skinOn.score);
+  });
+
   it('uses persisted ranking source semantics for hydrated app-owned foods', () => {
     const appOwned = foodItemCandidateForRegion('CA');
     if (appOwned.candidateType !== 'food_item')

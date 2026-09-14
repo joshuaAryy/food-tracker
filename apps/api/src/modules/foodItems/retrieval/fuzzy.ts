@@ -5,6 +5,7 @@ export const FUZZY_RETRIEVAL_VERSION = 'trgm-v1';
 export const FUZZY_THRESHOLDS = {
   wholeStringDistance: 0.58,
   strictWordDistance: 0.64,
+  singleTokenRecoveryDistance: 0.82,
 } as const;
 
 export interface FuzzyCandidateRow {
@@ -45,6 +46,10 @@ export function acceptFuzzyCandidate(row: FuzzyCandidateRow): boolean {
   return row.distance <= threshold;
 }
 
+function acceptSingleTokenRecovery(row: FuzzyCandidateRow): boolean {
+  return row.distance <= FUZZY_THRESHOLDS.singleTokenRecoveryDistance;
+}
+
 export async function retrieveFuzzyFoodItemIds(input: {
   prisma: { $queryRaw<T>(query: Prisma.Sql): Promise<T> };
   query: string;
@@ -60,17 +65,33 @@ export async function retrieveFuzzyFoodItemMatches(input: {
   limit: number;
   userId?: string | null;
 }): Promise<FuzzyCandidateRow[]> {
+  const isSingleTokenQuery =
+    normalizeText(input.query).trim().split(/\s+/).length === 1;
+  const retrievalLimit = isSingleTokenQuery
+    ? Math.min(100, Math.max(input.limit * 5, 50))
+    : input.limit;
   const rows = (
     await Promise.all(
-      fuzzyCandidateQueries(input.query, input.limit, input.userId ?? null).map(
-        (query) => input.prisma.$queryRaw<FuzzyCandidateRow[]>(query),
-      ),
+      fuzzyCandidateQueries(
+        input.query,
+        retrievalLimit,
+        input.userId ?? null,
+      ).map((query) => input.prisma.$queryRaw<FuzzyCandidateRow[]>(query)),
     )
   ).flat();
   const seen = new Set<string>();
   return rows
-    .filter(acceptFuzzyCandidate)
-    .sort((left, right) => left.distance - right.distance)
+    .filter(
+      (row) =>
+        acceptFuzzyCandidate(row) ||
+        (isSingleTokenQuery && acceptSingleTokenRecovery(row)),
+    )
+    .sort((left, right) => {
+      if (isSingleTokenQuery && left.kind !== right.kind) {
+        return left.kind === 'whole_string' ? -1 : 1;
+      }
+      return left.distance - right.distance;
+    })
     .filter((row) => {
       if (seen.has(row.id)) return false;
       seen.add(row.id);

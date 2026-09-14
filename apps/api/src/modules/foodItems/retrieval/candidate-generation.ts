@@ -10,6 +10,7 @@ import { defaultWholeItemServingFromOptions } from '../usda-fdc.js';
 export interface CandidateRetrievalEvidence {
   lexical: boolean;
   fuzzyDistance: number | null;
+  fuzzyKind?: 'whole_string' | 'strict_word';
   semanticScore: number | null;
 }
 

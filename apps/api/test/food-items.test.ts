@@ -1453,6 +1453,39 @@ describe('food items API', () => {
     });
   });
 
+  it('returns canonical fuzzy typo matches as reviewable search candidates', async () => {
+    const banana = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana',
+        normalizedName: 'banana',
+        searchText: 'banana',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 89,
+        protein: 1.1,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'bannana', limit: 3 })
+      .expect(200);
+
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'food_item',
+      foodItem: { id: banana.id, name: 'Banana' },
+      confidence: 'medium',
+      retrievalEvidence: {
+        lexical: false,
+        fuzzyKind: expect.any(String),
+      },
+    });
+  });
+
   it('does not surface a metadata-only reference row as a loggable candidate', async () => {
     const metadataOnlyFood = await prisma.foodItem.create({
       data: {
