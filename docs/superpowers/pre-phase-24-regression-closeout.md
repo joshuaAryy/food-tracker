@@ -6,6 +6,57 @@ This document is the durable checkpoint for the whole-product regression sweep.
 It records evidence actually obtained so far; it does not convert automated or
 API evidence into Simulator or physical-device acceptance.
 
+## Reopened Food Search regression checkpoint (2026-09-14)
+
+The prior closeout at `8361089` was temporarily reopened for the measured Food
+Search regressions in the permanent benchmark and diagnostic corpus. The
+baseline diagnostic (60 queries × five modes, 300 observations) showed nine
+zero-visible fuzzy queries, including the single-token typo corpus, and the
+ranker ignored accepted `fuzzyDistance` evidence. It also showed an explicit
+`chicken no skin cooked` query being treated as an unqualified positive
+identity. The protected diagnostic script and benchmark database remained
+unchanged during all runs.
+
+Root causes and minimal corrections:
+
+- Fuzzy retrieval discarded the `whole_string`/`strict_word` distinction when
+  mapping FoodItems into ranking evidence. Ranking therefore could not make a
+  bounded fuzzy match visible while keeping it non-selectable. The correction
+  carries `fuzzyKind`, admits strict-word matches only with at least half of
+  the query's core-token coverage, and uses a bounded single-token recovery
+  window plus edit-distance identity scoring. Exact/preparation safety gates
+  remain authoritative.
+- Single-token recovery now considers the whole-string channel before the
+  strict-word channel, preventing short unrelated words from crowding out an
+  exact typo correction. No provider or Pinecone mutation was performed.
+- Query classification now recognizes `no <descriptor>`, `without <descriptor>`,
+  and `skinless` as explicit negative descriptors. Candidate text is checked
+  for an actual negated form; contradictory candidates are penalized and are
+  never trusted or default-selected.
+
+Focused red/green coverage now spans the eight single-token typo anchors,
+`chiken breast`, `grek yogurt`, strict-word coincidence safety, explicit
+no-skin ranking, route-level fuzzy evidence propagation, and the existing
+fuzzy threshold contract. The API suite remains green at 116 files / 1,413
+tests; workspace typecheck, lint, build, and changed-file formatting checks
+also pass under Node 22.23.0 and pnpm 10.34.3.
+
+Permanent benchmark evidence on `food_tracker_benchmark_test` (120 queries)
+is recorded in `/tmp/food-search-benchmark-postfix/`: legacy Top-1 65/120
+(54.17%) versus fuzzy Top-1 99/120 (82.50%), Top-3 101/120 (84.17%), with
+zero unsafe defaults, fuzzy/semantic-only trusted selections, historical
+snapshot mutations, private vectors, bulk provider calls, or Pinecone calls.
+The before/after 300-observation diagnostic artifacts are respectively
+`/tmp/food-search-diagnostic-2026-09-14T15-52-17-498Z/` and
+`/tmp/food-search-diagnostic-postfix4/`; the post-fix fuzzy run has one
+zero-visible query (versus nine) and ranks all eight single-token typo anchors
+with the canonical item first. Semantic runs still recorded intermittent
+Pinecone timeouts; the benchmark database's only index record is `ready`, not
+`active`, so the resolver correctly uses the configured fallback
+`food-search-v1`. This is an external derived-search limitation, not a
+nutrition-authority change; no Pinecone rebuild or namespace mutation was
+attempted.
+
 ## Baseline and repository state
 
 - Base/main merge baseline: `619f9eac17109f536eb12defb44f0589b29024fa`.
@@ -95,13 +146,14 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 69
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 71
 scenarios:
 
 - `PASS-AUTOMATED`: 9
 - `PASS-SIMULATOR`: 55
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
+- `PASS-API-BENCHMARK`: 2
 - `PASS-PHYSICAL`: 2
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
