@@ -929,7 +929,7 @@ the completed results are recorded in the physical-UAT checklist and matrix.
    credentials or tokens are included in the artifacts. The user did not need
    to repeat the full Simulator matrix.
 
-## Remaining evidence-class notes (not blockers)
+## Remaining evidence-class notes and pending UI check
 
 1. Nine rows remain `PASS-AUTOMATED` rather than Simulator PASS because their
    evidence is intentionally limited to an incomplete-profile fixture, provider
@@ -970,10 +970,13 @@ deferred; only verified unusability is fixed in this phase.
 
 ## Final completion determination
 
-Stage 14 is complete. The automated suites, broad authenticated Simulator
-matrix, Railway COLD-002 scale-to-zero gate, and targeted physical iPhone UAT
-all passed. Functional defects discovered during the sweep were root-caused,
-covered by regressions where practical, and corrected with focused commits.
-Purely visual findings remain deferred to Phase 24. The branch is pushed and
-ready for the user-controlled PR/merge decision; Codex created no PR and did
-not merge anything into `main`.
+The food-search correction itself is complete and its API, diagnostic, and
+benchmark evidence is green. The broader prior Stage 14 gates remain valid,
+including the authenticated Simulator matrix, Railway COLD-002 scale-to-zero
+gate, and targeted physical iPhone UAT. The newly added `SEARCH-UI-001` row is
+not complete: the current-app staging-target smoke could not authenticate in
+the native Simulator, and therefore no user-facing search PASS is claimed.
+Repeat that single row after native Firebase Simulator authentication and
+current-candidate provenance are available. Purely visual findings remain
+deferred to Phase 24. The branch is pushed and remains under the user's
+control; Codex created no PR and did not merge anything into `main`.
