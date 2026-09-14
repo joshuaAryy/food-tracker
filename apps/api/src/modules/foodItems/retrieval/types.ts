@@ -14,6 +14,7 @@ export interface CandidateIdentityTerms {
 export interface RetrievalEvidence {
   lexical: boolean;
   fuzzyDistance: number | null;
+  fuzzyKind?: 'whole_string' | 'strict_word';
   semanticScore: number | null;
 }
 

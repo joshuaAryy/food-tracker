@@ -92,4 +92,52 @@ describe('DeleteAccountPanel', () => {
       await screen.findByRole('button', { name: 'Permanently delete account' }),
     ).toBeTruthy();
   });
+
+  it('offers password reauthentication when deletion requires recent identity verification', async () => {
+    const deleteAccount = jest
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('recent auth required'), {
+          code: 'RECENT_AUTH_REQUIRED',
+        }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const reauthenticateWithPassword = jest.fn().mockResolvedValue(undefined);
+    const screen = await render(
+      <DeleteAccountPanel
+        actions={{
+          deleteAccount,
+          providerIds: ['password'],
+          reauthenticateWithPassword,
+        }}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.press(
+      await screen.findByRole('button', { name: 'Delete account' }),
+    );
+    await user.press(
+      await screen.findByRole('button', { name: 'Continue to delete account' }),
+    );
+    await user.type(
+      await screen.findByPlaceholderText('Type DELETE'),
+      'DELETE',
+    );
+    await user.press(
+      await screen.findByRole('button', { name: 'Permanently delete account' }),
+    );
+
+    const password = await screen.findByPlaceholderText('Current password');
+    expect(
+      await screen.findByRole('button', { name: 'Verify identity' }),
+    ).toBeTruthy();
+    await user.type(password, 'test-password');
+    await user.press(
+      await screen.findByRole('button', { name: 'Verify identity' }),
+    );
+
+    expect(reauthenticateWithPassword).toHaveBeenCalledWith('test-password');
+    expect(deleteAccount).toHaveBeenCalledTimes(2);
+  });
 });

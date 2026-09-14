@@ -175,7 +175,7 @@ export function AuthBootstrap({
         const { authService } = runtime;
         runtime.configureApiSession({
           clearSession: () => {
-            void authService.signOut();
+            void authService.signOut().catch(() => undefined);
           },
           getIdToken: async (forceRefresh) => {
             reportDiagnostic('token_request_started', {

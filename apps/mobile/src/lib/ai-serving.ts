@@ -8,8 +8,10 @@ import type {
 import { classifyServingUnit } from '@food-tracker/shared';
 import {
   availableServingChoices,
+  changeServingChoice,
   provisionalServingPreview,
   type ProvisionalServingPreview,
+  type ServingChoice,
   type ServingPreviewBasis,
 } from './serving-preview';
 
@@ -234,6 +236,41 @@ export function changeAiCandidateServing(
       previous.servingOptionId !== null && optionStillAvailable
         ? previous.servingOptionId
         : autoSelectedCountOption(previous.unit, candidate),
+  };
+}
+
+export function changeAiServingChoice(
+  previous: AiServingState,
+  choice: ServingChoice,
+): AiServingState & { error?: string } {
+  if (previous.unit.trim() === '') {
+    return {
+      ...previous,
+      amount:
+        previous.amount.trim() === '' && choice.quantity !== undefined
+          ? String(choice.quantity)
+          : previous.amount,
+      unit: choice.unit,
+      servingOptionId: choice.servingOptionId,
+      initialization: 'basis_default',
+    };
+  }
+
+  const result = changeServingChoice(
+    {
+      amount: previous.amount,
+      unit: previous.unit,
+      servingOptionId: previous.servingOptionId,
+    },
+    choice,
+  );
+  if (result.error !== undefined) return { ...previous, error: result.error };
+
+  return {
+    ...previous,
+    amount: result.amount,
+    unit: result.unit,
+    servingOptionId: result.servingOptionId,
   };
 }
 

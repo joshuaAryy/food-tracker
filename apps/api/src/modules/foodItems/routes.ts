@@ -690,8 +690,8 @@ foodItemsRouter.post(
           userId,
         });
         const fuzzyIds = fuzzyMatches.map((match) => match.id);
-        const fuzzyDistanceById = new Map(
-          fuzzyMatches.map((match) => [match.id, match.distance]),
+        const fuzzyMatchById = new Map(
+          fuzzyMatches.map((match) => [match.id, match]),
         );
         const fuzzyFoods = await prisma.foodItem.findMany({
           where: { AND: [visibleFoodWhere(userId), { id: { in: fuzzyIds } }] },
@@ -700,7 +700,13 @@ foodItemsRouter.post(
         const byId = new Map(fuzzyFoods.map((food) => [food.id, food]));
         for (const id of fuzzyIds) {
           const foodItem = byId.get(id);
-          if (foodItem === undefined || seen.has(foodItem.id)) continue;
+          const fuzzyMatch = fuzzyMatchById.get(id);
+          if (
+            foodItem === undefined ||
+            fuzzyMatch === undefined ||
+            seen.has(foodItem.id)
+          )
+            continue;
           const serialized = serializeFoodItem(foodItem);
           if (!hasAuthoritativeNutritionBasis(serialized)) continue;
           appendUniqueCandidate({
@@ -718,7 +724,8 @@ foodItemsRouter.post(
               rank: candidates.length + 1,
               retrievalEvidence: {
                 lexical: false,
-                fuzzyDistance: fuzzyDistanceById.get(id) ?? null,
+                fuzzyDistance: fuzzyMatch.distance,
+                fuzzyKind: fuzzyMatch.kind,
                 semanticScore: null,
               },
             }),

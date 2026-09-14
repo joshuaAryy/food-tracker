@@ -16,11 +16,13 @@ describe('AI serving suggestions', () => {
   });
 
   it('attaches deterministic serving suggestions while preserving raw AI fields', async () => {
+    let requestCount = 0;
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
+      vi.fn(async () => {
+        requestCount += 1;
+        if (requestCount > 1) {
+          return new Response(
             JSON.stringify({
               candidates: [
                 {
@@ -28,16 +30,18 @@ describe('AI serving suggestions', () => {
                     parts: [
                       {
                         text: JSON.stringify({
-                          items: [
+                          decisions: [
                             {
-                              name: 'eggs',
-                              quantityText: '2',
-                              servingText: '2 eggs',
+                              itemId: 'item-1',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
                             },
                             {
-                              name: 'toast',
-                              quantityText: null,
-                              servingText: null,
+                              itemId: 'item-2',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
                             },
                           ],
                         }),
@@ -48,8 +52,38 @@ describe('AI serving suggestions', () => {
               ],
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
-      ),
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: JSON.stringify({
+                        items: [
+                          {
+                            name: 'eggs',
+                            quantityText: '2',
+                            servingText: '2 eggs',
+                          },
+                          {
+                            name: 'toast',
+                            quantityText: null,
+                            servingText: null,
+                          },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
     );
 
     const response = await api

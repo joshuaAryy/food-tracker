@@ -350,6 +350,7 @@ export interface AiFoodParseFoodItemCandidate {
   retrievalEvidence?: {
     lexical: boolean;
     fuzzyDistance: number | null;
+    fuzzyKind?: 'whole_string' | 'strict_word';
     semanticScore: number | null;
   };
 }
@@ -365,6 +366,7 @@ export interface AiFoodParseExternalCandidate {
   retrievalEvidence?: {
     lexical: boolean;
     fuzzyDistance: number | null;
+    fuzzyKind?: 'whole_string' | 'strict_word';
     semanticScore: number | null;
   };
 }

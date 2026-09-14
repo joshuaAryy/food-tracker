@@ -93,11 +93,40 @@ describe('AI food parse API', () => {
     process.env.GEMINI_API_KEY = 'test-key';
     process.env.GEMINI_FOOD_PARSE_MODEL = 'gemini-2.5-flash';
     let capturedBody: unknown;
+    let requestCount = 0;
 
     vi.stubGlobal(
       'fetch',
       vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        requestCount += 1;
         capturedBody = JSON.parse(String(init?.body));
+        if (requestCount > 1) {
+          return new Response(
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              itemId: 'item-1',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
 
         return new Response(
           JSON.stringify({
@@ -141,34 +170,136 @@ describe('AI food parse API', () => {
     });
   });
 
-  it('accepts Gemini JSON wrapped in markdown code fences', async () => {
+  it('asks Gemini to judge retrieved candidates before accepting a trusted text match', async () => {
     process.env.AI_PROVIDER = 'gemini';
     process.env.GEMINI_API_KEY = 'test-key';
+    const localFood = await createFoodItem({
+      userId: null,
+      name: 'Rice',
+      sourceType: 'app_owned',
+    });
+    const requests: unknown[] = [];
 
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        async () =>
-          new Response(
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        requests.push(JSON.parse(String(init?.body)));
+        const requestNumber = requests.length;
+        const response =
+          requestNumber === 1
+            ? {
+                items: [
+                  {
+                    name: 'rice',
+                    quantityText: '1',
+                    servingText: '1 serving',
+                  },
+                ],
+              }
+            : {
+                decisions: [
+                  {
+                    itemId: 'item-1',
+                    decision: 'review',
+                    selectedCandidateId: localFood.id,
+                    reason: 'The preparation is ambiguous.',
+                  },
+                ],
+              };
+
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: { parts: [{ text: JSON.stringify(response) }] },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'rice' })
+      .expect(200);
+
+    expect(requests).toHaveLength(2);
+    expect(JSON.stringify(requests[1])).toContain('Retrieved candidates');
+    expect(response.body.data.items[0]).toMatchObject({
+      parsedName: 'rice',
+      reviewStatus: 'needs_review',
+      loggable: true,
+      selectedCandidateId: localFood.id,
+    });
+  });
+
+  it('does not preserve a trusted result when adequacy evaluation is invalid', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    let requestCount = 0;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        requestCount += 1;
+        const text =
+          requestCount === 1
+            ? JSON.stringify({
+                items: [
+                  {
+                    name: 'rice',
+                    quantityText: '1',
+                    servingText: '1 serving',
+                  },
+                ],
+              })
+            : JSON.stringify({ decisions: [{ itemId: 'unknown' }] });
+        return new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text }] } }],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
+    );
+
+    const response = await api
+      .post('/api/v1/ai/food-parse')
+      .send({ description: 'rice' })
+      .expect(503);
+
+    expectErrorEnvelope(response.body, 'AI_UNAVAILABLE');
+  });
+
+  it('accepts Gemini JSON wrapped in markdown code fences', async () => {
+    process.env.AI_PROVIDER = 'gemini';
+    process.env.GEMINI_API_KEY = 'test-key';
+    let requestCount = 0;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        requestCount += 1;
+        if (requestCount > 1) {
+          return new Response(
             JSON.stringify({
               candidates: [
                 {
                   content: {
                     parts: [
                       {
-                        text: [
-                          '```json',
-                          JSON.stringify({
-                            items: [
-                              {
-                                name: 'eggs',
-                                quantityText: '2',
-                                servingText: '2 eggs',
-                              },
-                            ],
-                          }),
-                          '```',
-                        ].join('\n'),
+                        text: JSON.stringify({
+                          decisions: [
+                            {
+                              itemId: 'item-1',
+                              decision: 'fallback',
+                              selectedCandidateId: null,
+                              reason: 'No trusted candidate.',
+                            },
+                          ],
+                        }),
                       },
                     ],
                   },
@@ -176,8 +307,37 @@ describe('AI food parse API', () => {
               ],
             }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
-          ),
-      ),
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                content: {
+                  parts: [
+                    {
+                      text: [
+                        '```json',
+                        JSON.stringify({
+                          items: [
+                            {
+                              name: 'eggs',
+                              quantityText: '2',
+                              servingText: '2 eggs',
+                            },
+                          ],
+                        }),
+                        '```',
+                      ].join('\n'),
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }),
     );
 
     const response = await api

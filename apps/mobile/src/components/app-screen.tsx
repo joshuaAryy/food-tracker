@@ -21,6 +21,7 @@ interface AppScreenProps extends PropsWithChildren {
   contentStyle?: StyleProp<ViewStyle>;
   backgroundColor?: string;
   keyboardShouldPersistTaps?: 'always' | 'never' | 'handled';
+  keyboardDismissMode?: 'none' | 'on-drag' | 'interactive';
   testID?: string;
 }
 
@@ -35,6 +36,7 @@ export function AppScreen({
   contentStyle,
   backgroundColor = colors.light.canvas,
   keyboardShouldPersistTaps = 'handled',
+  keyboardDismissMode = 'none',
   testID,
 }: AppScreenProps) {
   const isBottomSheet = presentation === 'bottom-sheet';
@@ -99,6 +101,7 @@ export function AppScreen({
             }
             contentInsetAdjustmentBehavior="automatic"
             keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+            keyboardDismissMode={keyboardDismissMode}
             refreshControl={
               onRefresh === undefined ? undefined : (
                 <RefreshControl

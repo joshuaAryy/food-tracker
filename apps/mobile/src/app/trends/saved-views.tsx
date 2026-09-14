@@ -398,9 +398,16 @@ export default function SavedViewsScreen() {
     <AppScreen contentClassName="gap-4">
       <View className="flex-row items-start justify-between gap-4">
         <View className="gap-1">
-          <AppText variant="caption" muted>
-            ‹ Explore trends
-          </AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to Insights"
+            className="min-h-11 justify-center"
+            onPress={() => router.back()}
+          >
+            <AppText variant="caption" muted>
+              ‹ Explore trends
+            </AppText>
+          </Pressable>
           <AppText variant="title">Saved views</AppText>
         </View>
         <AppText variant="label">Edit</AppText>

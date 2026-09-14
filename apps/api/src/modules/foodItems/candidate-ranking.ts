@@ -25,6 +25,7 @@ export interface RankableFoodCandidate {
   retrievalEvidence?: {
     lexical: boolean;
     fuzzyDistance: number | null;
+    fuzzyKind?: 'whole_string' | 'strict_word';
     semanticScore: number | null;
   };
   brandName: string | null;
@@ -96,6 +97,22 @@ const PREPARATION_WORDS = new Set([
   'toasted',
 ]);
 
+// Adjectives and nutrient attributes qualify a food identity; they should not
+// become the identity that determines whether a candidate is relevant.
+const ATTRIBUTE_WORDS = new Set([
+  'high',
+  'low',
+  'fiber',
+  'fibre',
+  'protein',
+  'calorie',
+  'calories',
+  'healthy',
+  'organic',
+  'natural',
+  'light',
+]);
+
 const STRONG_NEGATIVE_TERMS = [
   ['fast', 'food'],
   ['commercial', 'mix'],
@@ -138,6 +155,7 @@ const FORM_PENALTY_TERMS = [
   ['egg', 'white'],
   ['frozen'],
   ['pasteurized'],
+  ['leave'],
 ] as const;
 
 const NEGATIVE_DESCRIPTOR_TERMS = [
@@ -219,16 +237,6 @@ interface QueryTokenGroups {
   genericStopwords: string[];
 }
 
-function negativeTermTokens(): Set<string> {
-  return new Set(
-    NEGATIVE_DESCRIPTOR_TERMS.filter((term) => term.length === 1).flatMap(
-      (term) => term.map(normalizeToken),
-    ),
-  );
-}
-
-const NEGATIVE_TERM_TOKENS = negativeTermTokens();
-
 export function classifyQueryTokens(value: string): QueryTokenGroups {
   const tokens = normalizeText(value).split(/\s+/).map(normalizeToken);
   const genericStopwords: string[] = [];
@@ -236,16 +244,30 @@ export function classifyQueryTokens(value: string): QueryTokenGroups {
   const negativeDescriptorTokens: string[] = [];
   const coreFoodTokens: string[] = [];
 
-  for (const token of tokens) {
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === undefined) continue;
+    const nextToken = tokens[index + 1];
+    if (
+      (token === 'no' || token === 'without') &&
+      nextToken !== undefined &&
+      nextToken.length >= 2
+    ) {
+      genericStopwords.push(token);
+      negativeDescriptorTokens.push(nextToken);
+      index += 1;
+      continue;
+    }
+    if (token === 'skinless') {
+      negativeDescriptorTokens.push('skin');
+      continue;
+    }
     if (token.length < 2 || GENERIC_FOOD_WORDS.has(token)) {
       genericStopwords.push(token);
-    } else if (PREPARATION_WORDS.has(token)) {
+    } else if (PREPARATION_WORDS.has(token) || ATTRIBUTE_WORDS.has(token)) {
       modifierTokens.push(token);
     } else {
       coreFoodTokens.push(token);
-      if (NEGATIVE_TERM_TOKENS.has(token)) {
-        negativeDescriptorTokens.push(token);
-      }
     }
   }
 
@@ -276,6 +298,38 @@ function phraseMatch(query: string, name: string): boolean {
 
 function firstFoodToken(tokens: Set<string>): string | undefined {
   return [...tokens][0];
+}
+
+function editDistance(left: string, right: string): number {
+  const previous = Array.from(
+    { length: right.length + 1 },
+    (_, index) => index,
+  );
+  for (let leftIndex = 0; leftIndex < left.length; leftIndex += 1) {
+    const current = [leftIndex + 1];
+    for (let rightIndex = 0; rightIndex < right.length; rightIndex += 1) {
+      current.push(
+        left[leftIndex] === right[rightIndex]
+          ? previous[rightIndex]!
+          : 1 +
+              Math.min(
+                previous[rightIndex]!,
+                previous[rightIndex + 1]!,
+                current[rightIndex]!,
+              ),
+      );
+    }
+    for (let index = 0; index < current.length; index += 1) {
+      previous[index] = current[index]!;
+    }
+  }
+  return previous[right.length]!;
+}
+
+function fuzzyTokenDistanceLimit(queryToken: string): number {
+  // Longer misspellings need a little tolerance, but two edits are too
+  // permissive for short identity words (`bean` and `bar`, for example).
+  return queryToken.length >= 5 ? 2 : 1;
 }
 
 function isBrandedQuery(
@@ -310,7 +364,22 @@ function termPresent(
 function negativeDescriptorPenalty(input: {
   queryTokens: Set<string>;
   candidateTokens: Set<string>;
+  explicitNegativeTokens?: readonly string[];
+  candidateText?: string;
 }): boolean {
+  const normalizedCandidateText = normalizeText(input.candidateText ?? '');
+  const explicitContradiction = (input.explicitNegativeTokens ?? []).some(
+    (token) => {
+      if (!input.candidateTokens.has(token)) return false;
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const negated = new RegExp(
+        `(?:no|without)\\s+${escaped}\\b|${escaped}less\\b`,
+      );
+      return !negated.test(normalizedCandidateText);
+    },
+  );
+  if (explicitContradiction) return true;
+
   const requestedProductForm = FORM_PENALTY_TERMS.some(
     (term) =>
       termRequested(term, input.queryTokens) &&
@@ -376,10 +445,7 @@ export function scoreFoodCandidate(input: {
   const normalizedQuery = normalizeText(input.query);
   const normalizedName = normalizeText(input.candidate.name);
   const queryGroups = classifyQueryTokens(normalizedQuery);
-  const requestedDescriptorTokens = [
-    ...queryGroups.modifierTokens,
-    ...queryGroups.negativeDescriptorTokens,
-  ];
+  const requestedDescriptorTokens = [...queryGroups.modifierTokens];
   const queryDescriptorTokens = descriptorTokens(normalizedQuery);
   const candidateDescriptorTokens = descriptorTokens(
     input.candidate.brandName === null
@@ -414,13 +480,57 @@ export function scoreFoodCandidate(input: {
   const coreTokenMatches = queryCoreTokens.filter((token) =>
     nameTokens.has(token),
   );
+  const fuzzyDistance = input.candidate.retrievalEvidence?.fuzzyDistance;
+  const fuzzyKind = input.candidate.retrievalEvidence?.fuzzyKind;
+  const fuzzyCoreCoverage =
+    queryCoreTokens.length > 0 &&
+    coreTokenMatches.length >=
+      Math.max(1, Math.ceil(queryCoreTokens.length / 2));
+  const fuzzyEvidence =
+    fuzzyDistance !== null &&
+    fuzzyDistance !== undefined &&
+    (fuzzyKind === 'whole_string'
+      ? queryCoreTokens.length === 1
+      : fuzzyKind === 'strict_word'
+        ? queryCoreTokens.length === 1 || fuzzyCoreCoverage
+        : queryCoreTokens.length === 1 || fuzzyCoreCoverage);
+  const semanticEvidence =
+    input.candidate.retrievalEvidence?.semanticScore !== null &&
+    input.candidate.retrievalEvidence?.semanticScore !== undefined;
+  const fuzzyIdentityMatch =
+    fuzzyEvidence &&
+    queryCoreTokens.length === 1 &&
+    [...nameTokens].some(
+      (token) =>
+        token.length >= 3 &&
+        editDistance(token, queryCoreTokens[0]!) <=
+          fuzzyTokenDistanceLimit(queryCoreTokens[0]!),
+    );
+  const fuzzyIdentityMatchCount = fuzzyEvidence
+    ? queryCoreTokens.filter((queryToken) =>
+        [...nameTokens].some(
+          (token) =>
+            token.length >= 3 &&
+            editDistance(token, queryToken) <=
+              fuzzyTokenDistanceLimit(queryToken),
+        ),
+      ).length
+    : 0;
+  const fuzzyMatchedCandidateTokens = fuzzyEvidence
+    ? [...nameTokens].filter((token) =>
+        queryCoreTokens.some(
+          (queryToken) =>
+            token.length >= 3 &&
+            editDistance(token, queryToken) <=
+              fuzzyTokenDistanceLimit(queryToken),
+        ),
+      )
+    : [];
   const hasCoreTokenMatch =
     coreTokenMatches.length > 0 ||
     aliasIdentityMatch ||
-    foodIntent.identityAliasMatch;
-  const nonLexicalEvidence =
-    input.candidate.retrievalEvidence?.semanticScore !== null &&
-    input.candidate.retrievalEvidence?.semanticScore !== undefined;
+    foodIntent.identityAliasMatch ||
+    fuzzyIdentityMatch;
   const allCoreTokensMatch =
     containsAllTokens(nameTokens, queryCoreTokens) ||
     aliasIdentityMatch ||
@@ -434,6 +544,40 @@ export function scoreFoodCandidate(input: {
     strongHeadMatch ||
     aliasIdentityMatch ||
     foodIntent.identityHeadMatch;
+  const candidateHead = firstFoodToken(nameTokens);
+  const queryHead = queryCoreTokens[0];
+  const fuzzyHeadMatch =
+    fuzzyEvidence &&
+    queryHead !== undefined &&
+    candidateHead !== undefined &&
+    candidateHead.length >= 3 &&
+    editDistance(candidateHead, queryHead) <=
+      fuzzyTokenDistanceLimit(queryHead);
+  const identityMatchedTokens = queryCoreTokens.filter(
+    (queryToken) =>
+      nameTokens.has(queryToken) ||
+      (fuzzyEvidence &&
+        [...nameTokens].some(
+          (candidateToken) =>
+            candidateToken.length >= 3 &&
+            editDistance(candidateToken, queryToken) <=
+              fuzzyTokenDistanceLimit(queryToken),
+        )),
+  );
+  const identityCoverageCount =
+    aliasIdentityMatch || foodIntent.identityAliasMatch
+      ? queryCoreTokens.length
+      : identityMatchedTokens.length;
+  const insufficientCoreCoverage =
+    queryCoreTokens.length > 1 &&
+    identityCoverageCount < queryCoreTokens.length;
+  const incidentalIdentityMatch =
+    queryCoreTokens.length > 1 &&
+    identityCoverageCount === 1 &&
+    (!strongHeadMatch || insufficientCoreCoverage) &&
+    !fuzzyHeadMatch &&
+    !foodIntent.identityHeadMatch &&
+    !aliasIdentityMatch;
   const requestedDescriptorMatches = requestedDescriptorTokens.filter((token) =>
     nameDescriptorTokens.has(token),
   ).length;
@@ -441,9 +585,25 @@ export function scoreFoodCandidate(input: {
     requestedDescriptorTokens.length === 0 ||
     requestedDescriptorMatches === requestedDescriptorTokens.length;
   const hasUnrequestedNegative = negativeDescriptorPenalty({
-    queryTokens: queryDescriptorTokens,
+    queryTokens: new Set([
+      ...queryDescriptorTokens,
+      ...fuzzyMatchedCandidateTokens,
+    ]),
     candidateTokens: candidateDescriptorTokens,
+    explicitNegativeTokens: queryGroups.negativeDescriptorTokens,
+    candidateText:
+      input.candidate.brandName === null
+        ? input.candidate.name
+        : `${input.candidate.name} ${input.candidate.brandName}`,
   });
+  const explicitNegativeContradiction =
+    hasUnrequestedNegative && queryGroups.negativeDescriptorTokens.length > 0;
+  const positiveSkinRequested = /\bwith\s+skin\b/.test(normalizedQuery);
+  const candidateWithoutSkin = /\bwithout\s+skin\b|\bskinless\b/.test(
+    normalizedName,
+  );
+  const positiveDescriptorMismatch =
+    positiveSkinRequested && candidateWithoutSkin;
   const brandedMismatch =
     input.candidate.foodType === 'branded' &&
     input.candidate.brandName !== null &&
@@ -496,6 +656,14 @@ export function scoreFoodCandidate(input: {
   score += nutritionBonus(input.candidate);
   score += servingBonus(input.candidate);
 
+  if (fuzzyIdentityMatchCount > 0) {
+    score += Math.min(70, fuzzyIdentityMatchCount * 35);
+    if (queryCoreTokens.length === 1) {
+      score -= Math.max(0, nameTokens.size - 1) * 4;
+    }
+    confidenceScore += 1;
+  }
+
   if (brandRequested) {
     score += 60;
     confidenceScore += 1;
@@ -509,8 +677,20 @@ export function scoreFoodCandidate(input: {
 
   if (hasUnrequestedNegative) {
     penalties.push('negative_descriptor');
-    score -= 72;
+    score -= 140;
     confidenceScore -= 3;
+  }
+
+  if (positiveDescriptorMismatch) {
+    penalties.push('positive_descriptor_mismatch');
+    score -= 90;
+    confidenceScore -= 2;
+  }
+
+  if (insufficientCoreCoverage) {
+    penalties.push('insufficient_core_coverage');
+    score -= (queryCoreTokens.length - identityCoverageCount) * 42;
+    confidenceScore -= 2;
   }
 
   if (foodIntent.conflictsDefault) {
@@ -525,13 +705,16 @@ export function scoreFoodCandidate(input: {
   }
 
   const visibleRelevant =
-    (hasCoreTokenMatch || nonLexicalEvidence) &&
+    !incidentalIdentityMatch &&
+    !explicitNegativeContradiction &&
+    (hasCoreTokenMatch || fuzzyIdentityMatch || semanticEvidence) &&
     (foodIntent.category === null ||
       foodIntent.identityHeadMatch ||
       aliasIdentityMatch);
   const defaultSuitable =
     !brandedMismatch &&
     !hasUnrequestedNegative &&
+    !positiveDescriptorMismatch &&
     allCoreTokensMatch &&
     allRequestedDescriptorsMatch &&
     foodIntent.defaultSuitable;
@@ -540,6 +723,7 @@ export function scoreFoodCandidate(input: {
     visibleRelevant &&
     !brandedMismatch &&
     !hasUnrequestedNegative &&
+    !positiveDescriptorMismatch &&
     allCoreTokensMatch &&
     allRequestedDescriptorsMatch &&
     foodIntent.selectionEligible &&
@@ -569,7 +753,8 @@ export function confidenceForScore(
   if (
     score.penalties.includes('branded_mismatch') ||
     score.penalties.includes('negative_descriptor') ||
-    score.penalties.includes('edible_default_conflict')
+    score.penalties.includes('edible_default_conflict') ||
+    score.penalties.includes('insufficient_core_coverage')
   ) {
     return 'low';
   }

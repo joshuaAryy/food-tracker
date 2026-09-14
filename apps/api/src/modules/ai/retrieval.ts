@@ -100,6 +100,7 @@ export async function retrieveParsedFoodItems(input: {
       retrievalEvidence?: {
         lexical: boolean;
         fuzzyDistance: number | null;
+        fuzzyKind?: 'whole_string' | 'strict_word';
         semanticScore: number | null;
       },
     ) => {
@@ -240,6 +241,7 @@ export async function retrieveParsedFoodItems(input: {
             {
               lexical: false,
               fuzzyDistance: match.distance,
+              fuzzyKind: match.kind,
               semanticScore: null,
             },
           );

@@ -1453,6 +1453,96 @@ describe('food items API', () => {
     });
   });
 
+  it('returns canonical fuzzy typo matches as reviewable search candidates', async () => {
+    const banana = await prisma.foodItem.create({
+      data: {
+        userId: null,
+        name: 'Banana',
+        normalizedName: 'banana',
+        searchText: 'banana',
+        sourceType: 'app_owned',
+        foodType: 'generic',
+        servingQuantity: 100,
+        servingUnit: 'g',
+        servingWeightGrams: 100,
+        calories: 89,
+        protein: 1.1,
+      },
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'bannana', limit: 3 })
+      .expect(200);
+
+    expect(response.body.data.candidates[0]).toMatchObject({
+      candidateType: 'food_item',
+      foodItem: { id: banana.id, name: 'Banana' },
+      confidence: 'medium',
+      retrievalEvidence: {
+        lexical: false,
+        fuzzyKind: expect.any(String),
+      },
+    });
+  });
+
+  it('filters incidental strict-word coincidences at the search route boundary', async () => {
+    await prisma.foodItem.createMany({
+      data: [
+        {
+          userId: null,
+          name: 'Roll, dinner, plain',
+          normalizedName: 'roll dinner plain',
+          searchText: 'roll dinner plain',
+          sourceType: 'app_owned',
+          rankingClass: 'reference',
+          sourceProvider: 'cnf',
+          sourceId: 'kraft-route-roll',
+          foodType: 'generic',
+          servingQuantity: 100,
+          servingUnit: 'g',
+          servingWeightGrams: 100,
+          calories: 250,
+          protein: 8,
+        },
+        {
+          userId: null,
+          name: 'Kraft macaroni and cheese',
+          normalizedName: 'kraft macaroni and cheese',
+          searchText: 'kraft macaroni and cheese',
+          sourceType: 'app_owned',
+          rankingClass: 'reference',
+          sourceProvider: 'usda_fdc',
+          sourceId: 'kraft-route-mac',
+          foodType: 'generic',
+          servingQuantity: 100,
+          servingUnit: 'g',
+          servingWeightGrams: 100,
+          calories: 220,
+          protein: 9,
+        },
+      ],
+    });
+
+    const response = await api
+      .post('/api/v1/food-items/search-candidates')
+      .send({ query: 'kraft dinner', limit: 10 })
+      .expect(200);
+    const candidates = response.body.data.candidates as AiFoodParseCandidate[];
+
+    expect(
+      candidates.some(
+        (candidate) =>
+          candidate.candidateType === 'food_item' &&
+          candidate.foodItem.name === 'Roll, dinner, plain',
+      ),
+    ).toBe(false);
+    expect(candidates[0]).toMatchObject({
+      candidateType: 'food_item',
+      foodItem: { name: 'Kraft macaroni and cheese' },
+    });
+  });
+
   it('does not surface a metadata-only reference row as a loggable candidate', async () => {
     const metadataOnlyFood = await prisma.foodItem.create({
       data: {

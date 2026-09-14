@@ -3,6 +3,7 @@ import { Pressable, Text } from 'react-native';
 import { act, render, userEvent, waitFor } from '../../../test/render';
 import { AuthBootstrap, useAuthRuntime } from '../auth-bootstrap';
 import type { FirebaseAuthUser } from '../../../services/auth-service';
+import { AuthServiceError } from '../../../services/auth-errors';
 import {
   createAnalyticsCache,
   type AnalyticsCacheStorage,
@@ -255,6 +256,45 @@ describe('AuthBootstrap initialization', () => {
       expect(mockReplace).toHaveBeenCalledWith('/(auth)/sign-in');
     });
     expect(getSetupStatus).not.toHaveBeenCalled();
+    screen.unmount();
+  });
+
+  it('does not leak a rejected Firebase sign-out from API session cleanup', async () => {
+    const signOut = jest
+      .fn()
+      .mockRejectedValue(new AuthServiceError('sessionExpired'));
+    const configureApiSession = jest.fn();
+    const runtime: Runtime = {
+      authService: {
+        onIdTokenChanged: jest.fn().mockReturnValue(jest.fn()),
+        getIdToken: jest.fn(),
+        signOut,
+      },
+      getSetupStatus: jest.fn(),
+      configureApiSession,
+    };
+    const unhandledRejection = jest.fn();
+    process.on('unhandledRejection', unhandledRejection);
+    const screen = await render(
+      <TestAuthBootstrap loadRuntime={async () => runtime}>
+        <Text>Protected content</Text>
+      </TestAuthBootstrap>,
+    );
+
+    await waitFor(() => expect(configureApiSession).toHaveBeenCalledTimes(1));
+    const [session] = configureApiSession.mock.calls[0] as [
+      Runtime['configureApiSession'] extends (session: infer T) => void
+        ? T
+        : never,
+    ];
+    await act(async () => {
+      await session.clearSession();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    });
+
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(unhandledRejection).not.toHaveBeenCalled();
+    process.off('unhandledRejection', unhandledRejection);
     screen.unmount();
   });
 

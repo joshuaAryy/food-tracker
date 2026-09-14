@@ -35,6 +35,7 @@ import {
 } from '../src/modules/foodItems/retrieval/pinecone.js';
 import {
   acceptFuzzyCandidate,
+  FUZZY_THRESHOLDS,
   FUZZY_RETRIEVAL_VERSION,
   fuzzyCandidateQueries,
   retrieveFuzzyFoodItemMatches,
@@ -1448,6 +1449,7 @@ describe('hybrid retrieval policy', () => {
       acceptFuzzyCandidate({ id: 'x', distance: 0.9, kind: 'whole_string' }),
     ).toBe(false);
     expect(fuzzyCandidateQueries('greek yogrt', 10)).toHaveLength(2);
+    expect(FUZZY_THRESHOLDS.singleTokenRecoveryDistance).toBe(0.82);
   });
 
   it('builds a versioned global search document without nutrient vectors', () => {

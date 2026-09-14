@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, Search, Sparkles, X } from 'lucide-react-native';
 import type {
@@ -31,6 +31,7 @@ import {
   aiServingBasis,
   availableAiServingChoices,
   changeAiCandidateServing,
+  changeAiServingChoice,
   initialAiServingState,
   type AiServingCandidate,
   type AiServingState,
@@ -38,7 +39,6 @@ import {
 import { api, ApiClientError, errorMessage } from '@/lib/api-client';
 import {
   backendServingMessage,
-  convertServingAmountForUnitChange,
   nutritionBasisLabel,
 } from '@/lib/serving-preview';
 import { colors } from '@/theme/tokens';
@@ -602,6 +602,7 @@ export default function MealDescribeScreen() {
 
   return (
     <AppScreen
+      keyboardDismissMode="on-drag"
       footer={
         result === null ? (
           <AppButton loading={parsing} onPress={parseMeal}>
@@ -660,6 +661,9 @@ export default function MealDescribeScreen() {
               label="Meal description"
               multiline
               numberOfLines={5}
+              blurOnSubmit
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
               placeholder="2 eggs, toast with butter, and a banana"
               value={description}
               onChangeText={setDescription}
@@ -1019,27 +1023,22 @@ export default function MealDescribeScreen() {
                                 clearRowError(item.id);
                               }}
                               onSelectChoice={(choice) => {
-                                const converted =
-                                  convertServingAmountForUnitChange({
-                                    amount: Number(servingState.amount),
-                                    fromUnit: servingState.unit,
-                                    toUnit: choice.unit,
-                                  });
-                                if (converted.kind === 'converted') {
+                                const nextState = changeAiServingChoice(
+                                  servingState,
+                                  choice,
+                                );
+                                if (nextState.error === undefined) {
                                   clearRowError(item.id);
                                   setServingStates((current) => ({
                                     ...current,
                                     [item.id]: {
-                                      ...servingState,
-                                      amount: converted.displayText,
-                                      unit: choice.unit,
-                                      servingOptionId: choice.servingOptionId,
+                                      ...nextState,
                                     },
                                   }));
-                                } else if (converted.kind === 'too_small') {
+                                } else {
                                   setRowErrors((current) => ({
                                     ...current,
-                                    [item.id]: converted.reason,
+                                    [item.id]: nextState.error!,
                                   }));
                                 }
                               }}

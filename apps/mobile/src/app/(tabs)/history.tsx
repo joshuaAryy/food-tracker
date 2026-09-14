@@ -32,6 +32,7 @@ import {
 } from '@/components/skeleton';
 import { api, errorMessage } from '@/lib/api-client';
 import { addLocalDateDays, todayInTimezone } from '@/lib/date-time';
+import { canSaveFoodLogToMyFoods } from '@/lib/food-library-ui';
 import { quickAddWater, undoQuickAddWater } from '@/lib/water-actions';
 import { useAppStore } from '@/store/app-store';
 import { colors } from '@/theme/tokens';
@@ -764,11 +765,6 @@ export default function HistoryScreen() {
     });
   };
 
-  const canSaveToMyFoods = (food: FoodLog) =>
-    food.recipeSnapshot === null &&
-    food.mixedMealSnapshot === null &&
-    food.servingSnapshot?.provenance.basisOrigin !== 'ai_estimate';
-
   const saveToMyFoods = (food: FoodLog) => {
     Alert.alert(
       'Save to My Foods?',
@@ -983,7 +979,7 @@ export default function HistoryScreen() {
                           </View>
                         </View>
                       </Pressable>
-                      {canSaveToMyFoods(food) ? (
+                      {canSaveFoodLogToMyFoods(food) ? (
                         <Pressable
                           accessibilityRole="button"
                           accessibilityLabel={`Save ${food.foodName} to My Foods`}

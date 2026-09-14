@@ -93,6 +93,24 @@ function regionalFoodItem(): FoodItem {
   return candidate.foodItem;
 }
 
+function namedFoodItemCandidate(
+  name: string,
+  retrievalEvidence?: AiFoodParseCandidate['retrievalEvidence'],
+): AiFoodParseCandidate {
+  const candidate = foodItemCandidateForRegion('CA');
+  if (candidate.candidateType !== 'food_item') {
+    throw new Error('expected food item candidate');
+  }
+  candidate.foodItem.name = name;
+  candidate.foodItem.id = `food-${name}`;
+  candidate.foodItem.nutrients = { water: { amount: 1, unit: 'g' } };
+  candidate.matchReason = 'reference';
+  if (retrievalEvidence !== undefined) {
+    candidate.retrievalEvidence = retrievalEvidence;
+  }
+  return candidate;
+}
+
 describe('candidate ranking helper', () => {
   it('does not treat a metadata-only FoodItem as loggable', () => {
     expect(
@@ -280,6 +298,195 @@ describe('candidate ranking helper', () => {
       expect(score.selectionEligible).toBe(false);
     },
   );
+
+  it.each([
+    ['bannana', 'Banana'],
+    ['aplpe', 'Apple'],
+    ['avacado', 'Avocado'],
+    ['brocolli', 'Broccoli'],
+    ['salmn', 'Salmon'],
+    ['strwberry', 'Strawberry'],
+    ['pototo', 'Potato'],
+    ['spagetti', 'Spaghetti'],
+  ])('keeps a close fuzzy whole-string typo visible for %s', (query, name) => {
+    const score = scoreFoodCandidate({
+      query,
+      candidate: candidate({
+        name,
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.2,
+          semanticScore: null,
+        },
+      }),
+    });
+    expect(score.visibleRelevant).toBe(true);
+    expect(score.selectionEligible).toBe(false);
+  });
+
+  it('keeps an exact candidate ahead of a fuzzy-only typo candidate', () => {
+    const exact = foodItemCandidateForRegion('CA');
+    const fuzzy = foodItemCandidateForRegion('CA');
+    if (
+      exact.candidateType !== 'food_item' ||
+      fuzzy.candidateType !== 'food_item'
+    ) {
+      throw new Error('expected food item candidates');
+    }
+    exact.foodItem.id = 'exact-bannana';
+    exact.foodItem.name = 'Bannana';
+    fuzzy.foodItem.id = 'fuzzy-banana';
+    fuzzy.foodItem.name = 'Banana';
+    fuzzy.retrievalEvidence = {
+      lexical: false,
+      fuzzyDistance: 0.2,
+      semanticScore: null,
+    };
+    const ranked = rankParseCandidates('bannana', [fuzzy, exact]);
+    expect(ranked[0]?.foodItem?.id).toBe('exact-bannana');
+  });
+
+  it('does not treat a strict-word coincidence as a trusted branded match', () => {
+    const wrong = scoreFoodCandidate({
+      query: 'tim hortons double double',
+      candidate: candidate({
+        name: 'Sweets, jam type spread, Double Fruit',
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.632,
+          fuzzyKind: 'strict_word',
+          semanticScore: null,
+        },
+      }),
+    });
+    expect(wrong.selectionEligible).toBe(false);
+    expect(wrong.defaultSuitable).toBe(false);
+    expect(confidenceForScore(wrong)).not.toBe('high');
+  });
+
+  it('honors an explicit no-skin modifier when ranking chicken candidates', () => {
+    const skinOn = scoreFoodCandidate({
+      query: 'chicken no skin cooked',
+      candidate: candidate({
+        name: 'Chicken, breast, meat and skin, cooked',
+      }),
+    });
+    const skinless = scoreFoodCandidate({
+      query: 'chicken no skin cooked',
+      candidate: candidate({
+        name: 'Chicken, breast, without skin, cooked',
+      }),
+    });
+    expect(skinOn.selectionEligible).toBe(false);
+    expect(skinOn.visibleRelevant).toBe(false);
+    expect(skinOn.penalties).toContain('negative_descriptor');
+    expect(skinless.selectionEligible).toBe(true);
+    expect(skinless.score).toBeGreaterThan(skinOn.score);
+  });
+
+  it('ranks a roasted sweet-potato root above contradictory leaves', () => {
+    const ranked = rankParseCandidates('roasted sweet potato', [
+      namedFoodItemCandidate('Sweet potato leaves, steamed, with salt', {
+        lexical: false,
+        fuzzyDistance: 0.381,
+        fuzzyKind: 'strict_word',
+        semanticScore: null,
+      }),
+      namedFoodItemCandidate('Sweet potato, baked, skin removed after baking', {
+        lexical: false,
+        fuzzyDistance: 0.381,
+        fuzzyKind: 'strict_word',
+        semanticScore: null,
+      }),
+    ]);
+
+    expect(ranked[0]?.foodItem?.name).toContain('Sweet potato, baked');
+  });
+
+  it('lets core food identity outrank descriptor-only fuzzy matches', () => {
+    const ranked = rankParseCandidates('high fiber bean', [
+      namedFoodItemCandidate(
+        'Granola bar, chewy, high fibre, oats and chocolate',
+        {
+          lexical: false,
+          fuzzyDistance: 0.579,
+          fuzzyKind: 'strict_word',
+          semanticScore: null,
+        },
+      ),
+      namedFoodItemCandidate('Beans, baked', {
+        lexical: true,
+        fuzzyDistance: null,
+        semanticScore: null,
+      }),
+    ]);
+
+    expect(ranked[0]?.foodItem?.name).toBe('Beans, baked');
+  });
+
+  it('suppresses a branded-query result that only matches an incidental trailing word', () => {
+    const score = scoreFoodCandidate({
+      query: 'kraft dinner',
+      candidate: candidate({
+        name: 'Roll, dinner, plain',
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.462,
+          fuzzyKind: 'strict_word',
+          semanticScore: null,
+        },
+      }),
+    });
+
+    expect(score.visibleRelevant).toBe(false);
+    expect(confidenceForScore(score)).toBe('low');
+  });
+
+  it('does not present one repeated-token coincidence as a plausible branded match', () => {
+    const score = scoreFoodCandidate({
+      query: 'tim hortons double double',
+      candidate: candidate({
+        name: 'Sweets, jam type spread, Double Fruit',
+        retrievalEvidence: {
+          lexical: false,
+          fuzzyDistance: 0.632,
+          fuzzyKind: 'strict_word',
+          semanticScore: null,
+        },
+      }),
+    });
+
+    expect(score.visibleRelevant).toBe(false);
+    expect(confidenceForScore(score)).toBe('low');
+  });
+
+  it('suppresses an external result that only matches a leading brand token', () => {
+    const score = scoreFoodCandidate({
+      query: 'kraft dinner',
+      candidate: candidate({
+        name: "KRAFT BREAKSTONE'S Reduced Fat Sour Cream",
+        source: 'usda_fdc',
+      }),
+    });
+
+    expect(score.visibleRelevant).toBe(false);
+    expect(score.penalties).toContain('insufficient_core_coverage');
+  });
+
+  it('ranks a requested with-skin preparation above a without-skin alternative', () => {
+    const ranked = rankParseCandidates('apple with skin', [
+      namedFoodItemCandidate('Apples, raw, without skin'),
+      namedFoodItemCandidate('Apples, raw, with skin'),
+    ]);
+
+    expect(ranked[0]?.foodItem?.name).toBe('Apples, raw, with skin');
+    const withoutSkin = scoreFoodCandidate({
+      query: 'apple with skin',
+      candidate: candidate({ name: 'Apples, raw, without skin' }),
+    });
+    expect(withoutSkin.selectionEligible).toBe(false);
+    expect(withoutSkin.penalties).toContain('positive_descriptor_mismatch');
+  });
 
   it('uses persisted ranking source semantics for hydrated app-owned foods', () => {
     const appOwned = foodItemCandidateForRegion('CA');
