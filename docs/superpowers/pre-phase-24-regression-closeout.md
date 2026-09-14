@@ -929,7 +929,7 @@ the completed results are recorded in the physical-UAT checklist and matrix.
    credentials or tokens are included in the artifacts. The user did not need
    to repeat the full Simulator matrix.
 
-## Remaining evidence-class notes and pending UI check
+## Remaining evidence-class notes and completed search UI check
 
 1. Nine rows remain `PASS-AUTOMATED` rather than Simulator PASS because their
    evidence is intentionally limited to an incomplete-profile fixture, provider
@@ -948,17 +948,20 @@ the completed results are recorded in the physical-UAT checklist and matrix.
    recovered through API/DB wake and reached a usable authenticated UI. It was
    not rerun for this documentation-only closeout.
 
-5. The post-fix current-app search smoke was attempted on QA A Simulator
+5. The post-fix current-app search smoke completed on QA A Simulator
    `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F` using the current branch's Metro
-   bundle and staging API target. The development client launched and the
-   staging API target was resolved, but Firebase email sign-in remained
-   unavailable in the native Simulator session (the app showed its generic
-   credential error while the same QA credential was independently verified
-   against the Firebase REST endpoint). Because authentication did not reach
-   the Food Tracker search UI, no Simulator PASS is claimed for the
-   typo/preparation/bad-branded user-facing search check. API route tests,
-   diagnostics, and live benchmarks remain valid; repeat this single UI row
-   once the native Firebase Simulator session is available.
+   bundle and a disposable current-schema clone of the canonical benchmark
+   database. Firebase email authentication reached the real Food Tracker
+   search UI. Observed `bannana` → `Choose Banana`, `avacado` → `Choose
+   Avocado`, `brocolli` → `Choose Broccoli`, `chiken breast` with relevant
+   chicken-breast variants, and `grilled chicken breast` with grilled/skinless
+   USDA candidates. `apple with skin` remained an explicit candidate list with
+   no auto-selected food. `tim hortons double double` showed unrelated
+   McDonald's/Applebee's/Burger King results as explicit review choices rather
+   than an auto-selected trusted log. No FoodLog mutation occurred. This is
+   real local current-candidate UI evidence; Railway staging was not
+   redeployed because the SFO free-tier peak window still rejected redeploy,
+   so no staging provenance is inferred from this row.
 
 ## Intentional exclusions and deferrals
 
@@ -974,9 +977,9 @@ The food-search correction itself is complete and its API, diagnostic, and
 benchmark evidence is green. The broader prior Stage 14 gates remain valid,
 including the authenticated Simulator matrix, Railway COLD-002 scale-to-zero
 gate, and targeted physical iPhone UAT. The newly added `SEARCH-UI-001` row is
-not complete: the current-app staging-target smoke could not authenticate in
-the native Simulator, and therefore no user-facing search PASS is claimed.
-Repeat that single row after native Firebase Simulator authentication and
-current-candidate provenance are available. Purely visual findings remain
-deferred to Phase 24. The branch is pushed and remains under the user's
-control; Codex created no PR and did not merge anything into `main`.
+complete with real local current-candidate Simulator evidence. Railway staging
+was not redeployed for this documentation-only closeout because the SFO
+free-tier peak window rejected redeploy; the Simulator evidence does not claim
+staging provenance. Purely visual findings remain deferred to Phase 24. The
+branch is pushed and remains under the user's control; Codex created no PR and
+did not merge anything into `main`.
