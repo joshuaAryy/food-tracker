@@ -6,6 +6,62 @@ This document is the durable checkpoint for the whole-product regression sweep.
 It records evidence actually obtained so far; it does not convert automated or
 API evidence into Simulator or physical-device acceptance.
 
+## Final Food Search ranking-quality pass (2026-09-14)
+
+The bounded follow-up pass started from `87e09f4` and committed its source and
+regression coverage as `e468b8e` (`fix: improve food search ranking quality`).
+The correction remains within the existing lexical → fuzzy → semantic → USDA
+fallback → deterministic-ranking architecture; no provider portfolio, Pinecone
+index, or nutrition authority changed.
+
+Two additional ranking defects were proven through request-boundary tests and
+the real current-app Simulator path. Multi-token candidates matching only a
+leading brand token (for example KRAFT sour cream for `kraft dinner`) were
+marked relevant despite incomplete identity coverage. Positive `with skin`
+intent was also treated as equivalent to a contradictory `without skin` form.
+The minimal correction marks those partial leading-token matches incidental and
+non-visible, and keeps a without-skin alternative reviewable but below a
+requested with-skin candidate and ineligible for default selection. Existing
+bounded fuzzy recovery, exact/preparation safety, negative-descriptor handling,
+and canonical FoodItem authority remain intact.
+
+Red/green coverage includes roasted sweet-potato root versus leaves, core
+identity versus descriptor-only fuzzy evidence, `kraft dinner` and Tim Hortons
+incidental matches, leading-brand external fallback, explicit no-skin behavior,
+and `apple with skin` ordering. The focused ranking/provider/route slice passed
+253 tests; the full API suite passed 116 files / 1,420 tests. Workspace
+typecheck, lint, build, Prisma generate/validate, mobile Jest (72 suites / 213
+tests), and targeted formatting/diff checks passed under Node `v22.23.0` and
+pnpm `10.34.3`.
+
+The protected 300-observation diagnostic was rerun against stable
+`food_tracker_benchmark_test` at `/tmp/food-search-diagnostic-final2` (no
+FoodItem/FoodLog mutation). Fuzzy and full-hybrid runs retained five expected
+zero-visible safety cases, suppressed 131 duplicates, and recorded mean/p95
+latencies of 37.916/72.471 ms (fuzzy) and 167.759/226.171 ms (full hybrid).
+The only semantic failure was one Pinecone timeout (`banana`); Pinecone remains
+an optional derived source and did not produce a trusted selection. No
+fuzzy-only or semantic-only trusted selection, historical mutation, or private
+vector was observed.
+
+The permanent benchmark was rerun on development, holdout, and all splits:
+development 71/80 Top-1 and 72/80 Top-3/5 (88.75% / 90%), holdout 28/40 and
+29/40 (70% / 72.5%), all 99/120 and 101/120 (82.5% / 84.17%). The prior fuzzy
+baseline was 99/120, so this pass preserved benchmark quality while improving
+the targeted false-positive safety cases.
+
+Real QA A current-app Simulator search smoke used the local current-candidate
+API clone and Metro bundle on `Food Tracker QA iPhone 17`
+(`53D0A189-7A75-49B1-97E6-A4C5DC4CB12F`). Observed results were: `bannana` →
+Banana; `avacado` → Avocado; `brocolli` → Broccoli; `high fiber bean` → no
+results; `roasted sweet potato` → sweet-potato root candidates with no leaves;
+`chicken no skin cooked` → no results; `tim hortons double double` → no
+results; `kraft dinner` → no results; `grilled chicken breast` → grilled,
+skinless chicken candidates; and `apple with skin` → with-skin apple rows
+first. No FoodLog mutation occurred. This is Simulator evidence for the local
+candidate, not staging provenance; COLD-002 was not rerun because this pass
+did not change deployed staging evidence.
+
 ## Reopened Food Search regression checkpoint (2026-09-14)
 
 The prior closeout at `8361089` was temporarily reopened for the measured Food
@@ -146,11 +202,11 @@ semantics, account isolation, and the Phase 24 visual boundary remain locked.
 
 ## Matrix coverage at this checkpoint
 
-`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 71
+`docs/superpowers/pre-phase-24-regression-matrix.csv` currently contains 73
 scenarios:
 
 - `PASS-AUTOMATED`: 9
-- `PASS-SIMULATOR`: 55
+- `PASS-SIMULATOR`: 57
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
 - `PASS-API-BENCHMARK`: 2
@@ -952,16 +1008,13 @@ the completed results are recorded in the physical-UAT checklist and matrix.
    `53D0A189-7A75-49B1-97E6-A4C5DC4CB12F` using the current branch's Metro
    bundle and a disposable current-schema clone of the canonical benchmark
    database. Firebase email authentication reached the real Food Tracker
-   search UI. Observed `bannana` → `Choose Banana`, `avacado` → `Choose
-   Avocado`, `brocolli` → `Choose Broccoli`, `chiken breast` with relevant
-   chicken-breast variants, and `grilled chicken breast` with grilled/skinless
-   USDA candidates. `apple with skin` remained an explicit candidate list with
-   no auto-selected food. `tim hortons double double` showed unrelated
-   McDonald's/Applebee's/Burger King results as explicit review choices rather
-   than an auto-selected trusted log. No FoodLog mutation occurred. This is
-   real local current-candidate UI evidence; Railway staging was not
-   redeployed because the SFO free-tier peak window still rejected redeploy,
-   so no staging provenance is inferred from this row.
+   search UI. The final ten-query set is recorded in the ranking-quality
+   section above: typo anchors resolved to their canonical foods; explicit
+   junk/contradictory queries returned no visible candidates; root-food,
+   grilled-chicken, and with-skin apple candidates were shown in the expected
+   order. No FoodLog mutation occurred. This is real local current-candidate
+   UI evidence; Railway was not redeployed for this source change, so no new
+   staging provenance is inferred from this row.
 
 ## Intentional exclusions and deferrals
 
