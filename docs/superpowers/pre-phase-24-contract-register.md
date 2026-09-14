@@ -18,7 +18,7 @@ The latest validated staging deployment is
 `251ef3ce36e652172832b9feda906b26a98f080e` on the active
 `pre-phase-24-product-regression-debugging` source branch. That commit is a
 documentation-only descendant of the latest application-code candidate
-`1a52472`; later documentation-only commits must not be treated as
+`75a64ec`; later documentation-only commits must not be treated as
 application-source changes. The prior exact API baseline
 `14c0472c1aeb59abe75e4f0cf8507dd70e74a98a` remains historical evidence only.
 
@@ -57,6 +57,13 @@ branch changes are outside authority.
 Physical iPhone acceptance is a final user-owned gate for real camera, barcode,
 photo-library/HEIC, permissions, touch/keyboard reachability, device launch,
 and representative logging. It does not require repeating the Simulator matrix.
+
+That gate was completed on 2026-09-14 on Josh's iPhone 15 Pro
+(`iPhone16,1`), iOS 27.0, OS build `24A5418b`: PHYS-01 through PHYS-09 all
+passed, including the post-fix barcode serving retest. The detailed evidence
+and exact observations remain in the physical checklist and regression
+closeout; this register preserves the evidence-class distinction from
+Simulator and staging results.
 
 ## Phase-24 boundary and exclusions
 

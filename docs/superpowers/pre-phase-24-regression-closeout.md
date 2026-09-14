@@ -1,6 +1,6 @@
 # Pre-Phase-24 Regression and Debugging Closeout
 
-**Status:** IN PROGRESS — not merge-ready and not phase-complete.
+**Status:** COMPLETE — branch pushed; user controls PR/merge.
 
 This document is the durable checkpoint for the whole-product regression sweep.
 It records evidence actually obtained so far; it does not convert automated or
@@ -18,7 +18,7 @@ API evidence into Simulator or physical-device acceptance.
 - No PR was created, no merge was performed, and no production deployment or
   production data mutation occurred.
 
-Latest mechanical recheck (2026-09-13) under Node 22/pnpm 10.34.3 passed
+Latest successful mechanical recheck (2026-09-13) under Node 22/pnpm 10.34.3 passed
 API Vitest (116 files / 1,401 tests), mobile Vitest (68 files / 447 tests),
 mobile Jest (72 suites / 213 tests), workspace typecheck, workspace lint,
 workspace build, Prisma generate/validate, and test-database migration
@@ -102,9 +102,10 @@ scenarios:
 - `PASS-SIMULATOR`: 55
 - `PASS-STAGING-API`: 1
 - `PASS-STAGING-SIMULATOR`: 1
+- `PASS-PHYSICAL`: 2
 - `OPEN-DEFECT`: 0
 - `OPEN-INVESTIGATION`: 0
-- `BLOCKED`: 2
+- `BLOCKED`: 0
 
 The matrix's existing `AI-001` row now records the `AI-KEYBOARD-001` P1 defect
 and its `1a52472` correction. The previously reproduced keyboard trap is no
@@ -117,9 +118,9 @@ reproduced after a controlled real-photo rerun. The earlier mixed-meal preview h
 authoritative preview confirmation. The earlier multi-food AI component-completeness finding
 `AI-MULTI-001` was not reproduced after full-scroll review and response-boundary
 verification; it remains a named regression scenario rather than an open
-defect. The physical-device aggregate and the newly split PHYS-04 barcode
-serving row are currently marked `BLOCKED` pending the corrected-build retest;
-the current debugging-candidate staging provenance/cold-start gate
+defect. The physical-device aggregate and PHYS-04 barcode serving row are now
+`PASS-PHYSICAL` on the authoritative device; the current debugging-candidate
+staging provenance/cold-start gate
 (`COLD-002`) is now `PASS-STAGING-SIMULATOR`. Nine automated-only rows still require Simulator-specific variants
 or controlled-injection evidence before they can be promoted to Simulator PASS:
 `ONB-001`, `ONB-002`, `SEARCH-003`, `SERV-001`, `AI-002`, `BAR-001`, `BAR-002`,
@@ -139,10 +140,11 @@ The normal Log food form was also opened with the native keyboard visible;
 host-window accessibility located its Close action, which returned to Progress
 without saving or leaving a stale overlay (`LOG-003`).
 
-## PHYS-04 barcode serving defect
+## PHYS-04 barcode serving defect and physical acceptance
 
-The physical iPhone 18 Pro / iOS 27 run reproduced a P1 functional defect:
-barcode detection and lookup succeeded, but the resulting FoodLog initially
+The pre-fix P1 defect was reproduced on Josh's authoritative physical device:
+an iPhone 15 Pro (product type `iPhone16,1`), iOS 27.0, OS build `24A5418b`.
+Barcode detection and lookup succeeded, but the resulting FoodLog initially
 had blank amount and unit state, and the visible mass-unit controls ignored
 taps until Reset assigned the `100 g` nutrition basis. Source-level request
 ordering and a deterministic FoodLog Jest regression proved that the scan
@@ -159,23 +161,22 @@ establishes a supported first unit while preserving the entered amount (or a
 listed choice quantity when the amount is blank); it does not invent a
 conversion or household/count relationship. Focused red/green coverage,
 mobile Vitest (68 files / 447 tests), mobile Jest (72 suites / 213 tests),
-mobile typecheck/lint, and workspace build are green. No staging/API behavior
-changed, so the already-passed COLD-002 evidence remains valid and was not
-repeated.
+mobile typecheck/lint, and workspace build passed. No staging/API behavior
+changed, so the already-passed COLD-002 evidence was intentionally preserved.
 
-An existing Metro-backed installed QA Simulator bundle was launched and its
-authenticated Progress screen was observed. That bundle predates `75a64ec`,
-and the Simulator cannot supply the real packaged-food scanner input, so no
-barcode-serving PASS was inferred from it and no rebuild was attempted under
-the current low-disk condition.
+After installing the fixed build on the iPhone 15 Pro, the real packaged-food
+barcode flow passed: amount/unit initialized without Reset, first unit
+selection and amount editing worked, g/kg/oz switching updated the preview,
+save succeeded, History matched persisted nutrition, and cancel/back/retry
+remained recoverable with no duplicate log. This closes
+`PHYS-04-BARCODE-SERVING-001` as `PASS-PHYSICAL`.
 
-The fix is not yet installed on the user's physical iPhone. PHYS-04 therefore
-remains a physical acceptance gate: install a build containing `75a64ec`, scan
-a real packaged-food barcode, verify amount and a selected supported unit are
-immediately usable without Reset, edit amount and unit with preview updates,
-save and reopen the FoodLog/History snapshot, and verify cancel/retry remain
-recoverable. Record the device/build evidence before promoting the row to
-physical PASS.
+The complete user-owned physical pass also recorded PHYS-01 through PHYS-09
+as PASS on this same device: cold launch, camera, photo library/HEIC path,
+barcode serving, `1 apple` recovery, touch/keyboard reachability, numeric/
+zero/Unknown preservation, hydration and mode continuity, and lifecycle
+recovery. This physical evidence is distinct from the Simulator and COLD-002
+evidence; the Simulator did not validate the real barcode retest.
 
 On 2026-09-13 the current installed QA A Simulator was re-observed after
 relaunch and transient-route recovery. The real UI traversed Profile →
@@ -192,7 +193,8 @@ bootstrap loop, stale draft, duplicate mutation, or cross-feature data fork was
 observed. These observations refresh `RESWEEP-001`, `RESWEEP-002`,
 `RESWEEP-003`, `MODE-001`, `HYD-001`, `WEIGHT-001`, `AN-002`, and `LOG-003`;
 the dedicated `RESWEEP-004` row records this run. The exhaustive corpus and
-physical-only rows remain separate gates.
+physical-only rows remain separate evidence classes; both are complete at the
+final gate.
 
 The resumed Complex nutrient recheck closed `NUTRIENT-EDIT-001`: after setting
 `Added Sugar = 2 g`, saving, leaving, and reopening `QA Archive Probe` through
@@ -314,7 +316,8 @@ where the recognition-only `black screen` row could be excluded or restored;
 editable 100 g row with mass/whole-item serving controls, and `Cancel photo
 log` returned without saving. This is Simulator evidence for review
 recoverability only; real camera, orientation/HEIC, permissions, and
-device-library behavior remain in the physical acceptance gate.
+device-library behavior were separately closed by the physical acceptance
+gate.
 
 The QA A hydration recheck completed the reversible edit/delete path in the
 Simulator: an existing 250 mL History entry was opened, changed to 500 mL,
@@ -554,7 +557,8 @@ after the Food Library eligibility correction and Simulator rebuild:
   recognition-only `ice plant flower` row, added missed trusted `Apple, raw`
   through search, edited its serving, reached atomic confirmation with a
   recalculated `122 kcal preview`, and backed out without saving. The
-  physical camera/library/HEIC behavior remains a device gate. A controlled
+  physical camera/library/HEIC behavior was later closed by the completed
+  PHYS-02/PHYS-03 device checks. A controlled
   rerun replaced an unresolved row with trusted Apple, kept the 61 kcal preview
   visible through a 100 g → 3.53 oz edit, and reached matching confirmation;
   `PHOTO-SERVING-001` was closed as not reproduced.
@@ -656,8 +660,8 @@ controls and a per-100 g basis, with no cup conversion offered or silently
 applied. The real Scan barcode surface also opened with Ready to scan guidance
 and scanner-light control; cancelling returned to the editable Log food form
 without a mutation. Known-code persistence, invalid/unknown scan-result
-handling, and physical scanner behavior remain pending gates rather than
-inferred passes.
+handling, and physical scanner behavior were later closed by the completed
+PHYS-04 physical retest rather than inferred from Simulator evidence.
 The QA A Simulator also opened an older Sunday Sep 6 History entry, changed
 Protein from 32.8 g to 135 g, saved, returned to Today, and reopened the older
 day to observe the persisted 135.0 g breakfast value. It then used the explicit
@@ -683,20 +687,24 @@ The Saved Views route initially had no reachable back action: its Explore
 trends label was plain text while root headers were hidden. A focused red test
 and minimal Pressable/`router.back()` correction were added; Metro-reloaded QA
 A Simulator exposed `Back to Insights`, and tapping it returned to Explore
-trends. The broader navigation family remains in progress.
+trends. The later critical re-sweep completed the remaining required navigation
+family; this earlier checkpoint wording is retained only as historical
+provenance.
 
 The latest QA A Simulator photo pass reopened the real Photo logging sheet and
 observed its one-time-analysis, normalized-JPEG, max-edge, and 5 MiB contract
 copy. Choosing the Simulator library path did not provide a selectable image in
 this environment, so no review/save result is inferred; after stopping and
 relaunching, authenticated Progress returned normally. Real library/HEIC,
-camera permissions, and device photo review remain physical-gate checks.
+camera permissions, and device photo review were later closed by the completed
+PHYS-02/PHYS-03 physical checks.
 
 The barcode path was also reopened from the QA A Log food flow. Simulator
 evidence showed the Ready to scan state, guidance text, scanner-light toggle
 (on → off), and Cancel barcode scan returning to the editable Log food form
-without a mutation. Known/unknown barcode lookup and real camera scanning remain
-the API/physical-device portions of the acceptance gate.
+without a mutation. Known/unknown barcode lookup remains covered by API
+evidence, and real camera scanning was later closed by PHYS-04 physical
+evidence.
 
 On 2026-09-12 the installed QA A Simulator bundle was relaunched after a
 terminate/launch cycle and returned directly to authenticated Progress. The
@@ -791,8 +799,8 @@ returned to authenticated Progress and cleared transient route state. The
 not treated as a product defect. Representative launcher/deep-link/cancel
 routes are now covered by `NAV-002`, `NAV-003`, `RESWEEP-002`, and `LOG-003`.
 The observed QA A critical continuity journey is complete; the nine explicitly
-listed automated-only variants and the physical/staging gates remain separate
-acceptance dependencies.
+listed automated-only variants remain separate evidence classes, while the
+physical and staging gates are now also complete.
 
 The same run opened the `recipes/editor` deep link with the Name field focused
 and the native keyboard visible. Close recipe editor remained reachable above
@@ -804,8 +812,9 @@ the explicit empty-state copy, switched History to Friday September 11 with 8
 entries and 172 kcal, opened Insights showing Sep 6–12 with 5 logged days and
 partial-day messaging, and opened Profile showing Complex mode, Lose at
 0.55 lb/week, 2,320 kcal, and 153.7 g protein. No route error or mutation was
-observed; this observed critical continuity pass is complete, while the
-explicitly listed automated-only, physical-device, and staging gates remain.
+observed; this observed critical continuity pass is complete. The explicitly
+listed automated-only rows remain separate evidence classes; physical-device
+and staging acceptance are complete as recorded above.
 
 On 2026-09-12 under Node `v22.23.0`, the current mobile source re-ran the
 Vitest suite (`67` files / `444` tests) and Jest suite (`71` suites / `212`
@@ -828,6 +837,16 @@ The staging/release guard subset was also rerun directly: the
 files passed (`3` files / `74` tests), including unsafe-target, environment,
 and simulator handoff guards.
 
+The final documentation-only recheck on 2026-09-14 passed mobile Vitest
+(`68` files / `447` tests), mobile Jest (`72` suites / `213` tests), workspace
+typecheck, lint, build, Prisma generate/validate, targeted formatting, and
+`git diff --check`. The API test command was also attempted with the dedicated
+`food_tracker_test` target but stopped before test collection with PostgreSQL
+`P1001` because localhost:5432 was unreachable. The latest successful API
+evidence remains 116 files / 1,401 tests from the unchanged source candidate;
+this environment-only failure introduced no source regression and no database
+mutation.
+
 A fresh dedicated-test-database `prisma migrate status` probe still returns
 `P1001` because PostgreSQL at `127.0.0.1:5432` is unreachable. No migration
 deploy or database mutation was attempted; API/database validation remains an
@@ -843,51 +862,39 @@ deployed.
 Detailed reproduction and evidence remain in
 `docs/superpowers/pre-phase-24-regression-defects.md`.
 
-## Physical-iPhone handoff checklist
+## Physical-iPhone handoff checklist (completed)
 
-This is the intentionally short user-owned gate after Simulator completion;
-none of these checks is marked complete by Simulator or API evidence:
+This was the intentionally short user-owned gate after Simulator completion;
+the completed results are recorded in the physical-UAT checklist and matrix.
 
-1. Install the verified candidate on the user iPhone and confirm a cold launch,
-   signed-in QA A route, background/foreground recovery, and no bootstrap loop.
-2. Grant camera and photo-library permissions; take a real portrait and
-   landscape photo, choose a library image including HEIC if available, and
-   complete or cancel Photo Logging without deleting the original asset.
-3. Scan a real packaged-food barcode, verify known/unknown/error recovery,
-   serving edit, and one successful persisted FoodLog; cancel also must return
-   to the prior form without mutation.
-4. Exercise representative touch and keyboard flows on the physical viewport:
-   normal food search/log, `1 apple` recovery, History edit, Water Log, and
-   Goal/Target/Profile navigation. Confirm required actions remain reachable.
-5. Record device model/OS, build/source SHA, permissions, each observed result,
-   screenshots or logs where useful, and any hardware-only limitation. Do not
-   repeat the full Simulator matrix or include credentials/tokens.
+1. PHYS-01 through PHYS-09 were executed on Josh's iPhone 15 Pro
+   (`iPhone16,1`), iOS 27.0, OS build `24A5418b`, using a build containing
+   `75a64ec`; every check passed.
+2. The physical run covered cold launch, real camera, photo-library/HEIC,
+   barcode serving, `1 apple`, touch/keyboard reachability, nutrient-state
+   preservation, hydration/mode continuity, and lifecycle recovery.
+3. Device evidence remains separate from Simulator/API evidence, and no
+   credentials or tokens are included in the artifacts. The user did not need
+   to repeat the full Simulator matrix.
 
-## Unresolved execution gates
+## Remaining evidence-class notes (not blockers)
 
 1. Nine rows remain `PASS-AUTOMATED` rather than Simulator PASS because their
-   remaining evidence requires an incomplete-profile fixture, provider
-   attribution that the current UI does not expose, controlled delayed-response
-   injection, physical scanner/camera behavior, or a selectable library asset.
-   Do not infer Simulator PASS from the automated suites; native password prompts
-   must be dismissed without saving credentials if any further authenticated flow
-   is exercised.
+   evidence is intentionally limited to an incomplete-profile fixture, provider
+   attribution not exposed by the current UI, controlled delayed-response
+   injection, or a selectable library asset. These are not unresolved critical
+   functional defects; the matrix preserves the evidence-class distinction.
 2. `PHOTO-SERVING-001`, `MIX-UI-001`, and `AI-MULTI-001` are closed as
    not-reproduced after controlled photo serving, explicit-name/full-scroll,
-   and response-boundary evidence. Keep the named photo serving scenario in
-   the final critical re-sweep in case it recurs.
+   and response-boundary evidence.
 3. QA C credentials and the approved UID were verified before the authorized
-   destructive lifecycle. The real Simulator reached deletion confirmation,
-   surfaced the recent-auth requirement, completed current-password
-   reauthentication through the corrected panel, permanently deleted only QA C,
-   and routed to signed-out state. QA A, QA B, and everyday data remain
-   untouched.
-4. Physical-iPhone acceptance remains a user-owned final gate.
-5. `COLD-002` is now `PASS-STAGING-SIMULATOR`: deployment
+   destructive lifecycle. Only disposable QA C was deleted and routed to
+   signed-out state; QA A, QA B, and everyday data remain untouched.
+4. `COLD-002` is `PASS-STAGING-SIMULATOR`: deployment
    `94a303eb-5cce-4a90-9a67-8f4c14828b78` served exact commit `251ef3c` from
    the debugging branch, and the un-prewarmed authenticated QA A cold launch
-   recovered through API/DB wake and reached a usable authenticated UI. The
-   earlier failed/skipped deployment attempts remain historical evidence only.
+   recovered through API/DB wake and reached a usable authenticated UI. It was
+   not rerun for this documentation-only closeout.
 
 ## Intentional exclusions and deferrals
 
@@ -897,11 +904,12 @@ production deployment/data, App Store/TestFlight/EAS, standalone Android
 acceptance, and Phase 24 visual redesign are excluded. Cosmetic findings remain
 deferred; only verified unusability is fixed in this phase.
 
-## Resume and completion requirements
+## Final completion determination
 
-The QA-identity blocker is resolved. The fresh Xcode-beta Debug build and
-install are complete, the authorized QA C deletion lifecycle is complete, and
-the current-candidate Railway cold-start gate (`COLD-002`) is now green. The
-next handoff is the short user-owned physical-iPhone checklist; do not repeat
-the Simulator matrix. This document remains in progress until the physical
-gate and final closeout checks are completed by the authorized owner.
+Stage 14 is complete. The automated suites, broad authenticated Simulator
+matrix, Railway COLD-002 scale-to-zero gate, and targeted physical iPhone UAT
+all passed. Functional defects discovered during the sweep were root-caused,
+covered by regressions where practical, and corrected with focused commits.
+Purely visual findings remain deferred to Phase 24. The branch is pushed and
+ready for the user-controlled PR/merge decision; Codex created no PR and did
+not merge anything into `main`.

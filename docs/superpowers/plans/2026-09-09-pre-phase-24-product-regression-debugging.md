@@ -443,3 +443,14 @@ acceptance all pass or have exact documented hardware-only limitations. No
 unresolved P0/P1 or meaningful functional P2 may contaminate Phase 24. Visual
 deferrals, protected-state preservation, clean tracked tree, pushed branch, and
 no-PR/no-merge status must be recorded.
+
+### Stage 13–14 completion record — 2026-09-14
+
+The targeted physical gate completed on Josh's iPhone 15 Pro
+(`iPhone16,1`), iOS 27.0, OS build `24A5418b`. PHYS-01 through PHYS-09 all
+passed, including the post-fix PHYS-04 barcode serving retest from
+`75a64ec`. COLD-002 remains the previously verified un-prewarmed staging
+deployment evidence and was not rerun for this documentation-only closeout.
+The matrix and closeout record the distinction between automated, Simulator,
+staging, and physical evidence; the phase closeout is complete once the final
+documentation checkpoint is pushed.
